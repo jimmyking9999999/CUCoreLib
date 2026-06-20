@@ -1,0 +1,3 @@
+﻿<Weavers xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="FodyWeavers.xsd">
+  <Costura ExcludeAssemblies="Assembly-CSharp|Newtonsoft.Json|Unity.RenderPipelines.Universal.Runtime|Unity.TextMeshPro|UnityEngine|UnityEngine.AnimationModule|UnityEngine.AudioModule|UnityEngine.CoreModule|UnityEngine.GridModule|UnityEngine.ImageConversionModule|UnityEngine.InputLegacyModule|UnityEngine.InputModule|UnityEngine.ParticleSystemModule|UnityEngine.Physics2DModule|UnityEngine.TextRenderingModule|UnityEngine.TilemapModule|UnityEngine.UI|UnityEngine.UIElementsModule|UnityEngine.UIModule|UnityEngine.UnityWebRequestAudioModule|UnityEngine.UnityWebRequestModule" />
+</Weavers>

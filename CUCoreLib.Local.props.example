@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project>
+  <PropertyGroup>
+
+    <!-- Point this at the game root. -->
+    <BaseGamePath>C:\Program Files (x86)\Steam\steamapps\common\Casualties Unknown Playtest</BaseGamePath>
+
+    <!-- Optional overrides if your layout is unusual. -->
+    <!-- <GameManagedDir>$(BaseGamePath)\CasualtiesUnknown_Data\Managed</GameManagedDir> -->
+    <!-- <AssemblyCSharpPath>$(GameManagedDir)\Assembly-CSharp.dll</AssemblyCSharpPath> -->
+    <!-- <BepInExDir>$(BaseGamePath)\BepInEx</BepInExDir> -->
+  </PropertyGroup>
+</Project>
