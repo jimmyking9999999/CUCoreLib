@@ -1,15 +1,38 @@
 # CUCoreLib
+A definitive modding library for Casualties: Unknown.
+
+<div align="center">
+<img width="648" height="400" alt="CUCoreLib" src="https://github.com/user-attachments/assets/24e022ba-0af1-4ce9-a66c-6b28b5e941f1" />
+</div>
+
+
+<div align="center">
+  
+[![Latest Release](https://img.shields.io/github/v/release/jimmyking9999999/CUCoreLib?include_prereleases&color=orange&logo=github)](https://github.com/jimmyking9999999/QoL-Unknown/releases/latest)
+[![Total Downloads](https://img.shields.io/github/downloads/jimmyking9999999/CUCoreLib/total?color=blue&logo=github)](https://github.com/jimmyking9999999/QoL-Unknown/releases)
+![Game Version](https://img.shields.io/badge/Game_version-v7.1.0-green)
+[![Documentation](https://img.shields.io/badge/Documentation-blue)](https://cucorelib.web.app/#welcome)
+
+</div>
+
 
 CUCoreLib is a BepInEx-based library for Casualties: Unknown. It exists to make common modding work reusable, via custom content registration, shared helpers, patch-safe integration points, and stable save, world, UI, and other APIs for dependent mods.
 
 Note: The project is not the base game source!
 
+
 ## Documentation
+<div align="center">
+<img width="516" height="400" alt="Webapp" src="https://github.com/user-attachments/assets/c836ede6-7aa3-4676-8051-37560beaa419" />
+</div>
 
 For developers looking to use this mod, please refer to the [Setup](https://cucorelib.web.app#setup) page in the online documentation.
 
 - API documentation is in `CUCoreLibWebapp/`.
 - The live website exists at https://cucorelib.web.app
+
+
+---
 
 For contributors, please refer below:
 
