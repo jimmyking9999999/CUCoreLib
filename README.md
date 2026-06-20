@@ -8,7 +8,7 @@ A definitive modding library for Casualties: Unknown.
 
 <div align="center">
   
-[![Latest Release](https://img.shields.io/github/v/release/jimmyking9999999/CUCoreLib?include_prereleases&color=orange&logo=github)](https://github.com/jimmyking9999999/CUCoreLib/releases/latest)
+[![Latest Release](https://img.shields.io/github/v/release/jimmyking9999999/CUCoreLib?color=orange&logo=github)](https://github.com/jimmyking9999999/CUCoreLib/releases/latest)
 [![Total Downloads](https://img.shields.io/github/downloads/jimmyking9999999/CUCoreLib/total?color=blue&logo=github)](https://github.com/jimmyking9999999/CUCoreLib/releases)
 ![Game Version](https://img.shields.io/badge/Game_version-v7.1.0-green)
 [![Documentation](https://img.shields.io/badge/Documentation-blue)](https://cucorelib.web.app/#welcome)
