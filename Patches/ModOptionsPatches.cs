@@ -22,7 +22,7 @@ namespace CUCoreLib.Patches
         private static void Postfix(SettingsMenu __instance)
         {
             SettingsMenuCategoryExtender.EnsureAttached(__instance);
-            SettingsMenuCategoryExtender helper = __instance.GetComponent<SettingsMenuCategoryExtender>();
+            var helper = __instance.GetComponent<SettingsMenuCategoryExtender>();
             helper?.OnTabSelected(Setting.SettingCategory.Video);
         }
     }
@@ -34,7 +34,7 @@ namespace CUCoreLib.Patches
         private static void Postfix(SettingsMenu __instance, Setting.SettingCategory category)
         {
             SettingsMenuCategoryExtender.EnsureAttached(__instance);
-            SettingsMenuCategoryExtender helper = __instance.GetComponent<SettingsMenuCategoryExtender>();
+            var helper = __instance.GetComponent<SettingsMenuCategoryExtender>();
             helper?.OnTabSelected(category);
         }
     }

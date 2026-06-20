@@ -20,57 +20,57 @@ namespace CUCoreLib.Data
 
     public sealed class CustomBuildingEntityDefinition
     {
-        public string ID;
-        public string Name;
+        public bool AddRigidbody2D;
+        public ItemDrop[] AlwaysDrop;
+        public bool Animal;
+        public ushort BlockFootstepSoundId;
+        public bool CantHit;
+        public bool ColliderIsTrigger;
+        public Vector2? ColliderOffset;
+        public Vector2? ColliderSize;
+        public Type[] Components;
+        public Action<GameObject> ConfigureInstance;
+
+        public Action<GameObject> ConfigurePrefab;
+        public bool CopyGlowPlantLayer;
         public string Description;
+        public float DropChanceMultiplier = 1f;
+        public BuildingGenerationStyle GenerationStyle = BuildingGenerationStyle.None;
+        public int GuaranteedDropAmount;
+
+        public float Health = 250f;
+        public float HeatPerSecond;
+        public float HeatRadius;
+        public AudioClip HitSound;
+
+        public string HitSoundReferenceId;
+        public string ID;
+        public bool IgnoreBodyOptimize;
+        public string[] ItemCategoriesToAdd;
+
+        public ItemDrop[] ItemsDropOnDestroy;
+        public int? Layer;
+        public float MaxHeatBodyTemperature;
+        public bool Metallic;
+        public string Name;
+        public WorldGeneration.PlaceCheckDelegate PlaceCheck;
+
+        public BuildingPlacementType Placement = BuildingPlacementType.Floor;
+        public bool RandomFlip = true;
+        public string RenderReferenceId = "stoneplant";
+        public bool RequireGround = true;
+        public RigidbodyType2D RigidbodyBodyType = RigidbodyType2D.Static;
+        public float RigidbodyGravityScale;
+        public Vector3 Scale = Vector3.one;
+        public int SortingOrder = 5;
+        public List<string> SpawnComponents = new List<string>();
+        public bool SpawnInGround;
+        public float SpawnMaxPerChunk;
+        public float SpawnMinPerChunk;
 
         public Sprite Sprite;
         public string SpriteAnimationId;
-        public int SortingOrder = 5;
-        public bool UseGlowPlantMaterial;
-        public Vector3 Scale = Vector3.one;
-        public Vector2? ColliderSize;
-        public Vector2? ColliderOffset;
-        public bool ColliderIsTrigger;
-        public int? Layer;
-        public bool AddRigidbody2D;
-        public RigidbodyType2D RigidbodyBodyType = RigidbodyType2D.Static;
-        public float RigidbodyGravityScale;
-
-        public float Health = 250f;
-        public bool RequireGround = true;
-        public bool Metallic;
-        public bool CantHit;
-        public bool Animal;
-        public bool IgnoreBodyOptimize;
-        public float DropChanceMultiplier = 1f;
-
-        public ItemDrop[] ItemsDropOnDestroy;
-        public ItemDrop[] AlwaysDrop;
-        public string[] ItemCategoriesToAdd;
-        public int GuaranteedDropAmount;
-
-        public BuildingPlacementType Placement = BuildingPlacementType.Floor;
-        public BuildingGenerationStyle GenerationStyle = BuildingGenerationStyle.None;
-        public float SpawnMinPerChunk;
-        public float SpawnMaxPerChunk;
         public float SurfaceOffset = 0.5f;
-        public bool RandomFlip = true;
-        public bool SpawnInGround;
-        public WorldGeneration.PlaceCheckDelegate PlaceCheck;
-
-        public Action<GameObject> ConfigurePrefab;
-        public Action<GameObject> ConfigureInstance;
-        public Type[] Components;
-        public List<string> SpawnComponents = new List<string>();
-
-        public string HitSoundReferenceId;
-        public AudioClip HitSound;
-        public ushort BlockFootstepSoundId;
-        public string RenderReferenceId = "stoneplant";
-        public bool CopyGlowPlantLayer;
-        public float HeatRadius;
-        public float HeatPerSecond;
-        public float MaxHeatBodyTemperature;
+        public bool UseGlowPlantMaterial;
     }
 }

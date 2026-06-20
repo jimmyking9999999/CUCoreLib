@@ -1,7 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
-using CUCoreLib.Data;
 using Newtonsoft.Json.Linq;
 using UnityEngine;
 
@@ -11,16 +9,10 @@ namespace CUCoreLib.Helpers
     {
         internal static JObject WriteSprite(Sprite sprite)
         {
-            if (sprite == null || sprite.texture == null)
-            {
-                return null;
-            }
+            if (sprite == null || sprite.texture == null) return null;
 
-            byte[] png = WriteTexture(sprite.texture);
-            if (png == null || png.Length == 0)
-            {
-                return null;
-            }
+            var png = WriteTexture(sprite.texture);
+            if (png == null || png.Length == 0) return null;
 
             return new JObject
             {
@@ -32,32 +24,20 @@ namespace CUCoreLib.Helpers
 
         internal static Sprite ReadSprite(JToken token)
         {
-            JObject obj = token as JObject;
-            if (obj == null)
-            {
-                return null;
-            }
+            var obj = token as JObject;
+            if (obj == null) return null;
 
-            string encoded = obj.Value<string>("data");
-            if (string.IsNullOrWhiteSpace(encoded))
-            {
-                return null;
-            }
+            var encoded = obj.Value<string>("data");
+            if (string.IsNullOrWhiteSpace(encoded)) return null;
 
-            if (!TryDecodeBase64(encoded, out byte[] data) || data == null || data.Length == 0)
-            {
-                return null;
-            }
+            if (!TryDecodeBase64(encoded, out var data) || data == null || data.Length == 0) return null;
 
-            float ppu = obj.Value<float?>("ppu") ?? AssetLoader.PPU_WORLD;
-            Sprite sprite = AssetLoader.LoadSpriteFromBytes(data, ppu);
+            var ppu = obj.Value<float?>("ppu") ?? AssetLoader.PPU_WORLD;
+            var sprite = AssetLoader.LoadSpriteFromBytes(data, ppu);
             if (sprite != null)
             {
-                string name = obj.Value<string>("name");
-                if (!string.IsNullOrWhiteSpace(name))
-                {
-                    sprite.name = name;
-                }
+                var name = obj.Value<string>("name");
+                if (!string.IsNullOrWhiteSpace(name)) sprite.name = name;
             }
 
             return sprite;
@@ -76,11 +56,8 @@ namespace CUCoreLib.Helpers
 
         internal static Color ReadColor(JToken token, Color fallback)
         {
-            JObject obj = token as JObject;
-            if (obj == null)
-            {
-                return fallback;
-            }
+            var obj = token as JObject;
+            if (obj == null) return fallback;
 
             return new Color(
                 obj.Value<float?>("r") ?? fallback.r,
@@ -91,18 +68,12 @@ namespace CUCoreLib.Helpers
 
         internal static JArray WriteLiquidStacks(IEnumerable<LiquidStack> stacks)
         {
-            if (stacks == null)
-            {
-                return null;
-            }
+            if (stacks == null) return null;
 
-            JArray array = new JArray();
-            foreach (LiquidStack stack in stacks)
+            var array = new JArray();
+            foreach (var stack in stacks)
             {
-                if (stack == null || string.IsNullOrWhiteSpace(stack.liquidId))
-                {
-                    continue;
-                }
+                if (stack == null || string.IsNullOrWhiteSpace(stack.liquidId)) continue;
 
                 array.Add(new JObject
                 {
@@ -116,26 +87,17 @@ namespace CUCoreLib.Helpers
 
         internal static List<LiquidStack> ReadLiquidStacks(JToken token)
         {
-            JArray array = token as JArray;
-            List<LiquidStack> stacks = new List<LiquidStack>();
-            if (array == null)
-            {
-                return stacks;
-            }
+            var array = token as JArray;
+            var stacks = new List<LiquidStack>();
+            if (array == null) return stacks;
 
-            foreach (JToken entry in array)
+            foreach (var entry in array)
             {
-                JObject obj = entry as JObject;
-                if (obj == null)
-                {
-                    continue;
-                }
+                var obj = entry as JObject;
+                if (obj == null) continue;
 
-                string liquidId = obj.Value<string>("liquidId");
-                if (string.IsNullOrWhiteSpace(liquidId))
-                {
-                    continue;
-                }
+                var liquidId = obj.Value<string>("liquidId");
+                if (string.IsNullOrWhiteSpace(liquidId)) continue;
 
                 stacks.Add(new LiquidStack(liquidId, obj.Value<float?>("amount") ?? 0f));
             }
@@ -145,18 +107,12 @@ namespace CUCoreLib.Helpers
 
         internal static JArray WriteCraftingQualities(IEnumerable<CraftingQuality> qualities)
         {
-            if (qualities == null)
-            {
-                return null;
-            }
+            if (qualities == null) return null;
 
-            JArray array = new JArray();
-            foreach (CraftingQuality quality in qualities)
+            var array = new JArray();
+            foreach (var quality in qualities)
             {
-                if (quality == null || string.IsNullOrWhiteSpace(quality.id))
-                {
-                    continue;
-                }
+                if (quality == null || string.IsNullOrWhiteSpace(quality.id)) continue;
 
                 array.Add(new JObject
                 {
@@ -170,26 +126,17 @@ namespace CUCoreLib.Helpers
 
         internal static List<CraftingQuality> ReadCraftingQualities(JToken token)
         {
-            JArray array = token as JArray;
-            List<CraftingQuality> qualities = new List<CraftingQuality>();
-            if (array == null)
-            {
-                return qualities;
-            }
+            var array = token as JArray;
+            var qualities = new List<CraftingQuality>();
+            if (array == null) return qualities;
 
-            foreach (JToken entry in array)
+            foreach (var entry in array)
             {
-                JObject obj = entry as JObject;
-                if (obj == null)
-                {
-                    continue;
-                }
+                var obj = entry as JObject;
+                if (obj == null) continue;
 
-                string id = obj.Value<string>("id");
-                if (string.IsNullOrWhiteSpace(id))
-                {
-                    continue;
-                }
+                var id = obj.Value<string>("id");
+                if (string.IsNullOrWhiteSpace(id)) continue;
 
                 qualities.Add(new CraftingQuality(id, obj.Value<float?>("amount") ?? 1f));
             }
@@ -199,18 +146,12 @@ namespace CUCoreLib.Helpers
 
         internal static JArray WriteTypeNames(IEnumerable<Type> types)
         {
-            if (types == null)
-            {
-                return null;
-            }
+            if (types == null) return null;
 
-            JArray array = new JArray();
-            foreach (Type type in types)
+            var array = new JArray();
+            foreach (var type in types)
             {
-                if (type == null)
-                {
-                    continue;
-                }
+                if (type == null) continue;
 
                 array.Add(type.AssemblyQualifiedName ?? type.FullName);
             }
@@ -220,26 +161,17 @@ namespace CUCoreLib.Helpers
 
         internal static Type[] ReadTypeNames(JToken token)
         {
-            JArray array = token as JArray;
-            if (array == null)
-            {
-                return null;
-            }
+            var array = token as JArray;
+            if (array == null) return null;
 
-            List<Type> types = new List<Type>();
-            foreach (JToken entry in array)
+            var types = new List<Type>();
+            foreach (var entry in array)
             {
-                string typeName = entry?.Value<string>();
-                if (string.IsNullOrWhiteSpace(typeName))
-                {
-                    continue;
-                }
+                var typeName = entry?.Value<string>();
+                if (string.IsNullOrWhiteSpace(typeName)) continue;
 
-                Type resolved = Type.GetType(typeName, false);
-                if (resolved != null)
-                {
-                    types.Add(resolved);
-                }
+                var resolved = Type.GetType(typeName, false);
+                if (resolved != null) types.Add(resolved);
             }
 
             return types.ToArray();
@@ -252,31 +184,26 @@ namespace CUCoreLib.Helpers
 
         private static byte[] WriteTexture(Texture2D texture)
         {
-            if (texture == null)
-            {
-                return null;
-            }
+            if (texture == null) return null;
 
             try
             {
-                if (texture.isReadable)
-                {
-                    return texture.EncodeToPNG();
-                }
+                if (texture.isReadable) return texture.EncodeToPNG();
             }
             catch
             {
             }
 
             RenderTexture renderTexture = null;
-            RenderTexture previous = RenderTexture.active;
+            var previous = RenderTexture.active;
             try
             {
-                renderTexture = RenderTexture.GetTemporary(texture.width, texture.height, 0, RenderTextureFormat.Default, RenderTextureReadWrite.Linear);
+                renderTexture = RenderTexture.GetTemporary(texture.width, texture.height, 0,
+                    RenderTextureFormat.Default, RenderTextureReadWrite.Linear);
                 Graphics.Blit(texture, renderTexture);
                 RenderTexture.active = renderTexture;
 
-                Texture2D readable = new Texture2D(texture.width, texture.height, TextureFormat.RGBA32, false);
+                var readable = new Texture2D(texture.width, texture.height, TextureFormat.RGBA32, false);
                 readable.ReadPixels(new Rect(0, 0, texture.width, texture.height), 0, 0);
                 readable.Apply();
                 return readable.EncodeToPNG();
@@ -288,10 +215,7 @@ namespace CUCoreLib.Helpers
             finally
             {
                 RenderTexture.active = previous;
-                if (renderTexture != null)
-                {
-                    RenderTexture.ReleaseTemporary(renderTexture);
-                }
+                if (renderTexture != null) RenderTexture.ReleaseTemporary(renderTexture);
             }
         }
 

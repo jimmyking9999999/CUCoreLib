@@ -1,7 +1,7 @@
+using System.Reflection;
 using CUCoreLib.Helpers;
 using CUCoreLib.Registries;
 using HarmonyLib;
-using System.Reflection;
 using UnityEngine;
 
 namespace CUCoreLib.Patches
@@ -22,15 +22,9 @@ namespace CUCoreLib.Patches
         [HarmonyPrefix]
         private static bool CreateItemFallback(string id, Vector2 pos, float rot, ref GameObject __result)
         {
-            if (string.IsNullOrWhiteSpace(id))
-            {
-                return true;
-            }
+            if (string.IsNullOrWhiteSpace(id)) return true;
 
-            if (Resources.Load<GameObject>(id) != null)
-            {
-                return true;
-            }
+            if (Resources.Load<GameObject>(id) != null) return true;
 
             if (ItemRegistry.RegisteredItems.ContainsKey(id) || BuildingEntityRegistry.IsRegistered(id))
             {

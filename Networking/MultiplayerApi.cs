@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using CUCoreLib.Registries;
@@ -38,7 +37,8 @@ namespace CUCoreLib.Networking
             return MultiplayerBridge.SendToServer(channel, payload, reliable);
         }
 
-        public static bool RequestServer(string channel, object payload, Action<JToken> onResponse, bool reliable = true)
+        public static bool RequestServer(string channel, object payload, Action<JToken> onResponse,
+            bool reliable = true)
         {
             return MultiplayerBridge.RequestServer(channel, payload, onResponse, reliable);
         }
@@ -48,7 +48,8 @@ namespace CUCoreLib.Networking
             return MultiplayerBridge.SendToClient(clientId, channel, payload, reliable);
         }
 
-        public static bool Broadcast(string channel, object payload = null, bool includeHost = false, bool reliable = true)
+        public static bool Broadcast(string channel, object payload = null, bool includeHost = false,
+            bool reliable = true)
         {
             return MultiplayerBridge.Broadcast(channel, payload, includeHost, reliable);
         }
@@ -91,10 +92,7 @@ namespace CUCoreLib.Networking
 
         public static JObject GetCustomPlayerData(uint clientId)
         {
-            if (!TryGetBodyFromClientId(clientId, out Body body))
-            {
-                return new JObject();
-            }
+            if (!TryGetBodyFromClientId(clientId, out var body)) return new JObject();
 
             return new JObject
             {
@@ -105,10 +103,7 @@ namespace CUCoreLib.Networking
 
         public static JObject GetCustomPlayerLimbData(uint clientId)
         {
-            if (!TryGetBodyFromClientId(clientId, out Body body))
-            {
-                return new JObject();
-            }
+            if (!TryGetBodyFromClientId(clientId, out var body)) return new JObject();
 
             return new JObject
             {
@@ -139,21 +134,18 @@ namespace CUCoreLib.Networking
 
         public static void RegisterCustomPlayerDataHandlers()
         {
-            if (_playerDataHandlersRegistered)
-            {
-                return;
-            }
+            if (_playerDataHandlersRegistered) return;
 
             _playerDataHandlersRegistered = true;
             RegisterServerHandler(CustomPlayerDataChannel, payload =>
             {
-                uint clientId = payload?.Value<uint?>("clientId") ?? 0u;
+                var clientId = payload?.Value<uint?>("clientId") ?? 0u;
                 return GetCustomPlayerData(clientId);
             });
 
             RegisterServerHandler(CustomPlayerLimbDataChannel, payload =>
             {
-                uint clientId = payload?.Value<uint?>("clientId") ?? 0u;
+                var clientId = payload?.Value<uint?>("clientId") ?? 0u;
                 return GetCustomPlayerLimbData(clientId);
             });
         }
@@ -161,17 +153,11 @@ namespace CUCoreLib.Networking
         private static bool TryGetBodyFromClientId(uint clientId, out Body body)
         {
             body = null;
-            if (!TryResolveNetPlayerReflection())
-            {
-                return false;
-            }
+            if (!TryResolveNetPlayerReflection()) return false;
 
-            object[] args = new object[] { clientId, null, null };
-            bool found = _tryGetNetPlayerAndBodyFromClientIdMethod.Invoke(null, args) is bool flag && flag;
-            if (!found)
-            {
-                return false;
-            }
+            var args = new object[] { clientId, null, null };
+            var found = _tryGetNetPlayerAndBodyFromClientIdMethod.Invoke(null, args) is bool flag && flag;
+            if (!found) return false;
 
             body = args[2] as Body;
             return body != null;
@@ -179,32 +165,24 @@ namespace CUCoreLib.Networking
 
         private static bool TryResolveNetPlayerReflection()
         {
-            if (_tryGetNetPlayerAndBodyFromClientIdMethod != null)
-            {
-                return true;
-            }
+            if (_tryGetNetPlayerAndBodyFromClientIdMethod != null) return true;
 
             _netPlayerType = ResolveLoadedType(NetPlayerTypeName);
-            if (_netPlayerType == null)
-            {
-                return false;
-            }
+            if (_netPlayerType == null) return false;
 
             _tryGetNetPlayerAndBodyFromClientIdMethod = _netPlayerType
                 .GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static)
                 .FirstOrDefault(method =>
                 {
                     if (!string.Equals(method.Name, "TryGetNetPlayerAndBodyFromClientId", StringComparison.Ordinal))
-                    {
                         return false;
-                    }
 
-                    ParameterInfo[] parameters = method.GetParameters();
+                    var parameters = method.GetParameters();
                     return parameters.Length == 3 &&
-                        parameters[0].ParameterType == typeof(uint) &&
-                        parameters[1].IsOut &&
-                        parameters[2].IsOut &&
-                        parameters[2].ParameterType == typeof(Body).MakeByRefType();
+                           parameters[0].ParameterType == typeof(uint) &&
+                           parameters[1].IsOut &&
+                           parameters[2].IsOut &&
+                           parameters[2].ParameterType == typeof(Body).MakeByRefType();
                 });
 
             return _tryGetNetPlayerAndBodyFromClientIdMethod != null;
@@ -212,18 +190,12 @@ namespace CUCoreLib.Networking
 
         private static Type ResolveLoadedType(string fullName)
         {
-            if (string.IsNullOrWhiteSpace(fullName))
-            {
-                return null;
-            }
+            if (string.IsNullOrWhiteSpace(fullName)) return null;
 
-            foreach (Assembly assembly in AppDomain.CurrentDomain.GetAssemblies())
+            foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
             {
-                Type type = assembly.GetType(fullName, throwOnError: false);
-                if (type != null)
-                {
-                    return type;
-                }
+                var type = assembly.GetType(fullName, false);
+                if (type != null) return type;
             }
 
             return null;

@@ -1,32 +1,32 @@
-namespace CUCoreLib.Data
-{
-using System.Collections.Generic;
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 
+namespace CUCoreLib.Data
+{
     public class CustomItemInfo : LiquidItemInfo
     {
-        public string ID;
-        public Sprite Icon;
-        public Sprite WornSprite;
-        public string IconAnimationId;
-        public string WornSpriteAnimationId;
+        public BandageProperties Bandage;
+        public BatteryProperties Battery;
+        public ContainerProperties Container;
+        public Dictionary<string, object> CustomData = new Dictionary<string, object>();
         public Vector2 HeldSpriteOffset;
-        public Vector2 WornSpriteOffset;
+        public Sprite Icon;
+        public string IconAnimationId;
+        public string ID;
+        public LightProperties Light;
+        public List<string> SpawnComponents = new List<string>();
+        public int SpawnFrequency = 1;
         public float SpriteScale = 1.0f;
         public SpriteScaleDimensions SpriteScaleDimensions;
-        public int SpawnFrequency = 1;
-        public ContainerProperties Container;
-        public BatteryProperties Battery;
-        public LightProperties Light;
-        public BandageProperties Bandage;
         public SyringeProperties Syringe;
         public ToolProperties Tool;
-        public List<string> SpawnComponents = new List<string>();
-        public Dictionary<string, object> CustomData = new Dictionary<string, object>();
+        public Sprite WornSprite;
+        public string WornSpriteAnimationId;
+        public Vector2 WornSpriteOffset;
     }
 
-    [System.Serializable]
+    [Serializable]
     public struct SpriteScaleDimensions
     {
         public float Width;
@@ -40,26 +40,21 @@ using UnityEngine;
             ExpandToFirstMetCondition = expandToFirstMetCondition;
         }
 
-        public bool IsConfigured
-        {
-            get
-            {
-                return Width > 0f && Height > 0f;
-            }
-        }
+        public bool IsConfigured => Width > 0f && Height > 0f;
 
         public static implicit operator SpriteScaleDimensions((float width, float height) value)
         {
             return new SpriteScaleDimensions(value.width, value.height);
         }
 
-        public static implicit operator SpriteScaleDimensions((float width, float height, bool expandToFirstMetCondition) value)
+        public static implicit operator SpriteScaleDimensions(
+            (float width, float height, bool expandToFirstMetCondition) value)
         {
             return new SpriteScaleDimensions(value.width, value.height, value.expandToFirstMetCondition);
         }
     }
 
-    [System.Serializable]
+    [Serializable]
     public class ContainerProperties
     {
         public float Capacity = 10f;
@@ -67,7 +62,7 @@ using UnityEngine;
         public float EncumbranceReduction = 1.0f;
     }
 
-    [System.Serializable]
+    [Serializable]
     public class BatteryProperties
     {
         public float MaxCharge = 100f;
@@ -77,13 +72,13 @@ using UnityEngine;
         public bool SpawnWithBattery = true;
     }
 
-    [System.Serializable]
+    [Serializable]
     public class LightProperties
     {
         public float Intensity = 0.75f;
         public Color Color = Color.white;
         public float PointLightOuterRadius = 7.5f;
-        public float PointLightInnerRadius = 0f;
+        public float PointLightInnerRadius;
         public CustomLightType LightType = CustomLightType.Point;
         public Vector2 Offset = Vector2.zero;
         public bool AddLightItem = true;
@@ -98,10 +93,10 @@ using UnityEngine;
         Global = 4
     }
 
-    [System.Serializable]
+    [Serializable]
     public class ToolProperties
     {
-        public float Damage = 25f; 
+        public float Damage = 25f;
         public float StructuralDamage = 25f;
         public float AttackCooldownMultiplier = 0.66f;
         public float Distance = 5f;
@@ -109,17 +104,17 @@ using UnityEngine;
         public float Cooldown = 0.35f;
         public string AttackAnimation = "SwingAnim";
         public float StaminaUse = 0.5f;
-        public bool Piercing = false;
-        public string[] SwingSounds = new string[] { "BSSwing1", "BSSwing2", "BSSwing3", "BSSwing4" };
+        public bool Piercing;
+        public string[] SwingSounds = { "BSSwing1", "BSSwing2", "BSSwing3", "BSSwing4" };
         public float Volume = 0.5f;
         public float RotateAmount = 15.5f;
         public bool PhysicalSwing = true;
         public bool DoAttackAnimation = true;
-        public bool MetalMoreDamage = false;
+        public bool MetalMoreDamage;
         public float ConditionLossOnHit = 0.02f;
     }
 
-    [System.Serializable]
+    [Serializable]
     public class BandageProperties
     {
         public float Effectiveness = 8f;
@@ -134,11 +129,11 @@ using UnityEngine;
         public Color WrapSpriteColor = Color.white;
     }
 
-    [System.Serializable]
+    [Serializable]
     public class SyringeProperties
     {
         public float Capacity = 100f;
-        public bool AutoFill = false;
+        public bool AutoFill;
         public float AmountPerFullUse = 100f;
         public bool UseAverageColor = true;
         public Color MinigameColor = Color.white;

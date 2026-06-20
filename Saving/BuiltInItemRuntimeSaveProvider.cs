@@ -1,7 +1,7 @@
-using Newtonsoft.Json.Linq;
-using UnityEngine.Rendering.Universal;
 using CUCoreLib.Patches;
 using CUCoreLib.Registries;
+using Newtonsoft.Json.Linq;
+using UnityEngine.Rendering.Universal;
 
 namespace CUCoreLib.Saving
 {
@@ -14,16 +14,10 @@ namespace CUCoreLib.Saving
 
         public JToken Capture(Item item, string itemKey)
         {
-            if (item == null || !ItemRegistry.TryGetCustomInfo(item, out _))
-            {
-                return null;
-            }
+            if (item == null || !ItemRegistry.TryGetCustomInfo(item, out _)) return null;
 
-            LightItem lightItem = item.GetComponent<LightItem>();
-            if (lightItem == null)
-            {
-                return null;
-            }
+            var lightItem = item.GetComponent<LightItem>();
+            if (lightItem == null) return null;
 
             return new JObject
             {
@@ -33,20 +27,14 @@ namespace CUCoreLib.Saving
 
         public void Restore(Item item, string itemKey, JToken payload, int version, SaveRestoreContext context)
         {
-            JObject obj = payload as JObject;
-            if (item == null || obj == null || !ItemRegistry.TryGetCustomInfo(item, out _))
-            {
-                return;
-            }
+            var obj = payload as JObject;
+            if (item == null || obj == null || !ItemRegistry.TryGetCustomInfo(item, out _)) return;
 
-            JToken enabledToken = obj["lightEnabled"];
-            if (enabledToken == null || enabledToken.Type == JTokenType.Null)
-            {
-                return;
-            }
+            var enabledToken = obj["lightEnabled"];
+            if (enabledToken == null || enabledToken.Type == JTokenType.Null) return;
 
-            bool enabled = enabledToken.Value<bool>();
-            LightItem lightItem = item.GetComponent<LightItem>();
+            var enabled = enabledToken.Value<bool>();
+            var lightItem = item.GetComponent<LightItem>();
             if (lightItem == null)
             {
                 context.Defer(delegate
@@ -62,27 +50,15 @@ namespace CUCoreLib.Saving
 
         private static void ApplyLightState(Item item, bool enabled)
         {
-            if (item == null)
-            {
-                return;
-            }
+            if (item == null) return;
 
-            LightItem lightItem = item.GetComponent<LightItem>();
-            if (lightItem == null)
-            {
-                return;
-            }
+            var lightItem = item.GetComponent<LightItem>();
+            if (lightItem == null) return;
 
             lightItem.shouldEnable = enabled;
-            if (lightItem.light == null)
-            {
-                lightItem.light = item.GetComponentInChildren<Light2D>();
-            }
+            if (lightItem.light == null) lightItem.light = item.GetComponentInChildren<Light2D>();
 
-            if (lightItem.light != null)
-            {
-                lightItem.light.enabled = enabled && !lightItem.inContainer;
-            }
+            if (lightItem.light != null) lightItem.light.enabled = enabled && !lightItem.inContainer;
         }
     }
 }
