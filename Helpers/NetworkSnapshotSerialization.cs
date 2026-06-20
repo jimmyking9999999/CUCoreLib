@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Newtonsoft.Json.Linq;
 using UnityEngine;
 
@@ -16,6 +17,7 @@ namespace CUCoreLib.Helpers
 
             return new JObject
             {
+                // not null
                 ["name"] = sprite.name ?? string.Empty,
                 ["ppu"] = sprite.pixelsPerUnit,
                 ["data"] = Convert.ToBase64String(png)
@@ -153,6 +155,7 @@ namespace CUCoreLib.Helpers
             {
                 if (type == null) continue;
 
+                // maybe null
                 array.Add(type.AssemblyQualifiedName ?? type.FullName);
             }
 
@@ -161,20 +164,13 @@ namespace CUCoreLib.Helpers
 
         internal static Type[] ReadTypeNames(JToken token)
         {
-            var array = token as JArray;
-            if (array == null) return null;
+            if (!(token is JArray array)) return null;
 
-            var types = new List<Type>();
-            foreach (var entry in array)
-            {
-                var typeName = entry?.Value<string>();
-                if (string.IsNullOrWhiteSpace(typeName)) continue;
-
-                var resolved = Type.GetType(typeName, false);
-                if (resolved != null) types.Add(resolved);
-            }
-
-            return types.ToArray();
+            return (from entry in array select entry?
+                .Value<string>() into typeName where !string
+                .IsNullOrWhiteSpace(typeName) select Type
+                .GetType(typeName, false) into resolved where resolved != null select resolved)
+                .ToArray();
         }
 
         internal static string WriteStringOrEmpty(string value)

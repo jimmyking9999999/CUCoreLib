@@ -23,8 +23,8 @@ namespace CUCoreLib.Registries
         private static readonly HashSet<CustomBuildingRuntime> ActiveRuntimes =
             new HashSet<CustomBuildingRuntime>();
 
-        private static readonly ItemDrop[] EmptyDrops = new ItemDrop[0];
-        private static readonly string[] EmptyCategories = new string[0];
+        private static readonly ItemDrop[] EmptyDrops = Array.Empty<ItemDrop>();
+        private static readonly string[] EmptyCategories = Array.Empty<string>();
         private static readonly int GroundMask = LayerMask.GetMask("Ground");
         private static readonly int GroundLayer = LayerMask.NameToLayer("Ground");
 
@@ -234,14 +234,9 @@ namespace CUCoreLib.Registries
                     Components = NetworkSnapshotSerialization.ReadTypeNames(obj["components"])
                 };
 
-                var drops = obj["itemsDropOnDestroy"] as JArray;
-                if (drops != null) definition.ItemsDropOnDestroy = drops.ToObject<ItemDrop[]>();
-
-                var alwaysDrop = obj["alwaysDrop"] as JArray;
-                if (alwaysDrop != null) definition.AlwaysDrop = alwaysDrop.ToObject<ItemDrop[]>();
-
-                var categories = obj["itemCategoriesToAdd"] as JArray;
-                if (categories != null) definition.ItemCategoriesToAdd = categories.ToObject<string[]>();
+                if (obj["itemsDropOnDestroy"] is JArray drops) definition.ItemsDropOnDestroy = drops.ToObject<ItemDrop[]>();
+                if (obj["alwaysDrop"] is JArray alwaysDrop) definition.AlwaysDrop = alwaysDrop.ToObject<ItemDrop[]>();
+                if (obj["itemCategoriesToAdd"] is JArray categories) definition.ItemCategoriesToAdd = categories.ToObject<string[]>();
 
                 Register(id, definition);
             }
@@ -598,11 +593,16 @@ namespace CUCoreLib.Registries
 
         private static Vector2 DirectionForPlacement(CustomBuildingEntityDefinition definition)
         {
-            if (definition.Placement == BuildingPlacementType.Ceiling) return Vector2.up;
-            if (definition.Placement == BuildingPlacementType.Wall)
-                return Random.value > 0.5f ? Vector2.right : Vector2.left;
-
-            return Vector2.down;
+            switch (definition.Placement)
+            {
+                case BuildingPlacementType.Ceiling:
+                    return Vector2.up;
+                case BuildingPlacementType.Wall:
+                    return Random.value > 0.5f ? Vector2.right : Vector2.left;
+                case BuildingPlacementType.Floor:
+                default:
+                    return Vector2.down;
+            }
         }
 
         private static void ApplyPlacement(GameObject instance, CustomBuildingEntityDefinition definition,

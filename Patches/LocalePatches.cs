@@ -25,15 +25,12 @@ namespace CUCoreLib.Patches
                 }
             }
 
-            if (LocaleRegistry.CustomLocales.TryGetValue(type, out var dict) &&
-                dict.TryGetValue(str, out var fallbackText) &&
-                !string.IsNullOrWhiteSpace(fallbackText))
-            {
-                __result = fallbackText;
-                return false;
-            }
+            if (!LocaleRegistry.CustomLocales.TryGetValue(type, out var dict) ||
+                !dict.TryGetValue(str, out var fallbackText) ||
+                string.IsNullOrWhiteSpace(fallbackText)) return true;
+            __result = fallbackText;
+            return false;
 
-            return true;
         }
     }
 

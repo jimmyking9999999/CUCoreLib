@@ -133,7 +133,7 @@ namespace CUCoreLib.Registries
                     ["decayInfo"] = info.decayInfo,
                     ["decayMinutes"] = info.decayMinutes,
                     ["spawnFrequency"] = info.SpawnFrequency,
-                    ["recognitionMin"] = info.rec != null ? info.rec.min : 0,
+                    ["recognitionMin"] = info.rec?.min ?? 0,
                     ["capacity"] = info.capacity,
                     ["autoFill"] = info.autoFill,
                     ["defaultContents"] = NetworkSnapshotSerialization.WriteLiquidStacks(info.defaultContents),
@@ -264,14 +264,9 @@ namespace CUCoreLib.Registries
                         obj.Value<float?>("wornSpriteOffsetY") ?? 0f)
                 };
 
-                var container = obj["container"] as JObject;
-                if (container != null) info.Container = container.ToObject<ContainerProperties>();
-
-                var battery = obj["battery"] as JObject;
-                if (battery != null) info.Battery = battery.ToObject<BatteryProperties>();
-
-                var light = obj["light"] as JObject;
-                if (light != null)
+                if (obj["container"] is JObject container) info.Container = container.ToObject<ContainerProperties>();
+                if (obj["battery"] is JObject battery) info.Battery = battery.ToObject<BatteryProperties>();
+                if (obj["light"] is JObject light)
                     info.Light = new LightProperties
                     {
                         Intensity = light.Value<float?>("intensity") ?? 0.75f,
@@ -284,11 +279,8 @@ namespace CUCoreLib.Registries
                         AddLightItem = light.Value<bool?>("addLightItem") ?? true
                     };
 
-                var bandage = obj["bandage"] as JObject;
-                if (bandage != null) info.Bandage = bandage.ToObject<BandageProperties>();
-
-                var syringe = obj["syringe"] as JObject;
-                if (syringe != null)
+                if (obj["bandage"] is JObject bandage) info.Bandage = bandage.ToObject<BandageProperties>();
+                if (obj["syringe"] is JObject syringe)
                     info.Syringe = new SyringeProperties
                     {
                         Capacity = syringe.Value<float?>("capacity") ?? 0f,
@@ -299,8 +291,7 @@ namespace CUCoreLib.Registries
                         DefaultContents = NetworkSnapshotSerialization.ReadLiquidStacks(syringe["defaultContents"])
                     };
 
-                var tool = obj["tool"] as JObject;
-                if (tool != null) info.Tool = tool.ToObject<ToolProperties>();
+                if (obj["tool"] is JObject tool) info.Tool = tool.ToObject<ToolProperties>();
 
                 var qualities = obj["qualities"];
                 if (qualities != null) info.qualities = NetworkSnapshotSerialization.ReadCraftingQualities(qualities);
@@ -321,17 +312,15 @@ namespace CUCoreLib.Registries
         public static bool TryGetCustomInfo(string id, out CustomItemInfo info)
         {
             info = null;
-            if (string.IsNullOrWhiteSpace(id)) return false;
-
-            return RegisteredItems.TryGetValue(SpawnIdHelpers.NormalizeSpawnId(id), out info);
+            return !string.IsNullOrWhiteSpace(id) 
+                   && RegisteredItems.TryGetValue(SpawnIdHelpers.NormalizeSpawnId(id), out info);
         }
 
         public static bool TryGetCustomInfo(Item item, out CustomItemInfo info)
         {
             info = null;
-            if (item == null) return false;
-
-            return TryGetCustomInfo(item.id, out info);
+            return item != null
+                   && TryGetCustomInfo(item.id, out info);
         }
 
         public static bool TryGetCustomInfo(ItemInfo stats, out CustomItemInfo info)
@@ -588,7 +577,7 @@ namespace CUCoreLib.Registries
         private static void AddQualityForTag(ItemInfo info, string tag)
         {
             var tags = info.tags.Split(',');
-            if (!tags.Any(t => t.Trim() == tag)) return;
+            if (tags.All(t => t.Trim() != tag)) return;
             if (info.qualities.Any(q => q.id == tag)) return;
 
             info.qualities.Add(new CraftingQuality(tag));

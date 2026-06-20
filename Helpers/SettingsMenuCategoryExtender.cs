@@ -176,18 +176,15 @@ namespace CUCoreLib.Helpers
         {
             if (menu == null || menu.buttons == null) return;
 
-            for (var i = 0; i < menu.buttons.Count; i++)
+            foreach (var button in menu.buttons)
             {
-                var button = menu.buttons[i];
                 if (!button) continue;
 
                 var image = button.GetComponent<Image>();
-                if (image != null)
-                {
-                    var isActive = buttonCategoryIndices.TryGetValue(button, out var categoryIndex) &&
-                                   categoryIndex == activeCategoryIndex;
-                    image.sprite = isActive ? menu.buttonOpen : menu.buttonClosed;
-                }
+                if (image == null) continue;
+                var isActive = buttonCategoryIndices.TryGetValue(button, out var categoryIndex)
+                               && categoryIndex == activeCategoryIndex;
+                image.sprite = isActive ? menu.buttonOpen : menu.buttonClosed;
             }
         }
 

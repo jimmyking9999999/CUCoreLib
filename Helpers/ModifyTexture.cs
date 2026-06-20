@@ -45,8 +45,10 @@ namespace CUCoreLib.Helpers
             var width = originalTexture.width;
             var height = originalTexture.height;
 
-            var newTexture = new Texture2D(width, height, TextureFormat.RGBA32, false);
-            newTexture.filterMode = originalTexture.filterMode;
+            var newTexture = new Texture2D(width, height, TextureFormat.RGBA32, false)
+            {
+                filterMode = originalTexture.filterMode
+            };
 
             // tresholds
             var fadeThresholdY = height * fadePercentage;

@@ -26,13 +26,11 @@ namespace CUCoreLib.Patches
 
             if (Resources.Load<GameObject>(id) != null) return true;
 
-            if (ItemRegistry.RegisteredItems.ContainsKey(id) || BuildingEntityRegistry.IsRegistered(id))
-            {
-                __result = CustomInstantiate.InstantiateReturn(id, pos, Quaternion.Euler(0f, 0f, rot));
-                return false;
-            }
+            if (!ItemRegistry.RegisteredItems.ContainsKey(id)
+                && !BuildingEntityRegistry.IsRegistered(id)) return true;
+            __result = CustomInstantiate.InstantiateReturn(id, pos, Quaternion.Euler(0f, 0f, rot));
+            return false;
 
-            return true;
         }
     }
 }

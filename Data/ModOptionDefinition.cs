@@ -322,7 +322,7 @@ namespace CUCoreLib.Data
             var definition = CreateBase(id, label, description, category, customCategory);
             definition.Kind = ModOptionKind.Dropdown;
             definition.IntDefault = defaultValue;
-            definition.Choices = choices == null ? null : choices.ToArray();
+            definition.Choices = choices?.ToArray();
             definition.DropdownApply = apply;
             return definition;
         }

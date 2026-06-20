@@ -42,7 +42,7 @@ namespace CUCoreLib.Patches
             bool ignoreLoot,
             out BreakDropState __state)
         {
-            __state = default;
+            __state = null;
             if (__instance == null || ignoreLoot) return;
 
             var tileIndex = __instance.GetBlock(pos);

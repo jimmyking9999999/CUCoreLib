@@ -101,10 +101,9 @@ namespace CUCoreLib.Registries
                 return string.IsNullOrWhiteSpace(runtimeValue) ? normalizedKey : runtimeValue;
             }
 
-            var fallback = optionalFallbackIfLocaleValueNullOrWhitespace;
-            Register(category, normalizedKey, fallback);
-            var value = LocaleLoader.GetLocalizedText(category, normalizedKey, fallback);
-            return string.IsNullOrWhiteSpace(value) ? fallback : value;
+            Register(category, normalizedKey, optionalFallbackIfLocaleValueNullOrWhitespace);
+            var value = LocaleLoader.GetLocalizedText(category, normalizedKey, optionalFallbackIfLocaleValueNullOrWhitespace);
+            return string.IsNullOrWhiteSpace(value) ? optionalFallbackIfLocaleValueNullOrWhitespace : value;
         }
 
         public static JObject BuildLocaleJson(JObject existing = null)

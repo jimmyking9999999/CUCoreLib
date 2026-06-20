@@ -19,7 +19,7 @@ namespace CUCoreLib.Helpers
 
         private void Update()
         {
-            if (_renderer == null || _animation == null || _animation.Frames == null ||
+            if (_renderer == null || _animation?.Frames == null ||
                 _animation.Frames.Length == 0) return;
 
             _time += Time.deltaTime;

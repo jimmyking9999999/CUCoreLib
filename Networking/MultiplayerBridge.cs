@@ -138,8 +138,7 @@ namespace CUCoreLib.Networking
 
         private static void HandleEnvelope(uint senderClientId, object reader, bool serverSide)
         {
-            JObject envelope;
-            if (!TryReadEnvelope(reader, out envelope)) return;
+            if (!TryReadEnvelope(reader, out var envelope)) return;
 
             var channel = envelope.Value<string>(ChannelField);
             if (string.IsNullOrWhiteSpace(channel)) return;
@@ -225,8 +224,7 @@ namespace CUCoreLib.Networking
         private static bool SendEnvelope(ushort messageId, JObject envelope, bool reliable, uint clientId,
             IReadOnlyList<uint> targets)
         {
-            object writer;
-            if (!TryBuildWriter(messageId, envelope, out writer)) return false;
+            if (!TryBuildWriter(messageId, envelope, out var writer)) return false;
 
             var delivery = reliable ? _reliableOrdered : _reliableUnordered;
             try

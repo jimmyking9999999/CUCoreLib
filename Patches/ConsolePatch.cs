@@ -26,6 +26,7 @@ namespace CUCoreLib.Patches
                     if (args.Length < 2) throw new Exception("Usage: cuspawn [id]");
 
                     var query = args[1];
+                    // maybe System.NullReferenceException
                     Vector2 pos = Camera.main.ScreenToWorldPoint(Input.mousePosition);
                     if (args.Length > 2 && TryParsePosition(__instance, args[2], out var parsedPosition))
                         pos = parsedPosition;
@@ -65,6 +66,7 @@ namespace CUCoreLib.Patches
                     if (!TileRegistry.TryGetDefinition(tileIndex, out var definition))
                         throw new Exception($"Tile index '{tileIndex}' is not registered.");
 
+                    // maybe System.NullReferenceException
                     Vector2 worldPosition = Camera.main.ScreenToWorldPoint(Input.mousePosition);
                     if (args.Length > 2 && TryParsePosition(__instance, args[2], out var parsedPosition))
                         worldPosition = parsedPosition;

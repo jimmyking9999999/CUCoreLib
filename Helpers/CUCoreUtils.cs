@@ -241,13 +241,13 @@ namespace CUCoreLib.Helpers
             {
                 if (uiCast.gameObject == null) continue;
 
-                if (uiCast.gameObject.TryGetComponent(out ItemLabel label) && label != null && label.refItem != null)
-                {
-                    item = label.refItem;
-                    return true;
-                }
+                if (!uiCast.gameObject.TryGetComponent(out ItemLabel label) || label == null ||
+                    label.refItem == null) continue;
+                item = label.refItem;
+                return true;
             }
 
+            // maybe System.NullReferenceException
             var collider = Physics2D.OverlapPoint(
                 Camera.main.ScreenToWorldPoint(Input.mousePosition),
                 LayerMask.GetMask("Item"));

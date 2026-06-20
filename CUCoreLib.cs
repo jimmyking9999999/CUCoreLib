@@ -80,7 +80,7 @@ namespace CUCoreLib
                     foreach (var line in loadedPlugins) Log.LogInfo(line);
 
                     var console = ConsoleScript.instance;
-                    if (console != null)
+                    if (console == null) return;
                     {
                         CUCoreUtils.ConsoleLog(console, summary);
                         foreach (var line in loadedPlugins) CUCoreUtils.ConsoleLog(console, line);

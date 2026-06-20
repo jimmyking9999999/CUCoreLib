@@ -76,6 +76,7 @@ namespace CUCoreLib.Networking
             if (snapshot == null) return;
 
             var modules = snapshot[SnapshotModuleKey] as JObject ?? snapshot;
+            // modules == null is always false
             if (modules == null) return;
 
             foreach (var property in modules.Properties())

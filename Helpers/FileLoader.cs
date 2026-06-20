@@ -36,6 +36,7 @@ namespace CUCoreLib.Helpers
             int heightMultiplier)
         {
             var pluginPath = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+            // pluginPath maybe are null?
             var imagePath = Path.Combine(pluginPath, "Images", filename);
 
             if (!File.Exists(imagePath))
@@ -58,27 +59,24 @@ namespace CUCoreLib.Helpers
 
             var originalTexture = new Texture2D(2, 2, TextureFormat.RGBA32, false);
 
-            if (originalTexture.LoadImage(fileData))
-            {
-                Texture2D finalTexture;
+            if (!originalTexture.LoadImage(fileData)) return null;
+            Texture2D finalTexture;
 
-                if (widthMultiplier > 1 || heightMultiplier > 1)
-                    finalTexture = ModifyTextures.ResizeTexture(originalTexture, widthMultiplier, heightMultiplier);
-                else
-                    finalTexture = originalTexture;
+            if (widthMultiplier > 1 || heightMultiplier > 1)
+                finalTexture = ModifyTextures.ResizeTexture(originalTexture, widthMultiplier, heightMultiplier);
+            else
+                finalTexture = originalTexture;
 
-                finalTexture.filterMode = filterMode;
-                finalTexture.wrapMode = TextureWrapMode.Clamp;
+            finalTexture.filterMode = filterMode;
+            finalTexture.wrapMode = TextureWrapMode.Clamp;
 
-                return Sprite.Create(
-                    finalTexture,
-                    new Rect(0, 0, finalTexture.width, finalTexture.height),
-                    new Vector2(0.5f, 0.5f),
-                    ppu
-                );
-            }
+            return Sprite.Create(
+                finalTexture,
+                new Rect(0, 0, finalTexture.width, finalTexture.height),
+                new Vector2(0.5f, 0.5f),
+                ppu
+            );
 
-            return null;
         }
 
 
@@ -112,6 +110,7 @@ namespace CUCoreLib.Helpers
 
             // to read file data from manifest resource
             var stream = asm.GetManifestResourceStream(newFilename);
+            // maybe System.NullReferenceException
             var fileData = new byte[stream.Length];
             stream.Read(fileData, 0, fileData.Length);
 

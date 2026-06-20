@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using CUCoreLib.Data;
 using CUCoreLib.Registries;
 using HarmonyLib;
@@ -21,20 +22,17 @@ namespace CUCoreLib.Patches
 
             if (ItemLootPool.pool == null || ItemRegistry.RegisteredItems == null) return;
 
-            var injectedCount = 0;
-            foreach (var kvp in ItemRegistry.RegisteredItems) injectedCount += EnsureItemInLootPool(kvp.Key, kvp.Value);
+            var injectedCount = ItemRegistry.RegisteredItems
+                .Sum(kvp => EnsureItemInLootPool(kvp.Key, kvp.Value));
 
             if (injectedCount <= 0) return;
 
             if (!hasLoggedInjection)
             {
                 hasLoggedInjection = true;
-                CUCoreLibPlugin.Log.LogInfo($"LootPool injected {injectedCount} custom items.");
             }
-            else
-            {
-                CUCoreLibPlugin.Log.LogInfo($"LootPool injected {injectedCount} custom items.");
-            }
+
+            CUCoreLibPlugin.Log.LogInfo($"LootPool injected {injectedCount} custom items.");
         }
 
         internal static int EnsureItemInLootPool(string id, ItemInfo def)

@@ -153,7 +153,7 @@ namespace CUCoreLib.Saving
             var result = new JObject();
 
             foreach (var entry in SaveRegistry.GlobalProviders)
-                CaptureProvider(entry.Key, entry.Value, result, delegate { return entry.Value.Capture(); });
+                CaptureProvider(entry.Key, entry.Value, result, () => entry.Value.Capture());
 
             return result;
         }
@@ -163,7 +163,7 @@ namespace CUCoreLib.Saving
             var result = new JObject();
 
             foreach (var entry in SaveRegistry.BodyProviders)
-                CaptureProvider(entry.Key, entry.Value, result, delegate { return entry.Value.Capture(body); });
+                CaptureProvider(entry.Key, entry.Value, result, () => entry.Value.Capture(body));
 
             return result;
         }
@@ -181,7 +181,7 @@ namespace CUCoreLib.Saving
                 {
                     var limbIndex = i;
                     CaptureProvider(entry.Key, entry.Value, limbObject,
-                        delegate { return entry.Value.Capture(limb, limbIndex); });
+                        () => entry.Value.Capture(limb, limbIndex));
                 }
 
                 result.Add(limbObject);
@@ -202,7 +202,7 @@ namespace CUCoreLib.Saving
                     var itemKey = entry.Key;
                     var item = entry.Item;
                     CaptureProvider(providerEntry.Key, providerEntry.Value, itemObject,
-                        delegate { return providerEntry.Value.Capture(item, itemKey); });
+                        () => providerEntry.Value.Capture(item, itemKey));
                 }
 
                 if (itemObject.HasValues) result[entry.Key] = itemObject;
@@ -217,7 +217,7 @@ namespace CUCoreLib.Saving
             var context = new WorldSaveContext();
 
             foreach (var entry in SaveRegistry.WorldProviders)
-                CaptureProvider(entry.Key, entry.Value, result, delegate { return entry.Value.Capture(context); });
+                CaptureProvider(entry.Key, entry.Value, result, () => entry.Value.Capture(context));
 
             return result;
         }

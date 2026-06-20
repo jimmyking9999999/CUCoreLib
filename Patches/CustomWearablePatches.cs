@@ -1,3 +1,4 @@
+using System;
 using CUCoreLib.Helpers;
 using CUCoreLib.Registries;
 using HarmonyLib;
@@ -54,22 +55,20 @@ namespace CUCoreLib.Patches
             var item = __instance != null ? __instance.GetComponent<Item>() : null;
             if (item == null || !ItemRegistry.TryGetCustomInfo(item, out var def) || def.WornSprite == null) return;
 
-            __instance.secondaryLimbs = new string[0];
-            __instance.secondaryLimbSprites = new Sprite[0];
-            __instance.secondaryObjects = new GameObject[0];
+            __instance.secondaryLimbs = Array.Empty<string>();
+            __instance.secondaryLimbSprites = Array.Empty<Sprite>();
+            __instance.secondaryObjects = Array.Empty<GameObject>();
         }
 
         private static void ApplySprite(Item item, Sprite sprite)
         {
             var sr = item.GetComponent<SpriteRenderer>();
-            if (sr != null)
-            {
-                sr.sprite = sprite;
+            if (sr == null) return;
+            sr.sprite = sprite;
 
-                if (ItemRegistry.TryGetCustomInfo(item, out var def) &&
-                    !string.IsNullOrWhiteSpace(def.WornSpriteAnimationId))
-                    AssetLoader.TryApplyAnimation(sr, def.WornSpriteAnimationId);
-            }
+            if (ItemRegistry.TryGetCustomInfo(item, out var def) &&
+                !string.IsNullOrWhiteSpace(def.WornSpriteAnimationId))
+                AssetLoader.TryApplyAnimation(sr, def.WornSpriteAnimationId);
         }
     }
 }

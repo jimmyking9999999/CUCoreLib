@@ -104,7 +104,7 @@ namespace CUCoreLib.Helpers
 
         public static void CacheSpriteAnimation(string id, RegisteredSpriteAnimation animation)
         {
-            if (string.IsNullOrWhiteSpace(id) || animation == null || animation.Frames == null ||
+            if (string.IsNullOrWhiteSpace(id) || animation?.Frames == null ||
                 animation.Frames.Length == 0) return;
 
             var normalizedId = NormalizeCacheKey(id);
@@ -160,13 +160,10 @@ namespace CUCoreLib.Helpers
 
         public static Sprite LoadSpriteFromFile(string filePath, float pixelsPerUnit = PPU_WORLD)
         {
-            if (!File.Exists(filePath))
-            {
-                LogMissingFileResource(filePath, "sprite");
-                return null;
-            }
+            if (File.Exists(filePath)) return CreateSpriteFromBytes(File.ReadAllBytes(filePath), pixelsPerUnit);
+            LogMissingFileResource(filePath, "sprite");
+            return null;
 
-            return CreateSpriteFromBytes(File.ReadAllBytes(filePath), pixelsPerUnit);
         }
 
         public static Sprite LoadSpriteFromBytes(byte[] data, float pixelsPerUnit = PPU_WORLD)
@@ -180,9 +177,9 @@ namespace CUCoreLib.Helpers
             float pixelsPerUnit = PPU_WORLD)
         {
             var fullPath = GetPluginFolderPath(plugin, relativePath);
-            if (string.IsNullOrEmpty(fullPath)) return null;
-
-            return LoadSpriteFromFile(fullPath, pixelsPerUnit);
+            return string.IsNullOrEmpty(fullPath)
+                ? null
+                : LoadSpriteFromFile(fullPath, pixelsPerUnit);
         }
 
         public static RegisteredSpriteAnimation RegisterFrameAnimation(string id, IEnumerable<Sprite> frames,
@@ -210,12 +207,10 @@ namespace CUCoreLib.Helpers
         {
             if (framePaths == null) return null;
 
-            var frames = new List<Sprite>();
-            foreach (var framePath in framePaths)
-            {
-                var sprite = LoadSpriteFromFile(framePath, pixelsPerUnit);
-                if (sprite != null) frames.Add(sprite);
-            }
+            var frames = framePaths
+                .Select(framePath => LoadSpriteFromFile(framePath, pixelsPerUnit))
+                .Where(sprite => sprite != null)
+                .ToList();
 
             return RegisterFrameAnimation(id, frames, framesPerSecond, loop);
         }
@@ -246,21 +241,20 @@ namespace CUCoreLib.Helpers
             string prefix = null)
         {
             var fullPath = GetPluginFolderPath(plugin, relativeFolderPath);
-            if (string.IsNullOrEmpty(fullPath)) return null;
-
-            return LoadFrameAnimationFromFolder(id, fullPath, pixelsPerUnit, framesPerSecond, loop, prefix);
+            return string.IsNullOrEmpty(fullPath)
+                ? null 
+                : LoadFrameAnimationFromFolder(id, fullPath, pixelsPerUnit, framesPerSecond, loop, prefix);
         }
 
         public static object LoadAnimationAsVideoClip(string pathOrResource, Assembly sourceAssembly = null)
         {
             var extension = Path.GetExtension(pathOrResource ?? string.Empty);
-            if (extension.Equals(".gif", StringComparison.OrdinalIgnoreCase) ||
-                extension.Equals(".mp4", StringComparison.OrdinalIgnoreCase))
-            {
-                Logger?.LogWarning(
-                    "Runtime .gif/.mp4 import into Unity VideoClip assets is not supported in this game build. Use RegisterFrameAnimation instead!");
-                Logger?.LogWarning("Sorry about that.");
-            }
+            if (!extension.Equals(".gif", StringComparison.OrdinalIgnoreCase)
+                && !extension.Equals(".mp4", StringComparison.OrdinalIgnoreCase)) 
+                return null;
+            Logger?.LogWarning(
+                "Runtime .gif/.mp4 import into Unity VideoClip assets is not supported in this game build. Use RegisterFrameAnimation instead!");
+            Logger?.LogWarning("Sorry about that.");
 
             return null;
         }
@@ -268,8 +262,6 @@ namespace CUCoreLib.Helpers
         public static AudioClip LoadEmbeddedAudio(string resourcePath, Assembly sourceAssembly = null)
         {
             if (sourceAssembly == null) sourceAssembly = Assembly.GetCallingAssembly();
-
-            if (sourceAssembly == null) return null;
 
             var clipCacheKey = $"{sourceAssembly.FullName}:{NormalizeResourcePath(resourcePath)}";
             if (AudioClipCache.TryGetValue(clipCacheKey, out var cachedClip)) return cachedClip;
@@ -308,7 +300,7 @@ namespace CUCoreLib.Helpers
                 var clip = LoadAudioFromStream(stream, Path.GetFileName(fullPath));
                 if (clip == null) return null;
 
-                clip.name = Path.GetFileNameWithoutExtension(fullPath) ?? fullPath;
+                clip.name = Path.GetFileNameWithoutExtension(fullPath);
                 AudioClipCache[fullPath] = clip;
                 return clip;
             }
@@ -317,9 +309,9 @@ namespace CUCoreLib.Helpers
         public static AudioClip LoadAudioFromPluginFolder(BaseUnityPlugin plugin, string relativePath)
         {
             var fullPath = GetPluginFolderPath(plugin, relativePath);
-            if (string.IsNullOrEmpty(fullPath)) return null;
-
-            return LoadAudioFromFile(fullPath);
+            return string.IsNullOrEmpty(fullPath)
+                ? null 
+                : LoadAudioFromFile(fullPath);
         }
 
         public static string LoadEmbeddedText(string resourcePath, Assembly sourceAssembly = null)
@@ -343,9 +335,11 @@ namespace CUCoreLib.Helpers
 
         private static Sprite CreateSpriteFromBytes(byte[] data, float ppu)
         {
-            var texture = new Texture2D(2, 2, TextureFormat.RGBA32, false);
-            texture.filterMode = FilterMode.Point;
-            texture.wrapMode = TextureWrapMode.Clamp;
+            var texture = new Texture2D(2, 2, TextureFormat.RGBA32, false)
+            {
+                filterMode = FilterMode.Point,
+                wrapMode = TextureWrapMode.Clamp
+            };
 
             if (texture.LoadImage(data))
                 return Sprite.Create(texture, new Rect(0, 0, texture.width, texture.height), new Vector2(0.5f, 0.5f),
@@ -358,9 +352,9 @@ namespace CUCoreLib.Helpers
             if (plugin == null || string.IsNullOrWhiteSpace(relativePath)) return null;
 
             var pluginFolder = Path.GetDirectoryName(plugin.Info.Location);
-            if (string.IsNullOrEmpty(pluginFolder)) return null;
-
-            return Path.Combine(pluginFolder, relativePath);
+            return string.IsNullOrEmpty(pluginFolder)
+                ? null
+                : Path.Combine(pluginFolder, relativePath);
         }
 
         private static string NormalizeResourcePath(string resourcePath)
@@ -492,6 +486,7 @@ namespace CUCoreLib.Helpers
         {
             if (sourceAssembly == null) return Array.Empty<string>();
 
+            // not null
             var cacheKey = sourceAssembly.FullName ?? sourceAssembly.GetName().Name;
             if (string.IsNullOrWhiteSpace(cacheKey)) return sourceAssembly.GetManifestResourceNames();
 

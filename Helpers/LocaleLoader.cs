@@ -102,11 +102,11 @@ namespace CUCoreLib.Helpers
         {
             if (target == null || sectionToken == null) return;
 
-            var section = sectionToken as JObject;
-            if (section == null) return;
+            if (!(sectionToken is JObject section)) return;
 
             foreach (var property in section.Properties())
             {
+                // property.Value == null is always false
                 if (string.IsNullOrWhiteSpace(property.Name) || property.Value == null) continue;
 
                 var value = property.Value.Type == JTokenType.String

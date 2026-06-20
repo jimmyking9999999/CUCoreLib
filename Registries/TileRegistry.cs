@@ -219,9 +219,7 @@ namespace CUCoreLib.Registries
                         (TileGenerationStyle)(obj.Value<byte?>("generationStyle") ?? (byte)TileGenerationStyle.Vein)
                 };
 
-                var drops = obj["drops"] as JArray;
-                if (drops != null) definition.Drops = drops.ToObject<ItemDrop[]>();
-
+                if (obj["drops"] is JArray drops) definition.Drops = drops.ToObject<ItemDrop[]>();
                 if (obj["customData"] is JObject customData)
                     definition.CustomData = customData.ToObject<Dictionary<string, object>>() ??
                                             new Dictionary<string, object>();
@@ -673,6 +671,7 @@ namespace CUCoreLib.Registries
         private static int GetCopperStyleAttempts(WorldGeneration world, float spawnAmount)
         {
             var oreAmount = WorldGeneration.GetRunSettingFloat("oreamount");
+            // Scores may be lost
             return Mathf.RoundToInt((int)(world.chunkWidth * world.chunkHeight) / 2 * oreAmount *
                                     Mathf.Max(0f, spawnAmount));
         }

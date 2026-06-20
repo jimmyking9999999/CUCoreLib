@@ -45,11 +45,14 @@ namespace CUCoreLib.Registries
         {
             if (settings == null) return;
 
-            for (var i = 0; i < RegisteredOptions.Count; i++)
+            foreach (var option
+                     in from option in RegisteredOptions 
+                     let option1 = option
+                     where option != null 
+                           && !settings.Any(setting => setting != null
+                                                       && setting.name == option1.Id)
+                     select option)
             {
-                var option = RegisteredOptions[i];
-                if (option == null || settings.Any(setting => setting != null && setting.name == option.Id)) continue;
-
                 settings.Add(option.CreateSetting());
             }
         }
@@ -100,7 +103,7 @@ namespace CUCoreLib.Registries
                 root[option.Id] = new JObject
                 {
                     ["kind"] = option.Kind.ToString(),
-                    ["value"] = value is string ? new JValue((string)value) : JToken.FromObject(value)
+                    ["value"] = value is string s ? new JValue(s) : JToken.FromObject(value)
                 };
             }
 

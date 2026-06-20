@@ -20,7 +20,7 @@ namespace CUCoreLib.Registries
 
         public static void Register(Recipe recipe)
         {
-            if (recipe == null || recipe.result == null || string.IsNullOrWhiteSpace(recipe.result.id))
+            if (recipe?.result == null || string.IsNullOrWhiteSpace(recipe.result.id))
             {
                 CUCoreLibPlugin.Log.LogError("Recipe registration failed: Result ID is missing.");
                 return;
