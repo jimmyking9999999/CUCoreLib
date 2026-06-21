@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using CUCoreLib.Data;
 using CUCoreLib.Helpers;
 using Newtonsoft.Json.Linq;
@@ -10,13 +9,19 @@ namespace CUCoreLib.Registries
 {
     public static class MoodleRegistry
     {
+        private const float DefaultHoldSeconds = 0.75f;
         private static readonly List<IBodyMoodleContributor> BodyContributors = new List<IBodyMoodleContributor>();
         private static readonly List<ILimbMoodleContributor> LimbContributors = new List<ILimbMoodleContributor>();
-        private static readonly Dictionary<string, QueuedMoodle> QueuedMoodles = new Dictionary<string, QueuedMoodle>(StringComparer.Ordinal);
+
+        private static readonly Dictionary<string, QueuedMoodle> QueuedMoodles =
+            new Dictionary<string, QueuedMoodle>(StringComparer.Ordinal);
+
         private static readonly Dictionary<int, Sprite> UiSpriteCache = new Dictionary<int, Sprite>();
-        private static readonly Dictionary<string, string> ActiveAnimationIdsByIconKey = new Dictionary<string, string>(StringComparer.Ordinal);
+
+        private static readonly Dictionary<string, string> ActiveAnimationIdsByIconKey =
+            new Dictionary<string, string>(StringComparer.Ordinal);
+
         private static readonly HashSet<string> WarnedInvalidIconIds = new HashSet<string>(StringComparer.Ordinal);
-        private const float DefaultHoldSeconds = 0.75f; 
 
         public static void RegisterBody<TStatus>(Func<Body, TStatus, StatusMoodleDefinition> buildMoodle)
             where TStatus : BodyStatus, new()
@@ -42,7 +47,8 @@ namespace CUCoreLib.Registries
             LimbContributors.Add(new LimbMoodleContributor<TStatus>(buildMoodle));
         }
 
-        public static void AddMoodle(int intensity, Sprite icon, string name, string description, bool critical = false, bool chippedOnly = false, bool important = true, string key = null, float holdSeconds = DefaultHoldSeconds)
+        public static void AddMoodle(int intensity, Sprite icon, string name, string description, bool critical = false,
+            bool chippedOnly = false, bool important = true, string key = null, float holdSeconds = DefaultHoldSeconds)
         {
             QueueMoodle(
                 key,
@@ -61,7 +67,9 @@ namespace CUCoreLib.Registries
             );
         }
 
-        public static void AddMoodle(int intensity, string iconId, string name, string description, bool critical = false, bool chippedOnly = false, bool important = true, string key = null, float holdSeconds = DefaultHoldSeconds)
+        public static void AddMoodle(int intensity, string iconId, string name, string description,
+            bool critical = false, bool chippedOnly = false, bool important = true, string key = null,
+            float holdSeconds = DefaultHoldSeconds)
         {
             QueueMoodle(
                 key,
@@ -81,13 +89,12 @@ namespace CUCoreLib.Registries
             );
         }
 
-        public static void AddAnimatedMoodle(int intensity, string animationId, string name, string description, bool critical = false, bool chippedOnly = false, bool important = true, string key = null, float holdSeconds = DefaultHoldSeconds)
+        public static void AddAnimatedMoodle(int intensity, string animationId, string name, string description,
+            bool critical = false, bool chippedOnly = false, bool important = true, string key = null,
+            float holdSeconds = DefaultHoldSeconds)
         {
-            RegisteredSpriteAnimation animation = AssetLoader.GetCachedSpriteAnimation(animationId);
-            if (animation == null || animation.Frames == null || animation.Frames.Length == 0)
-            {
-                return;
-            }
+            var animation = AssetLoader.GetCachedSpriteAnimation(animationId);
+            if (animation == null || animation.Frames == null || animation.Frames.Length == 0) return;
 
             QueueMoodle(
                 key,
@@ -109,69 +116,44 @@ namespace CUCoreLib.Registries
 
         internal static void AddBodyMoodles(MoodleManager manager, Body body, bool important)
         {
-            if (manager == null || body == null)
-            {
-                return;
-            }
+            if (manager == null || body == null) return;
 
-            foreach (IBodyMoodleContributor contributor in BodyContributors)
-            {
-                AddMoodle(manager, contributor.Build(body), important);
-            }
+            foreach (var contributor in BodyContributors) AddMoodle(manager, contributor.Build(body), important);
         }
 
         internal static void AddLimbMoodles(MoodleManager manager, Limb limb, bool important)
         {
-            if (manager == null || limb == null)
-            {
-                return;
-            }
+            if (manager == null || limb == null) return;
 
-            foreach (ILimbMoodleContributor contributor in LimbContributors)
-            {
-                AddMoodle(manager, contributor.Build(limb), important);
-            }
+            foreach (var contributor in LimbContributors) AddMoodle(manager, contributor.Build(limb), important);
         }
 
         internal static void AddQueuedMoodles(MoodleManager manager, bool important)
         {
-            if (manager == null)
-            {
-                return;
-            }
+            if (manager == null) return;
 
             List<string> expiredKeys = null;
-            foreach (KeyValuePair<string, QueuedMoodle> entry in QueuedMoodles)
+            foreach (var entry in QueuedMoodles)
             {
                 if (entry.Value.ExpiresAt < Time.unscaledTime)
                 {
-                    if (expiredKeys == null)
-                    {
-                        expiredKeys = new List<string>();
-                    }
+                    if (expiredKeys == null) expiredKeys = new List<string>();
 
                     expiredKeys.Add(entry.Key);
                     continue;
                 }
 
-                StatusMoodleDefinition moodle = entry.Value.Definition;
-                if (moodle == null || moodle.Important != important)
-                {
-                    continue;
-                }
+                var moodle = entry.Value.Definition;
+                if (moodle == null || moodle.Important != important) continue;
 
                 if (entry.Value.IconSprite != null)
                 {
-                    string iconKey = "cucorelib.dynamic." + entry.Key;
+                    var iconKey = "cucorelib.dynamic." + entry.Key;
                     manager.icons[iconKey] = entry.Value.IconSprite;
                     if (string.IsNullOrWhiteSpace(entry.Value.AnimationId))
-                    {
                         ActiveAnimationIdsByIconKey.Remove(iconKey);
-                    }
                     else
-                    {
                         ActiveAnimationIdsByIconKey[iconKey] = entry.Value.AnimationId;
-                    }
                     moodle.Icon = iconKey;
                 }
                 else
@@ -183,29 +165,20 @@ namespace CUCoreLib.Registries
                 AddMoodle(manager, moodle, important);
             }
 
-            if (expiredKeys == null)
-            {
-                return;
-            }
+            if (expiredKeys == null) return;
 
-            foreach (string key in expiredKeys)
-            {
-                QueuedMoodles.Remove(key);
-            }
+            foreach (var key in expiredKeys) QueuedMoodles.Remove(key);
         }
 
         internal static JObject CaptureNetworkSnapshot()
         {
-            JObject root = new JObject();
-            JArray queued = new JArray();
+            var root = new JObject();
+            var queued = new JArray();
 
-            foreach (KeyValuePair<string, QueuedMoodle> entry in QueuedMoodles)
+            foreach (var entry in QueuedMoodles)
             {
-                QueuedMoodle moodle = entry.Value;
-                if (moodle?.Definition == null)
-                {
-                    continue;
-                }
+                var moodle = entry.Value;
+                if (moodle?.Definition == null) continue;
 
                 queued.Add(new JObject
                 {
@@ -216,7 +189,7 @@ namespace CUCoreLib.Registries
                     ["critical"] = moodle.Definition.Critical,
                     ["chippedOnly"] = moodle.Definition.ChippedOnly,
                     ["important"] = moodle.Definition.Important,
-                    ["iconId"] = moodle.IconSprite != null ? moodle.IconSprite.name : (moodle.IconId ?? string.Empty),
+                    ["iconId"] = moodle.IconSprite != null ? moodle.IconSprite.name : moodle.IconId ?? string.Empty,
                     ["holdSeconds"] = Mathf.Max(0.05f, moodle.ExpiresAt - Time.unscaledTime)
                 });
             }
@@ -227,33 +200,22 @@ namespace CUCoreLib.Registries
 
         internal static void ApplyNetworkSnapshot(JObject snapshot)
         {
-            if (snapshot == null)
-            {
-                return;
-            }
+            if (snapshot == null) return;
 
-            JArray queued = snapshot["queued"] as JArray;
-            if (queued == null)
-            {
-                return;
-            }
+            var queued = snapshot["queued"] as JArray;
+            if (queued == null) return;
 
             QueuedMoodles.Clear();
-            foreach (JToken token in queued)
+            foreach (var token in queued)
             {
-                JObject obj = token as JObject;
-                if (obj == null)
-                {
-                    continue;
-                }
+                var obj = token as JObject;
+                if (obj == null) continue;
 
-                string key = obj.Value<string>("key");
-                string iconId = obj.Value<string>("iconId");
-                string name = obj.Value<string>("name");
-                if (string.IsNullOrWhiteSpace(key) || string.IsNullOrWhiteSpace(iconId) || string.IsNullOrWhiteSpace(name))
-                {
-                    continue;
-                }
+                var key = obj.Value<string>("key");
+                var iconId = obj.Value<string>("iconId");
+                var name = obj.Value<string>("name");
+                if (string.IsNullOrWhiteSpace(key) || string.IsNullOrWhiteSpace(iconId) ||
+                    string.IsNullOrWhiteSpace(name)) continue;
 
                 QueueMoodle(
                     key,
@@ -277,19 +239,14 @@ namespace CUCoreLib.Registries
             return ActiveAnimationIdsByIconKey.TryGetValue(iconKey ?? string.Empty, out animationId);
         }
 
-        private static void QueueMoodle(string key, StatusMoodleDefinition definition, Sprite iconSprite, string iconId, float holdSeconds, string animationId = null)
+        private static void QueueMoodle(string key, StatusMoodleDefinition definition, Sprite iconSprite, string iconId,
+            float holdSeconds, string animationId = null)
         {
-            if (definition == null || string.IsNullOrWhiteSpace(definition.Name))
-            {
-                return;
-            }
+            if (definition == null || string.IsNullOrWhiteSpace(definition.Name)) return;
 
-            if (iconSprite == null && string.IsNullOrWhiteSpace(iconId))
-            {
-                return;
-            }
+            if (iconSprite == null && string.IsNullOrWhiteSpace(iconId)) return;
 
-            string resolvedKey = string.IsNullOrWhiteSpace(key)
+            var resolvedKey = string.IsNullOrWhiteSpace(key)
                 ? BuildQueueKey(definition, iconSprite, iconId)
                 : key.Trim();
 
@@ -305,28 +262,26 @@ namespace CUCoreLib.Registries
 
         private static string BuildQueueKey(StatusMoodleDefinition definition, Sprite iconSprite, string iconId)
         {
-            string iconKey = iconSprite != null ? iconSprite.name : iconId ?? "icon";
+            var iconKey = iconSprite != null ? iconSprite.name : iconId ?? "icon";
             return iconKey + "|" + definition.Name + "|" + definition.Intensity;
         }
 
         private static void AddMoodle(MoodleManager manager, StatusMoodleDefinition moodle, bool important)
         {
-            if (manager == null || moodle == null || string.IsNullOrWhiteSpace(moodle.Icon) || string.IsNullOrWhiteSpace(moodle.Name))
-            {
-                return;
-            }
+            if (manager == null || moodle == null || string.IsNullOrWhiteSpace(moodle.Icon) ||
+                string.IsNullOrWhiteSpace(moodle.Name)) return;
 
             if (!manager.icons.ContainsKey(moodle.Icon))
             {
                 if (WarnedInvalidIconIds.Add(moodle.Icon))
-                {
-                    CUCoreLibPlugin.Log?.LogWarning("CUCoreLib Moodles: Skipping moodle '" + moodle.Name + "' because icon '" + moodle.Icon + "' is not registered in MoodleManager.icons.");
-                }
+                    CUCoreLibPlugin.Log?.LogWarning("CUCoreLib Moodles: Skipping moodle '" + moodle.Name +
+                                                    "' because icon '" + moodle.Icon +
+                                                    "' is not registered in MoodleManager.icons.");
 
                 return;
             }
 
-            bool originalSideMoodles = manager.sideMoodles;
+            var originalSideMoodles = manager.sideMoodles;
             manager.sideMoodles = !important;
             try
             {
@@ -347,23 +302,15 @@ namespace CUCoreLib.Registries
 
         private static Sprite NormalizeIconSprite(Sprite iconSprite)
         {
-            if (iconSprite == null)
-            {
-                return null;
-            }
+            if (iconSprite == null) return null;
 
-            if (Mathf.Approximately(iconSprite.pixelsPerUnit, AssetLoader.PPU_UI))
-            {
-                return iconSprite;
-            }
+            if (Mathf.Approximately(iconSprite.pixelsPerUnit, AssetLoader.PPU_UI)) return iconSprite;
 
-            int instanceId = iconSprite.GetInstanceID();
-            if (UiSpriteCache.TryGetValue(instanceId, out Sprite cachedSprite) && cachedSprite != null)
-            {
+            var instanceId = iconSprite.GetInstanceID();
+            if (UiSpriteCache.TryGetValue(instanceId, out var cachedSprite) && cachedSprite != null)
                 return cachedSprite;
-            }
 
-            Sprite normalizedSprite = Sprite.Create(
+            var normalizedSprite = Sprite.Create(
                 iconSprite.texture,
                 iconSprite.rect,
                 iconSprite.pivot / iconSprite.rect.size,
@@ -421,11 +368,11 @@ namespace CUCoreLib.Registries
 
         private sealed class QueuedMoodle
         {
-            public StatusMoodleDefinition Definition;
-            public Sprite IconSprite;
-            public string IconId;
-            public float ExpiresAt;
             public string AnimationId;
+            public StatusMoodleDefinition Definition;
+            public float ExpiresAt;
+            public string IconId;
+            public Sprite IconSprite;
         }
     }
 }

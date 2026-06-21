@@ -1,7 +1,6 @@
-using System.Collections.Generic;
-using HarmonyLib;
 using CUCoreLib.Helpers;
 using CUCoreLib.Registries;
+using HarmonyLib;
 
 namespace CUCoreLib.Patches
 {
@@ -13,27 +12,25 @@ namespace CUCoreLib.Patches
         {
             if (Locale.currentLang != null)
             {
-                Dictionary<string, string> section = type == 0 ? Locale.currentLang.main :
+                var section = type == 0 ? Locale.currentLang.main :
                     type == 1 ? Locale.currentLang.buildings :
                     type == 2 ? Locale.currentLang.moodles :
                     Locale.currentLang.other;
 
-                if (section != null && section.TryGetValue(str, out string localizedText) && !string.IsNullOrWhiteSpace(localizedText))
+                if (section != null && section.TryGetValue(str, out var localizedText) &&
+                    !string.IsNullOrWhiteSpace(localizedText))
                 {
                     __result = localizedText;
                     return false;
                 }
             }
 
-            if (LocaleRegistry.CustomLocales.TryGetValue(type, out var dict) &&
-                dict.TryGetValue(str, out string fallbackText) &&
-                !string.IsNullOrWhiteSpace(fallbackText))
-            {
-                __result = fallbackText;
-                return false;
-            }
+            if (!LocaleRegistry.CustomLocales.TryGetValue(type, out var dict) ||
+                !dict.TryGetValue(str, out var fallbackText) ||
+                string.IsNullOrWhiteSpace(fallbackText)) return true;
+            __result = fallbackText;
+            return false;
 
-            return true;
         }
     }
 

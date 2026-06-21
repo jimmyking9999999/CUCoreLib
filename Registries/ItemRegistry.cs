@@ -1,8 +1,10 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using CUCoreLib.Data;
 using CUCoreLib.Helpers;
+using CUCoreLib.Networking;
 using CUCoreLib.Patches;
 using Newtonsoft.Json.Linq;
 using UnityEngine;
@@ -12,22 +14,23 @@ namespace CUCoreLib.Registries
     public static class ItemRegistry
     {
         internal static Dictionary<string, CustomItemInfo> RegisteredItems =
-            new Dictionary<string, CustomItemInfo>(System.StringComparer.OrdinalIgnoreCase);
+            new Dictionary<string, CustomItemInfo>(StringComparer.OrdinalIgnoreCase);
 
         // In-game decals are manually blacklisted. Which is probably really bad to do, but it's not too dangerous if it fails after an update
-        private static readonly HashSet<string> IgnoredMissingIconIds = new HashSet<string>(System.StringComparer.OrdinalIgnoreCase)
-        {
-            "climbingropeextended",
-            "grabberplant",
-            "grabbershroom",
-            "defibrack",
-            "holidaytree",
-            "marbleBackground",
-            "mushroomrope",
-            "mushroomropeend",
-            "sandvinehook",
-            "sandvinerope"
-        };
+        private static readonly HashSet<string> IgnoredMissingIconIds =
+            new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            {
+                "climbingropeextended",
+                "grabberplant",
+                "grabbershroom",
+                "defibrack",
+                "holidaytree",
+                "marbleBackground",
+                "mushroomrope",
+                "mushroomropeend",
+                "sandvinehook",
+                "sandvinerope"
+            };
 
         public static void Register(string id, ItemInfo info, Sprite icon, int spawnFrequency = 1)
         {
@@ -37,7 +40,7 @@ namespace CUCoreLib.Registries
                 return;
             }
 
-            CustomItemInfo customInfo = ToCustomItemInfo(info);
+            var customInfo = ToCustomItemInfo(info);
             customInfo.Icon = icon;
             customInfo.SpawnFrequency = spawnFrequency;
 
@@ -46,10 +49,7 @@ namespace CUCoreLib.Registries
 
         public static void Register(string id, CustomItemInfo info, Sprite icon = null)
         {
-            if (info != null && icon != null)
-            {
-                info.Icon = icon;
-            }
+            if (info != null && icon != null) info.Icon = icon;
 
             Register(id, info);
         }
@@ -62,47 +62,30 @@ namespace CUCoreLib.Registries
                 return;
             }
 
-            if (info == null)
-            {
-                info = new CustomItemInfo();
-            }
+            if (info == null) info = new CustomItemInfo();
 
             id = id.Trim();
             info.ID = id;
 
-            if (string.IsNullOrWhiteSpace(info.category))
-            {
-                info.category = "nospawn";
-            }
+            if (string.IsNullOrWhiteSpace(info.category)) info.category = "nospawn";
 
             ApplySmartDefaults(info);
             ApplyMedicalActions(info);
 
-            if (!string.IsNullOrEmpty(info.fullName))
-            {
-                info.fullName = LocaleRegistry.Get("item", id, info.fullName);
-            }
+            if (!string.IsNullOrEmpty(info.fullName)) info.fullName = LocaleRegistry.Get("item", id, info.fullName);
 
             if (!string.IsNullOrEmpty(info.description))
-            {
                 info.description = LocaleRegistry.Get("item", id + "dsc", info.description);
-            }
 
             // Store or replace the registry entry, apply defaults and inject into runtime tables.
-            bool replacingExisting = RegisteredItems.ContainsKey(id);
+            var replacingExisting = RegisteredItems.ContainsKey(id);
             RegisteredItems[id] = info;
 
-            if (Item.GlobalItems != null)
-            {
-                InjectSingleItem(id, info, replacingExisting);
-            }
+            if (Item.GlobalItems != null) InjectSingleItem(id, info, replacingExisting);
 
-            if (ItemLootPool.pool != null)
-            {
-                ItemLootPoolPatch.EnsureItemInLootPool(id, info);
-            }
+            if (ItemLootPool.pool != null) ItemLootPoolPatch.EnsureItemInLootPool(id, info);
 
-            CUCoreLib.Networking.MultiplayerSyncRegistry.QueueHostSnapshotBroadcast();
+            MultiplayerSyncRegistry.QueueHostSnapshotBroadcast();
         }
 
         public static IEnumerable<string> GetRegisteredItemIds()
@@ -113,16 +96,13 @@ namespace CUCoreLib.Registries
         // Serialize customitemfields for mp sync
         internal static JObject CaptureNetworkSnapshot()
         {
-            JObject root = new JObject();
-            foreach (KeyValuePair<string, CustomItemInfo> entry in RegisteredItems)
+            var root = new JObject();
+            foreach (var entry in RegisteredItems)
             {
-                CustomItemInfo info = entry.Value;
-                if (info == null)
-                {
-                    continue;
-                }
+                var info = entry.Value;
+                if (info == null) continue;
 
-                JObject item = new JObject
+                var item = new JObject
                 {
                     ["fullName"] = info.fullName ?? string.Empty,
                     ["description"] = info.description ?? string.Empty,
@@ -153,7 +133,7 @@ namespace CUCoreLib.Registries
                     ["decayInfo"] = info.decayInfo,
                     ["decayMinutes"] = info.decayMinutes,
                     ["spawnFrequency"] = info.SpawnFrequency,
-                    ["recognitionMin"] = info.rec != null ? info.rec.min : 0,
+                    ["recognitionMin"] = info.rec?.min ?? 0,
                     ["capacity"] = info.capacity,
                     ["autoFill"] = info.autoFill,
                     ["defaultContents"] = NetworkSnapshotSerialization.WriteLiquidStacks(info.defaultContents),
@@ -167,23 +147,19 @@ namespace CUCoreLib.Registries
                     ["spriteScaleWidth"] = info.SpriteScaleDimensions.Width,
                     ["spriteScaleHeight"] = info.SpriteScaleDimensions.Height,
                     ["spriteScaleExpandToFirstMetCondition"] = info.SpriteScaleDimensions.ExpandToFirstMetCondition,
-                    ["spawnComponents"] = info.SpawnComponents != null ? JArray.FromObject(info.SpawnComponents) : new JArray(),
+                    ["spawnComponents"] = info.SpawnComponents != null
+                        ? JArray.FromObject(info.SpawnComponents)
+                        : new JArray(),
                     ["customData"] = info.CustomData != null ? JObject.FromObject(info.CustomData) : new JObject()
                 };
 
-                if (info.Container != null)
-                {
-                    item["container"] = JObject.FromObject(info.Container);
-                }
+                if (info.Container != null) item["container"] = JObject.FromObject(info.Container);
 
-                if (info.Battery != null)
-                {
-                    item["battery"] = JObject.FromObject(info.Battery);
-                }
+                if (info.Battery != null) item["battery"] = JObject.FromObject(info.Battery);
 
                 if (info.Light != null)
                 {
-                    JObject light = new JObject
+                    var light = new JObject
                     {
                         ["intensity"] = info.Light.Intensity,
                         ["color"] = NetworkSnapshotSerialization.WriteColor(info.Light.Color),
@@ -198,35 +174,28 @@ namespace CUCoreLib.Registries
                     item["light"] = light;
                 }
 
-                if (info.Bandage != null)
-                {
-                    item["bandage"] = JObject.FromObject(info.Bandage);
-                }
+                if (info.Bandage != null) item["bandage"] = JObject.FromObject(info.Bandage);
 
                 if (info.Syringe != null)
                 {
-                    JObject syringe = new JObject
+                    var syringe = new JObject
                     {
                         ["capacity"] = info.Syringe.Capacity,
                         ["autoFill"] = info.Syringe.AutoFill,
                         ["amountPerFullUse"] = info.Syringe.AmountPerFullUse,
                         ["useAverageColor"] = info.Syringe.UseAverageColor,
                         ["minigameColor"] = NetworkSnapshotSerialization.WriteColor(info.Syringe.MinigameColor),
-                        ["defaultContents"] = NetworkSnapshotSerialization.WriteLiquidStacks(info.Syringe.DefaultContents)
+                        ["defaultContents"] =
+                            NetworkSnapshotSerialization.WriteLiquidStacks(info.Syringe.DefaultContents)
                     };
 
                     item["syringe"] = syringe;
                 }
 
-                if (info.Tool != null)
-                {
-                    item["tool"] = JObject.FromObject(info.Tool);
-                }
+                if (info.Tool != null) item["tool"] = JObject.FromObject(info.Tool);
 
                 if (info.qualities != null)
-                {
                     item["qualities"] = NetworkSnapshotSerialization.WriteCraftingQualities(info.qualities);
-                }
 
                 root[entry.Key] = item;
             }
@@ -236,21 +205,15 @@ namespace CUCoreLib.Registries
 
         internal static void ApplyNetworkSnapshot(JObject snapshot)
         {
-            if (snapshot == null)
-            {
-                return;
-            }
+            if (snapshot == null) return;
 
-            foreach (JProperty property in snapshot.Properties())
+            foreach (var property in snapshot.Properties())
             {
-                string id = property.Name;
-                JObject obj = property.Value as JObject;
-                if (string.IsNullOrWhiteSpace(id) || obj == null)
-                {
-                    continue;
-                }
+                var id = property.Name;
+                var obj = property.Value as JObject;
+                if (string.IsNullOrWhiteSpace(id) || obj == null) continue;
 
-                CustomItemInfo info = new CustomItemInfo
+                var info = new CustomItemInfo
                 {
                     fullName = obj.Value<string>("fullName"),
                     description = obj.Value<string>("description"),
@@ -271,7 +234,8 @@ namespace CUCoreLib.Registries
                     wearSlotId = obj.Value<string>("wearSlotId"),
                     wearableArmor = obj.Value<float?>("wearableArmor") ?? 0f,
                     wearableIsolation = obj.Value<float?>("wearableIsolation") ?? 0f,
-                    wearableHitDurabilityLossMultiplier = obj.Value<float?>("wearableHitDurabilityLossMultiplier") ?? 0f,
+                    wearableHitDurabilityLossMultiplier =
+                        obj.Value<float?>("wearableHitDurabilityLossMultiplier") ?? 0f,
                     jumpHeightMultChange = obj.Value<float?>("jumpHeightMultChange") ?? 0f,
                     combineable = obj.Value<bool?>("combineable") ?? false,
                     ignoreDepression = obj.Value<bool?>("ignoreDepression") ?? false,
@@ -300,21 +264,9 @@ namespace CUCoreLib.Registries
                         obj.Value<float?>("wornSpriteOffsetY") ?? 0f)
                 };
 
-                JObject container = obj["container"] as JObject;
-                if (container != null)
-                {
-                    info.Container = container.ToObject<ContainerProperties>();
-                }
-
-                JObject battery = obj["battery"] as JObject;
-                if (battery != null)
-                {
-                    info.Battery = battery.ToObject<BatteryProperties>();
-                }
-
-                JObject light = obj["light"] as JObject;
-                if (light != null)
-                {
+                if (obj["container"] is JObject container) info.Container = container.ToObject<ContainerProperties>();
+                if (obj["battery"] is JObject battery) info.Battery = battery.ToObject<BatteryProperties>();
+                if (obj["light"] is JObject light)
                     info.Light = new LightProperties
                     {
                         Intensity = light.Value<float?>("intensity") ?? 0.75f,
@@ -322,20 +274,13 @@ namespace CUCoreLib.Registries
                         PointLightOuterRadius = light.Value<float?>("pointLightOuterRadius") ?? 0f,
                         PointLightInnerRadius = light.Value<float?>("pointLightInnerRadius") ?? 0f,
                         LightType = (CustomLightType)(light.Value<int?>("lightType") ?? 3),
-                        Offset = new Vector2(light.Value<float?>("offsetX") ?? 0f, light.Value<float?>("offsetY") ?? 0f),
+                        Offset =
+                            new Vector2(light.Value<float?>("offsetX") ?? 0f, light.Value<float?>("offsetY") ?? 0f),
                         AddLightItem = light.Value<bool?>("addLightItem") ?? true
                     };
-                }
 
-                JObject bandage = obj["bandage"] as JObject;
-                if (bandage != null)
-                {
-                    info.Bandage = bandage.ToObject<BandageProperties>();
-                }
-
-                JObject syringe = obj["syringe"] as JObject;
-                if (syringe != null)
-                {
+                if (obj["bandage"] is JObject bandage) info.Bandage = bandage.ToObject<BandageProperties>();
+                if (obj["syringe"] is JObject syringe)
                     info.Syringe = new SyringeProperties
                     {
                         Capacity = syringe.Value<float?>("capacity") ?? 0f,
@@ -345,30 +290,19 @@ namespace CUCoreLib.Registries
                         MinigameColor = NetworkSnapshotSerialization.ReadColor(syringe["minigameColor"], Color.white),
                         DefaultContents = NetworkSnapshotSerialization.ReadLiquidStacks(syringe["defaultContents"])
                     };
-                }
 
-                JObject tool = obj["tool"] as JObject;
-                if (tool != null)
-                {
-                    info.Tool = tool.ToObject<ToolProperties>();
-                }
+                if (obj["tool"] is JObject tool) info.Tool = tool.ToObject<ToolProperties>();
 
-                JToken qualities = obj["qualities"];
-                if (qualities != null)
-                {
-                    info.qualities = NetworkSnapshotSerialization.ReadCraftingQualities(qualities);
-                }
+                var qualities = obj["qualities"];
+                if (qualities != null) info.qualities = NetworkSnapshotSerialization.ReadCraftingQualities(qualities);
 
                 if (obj["customData"] is JObject customData)
-                {
-                    info.CustomData = customData.ToObject<Dictionary<string, object>>() ?? new Dictionary<string, object>();
-                }
+                    info.CustomData = customData.ToObject<Dictionary<string, object>>() ??
+                                      new Dictionary<string, object>();
 
-                JToken spawnComponents = obj["spawnComponents"];
+                var spawnComponents = obj["spawnComponents"];
                 if (spawnComponents is JArray spawnComponentArray)
-                {
                     info.SpawnComponents = spawnComponentArray.ToObject<List<string>>() ?? new List<string>();
-                }
 
                 // Recreate registry entries from the net request
                 Register(id, info);
@@ -378,17 +312,15 @@ namespace CUCoreLib.Registries
         public static bool TryGetCustomInfo(string id, out CustomItemInfo info)
         {
             info = null;
-            if (string.IsNullOrWhiteSpace(id)) return false;
-
-            return RegisteredItems.TryGetValue(CUCoreLib.Helpers.SpawnIdHelpers.NormalizeSpawnId(id), out info);
+            return !string.IsNullOrWhiteSpace(id) 
+                   && RegisteredItems.TryGetValue(SpawnIdHelpers.NormalizeSpawnId(id), out info);
         }
 
         public static bool TryGetCustomInfo(Item item, out CustomItemInfo info)
         {
             info = null;
-            if (item == null) return false;
-
-            return TryGetCustomInfo(item.id, out info);
+            return item != null
+                   && TryGetCustomInfo(item.id, out info);
         }
 
         public static bool TryGetCustomInfo(ItemInfo stats, out CustomItemInfo info)
@@ -406,7 +338,7 @@ namespace CUCoreLib.Registries
             if (item == null || string.IsNullOrWhiteSpace(key)) return false;
 
             if (!TryGetCustomInfo(item.Stats, out var info)) return false;
-            if (info.CustomData == null || !info.CustomData.TryGetValue(key, out object rawValue)) return false;
+            if (info.CustomData == null || !info.CustomData.TryGetValue(key, out var rawValue)) return false;
             if (!(rawValue is T typedValue)) return false;
 
             value = typedValue;
@@ -418,21 +350,15 @@ namespace CUCoreLib.Registries
             info = null;
             if (string.IsNullOrWhiteSpace(id)) return false;
 
-            string normalizedId = CUCoreLib.Helpers.SpawnIdHelpers.NormalizeSpawnId(id);
-            if (Item.GlobalItems != null && Item.GlobalItems.TryGetValue(normalizedId, out info))
-            {
-                return true;
-            }
+            var normalizedId = SpawnIdHelpers.NormalizeSpawnId(id);
+            if (Item.GlobalItems != null && Item.GlobalItems.TryGetValue(normalizedId, out info)) return true;
 
             if (RegisteredItems.TryGetValue(normalizedId, out var customInfo))
             {
                 if (Item.GlobalItems != null)
                 {
                     InjectSingleItem(normalizedId, customInfo);
-                    if (Item.GlobalItems.TryGetValue(normalizedId, out info))
-                    {
-                        return true;
-                    }
+                    if (Item.GlobalItems.TryGetValue(normalizedId, out info)) return true;
                 }
 
                 info = customInfo;
@@ -448,11 +374,8 @@ namespace CUCoreLib.Registries
             sprite = null;
             if (string.IsNullOrWhiteSpace(id)) return false;
 
-            string normalizedId = CUCoreLib.Helpers.SpawnIdHelpers.NormalizeSpawnId(id);
-            if (IgnoredMissingIconIds.Contains(normalizedId))
-            {
-                return false;
-            }
+            var normalizedId = SpawnIdHelpers.NormalizeSpawnId(id);
+            if (IgnoredMissingIconIds.Contains(normalizedId)) return false;
 
             // explicit registry icon -> cached sprite -> building definition -> prefab sprite
             if (RegisteredItems.TryGetValue(normalizedId, out var info) && info.Icon != null)
@@ -462,20 +385,19 @@ namespace CUCoreLib.Registries
             }
 
             sprite = AssetLoader.GetCachedSprite(normalizedId);
-            if (sprite != null)
-            {
-                return true;
-            }
+            if (sprite != null) return true;
 
-            if (BuildingEntityRegistry.TryGetDefinition(normalizedId, out var buildingDefinition) && buildingDefinition != null && buildingDefinition.Sprite != null)
+            if (BuildingEntityRegistry.TryGetDefinition(normalizedId, out var buildingDefinition) &&
+                buildingDefinition != null && buildingDefinition.Sprite != null)
             {
                 sprite = buildingDefinition.Sprite;
                 AssetLoader.CacheSprite(normalizedId, sprite);
                 return true;
             }
 
-            GameObject prefab = Resources.Load<GameObject>(normalizedId);
-            if (prefab != null && prefab.TryGetComponent<SpriteRenderer>(out var renderer) && renderer != null && renderer.sprite != null)
+            var prefab = Resources.Load<GameObject>(normalizedId);
+            if (prefab != null && prefab.TryGetComponent<SpriteRenderer>(out var renderer) && renderer != null &&
+                renderer.sprite != null)
             {
                 sprite = renderer.sprite;
                 AssetLoader.CacheSprite(normalizedId, sprite);
@@ -493,20 +415,12 @@ namespace CUCoreLib.Registries
 
             info.ID = id;
             info.SetTags();
-            if (!string.IsNullOrEmpty(info.fullName))
-            {
-                info.fullName = LocaleRegistry.Get("item", id, info.fullName);
-            }
+            if (!string.IsNullOrEmpty(info.fullName)) info.fullName = LocaleRegistry.Get("item", id, info.fullName);
 
             if (!string.IsNullOrEmpty(info.description))
-            {
                 info.description = LocaleRegistry.Get("item", id + "dsc", info.description);
-            }
 
-            if (info.decayMinutes > 0f)
-            {
-                info.rotSpeed = 1.666f / info.decayMinutes;
-            }
+            if (info.decayMinutes > 0f) info.rotSpeed = 1.666f / info.decayMinutes;
 
             ExtensionData.Set<ItemInfo, CustomItemInfo>(info, info);
 
@@ -524,39 +438,27 @@ namespace CUCoreLib.Registries
 
         private static CustomItemInfo ToCustomItemInfo(ItemInfo info)
         {
-            if (info is CustomItemInfo customInfo)
-            {
-                return customInfo;
-            }
+            if (info is CustomItemInfo customInfo) return customInfo;
 
-            CustomItemInfo clone = new CustomItemInfo();
-            if (info == null)
-            {
-                return clone;
-            }
+            var clone = new CustomItemInfo();
+            if (info == null) return clone;
 
             // Shallow-copy all fields
-            foreach (var field in GetPublicInstanceFields(info.GetType()))
-            {
-                field.SetValue(clone, field.GetValue(info));
-            }
+            foreach (var field in GetPublicInstanceFields(info.GetType())) field.SetValue(clone, field.GetValue(info));
 
             return clone;
         }
 
-        private static IEnumerable<FieldInfo> GetPublicInstanceFields(System.Type type)
+        private static IEnumerable<FieldInfo> GetPublicInstanceFields(Type type)
         {
-            HashSet<string> seen = new HashSet<string>();
-            for (System.Type current = type; current != null && typeof(ItemInfo).IsAssignableFrom(current); current = current.BaseType)
-            {
-                foreach (FieldInfo field in current.GetFields(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly))
-                {
+            var seen = new HashSet<string>();
+            for (var current = type;
+                 current != null && typeof(ItemInfo).IsAssignableFrom(current);
+                 current = current.BaseType)
+                foreach (var field in current.GetFields(BindingFlags.Public | BindingFlags.Instance |
+                                                        BindingFlags.DeclaredOnly))
                     if (seen.Add(field.Name))
-                    {
                         yield return field;
-                    }
-                }
-            }
         }
 
         private static void ApplySmartDefaults(ItemInfo info)
@@ -564,17 +466,10 @@ namespace CUCoreLib.Registries
             if (info.destroyAtZeroCondition) return;
 
             if (info.decayMinutes > 0)
-            {
                 info.destroyAtZeroCondition = true;
-            }
             else if (info.usable && !info.autoAttack && info.category != "tool" && info.category != "weapon")
-            {
                 info.destroyAtZeroCondition = true;
-            }
-            else if (info.category == "trash")
-            {
-                info.destroyAtZeroCondition = true;
-            }
+            else if (info.category == "trash") info.destroyAtZeroCondition = true;
         }
 
         private static void ApplyMedicalActions(CustomItemInfo info)
@@ -586,11 +481,11 @@ namespace CUCoreLib.Registries
                 info.usableOnLimb = true;
                 info.useLimbAction = (limb, item) =>
                 {
-                    BandageProperties bandage = info.Bandage;
-                    float effectiveness = Mathf.Max(0.001f, bandage.Effectiveness);
+                    var bandage = info.Bandage;
+                    var effectiveness = Mathf.Max(0.001f, bandage.Effectiveness);
                     MinigameBase.main.StartMinigame(new BandageMinigame(normalAngle =>
                     {
-                        float useAmount = normalAngle / effectiveness;
+                        var useAmount = normalAngle / effectiveness;
                         item.condition -= useAmount;
                         limb.skinHealAmount += useAmount * bandage.SkinHealAmount;
                         limb.bandageSlowAmount += useAmount * bandage.BandageSlowAmount;
@@ -600,9 +495,8 @@ namespace CUCoreLib.Registries
                     }, bandage.MinigameColor, limb), item);
 
                     if (bandage.CreateWrapSprite && !string.IsNullOrWhiteSpace(bandage.WrapSpritePath))
-                    {
-                        limb.CreateTemporarySprite(Resources.Load<Sprite>(bandage.WrapSpritePath), 0f, bandage.WrapSpriteColor, scaleLimb: true);
-                    }
+                        limb.CreateTemporarySprite(Resources.Load<Sprite>(bandage.WrapSpritePath), 0f,
+                            bandage.WrapSpriteColor, true);
                 };
             }
 
@@ -611,18 +505,14 @@ namespace CUCoreLib.Registries
                 info.usableOnLimb = true;
                 info.useLimbAction = (limb, item) =>
                 {
-                    WaterContainerItem wat = item.GetComponent<WaterContainerItem>();
-                    if (wat == null)
-                    {
-                        wat = item.gameObject.AddComponent<WaterContainerItem>();
-                    }
+                    var wat = item.GetComponent<WaterContainerItem>();
+                    if (wat == null) wat = item.gameObject.AddComponent<WaterContainerItem>();
 
-                    SyringeProperties syringe = info.Syringe;
-                    Color color = syringe.UseAverageColor ? wat.AverageColor() : syringe.MinigameColor;
-                    MinigameBase.main.StartMinigame(new SyringeMinigame(mult =>
-                    {
-                        wat.Inject(limb, mult * syringe.AmountPerFullUse);
-                    }, limb, color), item);
+                    var syringe = info.Syringe;
+                    var color = syringe.UseAverageColor ? wat.AverageColor() : syringe.MinigameColor;
+                    MinigameBase.main.StartMinigame(
+                        new SyringeMinigame(mult => { wat.Inject(limb, mult * syringe.AmountPerFullUse); }, limb,
+                            color), item);
                 };
             }
 
@@ -636,8 +526,8 @@ namespace CUCoreLib.Registries
                 {
                     if (body == null || item == null) return;
 
-                    ToolProperties tool = info.Tool;
-                    AttackInfo attack = new AttackInfo
+                    var tool = info.Tool;
+                    var attack = new AttackInfo
                     {
                         damage = tool.Damage,
                         structuralDamage = tool.StructuralDamage,
@@ -645,10 +535,14 @@ namespace CUCoreLib.Registries
                         distance = tool.Distance,
                         knockBack = tool.KnockBack,
                         cooldown = tool.Cooldown,
-                        attackAnim = string.IsNullOrWhiteSpace(tool.AttackAnimation) ? null : Resources.Load<GameObject>(tool.AttackAnimation),
+                        attackAnim = string.IsNullOrWhiteSpace(tool.AttackAnimation)
+                            ? null
+                            : Resources.Load<GameObject>(tool.AttackAnimation),
                         staminaUse = tool.StaminaUse,
                         piercing = tool.Piercing,
-                        swingSounds = tool.SwingSounds != null && tool.SwingSounds.Length > 0 ? tool.SwingSounds : new string[] { "BSSwing1", "BSSwing2", "BSSwing3", "BSSwing4" },
+                        swingSounds = tool.SwingSounds != null && tool.SwingSounds.Length > 0
+                            ? tool.SwingSounds
+                            : new[] { "BSSwing1", "BSSwing2", "BSSwing3", "BSSwing4" },
                         volume = tool.Volume,
                         rotateAmount = tool.RotateAmount,
                         physicalSwing = tool.PhysicalSwing,
@@ -656,10 +550,7 @@ namespace CUCoreLib.Registries
                         metalMoreDamage = tool.MetalMoreDamage
                     };
 
-                    if (body.Attack(attack, 0))
-                    {
-                        item.condition -= tool.ConditionLossOnHit;
-                    }
+                    if (body.Attack(attack, 0)) item.condition -= tool.ConditionLossOnHit;
                 };
             }
         }
@@ -667,10 +558,7 @@ namespace CUCoreLib.Registries
         private static void EnsureQualitiesForTags(ItemInfo info)
         {
             if (info == null || string.IsNullOrWhiteSpace(info.tags)) return;
-            if (info.qualities == null)
-            {
-                info.qualities = new List<CraftingQuality>();
-            }
+            if (info.qualities == null) info.qualities = new List<CraftingQuality>();
 
             AddQualityForTag(info, "dressing");
             AddQualityForTag(info, "hammering");
@@ -688,8 +576,8 @@ namespace CUCoreLib.Registries
 
         private static void AddQualityForTag(ItemInfo info, string tag)
         {
-            string[] tags = info.tags.Split(',');
-            if (!tags.Any(t => t.Trim() == tag)) return;
+            var tags = info.tags.Split(',');
+            if (tags.All(t => t.Trim() != tag)) return;
             if (info.qualities.Any(q => q.id == tag)) return;
 
             info.qualities.Add(new CraftingQuality(tag));

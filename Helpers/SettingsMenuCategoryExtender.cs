@@ -11,52 +11,60 @@ namespace CUCoreLib.Helpers
     {
         private const float FallbackButtonSpacing = 116f;
         private const float ScrollPixelsPerWheelStep = 48f;
+        private readonly Dictionary<Button, int> buttonCategoryIndices = new Dictionary<Button, int>();
 
         private readonly List<Button> customButtons = new List<Button>();
-        private readonly Dictionary<Button, int> buttonCategoryIndices = new Dictionary<Button, int>();
-        private SettingsMenu menu;
         private int activeCategoryIndex;
+        private SettingsMenu menu;
 
-        internal static void EnsureAttached(SettingsMenu menu)
+        private void Update()
         {
-            if (!menu)
+            if (menu == null || menu.content == null) return;
+
+            var maxScroll = GetMaxScroll();
+            if (maxScroll <= 0f)
             {
+                ClampScrollPosition();
                 return;
             }
 
-            SettingsMenuCategoryExtender helper = menu.GetComponent<SettingsMenuCategoryExtender>();
-            if (!helper)
-            {
-                helper = menu.gameObject.AddComponent<SettingsMenuCategoryExtender>();
-            }
+            var viewport = menu.content.parent as RectTransform;
+            if (viewport == null ||
+                !RectTransformUtility.RectangleContainsScreenPoint(viewport, Input.mousePosition)) return;
+
+            var scroll = Input.mouseScrollDelta.y;
+            if (Mathf.Abs(scroll) < 0.01f) return;
+
+            var anchoredPosition = menu.content.anchoredPosition;
+            anchoredPosition.y = Mathf.Clamp(anchoredPosition.y - scroll * ScrollPixelsPerWheelStep, 0f, maxScroll);
+            menu.content.anchoredPosition = anchoredPosition;
+        }
+
+        internal static void EnsureAttached(SettingsMenu menu)
+        {
+            if (!menu) return;
+
+            var helper = menu.GetComponent<SettingsMenuCategoryExtender>();
+            if (!helper) helper = menu.gameObject.AddComponent<SettingsMenuCategoryExtender>();
 
             helper.Initialize(menu);
         }
 
         internal static void RefreshLiveMenu()
         {
-            if (!SettingsMenu.instance)
-            {
-                return;
-            }
+            if (!SettingsMenu.instance) return;
 
             EnsureAttached(SettingsMenu.instance);
-            SettingsMenuCategoryExtender helper = SettingsMenu.instance.GetComponent<SettingsMenuCategoryExtender>();
+            var helper = SettingsMenu.instance.GetComponent<SettingsMenuCategoryExtender>();
             helper?.RefreshVisibleTab();
         }
 
         internal void Initialize(SettingsMenu settingsMenu)
         {
             menu = settingsMenu;
-            if (menu == null)
-            {
-                return;
-            }
+            if (menu == null) return;
 
-            if (menu.buttons == null)
-            {
-                menu.buttons = new List<Button>();
-            }
+            if (menu.buttons == null) menu.buttons = new List<Button>();
 
             activeCategoryIndex = Mathf.Clamp(activeCategoryIndex, 0, int.MaxValue);
             RegisterBuiltInButtons();
@@ -75,84 +83,38 @@ namespace CUCoreLib.Helpers
 
         internal void RefreshVisibleTab()
         {
-            if (menu == null)
-            {
-                return;
-            }
+            if (menu == null) return;
 
             RebuildButtons();
             menu.SelectTab(activeCategoryIndex);
-        }
-
-        private void Update()
-        {
-            if (menu == null || menu.content == null)
-            {
-                return;
-            }
-
-            float maxScroll = GetMaxScroll();
-            if (maxScroll <= 0f)
-            {
-                ClampScrollPosition();
-                return;
-            }
-
-            RectTransform viewport = menu.content.parent as RectTransform;
-            if (viewport == null || !RectTransformUtility.RectangleContainsScreenPoint(viewport, Input.mousePosition))
-            {
-                return;
-            }
-
-            float scroll = Input.mouseScrollDelta.y;
-            if (Mathf.Abs(scroll) < 0.01f)
-            {
-                return;
-            }
-
-            Vector2 anchoredPosition = menu.content.anchoredPosition;
-            anchoredPosition.y = Mathf.Clamp(anchoredPosition.y - scroll * ScrollPixelsPerWheelStep, 0f, maxScroll);
-            menu.content.anchoredPosition = anchoredPosition;
         }
 
         private void RebuildButtons()
         {
             RemoveCustomButtons();
 
-            List<ModOptionCategoryEntry> categories = ModOptionsRegistry.GetCustomCategories();
-            if (menu == null || menu.buttons == null || menu.buttons.Count == 0 || categories.Count == 0)
-            {
-                return;
-            }
+            var categories = ModOptionsRegistry.GetCustomCategories();
+            if (menu == null || menu.buttons == null || menu.buttons.Count == 0 || categories.Count == 0) return;
 
-            Button template = menu.buttons.LastOrDefault();
-            if (!template)
-            {
-                return;
-            }
+            var template = menu.buttons.LastOrDefault();
+            if (!template) return;
 
-            RectTransform templateRect = template.transform as RectTransform;
-            if (templateRect == null)
-            {
-                return;
-            }
+            var templateRect = template.transform as RectTransform;
+            if (templateRect == null) return;
 
-            float spacing = GetButtonSpacing();
-            Transform parent = template.transform.parent;
-            Vector2 origin = templateRect.anchoredPosition;
+            var spacing = GetButtonSpacing();
+            var parent = template.transform.parent;
+            var origin = templateRect.anchoredPosition;
 
-            for (int i = 0; i < categories.Count; i++)
+            for (var i = 0; i < categories.Count; i++)
             {
-                ModOptionCategoryEntry category = categories[i];
-                GameObject clone = Instantiate(template.gameObject, parent, false);
+                var category = categories[i];
+                var clone = Instantiate(template.gameObject, parent, false);
                 clone.name = $"CUCoreLibSettingsTab_{category.DisplayName}";
-                RectTransform cloneRect = clone.transform as RectTransform;
-                if (cloneRect != null)
-                {
-                    cloneRect.anchoredPosition = origin + new Vector2(spacing * (i + 1), 0f);
-                }
+                var cloneRect = clone.transform as RectTransform;
+                if (cloneRect != null) cloneRect.anchoredPosition = origin + new Vector2(spacing * (i + 1), 0f);
 
-                Button button = clone.GetComponent<Button>();
+                var button = clone.GetComponent<Button>();
                 if (!button)
                 {
                     Destroy(clone);
@@ -160,17 +122,11 @@ namespace CUCoreLib.Helpers
                 }
 
                 button.onClick.RemoveAllListeners();
-                int categoryIndex = category.CategoryIndex;
-                button.onClick.AddListener(delegate
-                {
-                    menu.SelectTab(categoryIndex);
-                });
+                var categoryIndex = category.CategoryIndex;
+                button.onClick.AddListener(delegate { menu.SelectTab(categoryIndex); });
 
-                TextMeshProUGUI label = clone.GetComponentInChildren<TextMeshProUGUI>(true);
-                if (label != null)
-                {
-                    label.text = category.DisplayName;
-                }
+                var label = clone.GetComponentInChildren<TextMeshProUGUI>(true);
+                if (label != null) label.text = category.DisplayName;
 
                 menu.buttons.Add(button);
                 customButtons.Add(button);
@@ -181,116 +137,81 @@ namespace CUCoreLib.Helpers
         private void RemoveCustomButtons()
         {
             if (menu != null && menu.buttons != null)
-            {
-                foreach (Button button in customButtons)
-                {
+                foreach (var button in customButtons)
                     menu.buttons.Remove(button);
-                }
-            }
 
-            foreach (Button button in customButtons)
-            {
+            foreach (var button in customButtons)
                 if (button)
                 {
                     buttonCategoryIndices.Remove(button);
                     Destroy(button.gameObject);
                 }
-            }
 
             customButtons.Clear();
         }
 
         private void RegisterBuiltInButtons()
         {
-            int builtInCount = Mathf.Min(5, menu.buttons.Count);
-            for (int i = 0; i < builtInCount; i++)
+            var builtInCount = Mathf.Min(5, menu.buttons.Count);
+            for (var i = 0; i < builtInCount; i++)
             {
-                Button button = menu.buttons[i];
-                if (button != null)
-                {
-                    buttonCategoryIndices[button] = i;
-                }
+                var button = menu.buttons[i];
+                if (button != null) buttonCategoryIndices[button] = i;
             }
         }
 
         private float GetButtonSpacing()
         {
-            if (menu == null || menu.buttons == null || menu.buttons.Count < 2)
-            {
-                return FallbackButtonSpacing;
-            }
+            if (menu == null || menu.buttons == null || menu.buttons.Count < 2) return FallbackButtonSpacing;
 
-            RectTransform last = menu.buttons[menu.buttons.Count - 1].transform as RectTransform;
-            RectTransform previous = menu.buttons[menu.buttons.Count - 2].transform as RectTransform;
-            if (last == null || previous == null)
-            {
-                return FallbackButtonSpacing;
-            }
+            var last = menu.buttons[menu.buttons.Count - 1].transform as RectTransform;
+            var previous = menu.buttons[menu.buttons.Count - 2].transform as RectTransform;
+            if (last == null || previous == null) return FallbackButtonSpacing;
 
-            float spacing = last.anchoredPosition.x - previous.anchoredPosition.x;
+            var spacing = last.anchoredPosition.x - previous.anchoredPosition.x;
             return Mathf.Abs(spacing) > 0.01f ? spacing : FallbackButtonSpacing;
         }
 
         private void ApplyButtonSprites()
         {
-            if (menu == null || menu.buttons == null)
-            {
-                return;
-            }
+            if (menu == null || menu.buttons == null) return;
 
-            for (int i = 0; i < menu.buttons.Count; i++)
+            foreach (var button in menu.buttons)
             {
-                Button button = menu.buttons[i];
-                if (!button)
-                {
-                    continue;
-                }
+                if (!button) continue;
 
-                Image image = button.GetComponent<Image>();
-                if (image != null)
-                {
-                    bool isActive = buttonCategoryIndices.TryGetValue(button, out int categoryIndex) && categoryIndex == activeCategoryIndex;
-                    image.sprite = isActive ? menu.buttonOpen : menu.buttonClosed;
-                }
+                var image = button.GetComponent<Image>();
+                if (image == null) continue;
+                var isActive = buttonCategoryIndices.TryGetValue(button, out var categoryIndex)
+                               && categoryIndex == activeCategoryIndex;
+                image.sprite = isActive ? menu.buttonOpen : menu.buttonClosed;
             }
         }
 
         private void SnapContentToTop()
         {
-            if (menu?.content == null)
-            {
-                return;
-            }
+            if (menu?.content == null) return;
 
-            Vector2 anchoredPosition = menu.content.anchoredPosition;
+            var anchoredPosition = menu.content.anchoredPosition;
             anchoredPosition.y = 0f;
             menu.content.anchoredPosition = anchoredPosition;
         }
 
         private void ClampScrollPosition()
         {
-            if (menu?.content == null)
-            {
-                return;
-            }
+            if (menu?.content == null) return;
 
-            Vector2 anchoredPosition = menu.content.anchoredPosition;
+            var anchoredPosition = menu.content.anchoredPosition;
             anchoredPosition.y = Mathf.Clamp(anchoredPosition.y, 0f, GetMaxScroll());
             menu.content.anchoredPosition = anchoredPosition;
         }
 
         private float GetMaxScroll()
         {
-            if (menu?.content == null)
-            {
-                return 0f;
-            }
+            if (menu?.content == null) return 0f;
 
-            RectTransform viewport = menu.content.parent as RectTransform;
-            if (viewport == null)
-            {
-                return 0f;
-            }
+            var viewport = menu.content.parent as RectTransform;
+            if (viewport == null) return 0f;
 
             return Mathf.Max(0f, menu.content.sizeDelta.y - viewport.rect.height);
         }

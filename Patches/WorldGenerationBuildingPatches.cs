@@ -10,7 +10,7 @@ namespace CUCoreLib.Patches
         [HarmonyPostfix]
         private static void DistributeRegisteredBuildings(WorldGeneration __instance)
         {
-            foreach (string id in BuildingEntityRegistry.GetRegisteredIds())
+            foreach (var id in BuildingEntityRegistry.GetRegisteredIds())
             {
                 if (!BuildingEntityRegistry.TryGetDefinition(id, out var definition)) continue;
                 if (definition.GenerationStyle == BuildingGenerationStyle.None) continue;

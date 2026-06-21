@@ -1,5 +1,5 @@
-using Newtonsoft.Json.Linq;
 using CUCoreLib.Registries;
+using Newtonsoft.Json.Linq;
 
 namespace CUCoreLib.Saving
 {
@@ -12,19 +12,12 @@ namespace CUCoreLib.Saving
 
         public JToken Capture(Limb limb, int limbIndex)
         {
-            if (limb == null)
-            {
-                return null;
-            }
+            if (limb == null) return null;
 
-            JArray statuses = new JArray();
+            var statuses = new JArray();
             foreach (var entry in StatusRegistry.EnumerateLimbStatuses(limb))
-            {
-                if (StatusRegistry.TryCapture(entry.Value, out JObject payload))
-                {
+                if (StatusRegistry.TryCapture(entry.Value, out var payload))
                     statuses.Add(payload);
-                }
-            }
 
             return statuses.Count == 0 ? null : statuses;
         }

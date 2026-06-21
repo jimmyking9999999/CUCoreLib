@@ -1,4 +1,3 @@
-using CUCoreLib.Helpers;
 using CUCoreLib.Registries;
 using Newtonsoft.Json.Linq;
 using UnityEngine;
@@ -14,8 +13,8 @@ namespace CUCoreLib.Saving
 
         public JToken Capture(WorldSaveContext context)
         {
-            JArray buildings = new JArray();
-            foreach (CustomBuildingRuntime runtime in BuildingEntityRegistry.GetActiveRuntimes())
+            var buildings = new JArray();
+            foreach (var runtime in BuildingEntityRegistry.GetActiveRuntimes())
             {
                 if (runtime == null || string.IsNullOrWhiteSpace(runtime.DefinitionId)) continue;
                 if (!runtime.TryGetComponent(out BuildingEntity building)) continue;
@@ -36,38 +35,36 @@ namespace CUCoreLib.Saving
 
         public void Restore(WorldSaveContext context, JToken payload, int version, SaveRestoreContext contextForRestore)
         {
-            JArray buildings = payload as JArray;
+            var buildings = payload as JArray;
             if (buildings == null) return;
 
             contextForRestore.Defer(() =>
             {
-                foreach (CustomBuildingRuntime runtime in BuildingEntityRegistry.GetActiveRuntimes())
-                {
+                foreach (var runtime in BuildingEntityRegistry.GetActiveRuntimes())
                     if (runtime != null)
-                    {
                         Object.Destroy(runtime.gameObject);
-                    }
-                }
 
-                foreach (JToken token in buildings)
+                foreach (var token in buildings)
                 {
-                    string id = (string)token["id"];
+                    var id = (string)token["id"];
                     if (!BuildingEntityRegistry.TryGetDefinition(id, out _))
                     {
-                        CUCoreLibPlugin.Log?.LogWarning("CUCoreLib Save: Skipped unknown custom building '" + id + "'.");
+                        CUCoreLibPlugin.Log?.LogWarning("CUCoreLib Save: Skipped unknown custom building '" + id +
+                                                        "'.");
                         continue;
                     }
 
-                    Vector2 position = ReadVector2(token["position"]);
-                    float rotation = (float?)token["rotation"] ?? 0f;
-                    GameObject instance = BuildingEntityRegistry.Spawn(id, position, Quaternion.Euler(0f, 0f, rotation));
+                    var position = ReadVector2(token["position"]);
+                    var rotation = (float?)token["rotation"] ?? 0f;
+                    var instance = BuildingEntityRegistry.Spawn(id, position, Quaternion.Euler(0f, 0f, rotation));
                     if (instance == null) continue;
 
                     instance.transform.localScale = ReadVector3(token["scale"], instance.transform.localScale);
                     if (instance.TryGetComponent(out BuildingEntity building))
                     {
                         building.health = (float?)token["health"] ?? building.health;
-                        BuildingEntityRegistry.RestoreSeating(instance, context.World, ReadVector2Int(token["blockPlacedOn"]));
+                        BuildingEntityRegistry.RestoreSeating(instance, context.World,
+                            ReadVector2Int(token["blockPlacedOn"]));
                     }
                 }
             });

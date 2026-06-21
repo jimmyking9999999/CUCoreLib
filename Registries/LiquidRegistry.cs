@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using CUCoreLib.Data;
@@ -10,7 +11,8 @@ namespace CUCoreLib.Registries
     public static class LiquidRegistry
     {
         internal static Dictionary<string, CustomLiquidInfo> RegisteredLiquids =
-            new Dictionary<string, CustomLiquidInfo>(System.StringComparer.OrdinalIgnoreCase);
+            new Dictionary<string, CustomLiquidInfo>(StringComparer.OrdinalIgnoreCase);
+
         private static bool LoggedInitialInjection;
 
         public static void Register(string id, CustomLiquidInfo info)
@@ -21,10 +23,7 @@ namespace CUCoreLib.Registries
                 return;
             }
 
-            if (info == null)
-            {
-                info = new CustomLiquidInfo();
-            }
+            if (info == null) info = new CustomLiquidInfo();
 
             id = id.Trim();
             RegisteredLiquids[id] = info;
@@ -35,14 +34,10 @@ namespace CUCoreLib.Registries
 
         internal static int InjectRegisteredLiquids(bool logSummary = false)
         {
-            int injected = 0;
+            var injected = 0;
             foreach (var kvp in RegisteredLiquids)
-            {
                 if (InjectSingleLiquid(kvp.Key, kvp.Value))
-                {
                     injected++;
-                }
-            }
 
             if (logSummary) LogInitialInjectionSummary();
 
@@ -68,17 +63,11 @@ namespace CUCoreLib.Registries
         {
             if (string.IsNullOrWhiteSpace(id) || info == null) return false;
 
-            if (info.onDrink == null)
-            {
-                info.onDrink = (amount, body) => { };
-            }
+            if (info.onDrink == null) info.onDrink = (amount, body) => { };
 
-            if (info.onHealthUse == null)
-            {
-                info.onHealthUse = (amount, limb) => { };
-            }
+            if (info.onHealthUse == null) info.onHealthUse = (amount, limb) => { };
 
-            bool wasPresent = Liquids.Registry.ContainsKey(id);
+            var wasPresent = Liquids.Registry.ContainsKey(id);
             Liquids.Registry[id] = new LiquidType
             {
                 localeName = id,
@@ -93,15 +82,9 @@ namespace CUCoreLib.Registries
                 qualities = info.qualities ?? new List<CraftingQuality>()
             };
 
-            if (!string.IsNullOrEmpty(info.name))
-            {
-                LocaleRegistry.Register("other", id, info.name);
-            }
+            if (!string.IsNullOrEmpty(info.name)) LocaleRegistry.Register("other", id, info.name);
 
-            if (!string.IsNullOrEmpty(info.description))
-            {
-                LocaleRegistry.Register("other", id + "dsc", info.description);
-            }
+            if (!string.IsNullOrEmpty(info.description)) LocaleRegistry.Register("other", id + "dsc", info.description);
 
             return !wasPresent;
         }
@@ -113,14 +96,11 @@ namespace CUCoreLib.Registries
 
         internal static JObject CaptureNetworkSnapshot()
         {
-            JObject root = new JObject();
+            var root = new JObject();
             foreach (var entry in RegisteredLiquids)
             {
-                CustomLiquidInfo info = entry.Value;
-                if (info == null)
-                {
-                    continue;
-                }
+                var info = entry.Value;
+                if (info == null) continue;
 
                 root[entry.Key] = new JObject
                 {
@@ -141,18 +121,12 @@ namespace CUCoreLib.Registries
 
         internal static void ApplyNetworkSnapshot(JObject snapshot)
         {
-            if (snapshot == null)
-            {
-                return;
-            }
+            if (snapshot == null) return;
 
-            foreach (JProperty property in snapshot.Properties())
+            foreach (var property in snapshot.Properties())
             {
-                JObject obj = property.Value as JObject;
-                if (obj == null)
-                {
-                    continue;
-                }
+                var obj = property.Value as JObject;
+                if (obj == null) continue;
 
                 Register(property.Name, new CustomLiquidInfo
                 {

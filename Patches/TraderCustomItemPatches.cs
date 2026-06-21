@@ -8,6 +8,8 @@ using HarmonyLib;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
+using Object = UnityEngine.Object;
+using Random = UnityEngine.Random;
 
 // TODO I don't like this, will need to refactor to not override so much vanilla game behaviour
 namespace CUCoreLib.Patches
@@ -31,42 +33,31 @@ namespace CUCoreLib.Patches
         [HarmonyPrefix]
         private static bool RefreshTraderInventories(PlayerCamera __instance)
         {
-            if (__instance == null || __instance.tradeMenu == null || !__instance.tradeMenu.activeSelf)
-            {
-                return false;
-            }
+            if (__instance == null || __instance.tradeMenu == null || !__instance.tradeMenu.activeSelf) return false;
 
             __instance.ClearTraderInventories();
 
-            TraderScript currentTrader = __instance.currentTrader;
+            var currentTrader = __instance.currentTrader;
             if (currentTrader == null || currentTrader.items == null || __instance.traderInventory == null)
-            {
                 return false;
-            }
 
-            TraderScript.TraderItemPreference traderItemPreference = TraderScript.TraderItemPreference.WantsKeep;
-            float yOffset = 0f;
-            bool hasRenderedEntries = false;
+            var traderItemPreference = TraderScript.TraderItemPreference.WantsKeep;
+            var yOffset = 0f;
+            var hasRenderedEntries = false;
 
-            for (int i = 0; i < currentTrader.items.Count; i++)
+            for (var i = 0; i < currentTrader.items.Count; i++)
             {
-                TraderItem traderItem = currentTrader.items[i];
+                var traderItem = currentTrader.items[i];
                 ItemInfo info;
                 Sprite sprite;
                 GameObject template;
-                if (!TryResolveTraderListing(traderItem, out info, out sprite, out template))
-                {
-                    continue;
-                }
+                if (!TryResolveTraderListing(traderItem, out info, out sprite, out template)) continue;
 
                 if (!hasRenderedEntries || traderItem.preference != traderItemPreference)
                 {
                     traderItemPreference = traderItem.preference;
-                    GameObject split = CreateResource("Special/TraderInvSplit", __instance.traderInventory);
-                    if (split == null)
-                    {
-                        continue;
-                    }
+                    var split = CreateResource("Special/TraderInvSplit", __instance.traderInventory);
+                    if (split == null) continue;
 
                     split.GetComponent<RectTransform>().anchoredPosition = new Vector2(0f, 0f - yOffset);
                     split.GetComponentInChildren<TextMeshProUGUI>().text =
@@ -90,11 +81,8 @@ namespace CUCoreLib.Patches
                     continue;
                 }
 
-                GameObject panel = CreateResource("Special/TraderItemPanel", __instance.traderInventory);
-                if (panel == null)
-                {
-                    continue;
-                }
+                var panel = CreateResource("Special/TraderItemPanel", __instance.traderInventory);
+                if (panel == null) continue;
 
                 panel.GetComponent<RectTransform>().anchoredPosition = new Vector2(0f, 0f - yOffset);
 
@@ -106,7 +94,7 @@ namespace CUCoreLib.Patches
                 hasRenderedEntries = true;
             }
 
-            RectTransform inventoryRect = __instance.traderInventory.GetComponent<RectTransform>();
+            var inventoryRect = __instance.traderInventory.GetComponent<RectTransform>();
             inventoryRect.sizeDelta = new Vector2(inventoryRect.sizeDelta.x, yOffset);
             return false;
         }
@@ -115,23 +103,14 @@ namespace CUCoreLib.Patches
         [HarmonyPrefix]
         private static bool TryPurchase(TraderScript __instance, TraderItem item)
         {
-            if (__instance == null || item == null)
-            {
-                return false;
-            }
+            if (__instance == null || item == null) return false;
 
-            BuildingEntity build = __instance.GetComponent<BuildingEntity>();
-            if (build != null && build.health < 200f)
-            {
-                return false;
-            }
+            var build = __instance.GetComponent<BuildingEntity>();
+            if (build != null && build.health < 200f) return false;
 
-            PlayerCamera camera = PlayerCamera.main;
-            Body body = camera != null ? camera.body : null;
-            if (camera == null || body == null)
-            {
-                return false;
-            }
+            var camera = PlayerCamera.main;
+            var body = camera != null ? camera.body : null;
+            if (camera == null || body == null) return false;
 
             ItemInfo info;
             if (!TryResolveTraderItemInfo(item.id, out info))
@@ -152,14 +131,12 @@ namespace CUCoreLib.Patches
 
             if (__instance.valueGiven >= price)
             {
-                GameObject spawned = CustomInstantiate.InstantiateReturn(item.id, __instance.transform.position, Quaternion.identity);
-                Item boughtItem = spawned != null ? spawned.GetComponent<Item>() : null;
+                var spawned =
+                    CustomInstantiate.InstantiateReturn(item.id, __instance.transform.position, Quaternion.identity);
+                var boughtItem = spawned != null ? spawned.GetComponent<Item>() : null;
                 if (boughtItem == null)
                 {
-                    if (spawned != null)
-                    {
-                        UnityEngine.Object.Destroy(spawned);
-                    }
+                    if (spawned != null) Object.Destroy(spawned);
 
                     WarnTraderIssue(item.id, "purchase skipped because the trader item could not be spawned safely.!");
                     camera.PlayUISound(PlayerCamera.UISoundType.Deny);
@@ -172,16 +149,12 @@ namespace CUCoreLib.Patches
                 if (price > 0)
                 {
                     if (item.preference == TraderScript.TraderItemPreference.WantsTrade)
-                    {
                         __instance.reputation += 7f;
-                    }
                     else if (item.preference == TraderScript.TraderItemPreference.Indifferent)
-                    {
                         __instance.reputation += 4f;
-                    }
                 }
 
-                int freeAmount = GetFreeAmount(__instance);
+                var freeAmount = GetFreeAmount(__instance);
                 if (freeAmount > 0)
                 {
                     SetFreeAmount(__instance, freeAmount - 1);
@@ -198,13 +171,11 @@ namespace CUCoreLib.Patches
 
                 spawned.AddComponent<BoughtItem>();
                 AmmoScript ammo;
-                if (spawned.TryGetComponent<AmmoScript>(out ammo) &&
+                if (spawned.TryGetComponent(out ammo) &&
                     ammo.itemType == AmmoScript.AmmoItemType.Magazine)
-                {
-                    ammo.rounds = UnityEngine.Random.Range(
-                        (int)((float)ammo.maxRounds * 0.5f),
+                    ammo.rounds = Random.Range(
+                        (int)(ammo.maxRounds * 0.5f),
                         ammo.maxRounds);
-                }
 
                 body.AutoPickUpItem(boughtItem);
                 camera.PlayUISound(PlayerCamera.UISoundType.Click);
@@ -212,13 +183,9 @@ namespace CUCoreLib.Patches
             else
             {
                 if (__instance.totalValueGiven != TraderScript.MAX_VALUE_GIVEN)
-                {
                     __instance.talker.Talk(Locale.GetCharacter("traderbuyfail", __instance.character));
-                }
                 else
-                {
                     __instance.talker.Talk(Locale.GetCharacter("traderbuyfailmaxvalue", __instance.character));
-                }
 
                 camera.PlayUISound(PlayerCamera.UISoundType.Deny);
                 __instance.reputation -= 2f;
@@ -233,18 +200,12 @@ namespace CUCoreLib.Patches
         [HarmonyPrefix]
         private static bool GiveItem(TraderScript __instance, Item item)
         {
-            if (__instance == null || item == null)
-            {
-                return false;
-            }
+            if (__instance == null || item == null) return false;
 
             Container container;
-            if (item.TryGetComponent<Container>(out container) && container.GetHoldingWeight() > 0f)
+            if (item.TryGetComponent(out container) && container.GetHoldingWeight() > 0f)
             {
-                if (PlayerCamera.main != null)
-                {
-                    PlayerCamera.main.DoAlert(Locale.GetOther("alertsellcontainer"));
-                }
+                if (PlayerCamera.main != null) PlayerCamera.main.DoAlert(Locale.GetOther("alertsellcontainer"));
 
                 return false;
             }
@@ -256,11 +217,8 @@ namespace CUCoreLib.Patches
                 return false;
             }
 
-            int itemValue = info.GetValue(item);
-            if (itemValue <= 0 || item.GetComponent<BoughtItem>() != null)
-            {
-                return false;
-            }
+            var itemValue = info.GetValue(item);
+            if (itemValue <= 0 || item.GetComponent<BoughtItem>() != null) return false;
 
             if (__instance.totalValueGiven == TraderScript.MAX_VALUE_GIVEN)
             {
@@ -270,31 +228,21 @@ namespace CUCoreLib.Patches
 
             __instance.talker.Talk(Locale.GetCharacter("tradergiveitem", __instance.character));
 
-            int roomLeft = TraderScript.MAX_VALUE_GIVEN - __instance.totalValueGiven;
-            if (itemValue > roomLeft)
-            {
-                itemValue = roomLeft;
-            }
+            var roomLeft = TraderScript.MAX_VALUE_GIVEN - __instance.totalValueGiven;
+            if (itemValue > roomLeft) itemValue = roomLeft;
 
             __instance.valueGiven += itemValue;
             __instance.totalValueGiven += itemValue;
 
             if (__instance.valueGiven > TraderScript.MAX_VALUE_GIVEN)
-            {
                 __instance.valueGiven = TraderScript.MAX_VALUE_GIVEN;
-            }
 
             if (__instance.totalValueGiven > TraderScript.MAX_VALUE_GIVEN)
-            {
                 __instance.totalValueGiven = TraderScript.MAX_VALUE_GIVEN;
-            }
 
-            if (PlayerCamera.main != null)
-            {
-                PlayerCamera.main.UpdateTradeTexts();
-            }
+            if (PlayerCamera.main != null) PlayerCamera.main.UpdateTradeTexts();
 
-            UnityEngine.Object.Destroy(item.gameObject);
+            Object.Destroy(item.gameObject);
             return false;
         }
 
@@ -302,30 +250,21 @@ namespace CUCoreLib.Patches
         [HarmonyPrefix]
         private static bool DropInventory(TraderScript __instance)
         {
-            if (__instance == null || __instance.items == null)
-            {
-                return false;
-            }
+            if (__instance == null || __instance.items == null) return false;
 
-            foreach (TraderItem traderItem in __instance.items)
+            foreach (var traderItem in __instance.items)
             {
-                if (traderItem == null || UnityEngine.Random.value >= 0.66f)
-                {
-                    continue;
-                }
+                if (traderItem == null || Random.value >= 0.66f) continue;
 
-                GameObject spawned = CustomInstantiate.InstantiateReturn(
+                var spawned = CustomInstantiate.InstantiateReturn(
                     traderItem.id,
                     __instance.transform.position,
-                    Quaternion.Euler(0f, 0f, UnityEngine.Random.value * 360f));
+                    Quaternion.Euler(0f, 0f, Random.value * 360f));
 
-                Item droppedItem = spawned != null ? spawned.GetComponent<Item>() : null;
+                var droppedItem = spawned != null ? spawned.GetComponent<Item>() : null;
                 if (droppedItem == null)
                 {
-                    if (spawned != null)
-                    {
-                        UnityEngine.Object.Destroy(spawned);
-                    }
+                    if (spawned != null) Object.Destroy(spawned);
 
                     WarnTraderIssue(traderItem.id, "drop skipped because the trader item could not be spawned safely.");
                     continue;
@@ -333,16 +272,12 @@ namespace CUCoreLib.Patches
 
                 if (droppedItem.gameObject.GetComponent<Rigidbody2D>() != null &&
                     droppedItem.gameObject.GetComponent<SpriteRenderer>() != null)
-                {
                     droppedItem.gameObject.AddComponent<FreshItemDrop>();
-                }
 
                 AmmoScript ammo;
-                if (droppedItem.TryGetComponent<AmmoScript>(out ammo) &&
+                if (droppedItem.TryGetComponent(out ammo) &&
                     ammo.itemType == AmmoScript.AmmoItemType.Magazine)
-                {
-                    ammo.rounds = (int)Mathf.Lerp(0f, ammo.maxRounds, UnityEngine.Random.value);
-                }
+                    ammo.rounds = (int)Mathf.Lerp(0f, ammo.maxRounds, Random.value);
             }
 
             __instance.items.Clear();
@@ -359,7 +294,7 @@ namespace CUCoreLib.Patches
             sprite = null;
             template = null;
 
-            string itemId = NormalizeId(traderItem != null ? traderItem.id : null);
+            var itemId = NormalizeId(traderItem != null ? traderItem.id : null);
             if (string.IsNullOrWhiteSpace(itemId))
             {
                 WarnTraderIssue(itemId, "skipped trader entry because the item ID was blank.");
@@ -391,23 +326,18 @@ namespace CUCoreLib.Patches
 
         private static void ApplyLiquidFill(GameObject panel, ItemInfo info, GameObject template)
         {
-            Image fillImage = panel.transform.GetChild(0).GetComponent<Image>();
+            var fillImage = panel.transform.GetChild(0).GetComponent<Image>();
             fillImage.enabled = false;
 
-            WaterContainerItem waterContainer = template != null ? template.GetComponent<WaterContainerItem>() : null;
-            Sprite fillSprite = GetFillSprite(waterContainer);
-            LiquidItemInfo liquidInfo = info as LiquidItemInfo;
-            if (fillSprite == null || liquidInfo == null || liquidInfo.defaultContents == null || liquidInfo.defaultContents.Count == 0)
-            {
-                return;
-            }
+            var waterContainer = template != null ? template.GetComponent<WaterContainerItem>() : null;
+            var fillSprite = GetFillSprite(waterContainer);
+            var liquidInfo = info as LiquidItemInfo;
+            if (fillSprite == null || liquidInfo == null || liquidInfo.defaultContents == null ||
+                liquidInfo.defaultContents.Count == 0) return;
 
-            string liquidId = liquidInfo.defaultContents[0].liquidId;
+            var liquidId = liquidInfo.defaultContents[0].liquidId;
             LiquidType liquidType;
-            if (string.IsNullOrWhiteSpace(liquidId) || !Liquids.Registry.TryGetValue(liquidId, out liquidType))
-            {
-                return;
-            }
+            if (string.IsNullOrWhiteSpace(liquidId) || !Liquids.Registry.TryGetValue(liquidId, out liquidType)) return;
 
             fillImage.enabled = true;
             fillImage.sprite = fillSprite;
@@ -418,7 +348,7 @@ namespace CUCoreLib.Patches
 
         private static void ApplyItemSprite(GameObject panel, Sprite sprite)
         {
-            Image image = panel.transform.GetChild(1).GetComponent<Image>();
+            var image = panel.transform.GetChild(1).GetComponent<Image>();
             image.enabled = true;
             image.sprite = sprite;
             image.GetComponent<RectTransform>().sizeDelta =
@@ -430,23 +360,17 @@ namespace CUCoreLib.Patches
             panel.transform.GetChild(2).GetComponent<TextMeshProUGUI>().text = info.fullName;
             panel.transform.GetChild(3).GetComponent<TextMeshProUGUI>().text = info.description;
 
-            UITooltip tooltip = panel.transform.GetChild(3).GetComponent<UITooltip>();
+            var tooltip = panel.transform.GetChild(3).GetComponent<UITooltip>();
             tooltip.skipLocale = true;
             tooltip.tipName = info.fullName;
             tooltip.tipDesc = info.description;
 
             int price;
-            if (!TryGetTraderItemPrice(trader, traderItem, info, out price))
-            {
-                price = 0;
-            }
+            if (!TryGetTraderItemPrice(trader, traderItem, info, out price)) price = 0;
 
-            TextMeshProUGUI priceText = panel.transform.GetChild(4).GetComponent<TextMeshProUGUI>();
+            var priceText = panel.transform.GetChild(4).GetComponent<TextMeshProUGUI>();
             priceText.text = string.Format("{0}{1}", Locale.GetOther("costs"), price);
-            if (price == 0)
-            {
-                priceText.text = Locale.GetOther("free");
-            }
+            if (price == 0) priceText.text = Locale.GetOther("free");
 
             panel.transform.GetChild(5).GetComponent<TextMeshProUGUI>().text =
                 string.Format("{0}{1:0.##}u", Locale.GetOther("weighs"), info.weight);
@@ -458,34 +382,20 @@ namespace CUCoreLib.Patches
                 TraderScript.PrefToColor(traderItem.preference);
         }
 
-        private static bool TryGetTraderItemPrice(TraderScript trader, TraderItem traderItem, ItemInfo info, out int price)
+        private static bool TryGetTraderItemPrice(TraderScript trader, TraderItem traderItem, ItemInfo info,
+            out int price)
         {
             price = 0;
-            if (trader == null || traderItem == null || info == null)
-            {
-                return false;
-            }
+            if (trader == null || traderItem == null || info == null) return false;
 
-            float adjustedValue = traderItem.value * trader.ValueMultiplier();
-            if (traderItem.preference == TraderScript.TraderItemPreference.WantsTrade)
-            {
-                adjustedValue *= 0.7f;
-            }
+            var adjustedValue = traderItem.value * trader.ValueMultiplier();
+            if (traderItem.preference == TraderScript.TraderItemPreference.WantsTrade) adjustedValue *= 0.7f;
 
-            if (traderItem.preference == TraderScript.TraderItemPreference.WantsKeep)
-            {
-                adjustedValue *= 1.5f;
-            }
+            if (traderItem.preference == TraderScript.TraderItemPreference.WantsKeep) adjustedValue *= 1.5f;
 
-            if (GetFreeDressing(trader) && info.HasTag("dressing"))
-            {
-                adjustedValue = 0f;
-            }
+            if (GetFreeDressing(trader) && info.HasTag("dressing")) adjustedValue = 0f;
 
-            if (GetFreeAmount(trader) > 0)
-            {
-                adjustedValue = 0f;
-            }
+            if (GetFreeAmount(trader) > 0) adjustedValue = 0f;
 
             price = Mathf.RoundToInt(adjustedValue);
             return true;
@@ -494,97 +404,70 @@ namespace CUCoreLib.Patches
         private static bool TryResolveTraderItemInfo(string id, out ItemInfo info)
         {
             info = null;
-            if (string.IsNullOrWhiteSpace(id))
-            {
-                return false;
-            }
+            if (string.IsNullOrWhiteSpace(id)) return false;
 
-            string normalizedId = NormalizeId(id);
+            var normalizedId = NormalizeId(id);
             return ItemRegistry.TryGetItemInfo(normalizedId, out info) && info != null;
         }
 
         private static Sprite GetItemSprite(string id, GameObject template)
         {
             CustomItemInfo customInfo;
-            if (ItemRegistry.TryGetCustomInfo(id, out customInfo) && customInfo.Icon != null)
-            {
-                return customInfo.Icon;
-            }
+            if (ItemRegistry.TryGetCustomInfo(id, out customInfo) && customInfo.Icon != null) return customInfo.Icon;
 
-            SpriteRenderer renderer = template != null ? template.GetComponent<SpriteRenderer>() : null;
+            var renderer = template != null ? template.GetComponent<SpriteRenderer>() : null;
             return renderer != null ? renderer.sprite : null;
         }
 
         private static GameObject GetTemplate(string id)
         {
-            if (string.IsNullOrWhiteSpace(id))
-            {
-                return null;
-            }
+            if (string.IsNullOrWhiteSpace(id)) return null;
 
-            GameObject vanilla = Resources.Load<GameObject>(id);
-            if (vanilla != null)
-            {
-                return vanilla;
-            }
+            var vanilla = Resources.Load<GameObject>(id);
+            if (vanilla != null) return vanilla;
 
             return CustomInstantiate.GetOrCreateTemplate(id);
         }
 
         private static GameObject CreateResource(string id, Transform parent)
         {
-            GameObject prefab = Resources.Load<GameObject>(id);
-            return prefab != null ? UnityEngine.Object.Instantiate(prefab, parent) : null;
+            var prefab = Resources.Load<GameObject>(id);
+            return prefab != null ? Object.Instantiate(prefab, parent) : null;
         }
 
         private static Sprite GetFillSprite(WaterContainerItem waterContainer)
         {
-            if (waterContainer == null || FillSpriteField == null)
-            {
-                return null;
-            }
+            if (waterContainer == null || FillSpriteField == null) return null;
 
             return FillSpriteField.GetValue(waterContainer) as Sprite;
         }
 
         private static int GetFreeAmount(TraderScript trader)
         {
-            if (trader == null || FreeAmountField == null)
-            {
-                return 0;
-            }
+            if (trader == null || FreeAmountField == null) return 0;
 
-            object value = FreeAmountField.GetValue(trader);
+            var value = FreeAmountField.GetValue(trader);
             return value is int ? (int)value : 0;
         }
 
         private static void SetFreeAmount(TraderScript trader, int value)
         {
-            if (trader == null || FreeAmountField == null)
-            {
-                return;
-            }
+            if (trader == null || FreeAmountField == null) return;
 
             FreeAmountField.SetValue(trader, value);
         }
 
         private static bool GetFreeDressing(TraderScript trader)
         {
-            if (trader == null || FreeDressingField == null)
-            {
-                return false;
-            }
+            if (trader == null || FreeDressingField == null) return false;
 
-            object value = FreeDressingField.GetValue(trader);
+            var value = FreeDressingField.GetValue(trader);
             return value is bool && (bool)value;
         }
 
         private static void SetFreeDressing(TraderScript trader, bool value)
         {
-            if (trader == null || FreeDressingField == null)
-            {
-                return;
-            }
+            if (trader == null || FreeDressingField == null) return;
 
             FreeDressingField.SetValue(trader, value);
         }
@@ -596,12 +479,9 @@ namespace CUCoreLib.Patches
 
         private static void WarnTraderIssue(string id, string issue)
         {
-            string normalizedId = string.IsNullOrWhiteSpace(id) ? "<blank>" : id.Trim();
-            string key = normalizedId + "|" + issue;
-            if (!WarnedTraderIssues.Add(key))
-            {
-                return;
-            }
+            var normalizedId = string.IsNullOrWhiteSpace(id) ? "<blank>" : id.Trim();
+            var key = normalizedId + "|" + issue;
+            if (!WarnedTraderIssues.Add(key)) return;
 
             CUCoreLibPlugin.Log.LogWarning("CUCoreLib Trader: '" + normalizedId + "' " + issue);
         }

@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
+using CUCoreLib.Helpers;
 using CUCoreLib.Registries;
 using CUCoreLib.Saving;
 using Newtonsoft.Json.Linq;
@@ -31,39 +31,32 @@ namespace CUCoreLib.Networking
 
         public static void RegisterModule(string key, Func<JObject> capture, Action<JObject> apply = null)
         {
-            if (string.IsNullOrWhiteSpace(key) || capture == null)
-            {
-                return;
-            }
+            if (string.IsNullOrWhiteSpace(key) || capture == null) return;
 
             key = key.Trim();
             CaptureModules[key] = capture;
-            if (apply != null)
-            {
-                ApplyModules[key] = apply;
-            }
+            if (apply != null) ApplyModules[key] = apply;
         }
 
         public static JObject CaptureSnapshot()
         {
-            JObject root = new JObject
+            var root = new JObject
             {
                 ["version"] = 1,
                 ["generatedAt"] = DateTime.UtcNow.ToString("O")
             };
 
-            JObject modules = new JObject();
-            foreach (KeyValuePair<string, Func<JObject>> entry in CaptureModules)
-            {
+            var modules = new JObject();
+            foreach (var entry in CaptureModules)
                 try
                 {
                     modules[entry.Key] = entry.Value?.Invoke() ?? new JObject();
                 }
                 catch (Exception ex)
                 {
-                    CUCoreLibPlugin.Log?.LogWarning("CUCoreLib multiplayer snapshot capture failed for module '" + entry.Key + "'.\n" + ex);
+                    CUCoreLibPlugin.Log?.LogWarning("CUCoreLib multiplayer snapshot capture failed for module '" +
+                                                    entry.Key + "'.\n" + ex);
                 }
-            }
 
             root[SnapshotModuleKey] = modules;
             return root;
@@ -71,10 +64,7 @@ namespace CUCoreLib.Networking
 
         public static void ApplySnapshot(JObject snapshot)
         {
-            if (snapshot == null)
-            {
-                return;
-            }
+            if (snapshot == null) return;
 
             _cachedSnapshot = snapshot;
             ApplySnapshotInternal(snapshot);
@@ -83,23 +73,15 @@ namespace CUCoreLib.Networking
 
         private static void ApplySnapshotInternal(JObject snapshot)
         {
-            if (snapshot == null)
-            {
-                return;
-            }
+            if (snapshot == null) return;
 
-            JObject modules = snapshot[SnapshotModuleKey] as JObject ?? snapshot;
-            if (modules == null)
-            {
-                return;
-            }
+            var modules = snapshot[SnapshotModuleKey] as JObject ?? snapshot;
+            // modules == null is always false
+            if (modules == null) return;
 
-            foreach (JProperty property in modules.Properties())
+            foreach (var property in modules.Properties())
             {
-                if (!ApplyModules.TryGetValue(property.Name, out Action<JObject> apply))
-                {
-                    continue;
-                }
+                if (!ApplyModules.TryGetValue(property.Name, out var apply)) continue;
 
                 try
                 {
@@ -107,21 +89,19 @@ namespace CUCoreLib.Networking
                 }
                 catch (Exception ex)
                 {
-                    CUCoreLibPlugin.Log?.LogWarning("CUCoreLib multiplayer snapshot apply failed for module '" + property.Name + "'.\n" + ex);
+                    CUCoreLibPlugin.Log?.LogWarning("CUCoreLib multiplayer snapshot apply failed for module '" +
+                                                    property.Name + "'.\n" + ex);
                 }
             }
         }
 
         private static void ScheduleReplayIfNeeded()
         {
-            if (_retryScheduled || _cachedSnapshot == null)
-            {
-                return;
-            }
+            if (_retryScheduled || _cachedSnapshot == null) return;
 
             _retryScheduled = true;
-            CUCoreLib.Helpers.CUCoreUtils.CallWhen(
-                () => MultiplayerBridge.IsAvailable && CUCoreLib.Helpers.CUCoreUtils.IsInWorld(),
+            CUCoreUtils.CallWhen(
+                () => MultiplayerBridge.IsAvailable && CUCoreUtils.IsInWorld(),
                 ReplayCachedSnapshot,
                 1f);
         }
@@ -129,13 +109,10 @@ namespace CUCoreLib.Networking
         private static void ReplayCachedSnapshot()
         {
             _retryScheduled = false;
-            if (_cachedSnapshot == null)
-            {
-                return;
-            }
+            if (_cachedSnapshot == null) return;
 
             ApplySnapshotInternal(_cachedSnapshot);
-            if (!CUCoreLib.Helpers.CUCoreUtils.IsInWorld())
+            if (!CUCoreUtils.IsInWorld())
             {
                 ScheduleReplayIfNeeded();
                 return;
@@ -146,10 +123,7 @@ namespace CUCoreLib.Networking
 
         public static void RegisterBuiltIns()
         {
-            if (_builtInsRegistered)
-            {
-                return;
-            }
+            if (_builtInsRegistered) return;
 
             _builtInsRegistered = true;
 
@@ -159,28 +133,23 @@ namespace CUCoreLib.Networking
             RegisterModule("liquids", CaptureLiquidManifest, LiquidRegistry.ApplyNetworkSnapshot);
             RegisterModule("statuses", StatusRegistry.CaptureNetworkSnapshot, StatusRegistry.ApplyNetworkSnapshot);
             RegisterModule("moodles", MoodleRegistry.CaptureNetworkSnapshot, MoodleRegistry.ApplyNetworkSnapshot);
-            RegisterModule("settings", ModOptionsRegistry.CaptureNetworkSnapshot, ModOptionsRegistry.ApplyNetworkSnapshot);
+            RegisterModule("settings", ModOptionsRegistry.CaptureNetworkSnapshot,
+                ModOptionsRegistry.ApplyNetworkSnapshot);
             RegisterModule("save", SaveCoordinator.CaptureNetworkSnapshot, SaveCoordinator.ApplyNetworkSnapshot);
 
             MultiplayerBridge.RegisterServerHandler(SnapshotChannel, _ => CaptureSnapshot());
             MultiplayerBridge.RegisterClientHandler(SnapshotChannel, payload =>
             {
-                if (payload is JObject snapshotObject)
-                {
-                    ApplySnapshot(snapshotObject);
-                }
+                if (payload is JObject snapshotObject) ApplySnapshot(snapshotObject);
             });
         }
 
         public static void ScheduleInitialSnapshot()
         {
-            if (_initialSnapshotScheduled)
-            {
-                return;
-            }
+            if (_initialSnapshotScheduled) return;
 
             _initialSnapshotScheduled = true;
-            CUCoreLib.Helpers.CUCoreUtils.CallWhen(
+            CUCoreUtils.CallWhen(
                 () => MultiplayerBridge.IsAvailable && MultiplayerBridge.IsClient,
                 RequestInitialSnapshot,
                 1f);
@@ -188,10 +157,7 @@ namespace CUCoreLib.Networking
 
         public static void RequestInitialSnapshot()
         {
-            if (_initialSnapshotRequested || !MultiplayerBridge.IsAvailable || !MultiplayerBridge.IsClient)
-            {
-                return;
-            }
+            if (_initialSnapshotRequested || !MultiplayerBridge.IsAvailable || !MultiplayerBridge.IsClient) return;
 
             _initialSnapshotRequested = true;
             MultiplayerBridge.RequestServer(
@@ -199,42 +165,31 @@ namespace CUCoreLib.Networking
                 null,
                 snapshot =>
                 {
-                    if (snapshot is JObject snapshotObject)
-                    {
-                        ApplySnapshot(snapshotObject);
-                    }
-                },
-                reliable: true);
+                    if (snapshot is JObject snapshotObject) ApplySnapshot(snapshotObject);
+                });
         }
 
         public static bool BroadcastSnapshot(bool includeHost = false)
         {
-            if (!MultiplayerBridge.IsAvailable || !MultiplayerBridge.IsServer)
-            {
-                return false;
-            }
+            if (!MultiplayerBridge.IsAvailable || !MultiplayerBridge.IsServer) return false;
 
             return MultiplayerBridge.Broadcast(
                 SnapshotChannel,
                 CaptureSnapshot(),
-                includeHost,
-                reliable: true);
+                includeHost);
         }
 
         public static void QueueHostSnapshotBroadcast()
         {
-            if (_hostSnapshotBroadcastQueued)
-            {
-                return;
-            }
+            if (_hostSnapshotBroadcastQueued) return;
 
             _hostSnapshotBroadcastQueued = true;
-            CUCoreLib.Helpers.CUCoreUtils.CallWhen(
+            CUCoreUtils.CallWhen(
                 () => MultiplayerBridge.IsAvailable && MultiplayerBridge.IsServer,
                 () =>
                 {
                     _hostSnapshotBroadcastQueued = false;
-                    BroadcastSnapshot(includeHost: false);
+                    BroadcastSnapshot();
                 },
                 1f);
         }
@@ -246,15 +201,12 @@ namespace CUCoreLib.Networking
 
         private static JObject CaptureTileManifest()
         {
-            JObject root = new JObject();
-            foreach (ushort index in TileRegistry.GetRegisteredIndices())
+            var root = new JObject();
+            foreach (var index in TileRegistry.GetRegisteredIndices())
             {
-                if (!TileRegistry.TryGetDefinition(index, out var definition))
-                {
-                    continue;
-                }
+                if (!TileRegistry.TryGetDefinition(index, out var definition)) continue;
 
-                JObject tile = new JObject
+                var tile = new JObject
                 {
                     ["index"] = index,
                     ["id"] = definition.ID ?? string.Empty,
@@ -276,18 +228,15 @@ namespace CUCoreLib.Networking
 
         private static JObject CaptureBuildingManifest()
         {
-            JObject root = new JObject();
-            JArray buildings = new JArray();
+            var root = new JObject();
+            var buildings = new JArray();
 
-            foreach (KeyValuePair<string, CUCoreLib.Data.CustomBuildingEntityDefinition> entry in BuildingEntityRegistry.GetRegisteredDefinitions())
+            foreach (var entry in BuildingEntityRegistry.GetRegisteredDefinitions())
             {
-                CUCoreLib.Data.CustomBuildingEntityDefinition definition = entry.Value;
-                if (definition == null)
-                {
-                    continue;
-                }
+                var definition = entry.Value;
+                if (definition == null) continue;
 
-                JObject building = new JObject
+                var building = new JObject
                 {
                     ["id"] = entry.Key,
                     ["name"] = definition.Name ?? string.Empty,
@@ -309,17 +258,14 @@ namespace CUCoreLib.Networking
 
         private static JObject CaptureLiquidManifest()
         {
-            JObject root = new JObject();
-            JArray liquids = new JArray();
+            var root = new JObject();
+            var liquids = new JArray();
 
-            foreach (string id in LiquidRegistry.GetRegisteredLiquidIds())
+            foreach (var id in LiquidRegistry.GetRegisteredLiquidIds())
             {
-                if (!LiquidRegistry.TryGetCustomInfo(id, out var info))
-                {
-                    continue;
-                }
+                if (!LiquidRegistry.TryGetCustomInfo(id, out var info)) continue;
 
-                JObject liquid = new JObject
+                var liquid = new JObject
                 {
                     ["id"] = id,
                     ["name"] = info.name ?? string.Empty,

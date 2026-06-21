@@ -7,8 +7,9 @@ using System.Linq;
 using System.Reflection;
 using CUCoreLib.Data;
 using CUCoreLib.Registries;
-using UnityEngine.EventSystems;
 using UnityEngine;
+using CompressionLevel = System.IO.Compression.CompressionLevel;
+using Object = UnityEngine.Object;
 
 namespace CUCoreLib.Helpers
 {
@@ -38,63 +39,30 @@ namespace CUCoreLib.Helpers
             { KeyCode.BackQuote, "~" }
         };
 
-        private sealed class CoroutineRunner : MonoBehaviour
-        {
-            private static CoroutineRunner _instance;
-
-            public static CoroutineRunner Instance
-            {
-                get
-                {
-                    if (_instance == null)
-                    {
-                        GameObject obj = new GameObject("CUCoreUtils_CoroutineRunner");
-                        UnityEngine.Object.DontDestroyOnLoad(obj);
-                        obj.hideFlags = HideFlags.HideAndDontSave;
-                        _instance = obj.AddComponent<CoroutineRunner>();
-                    }
-
-                    return _instance;
-                }
-            }
-        }
-
         public static Coroutine StartCoroutine(IEnumerator routine)
         {
-            if (routine == null)
-            {
-                return null;
-            }
+            if (routine == null) return null;
 
             return CoroutineRunner.Instance.StartCoroutine(routine);
         }
 
         public static Coroutine StartCoroutine(Func<IEnumerator> routineFactory)
         {
-            if (routineFactory == null)
-            {
-                return null;
-            }
+            if (routineFactory == null) return null;
 
             return StartCoroutine(routineFactory());
         }
 
         public static Coroutine DelayCall(float delaySeconds, Action action)
         {
-            if (action == null)
-            {
-                return null;
-            }
+            if (action == null) return null;
 
             return StartCoroutine(DelayCallRoutine(delaySeconds, action));
         }
 
         public static Coroutine CallWhen(Func<bool> condition, Action action, float checkRepeatTimeSeconds = 0f)
         {
-            if (condition == null || action == null)
-            {
-                return null;
-            }
+            if (condition == null || action == null) return null;
 
             return StartCoroutine(CallWhenRoutine(condition, action, checkRepeatTimeSeconds));
         }
@@ -102,16 +70,10 @@ namespace CUCoreLib.Helpers
         public static IEnumerator AwaitMainMenu(float checkRepeatTimeSeconds = 0f)
         {
             while (!IsMainMenuReady())
-            {
                 if (checkRepeatTimeSeconds <= 0f)
-                {
                     yield return null;
-                }
                 else
-                {
                     yield return new WaitForSecondsRealtime(checkRepeatTimeSeconds);
-                }
-            }
         }
 
         // Camelcase aliases go hard. Shouldn't affect VS code, but tell me if it does for your own other IDE
@@ -123,16 +85,10 @@ namespace CUCoreLib.Helpers
         public static IEnumerator AwaitWorldGeneration(float checkRepeatTimeSeconds = 0f)
         {
             while (!IsWorldGenerationReady())
-            {
                 if (checkRepeatTimeSeconds <= 0f)
-                {
                     yield return null;
-                }
                 else
-                {
                     yield return new WaitForSecondsRealtime(checkRepeatTimeSeconds);
-                }
-            }
         }
 
         public static IEnumerator awaitWorldGeneration(float checkRepeatTimeSeconds = 0f)
@@ -142,10 +98,7 @@ namespace CUCoreLib.Helpers
 
         private static IEnumerator DelayCallRoutine(float delaySeconds, Action action)
         {
-            if (delaySeconds > 0f)
-            {
-                yield return new WaitForSecondsRealtime(delaySeconds);
-            }
+            if (delaySeconds > 0f) yield return new WaitForSecondsRealtime(delaySeconds);
 
             action();
         }
@@ -153,40 +106,26 @@ namespace CUCoreLib.Helpers
         private static IEnumerator CallWhenRoutine(Func<bool> condition, Action action, float checkRepeatTimeSeconds)
         {
             if (checkRepeatTimeSeconds <= 0f)
-            {
                 while (!condition())
-                {
                     yield return null;
-                }
-            }
             else
-            {
                 while (!condition())
-                {
                     yield return new WaitForSecondsRealtime(checkRepeatTimeSeconds);
-                }
-            }
 
             action();
         }
 
         public static bool IsMainMenuReady()
         {
-            if (WorldGeneration.world != null)
-            {
-                return false;
-            }
+            if (WorldGeneration.world != null) return false;
 
-            return UnityEngine.Object.FindObjectOfType<PreRunScript>() != null;
+            return Object.FindObjectOfType<PreRunScript>() != null;
         }
 
         public static bool IsWorldGenerationReady()
         {
-            WorldGeneration world = WorldGeneration.world;
-            if (world == null)
-            {
-                return false;
-            }
+            var world = WorldGeneration.world;
+            if (world == null) return false;
 
             return world.worldExists && !world.generatingWorld;
         }
@@ -264,16 +203,10 @@ namespace CUCoreLib.Helpers
         public static bool TryGetHeldItem(out Item item)
         {
             item = null;
-            if (!IsInWorld())
-            {
-                return false;
-            }
+            if (!IsInWorld()) return false;
 
-            Body body = PlayerCamera.main.body;
-            if (body == null || !body.HoldingItem(body.handSlot))
-            {
-                return false;
-            }
+            var body = PlayerCamera.main.body;
+            if (body == null || !body.HoldingItem(body.handSlot)) return false;
 
             item = body.GetItem(body.handSlot);
             return item != null;
@@ -287,10 +220,7 @@ namespace CUCoreLib.Helpers
         public static bool TryGetBody(out Body body)
         {
             body = null;
-            if (PlayerCamera.main == null)
-            {
-                return false;
-            }
+            if (PlayerCamera.main == null) return false;
 
             body = PlayerCamera.main.body;
             return body != null;
@@ -305,35 +235,26 @@ namespace CUCoreLib.Helpers
         public static bool TryGetHoveredItem(out Item item)
         {
             item = null;
-            if (!TryGetBody(out Body body))
+            if (!TryGetBody(out var body)) return false;
+
+            foreach (var uiCast in UIUtil.GetEventSystemRaycastResults())
             {
-                return false;
+                if (uiCast.gameObject == null) continue;
+
+                if (!uiCast.gameObject.TryGetComponent(out ItemLabel label) || label == null ||
+                    label.refItem == null) continue;
+                item = label.refItem;
+                return true;
             }
 
-            foreach (RaycastResult uiCast in UIUtil.GetEventSystemRaycastResults())
-            {
-                if (uiCast.gameObject == null)
-                {
-                    continue;
-                }
-
-                if (uiCast.gameObject.TryGetComponent<ItemLabel>(out ItemLabel label) && label != null && label.refItem != null)
-                {
-                    item = label.refItem;
-                    return true;
-                }
-            }
-
-            Collider2D collider = Physics2D.OverlapPoint(
+            // maybe System.NullReferenceException
+            var collider = Physics2D.OverlapPoint(
                 Camera.main.ScreenToWorldPoint(Input.mousePosition),
                 LayerMask.GetMask("Item"));
 
-            if (collider == null)
-            {
-                return false;
-            }
+            if (collider == null) return false;
 
-            return collider.TryGetComponent<Item>(out item) && item != null;
+            return collider.TryGetComponent(out item) && item != null;
         }
 
         public static bool tryGetBody(out Body body)
@@ -354,13 +275,11 @@ namespace CUCoreLib.Helpers
         public static Vector2 GetMousePosition()
         {
             if (PlayerCamera.main != null)
-            {
                 return PlayerCamera.main.body != null
                     ? (Vector2)PlayerCamera.main.body.targetLookPos
                     : (Vector2)Input.mousePosition;
-            }
 
-            return (Vector2)Input.mousePosition;
+            return Input.mousePosition;
         }
 
         public static Vector2 getMousePosition()
@@ -370,10 +289,7 @@ namespace CUCoreLib.Helpers
 
         public static void ShowAlert(string text, bool? important = false)
         {
-            if (PlayerCamera.main == null || string.IsNullOrEmpty(text))
-            {
-                return;
-            }
+            if (PlayerCamera.main == null || string.IsNullOrEmpty(text)) return;
 
             PlayerCamera.main.DoAlert(text, important == true);
         }
@@ -385,28 +301,19 @@ namespace CUCoreLib.Helpers
 
         public static void GiveItem(string id, int count)
         {
-            if (!IsInWorld() || string.IsNullOrWhiteSpace(id) || count <= 0)
-            {
-                return;
-            }
+            if (!IsInWorld() || string.IsNullOrWhiteSpace(id) || count <= 0) return;
 
-            Body body = PlayerCamera.main.body;
-            if (body == null)
-            {
-                return;
-            }
+            var body = PlayerCamera.main.body;
+            if (body == null) return;
 
-            string normalizedId = id.Trim();
-            for (int i = 0; i < count; i++)
+            var normalizedId = id.Trim();
+            for (var i = 0; i < count; i++)
             {
-                GameObject spawned = Utils.Create(normalizedId, body.transform.position, 0f);
-                Item spawnedItem = spawned != null ? spawned.GetComponent<Item>() : null;
+                var spawned = Utils.Create(normalizedId, body.transform.position, 0f);
+                var spawnedItem = spawned != null ? spawned.GetComponent<Item>() : null;
                 if (spawnedItem == null)
                 {
-                    if (spawned != null)
-                    {
-                        UnityEngine.Object.Destroy(spawned);
-                    }
+                    if (spawned != null) Object.Destroy(spawned);
 
                     return;
                 }
@@ -432,10 +339,7 @@ namespace CUCoreLib.Helpers
 
         public static void DoAmputate(Item item, Limb limb)
         {
-            if (item == null || limb == null)
-            {
-                return;
-            }
+            if (item == null || limb == null) return;
 
             Item.DoAmputate(item, limb);
         }
@@ -447,16 +351,13 @@ namespace CUCoreLib.Helpers
 
         public static AudioSource PlaySoundAt(AudioClip clip, Vector2? pos = null)
         {
-            if (clip == null)
-            {
-                return null;
-            }
+            if (clip == null) return null;
 
-            Vector2 playPos = pos ?? (PlayerCamera.main != null && PlayerCamera.main.body != null
+            var playPos = pos ?? (PlayerCamera.main != null && PlayerCamera.main.body != null
                 ? (Vector2)PlayerCamera.main.body.transform.position
                 : Vector2.zero);
 
-            return Sound.Play(clip, playPos, twoDimensional: false);
+            return Sound.Play(clip, playPos);
         }
 
         public static AudioSource playSoundAt(AudioClip clip, Vector2? pos = null)
@@ -466,19 +367,13 @@ namespace CUCoreLib.Helpers
 
         public static bool IsModdedItem(string itemId)
         {
-            if (string.IsNullOrWhiteSpace(itemId))
-            {
-                return false;
-            }
+            if (string.IsNullOrWhiteSpace(itemId)) return false;
 
-            string normalizedId = itemId.Trim();
-            if (ItemRegistry.TryGetCustomInfo(normalizedId, out _))
-            {
-                return true;
-            }
+            var normalizedId = itemId.Trim();
+            if (ItemRegistry.TryGetCustomInfo(normalizedId, out _)) return true;
 
             return normalizedId.StartsWith("glassworks.", StringComparison.OrdinalIgnoreCase) ||
-                normalizedId.StartsWith("cucorelib.", StringComparison.OrdinalIgnoreCase);
+                   normalizedId.StartsWith("cucorelib.", StringComparison.OrdinalIgnoreCase);
         }
 
         public static bool isModdedItem(string itemId)
@@ -488,24 +383,19 @@ namespace CUCoreLib.Helpers
 
         public static MethodInfo GetMethod(object target, string methodName)
         {
-            if (target == null || string.IsNullOrEmpty(methodName))
-            {
-                return null;
-            }
+            if (target == null || string.IsNullOrEmpty(methodName)) return null;
 
             return target.GetType().GetMethod(
                 methodName,
-                BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.FlattenHierarchy
+                BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic |
+                BindingFlags.FlattenHierarchy
             );
         }
 
         public static void InvokeMethod(object target, string methodName, params object[] args)
         {
-            MethodInfo method = GetCachedMethod(target, methodName);
-            if (method == null)
-            {
-                return;
-            }
+            var method = GetCachedMethod(target, methodName);
+            if (method == null) return;
 
             method.Invoke(target, args);
         }
@@ -529,21 +419,16 @@ namespace CUCoreLib.Helpers
 
         private static MethodInfo GetCachedMethod(object target, string methodName)
         {
-            if (target == null || string.IsNullOrEmpty(methodName))
-            {
-                return null;
-            }
+            if (target == null || string.IsNullOrEmpty(methodName)) return null;
 
-            Type targetType = target.GetType();
-            string cacheKey = targetType.FullName + "::" + methodName;
-            if (MethodCache.TryGetValue(cacheKey, out var cached))
-            {
-                return cached;
-            }
+            var targetType = target.GetType();
+            var cacheKey = targetType.FullName + "::" + methodName;
+            if (MethodCache.TryGetValue(cacheKey, out var cached)) return cached;
 
-            MethodInfo method = targetType.GetMethod(
+            var method = targetType.GetMethod(
                 methodName,
-                BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.FlattenHierarchy
+                BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic |
+                BindingFlags.FlattenHierarchy
             );
 
             MethodCache[cacheKey] = method;
@@ -562,17 +447,11 @@ namespace CUCoreLib.Helpers
 
         public static Sprite GetKeySprite(KeyCode key, string spritePrefix = "Key_")
         {
-            if (KeySpriteCache.TryGetValue(key, out var cached))
-            {
-                return cached;
-            }
+            if (KeySpriteCache.TryGetValue(key, out var cached)) return cached;
 
-            string spriteName = spritePrefix + key;
-            Sprite found = Resources.FindObjectsOfTypeAll<Sprite>().FirstOrDefault(s => s.name == spriteName);
-            if (found != null)
-            {
-                KeySpriteCache[key] = found;
-            }
+            var spriteName = spritePrefix + key;
+            var found = Resources.FindObjectsOfTypeAll<Sprite>().FirstOrDefault(s => s.name == spriteName);
+            if (found != null) KeySpriteCache[key] = found;
 
             return found;
         }
@@ -593,21 +472,19 @@ namespace CUCoreLib.Helpers
             FriendlyKeyNames[key] = displayName;
         }
 
-        public static Sprite LoadEmbeddedSprite(string resourcePath, float pixelsPerUnit = AssetLoader.PPU_UI, Assembly sourceAssembly = null)
+        public static Sprite LoadEmbeddedSprite(string resourcePath, float pixelsPerUnit = AssetLoader.PPU_UI,
+            Assembly sourceAssembly = null)
         {
             return AssetLoader.LoadEmbeddedSprite(resourcePath, pixelsPerUnit, sourceAssembly);
         }
 
         public static byte[] CompressGZip(byte[] data)
         {
-            if (data == null)
-            {
-                return null;
-            }
+            if (data == null) return null;
 
-            using (MemoryStream output = new MemoryStream())
+            using (var output = new MemoryStream())
             {
-                using (GZipStream gzip = new GZipStream(output, System.IO.Compression.CompressionLevel.Optimal))
+                using (var gzip = new GZipStream(output, CompressionLevel.Optimal))
                 {
                     gzip.Write(data, 0, data.Length);
                 }
@@ -618,14 +495,11 @@ namespace CUCoreLib.Helpers
 
         public static byte[] DecompressGZip(byte[] compressedData)
         {
-            if (compressedData == null)
-            {
-                return null;
-            }
+            if (compressedData == null) return null;
 
-            using (MemoryStream input = new MemoryStream(compressedData))
-            using (GZipStream gzip = new GZipStream(input, CompressionMode.Decompress))
-            using (MemoryStream output = new MemoryStream())
+            using (var input = new MemoryStream(compressedData))
+            using (var gzip = new GZipStream(input, CompressionMode.Decompress))
+            using (var output = new MemoryStream())
             {
                 gzip.CopyTo(output);
                 return output.ToArray();
@@ -634,14 +508,11 @@ namespace CUCoreLib.Helpers
 
         public static byte[] CompressDeflate(byte[] data)
         {
-            if (data == null)
-            {
-                return null;
-            }
+            if (data == null) return null;
 
-            using (MemoryStream output = new MemoryStream())
+            using (var output = new MemoryStream())
             {
-                using (DeflateStream deflate = new DeflateStream(output, System.IO.Compression.CompressionLevel.Optimal))
+                using (var deflate = new DeflateStream(output, CompressionLevel.Optimal))
                 {
                     deflate.Write(data, 0, data.Length);
                 }
@@ -652,17 +523,35 @@ namespace CUCoreLib.Helpers
 
         public static byte[] DecompressDeflate(byte[] compressedData)
         {
-            if (compressedData == null)
-            {
-                return null;
-            }
+            if (compressedData == null) return null;
 
-            using (MemoryStream input = new MemoryStream(compressedData))
-            using (DeflateStream deflate = new DeflateStream(input, CompressionMode.Decompress))
-            using (MemoryStream output = new MemoryStream())
+            using (var input = new MemoryStream(compressedData))
+            using (var deflate = new DeflateStream(input, CompressionMode.Decompress))
+            using (var output = new MemoryStream())
             {
                 deflate.CopyTo(output);
                 return output.ToArray();
+            }
+        }
+
+        private sealed class CoroutineRunner : MonoBehaviour
+        {
+            private static CoroutineRunner _instance;
+
+            public static CoroutineRunner Instance
+            {
+                get
+                {
+                    if (_instance == null)
+                    {
+                        var obj = new GameObject("CUCoreUtils_CoroutineRunner");
+                        DontDestroyOnLoad(obj);
+                        obj.hideFlags = HideFlags.HideAndDontSave;
+                        _instance = obj.AddComponent<CoroutineRunner>();
+                    }
+
+                    return _instance;
+                }
             }
         }
     }
