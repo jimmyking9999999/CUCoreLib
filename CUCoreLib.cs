@@ -37,6 +37,7 @@ namespace CUCoreLib
             SaveRegistry.RegisterBuiltIns();
             MultiplayerApi.RegisterBuiltIns();
             RegisterBuiltInCommands();
+            UpdateChecker.Initialize(Logger);
 
             // Patches
             var harmony = new Harmony(GUID);

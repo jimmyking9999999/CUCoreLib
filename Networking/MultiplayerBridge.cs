@@ -127,7 +127,7 @@ namespace CUCoreLib.Networking
                 return false;
             }
 
-            IReadOnlyList<uint> targets = includeHost ? GetMemberList("AllClientIds") : GetMemberList("AllClientIdsExceptHost");
+            object targets = includeHost ? GetMemberList("AllClientIds") : GetMemberList("AllClientIdsExceptHost");
             return SendMessage(ResponseMessageId, channel, "event", payload, reliable, null, 0u, targets);
         }
 
@@ -216,7 +216,7 @@ namespace CUCoreLib.Networking
             }
         }
 
-        private static bool SendMessage(ushort messageId, string channel, string kind, object payload, bool reliable, string requestId, uint clientId, IReadOnlyList<uint> targets)
+        private static bool SendMessage(ushort messageId, string channel, string kind, object payload, bool reliable, string requestId, uint clientId, object targets)
         {
             if (!_available || string.IsNullOrWhiteSpace(channel))
             {
@@ -249,7 +249,7 @@ namespace CUCoreLib.Networking
             return SendEnvelope(ResponseMessageId, envelope, reliable, clientId, null);
         }
 
-        private static bool SendEnvelope(ushort messageId, JObject envelope, bool reliable, uint clientId, IReadOnlyList<uint> targets)
+        private static bool SendEnvelope(ushort messageId, JObject envelope, bool reliable, uint clientId, object targets)
         {
             object writer;
             if (!TryBuildWriter(messageId, envelope, out writer))
@@ -262,13 +262,13 @@ namespace CUCoreLib.Networking
             {
                 if (targets != null)
                 {
-                    _serverSendToClientsMethod.Invoke(null, new object[] { delivery, writer, targets });
+                    _serverSendToClientsMethod.Invoke(null, new[] { delivery, writer, targets });
                     return true;
                 }
 
                 if (clientId != 0u || IsHost)
                 {
-                    _serverSendToMethod.Invoke(null, new object[] { delivery, writer, clientId });
+                    _serverSendToMethod.Invoke(null, new[] { delivery, writer, ConvertClientId(clientId, _serverSendToMethod.GetParameters()[2].ParameterType) });
                     return true;
                 }
 
@@ -524,12 +524,12 @@ namespace CUCoreLib.Networking
                 return false;
             }
 
-            _createWriterMethod = ResolveMethod(_netType, "CreateWriter", new[] { typeof(ushort) });
-            _clientSendMethod = ResolveMethod(_netType, "Client_Send", new[] { _deliveryMethodType, _writerType });
-            _serverSendToMethod = ResolveMethod(_netType, "Server_SendTo", new[] { _deliveryMethodType, _writerType, typeof(uint) });
-            _serverSendToClientsMethod = ResolveMethod(_netType, "Server_SendToClients", new[] { _deliveryMethodType, _writerType, typeof(IReadOnlyList<uint>) });
-            _registerServerReceiverMethod = ResolveMethod(_netType, "RegisterServerReciever", new[] { typeof(ushort), null });
-            _registerClientReceiverMethod = ResolveMethod(_netType, "RegisterClientReciever", new[] { typeof(ushort), null });
+            _createWriterMethod = ResolveMethod(_netType, new[] { "CreateWriter" }, new[] { typeof(ushort) });
+            _clientSendMethod = ResolveMethod(_netType, new[] { "Client_Send" }, new[] { _deliveryMethodType, _writerType });
+            _serverSendToMethod = ResolveMethod(_netType, new[] { "Server_SendTo" }, new[] { _deliveryMethodType, _writerType, typeof(uint) });
+            _serverSendToClientsMethod = ResolveMethod(_netType, new[] { "Server_SendToClients" }, new[] { _deliveryMethodType, _writerType, typeof(System.Collections.IEnumerable) });
+            _registerServerReceiverMethod = ResolveMethod(_netType, new[] { "RegisterServerReceiver", "RegisterServerReciever" }, new[] { typeof(ushort), null });
+            _registerClientReceiverMethod = ResolveMethod(_netType, new[] { "RegisterClientReceiver", "RegisterClientReciever" }, new[] { typeof(ushort), null });
             _writerPutStringMethod = ResolveStringPutMethod();
             _readerGetStringMethod = ResolveStringGetMethod();
 
@@ -558,7 +558,7 @@ namespace CUCoreLib.Networking
             return AppDomain.CurrentDomain.GetAssemblies().Any(assembly => assembly.GetType(MpTypeName, false) != null);
         }
 
-        private static MethodInfo ResolveMethod(Type type, string methodName, Type[] parameterTypes)
+        private static MethodInfo ResolveMethod(Type type, string[] methodNames, Type[] parameterTypes)
         {
             if (type == null)
             {
@@ -567,7 +567,7 @@ namespace CUCoreLib.Networking
 
             foreach (MethodInfo method in type.GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static))
             {
-                if (!string.Equals(method.Name, methodName, StringComparison.Ordinal))
+                if (methodNames == null || !methodNames.Any(name => string.Equals(method.Name, name, StringComparison.Ordinal)))
                 {
                     continue;
                 }
@@ -586,7 +586,7 @@ namespace CUCoreLib.Networking
                 bool matches = true;
                 for (int i = 0; i < parameters.Length; i++)
                 {
-                    if (parameterTypes[i] != null && parameters[i].ParameterType != parameterTypes[i])
+                    if (!ParameterMatches(parameterTypes[i], parameters[i].ParameterType))
                     {
                         matches = false;
                         break;
@@ -604,7 +604,7 @@ namespace CUCoreLib.Networking
 
         private static Type ResolveDeliveryMethodType()
         {
-            MethodInfo method = ResolveMethod(_netType, "Client_Send", null);
+            MethodInfo method = ResolveMethod(_netType, new[] { "Client_Send" }, null);
             if (method == null)
             {
                 return null;
@@ -655,24 +655,20 @@ namespace CUCoreLib.Networking
                 });
         }
 
-        private static IReadOnlyList<uint> GetMemberList(string memberName)
+        private static object GetMemberList(string memberName)
         {
             if (_serverMainType == null)
             {
-                return Array.Empty<uint>();
+                return null;
             }
 
             PropertyInfo property = _serverMainType.GetProperty(memberName, BindingFlags.Public | BindingFlags.Static);
             if (property != null)
             {
-                object value = property.GetValue(null, null);
-                if (value is IReadOnlyList<uint> list)
-                {
-                    return list;
-                }
+                return property.GetValue(null, null);
             }
 
-            return Array.Empty<uint>();
+            return null;
         }
 
         private static bool GetNetBool(string memberName)
@@ -690,6 +686,69 @@ namespace CUCoreLib.Networking
 
             object value = property.GetValue(null, null);
             return value is bool flag && flag;
+        }
+
+        private static bool ParameterMatches(Type expectedType, Type actualType)
+        {
+            if (expectedType == null)
+            {
+                return true;
+            }
+
+            if (actualType == expectedType)
+            {
+                return true;
+            }
+
+            if (expectedType == typeof(System.Collections.IEnumerable))
+            {
+                return typeof(System.Collections.IEnumerable).IsAssignableFrom(actualType);
+            }
+
+            Type normalizedActual = actualType.IsByRef ? actualType.GetElementType() : actualType;
+            Type normalizedExpected = expectedType.IsByRef ? expectedType.GetElementType() : expectedType;
+            if (normalizedActual == null || normalizedExpected == null)
+            {
+                return false;
+            }
+
+            if (normalizedActual == normalizedExpected)
+            {
+                return true;
+            }
+
+            if (normalizedExpected.IsAssignableFrom(normalizedActual))
+            {
+                return true;
+            }
+
+            if (IsUnsignedIntegerLike(normalizedExpected) && IsUnsignedIntegerLike(normalizedActual))
+            {
+                return true;
+            }
+
+            return false;
+        }
+
+        private static object ConvertClientId(uint clientId, Type targetType)
+        {
+            Type normalizedType = targetType.IsByRef ? targetType.GetElementType() : targetType;
+            if (normalizedType == null || normalizedType == typeof(uint))
+            {
+                return clientId;
+            }
+
+            if (normalizedType.IsEnum)
+            {
+                return Enum.ToObject(normalizedType, clientId);
+            }
+
+            return Convert.ChangeType(clientId, normalizedType);
+        }
+
+        private static bool IsUnsignedIntegerLike(Type type)
+        {
+            return type == typeof(byte) || type == typeof(ushort) || type == typeof(uint) || type == typeof(ulong);
         }
     }
 }

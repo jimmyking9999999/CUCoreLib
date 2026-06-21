@@ -201,13 +201,21 @@ namespace CUCoreLib.Networking
 
                     ParameterInfo[] parameters = method.GetParameters();
                     return parameters.Length == 3 &&
-                        parameters[0].ParameterType == typeof(uint) &&
+                        IsClientIdType(parameters[0].ParameterType) &&
                         parameters[1].IsOut &&
                         parameters[2].IsOut &&
                         parameters[2].ParameterType == typeof(Body).MakeByRefType();
                 });
 
             return _tryGetNetPlayerAndBodyFromClientIdMethod != null;
+        }
+
+        private static bool IsClientIdType(Type type)
+        {
+            return type == typeof(byte) ||
+                type == typeof(ushort) ||
+                type == typeof(uint) ||
+                type == typeof(ulong);
         }
 
         private static Type ResolveLoadedType(string fullName)

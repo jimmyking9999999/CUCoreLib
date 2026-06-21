@@ -270,6 +270,7 @@
     <Compile Include="Saving\SaveCoordinator.cs" />
     <Compile Include="Saving\SaveInterfaces.cs" />
     <Compile Include="CUCoreLib.cs" />
+    <Compile Include="UpdateChecker.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Helpers\FileLoader.cs" />
   </ItemGroup>

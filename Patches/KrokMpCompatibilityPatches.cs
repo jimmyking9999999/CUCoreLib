@@ -19,6 +19,7 @@ namespace CUCoreLib.Patches
         private static bool _installed;
         private static bool _retryScheduled;
         private static Hook _applyHook;
+        private static bool _newLoaderPatched;
         private static Type _syncInfoType;
         private static Type _netObjectRegistryType;
         private static MethodInfo _getSyncInfoMethod;
@@ -41,6 +42,7 @@ namespace CUCoreLib.Patches
         private const string GOSyncPacketTypeName = "KrokoshaCasualtiesMP.GOSyncPacket";
         private const string SyncInfoTypeName = "KrokoshaCasualtiesMP.SyncInfo";
         private const string NetObjectRegistryTypeName = "KrokoshaCasualtiesMP.NetObjectRegistry";
+        private const string NewObjectSystemTypeName = "KrokoshaCasualtiesMP.NewCoolerObjectPacketWriteReadSystem";
 
         internal static void Install(Harmony harmony)
         {
@@ -49,36 +51,43 @@ namespace CUCoreLib.Patches
                 return;
             }
 
+            bool patchedAnything = false;
+
             Type packetType = ResolveLoadedType(GOSyncPacketTypeName);
-            if (packetType == null)
+            if (packetType != null)
             {
-                ScheduleRetry(harmony);
+                MethodInfo apply = AccessTools.Method(packetType, "Apply", new[] { typeof(string), typeof(uint) });
+                if (apply != null && TryResolveReflection(packetType))
+                {
+                    DynamicMethod replacement = CreateApplyReplacement(packetType);
+                    if (replacement != null)
+                    {
+                        _applyHook = new Hook(apply, replacement);
+                        patchedAnything = true;
+                    }
+                }
+            }
+
+            if (!_newLoaderPatched)
+            {
+                Type newObjectSystemType = ResolveLoadedType(NewObjectSystemTypeName);
+                MethodInfo loadObjectResource = AccessTools.Method(newObjectSystemType, "LoadObjectResource");
+                if (loadObjectResource != null)
+                {
+                    harmony.Patch(loadObjectResource, prefix: new HarmonyMethod(typeof(KrokMpCompatibilityPatches), nameof(LoadObjectResource_Prefix)));
+                    _newLoaderPatched = true;
+                    patchedAnything = true;
+                }
+            }
+
+            if (patchedAnything)
+            {
+                _installed = true;
+                CUCoreLibPlugin.Log?.LogInfo("CUCoreLib KrokMP compatibility patch installed.");
                 return;
             }
 
-            MethodInfo apply = AccessTools.Method(packetType, "Apply", new[] { typeof(string), typeof(uint) });
-            if (apply == null)
-            {
-                ScheduleRetry(harmony);
-                return;
-            }
-
-            if (!TryResolveReflection(packetType))
-            {
-                ScheduleRetry(harmony);
-                return;
-            }
-
-            DynamicMethod replacement = CreateApplyReplacement(packetType);
-            if (replacement == null)
-            {
-                ScheduleRetry(harmony);
-                return;
-            }
-
-            _applyHook = new Hook(apply, replacement);
-            _installed = true;
-            CUCoreLibPlugin.Log?.LogInfo("CUCoreLib KrokMP compatibility patch installed.");
+            ScheduleRetry(harmony);
         }
 
         private static DynamicMethod CreateApplyReplacement(Type packetType)
@@ -357,6 +366,30 @@ namespace CUCoreLib.Patches
                 }
             }
 
+            return false;
+        }
+
+        private static bool LoadObjectResource_Prefix(string resourceid, Vector2 pos, ref GameObject __result)
+        {
+            if (!TryResolveResourcePrefab(resourceid, out GameObject prefab, out bool parentToWorldGrid) || prefab == null)
+            {
+                return true;
+            }
+
+            GameObject instance = UnityEngine.Object.Instantiate(prefab, pos, Quaternion.identity);
+            if (instance == null)
+            {
+                __result = null;
+                return false;
+            }
+
+            if (parentToWorldGrid && WorldGeneration.world != null && WorldGeneration.world.worldGrid != null)
+            {
+                instance.transform.SetParent(WorldGeneration.world.worldGrid.transform);
+            }
+
+            instance.SetActive(true);
+            __result = instance;
             return false;
         }
 
