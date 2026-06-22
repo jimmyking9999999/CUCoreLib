@@ -76,7 +76,17 @@ const navGroups: Array<{ label: string; pages: PageId[] }> = [
   }
 ];
 const enabledPageIds = new Set<PageId>(machineExportEnabledPageIds);
-const navOrder = navGroups.flatMap((group) => group.pages).filter((page) => enabledPageIds.has(page));
+const hiddenFromNavAndSearch = new Set<PageId>(["tutorial-first-mod"]);
+const discoverablePageIds = new Set<PageId>(
+  machineExportEnabledPageIds.filter((pageId) => !hiddenFromNavAndSearch.has(pageId))
+);
+const visibleNavGroups = navGroups
+  .map((group) => ({
+    ...group,
+    pages: group.pages.filter((pageId) => discoverablePageIds.has(pageId))
+  }))
+  .filter((group) => group.pages.length > 0);
+const navOrder = visibleNavGroups.flatMap((group) => group.pages).filter((page) => enabledPageIds.has(page));
 let currentPage: PageId = loadStoredPage();
 
 const root = document.querySelector<HTMLDivElement>("#app");
@@ -100,7 +110,7 @@ root.innerHTML = `
             <span class="api-menu-chevron" aria-hidden="true">v</span>
           </button>
           <div class="api-menu-panel" id="api-menu-panel" hidden>
-            ${navGroups.map((group) => `
+            ${visibleNavGroups.map((group) => `
               <details class="api-menu-group" open>
                 <summary>${group.label}</summary>
                 <div class="api-menu-links">
@@ -124,7 +134,10 @@ root.innerHTML = `
           <div class="search-results" id="docs-search-results" hidden></div>
         </div>
       </nav>
-      <div></div>
+      <div class="topbar-links" aria-label="Project links">
+        <a class="topbar-link" href="https://www.nexusmods.com/scavprototype/mods/341" target="_blank" rel="noopener noreferrer">NexusMods</a>
+        <a class="topbar-link" href="https://github.com/jimmyking9999999/CUCoreLib" target="_blank" rel="noopener noreferrer">GitHub</a>
+      </div>
     </header>
 
     <div class="workspace">
@@ -430,6 +443,10 @@ function applyScaledScreenshots(): void {
 
 function pagerHtml(): string {
   const index = pageIndex(currentPage);
+  if (index === -1) {
+    return "";
+  }
+
   const previous = pages.find((page) => page.id === navOrder[index - 1]);
   const next = pages.find((page) => page.id === navOrder[index + 1]);
 
@@ -957,7 +974,7 @@ function updateChrome(): void {
     link.classList.toggle("is-active", link.dataset.page === currentPage);
   });
   previousButton.disabled = index <= 0;
-  nextButton.disabled = index >= navOrder.length - 1;
+  nextButton.disabled = index === -1 || index >= navOrder.length - 1;
 }
 
 function updateEditor(): void {

@@ -34,7 +34,7 @@ export const pages: Page[] = [
     label: "Making A First Mod",
     crumb: "Tutorial",
     title: "Making a first mod",
-    lead: "Build a tiny acid-themed mod from start to finish with one custom item, one liquid, one building entity, recipes, and asset plus sound loading."
+    lead: "Is this a subnautica reference?"
   },
   {
     id: "assets",
@@ -286,6 +286,16 @@ function normalizeMediaUrls(value: string): string {
     .replace(/(poster)=(")images\//g, '$1=$2/images/');
 }
 
+const externalVideoUrls = {
+  setup: "https://cdn.discordapp.com/attachments/1517813732321919026/1518543593126494318/setup.mp4?ex=6a3a4d6d&is=6a38fbed&hm=239083ce97c1133e839ccc08df12b17aed97ba9fd0d850ac720642e41a512aea&",
+  embeddingImages: "https://cdn.discordapp.com/attachments/1517813732321919026/1518543592585564180/embedding-images.mp4?ex=6a3a4d6d&is=6a38fbed&hm=55b6ea100180685f48f591ff0bc7039b6f0bc3347418a1a29f3ddec040a580d7&",
+  sporeTrap: "https://cdn.discordapp.com/attachments/1517813732321919026/1518543591914340392/spore-trap-ingame.mp4?ex=6a3a4d6d&is=6a38fbed&hm=931c5987b80c06331b913e0402bf471f563398989c7e41c7c6c5434c13b527e3&"
+} as const;
+
+function docsVideo(src: string, fallbackSrc: string, className: string): string {
+  return `<video src="${src}" data-local-fallback-src="${fallbackSrc}" autoplay loop muted playsinline controls class="${className}"></video>`;
+}
+
 function buildingEntitiesPage(): string {
   return `
     <section class="lesson-card">
@@ -393,14 +403,11 @@ function buildingEntitiesPage(): string {
 function tutorialFirstModPage(): string {
   return `
     <section class="lesson-card">
-      <h2>What we are building</h2>
-      <p>This page is a start-to-finish example that ties the core APIs together. We will add one custom item called <span class="inline-code">acidshroom</span>, one custom liquid called <span class="inline-code">hydrochloricacid</span>, one buildingEntity called <span class="inline-code">acidmushroom</span>, and two simple recipes.</p>
+      <h2>What are we building</h2>
+      <p>This introductory guide will add one custom item called <span class="inline-code">acidshroom</span>, one custom liquid called <span class="inline-code">hydrochloricacid</span>, one buildingEntity called <span class="inline-code">acidmushroom</span>, and two simple recipes.</p>
       <p>The code sample on the right is intentionally written as one compact registration flow so you can copy it into a first mod and then split it into files later.</p>
-      <ul>
-        <li>The mushroom building drops and feeds the content loop.</li>
-        <li>The acid liquid demonstrates <span class="inline-code">LiquidRegistry.Register</span>.</li>
-        <li>The recipes show both a direct harvest reward and a crafted battery upgrade.</li>
-      </ul>
+      <p>Still, it's best to follow step-by-step rather then copy-paste.</p>
+      
     </section>
 
     <section class="lesson-card">
@@ -411,6 +418,7 @@ function tutorialFirstModPage(): string {
 Sprite acidShroomSprite = AssetLoader.LoadEmbeddedSprite("Images.acidshroom.png");
 Sprite acidMushroomSprite = AssetLoader.LoadEmbeddedSprite("Images.acidmushroom.png", 8f);
 AudioClip acidPop = AssetLoader.LoadEmbeddedAudio("Audio.acid-pop.wav");</code></pre>
+    <p>Consider <a href="https://opengameart.org" target="_blank">opengameart.org</a> for free assets and sounds.</p>
     </section>
 
     <section class="lesson-card">
@@ -437,7 +445,7 @@ AudioClip acidPop = AssetLoader.LoadEmbeddedAudio("Audio.acid-pop.wav");</code><
 
     <section class="lesson-card">
       <h2>Where to go next</h2>
-      <p>Once this works, the next useful additions are usually <a href="/docs/locale/" data-page="locale">Locale</a> for explicit translations, <a href="/docs/console/" data-page="console">Console</a> for spawn/debug commands, and <a href="/docs/utils/" data-page="utils">CUCoreUtils</a> for delayed startup or world-ready checks.</p>
+      <p>Once this works, the next useful additions are usually <a href="/docs/locale/" data-page="locale">Locale</a> for explicit translations, <a href="/docs/console/" data-page="console">Console</a> for spawn/debug commands, and more content.</p>
       <p>The tutorial sample keeps everything in one place on purpose. When you are ready, split it into <span class="inline-code">RegisterItems.cs</span>, <span class="inline-code">RegisterLiquids.cs</span>, <span class="inline-code">RegisterBuildings.cs</span>, and <span class="inline-code">RegisterRecipes.cs</span>.</p>
     </section>
   `;
@@ -1237,7 +1245,7 @@ function setupPage(): string {
       <pre><code>[BepInDependency("net.cucorelib", BepInDependency.DependencyFlags.HardDependency)]
 </code></pre>
 
-      <video src="videos/setup.mp4" autoplay loop muted playsinline controls class="screenshot docs-video"></video>
+      ${docsVideo(externalVideoUrls.setup, "/videos/setup.mp4", "screenshot docs-video")}
     </section>
     <section class="lesson-card">
       <h2>Testing the mod</h2>
@@ -1748,7 +1756,7 @@ function trapsPage(): string {
     <section class="lesson-card">
       <h2>Spore Mine</h2>
       <p>The example on the right is of a spore mine trap. Notice the <span class="inline-code">SporeMineScript</span> component that manages the trigger radius, detonation delay, warning light, and gas cloud.</p>
-      <video src="videos/spore-trap-ingame.mp4" autoplay loop muted playsinline controls class="screenshot"></video>
+      ${docsVideo(externalVideoUrls.sporeTrap, "/videos/spore-trap-ingame.mp4", "screenshot")}
       </section>
   `;
 }
@@ -2566,7 +2574,7 @@ function recipePage(): string {
     },
     category = Recipes.RecipeCategory.Utilities
 });</code></pre>
-    <img src="images\\cinderstalk-bag-craft-ingame.png" alt="Cinderstalk bag craft, with custom materials" class="screenshot" scale="0.6">
+    <img src="images/cinderstalk-bag-craft-ingame.png" alt="Cinderstalk bag craft, with custom materials" class="screenshot" scale="0.6">
     </section>
     <section class="lesson-card">
       <h2>Ingredients</h2>
@@ -2614,7 +2622,7 @@ function assetPage(): string {
         <li>Set the build action to <span class="inline-code">Embedded Resource</span>.</li>
         <li>They are great for item icons, building hit sounds, loop audio, default text files, and required assets.</li>
       </ul>
-      <video src="videos/embedding-images.mp4" autoplay loop muted playsinline controls class="screenshot docs-video"></video>
+      ${docsVideo(externalVideoUrls.embeddingImages, "/videos/embedding-images.mp4", "screenshot docs-video")}
       <p><span class="inline-code">AssetLoader.LoadEmbeddedSprite</span> and <span class="inline-code">LoadEmbeddedText</span> search the calling assembly by suffix, so you can usually pass only the unique tail of the manifest resource name.</p>
       <pre><code>Sprite icon = AssetLoader.LoadEmbeddedSprite("Images.sunpear.png");
 string json = AssetLoader.LoadEmbeddedText("Data.default-loot.json");</code></pre>

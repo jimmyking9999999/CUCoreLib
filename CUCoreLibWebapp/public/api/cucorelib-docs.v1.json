@@ -2,7 +2,7 @@
   "version": "1.0",
   "library": "CUCoreLib",
   "description": "Machine-readable CUCoreLib web docs generated from the interactive docs sources.",
-  "generatedAt": "2026-06-21T06:08:59.476Z",
+  "generatedAt": "2026-06-22T09:25:49.480Z",
   "baseUrl": "/",
   "topics": [
     {
@@ -46,7 +46,7 @@
       "label": "Making A First Mod",
       "crumb": "Tutorial",
       "title": "Making a first mod",
-      "lead": "Build a tiny acid-themed mod from start to finish with one custom item, one liquid, one building entity, recipes, and asset plus sound loading.",
+      "lead": "Is this a subnautica reference?",
       "appUrl": "/docs/tutorial-first-mod/",
       "machineUrl": "/api/topics/tutorial-first-mod.json"
     },

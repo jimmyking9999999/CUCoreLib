@@ -202,6 +202,36 @@ textarea,
   min-width: 0;
 }
 
+.topbar-links {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.topbar-link {
+  display: inline-flex;
+  min-height: 34px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--panel-3);
+  color: var(--ink-soft);
+  padding: 6px 12px;
+  font-weight: 850;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.topbar-link:hover,
+.topbar-link:focus-visible {
+  border-color: var(--line-hover);
+  background: var(--panel-hover);
+  color: var(--accent);
+  outline: 0;
+}
+
 .docs-search,
 .api-menu {
   position: relative;
