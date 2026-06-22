@@ -75,8 +75,8 @@ namespace CUCoreLib.Registries
                 info.category = "nospawn";
             }
 
-            ApplySmartDefaults(info);
             ApplyMedicalActions(info);
+            ApplyDefaultOverrides(info);
 
             if (!string.IsNullOrEmpty(info.fullName))
             {
@@ -561,56 +561,56 @@ namespace CUCoreLib.Registries
             }
         }
 
-        private static void ApplySmartDefaults(ItemInfo info)
+        private static void ApplyDefaultOverrides(CustomItemInfo info)
         {
-            if (WasDestroyAtZeroConditionExplicitlySet(info))
+            if (info == null)
+            {
+                return;
+            }
+
+            ApplyDestroyAtZeroConditionDefault(info);
+            ApplyUsableDefaults(info);
+        }
+
+        private static void ApplyDestroyAtZeroConditionDefault(CustomItemInfo info)
+        {
+            if (info == null || info.WasExplicitlySet(CustomItemExplicitField.DestroyAtZeroCondition))
             {
                 return;
             }
 
             if (IsStandardLiquidContainer(info))
             {
-                return;
-            }
-
-            if (info.decayMinutes > 0)
-            {
-                SetDestroyAtZeroConditionDefault(info, true);
-            }
-            else if (info.usable && !info.autoAttack && info.category != "tool" && info.category != "weapon")
-            {
-                SetDestroyAtZeroConditionDefault(info, true);
-            }
-            else if (info.category == "trash")
-            {
-                SetDestroyAtZeroConditionDefault(info, true);
+                info.SetDefault(CustomItemExplicitField.DestroyAtZeroCondition, true);
             }
         }
 
-        private static bool WasDestroyAtZeroConditionExplicitlySet(ItemInfo info)
+        private static void ApplyUsableDefaults(CustomItemInfo info)
         {
             if (info == null)
             {
-                return false;
-            }
-
-            if (info is CustomItemInfo customInfo)
-            {
-                return customInfo.DestroyAtZeroConditionWasExplicitlySet;
-            }
-
-            return info.destroyAtZeroCondition;
-        }
-
-        private static void SetDestroyAtZeroConditionDefault(ItemInfo info, bool value)
-        {
-            if (info is CustomItemInfo customInfo)
-            {
-                customInfo.SetDestroyAtZeroConditionDefault(value);
                 return;
             }
 
-            info.destroyAtZeroCondition = value;
+            bool shouldDefaultUsable =
+                info.useAction != null ||
+                info.useLimbAction != null ||
+                info.wearable;
+
+            if (shouldDefaultUsable && !info.WasExplicitlySet(CustomItemExplicitField.Usable))
+            {
+                info.SetDefault(CustomItemExplicitField.Usable, true);
+            }
+
+            if (info.useLimbAction != null && !info.WasExplicitlySet(CustomItemExplicitField.UsableOnLimb))
+            {
+                info.SetDefault(CustomItemExplicitField.UsableOnLimb, true);
+            }
+
+            if (info.Tool != null && !info.WasExplicitlySet(CustomItemExplicitField.UsableWithLmb))
+            {
+                info.SetDefault(CustomItemExplicitField.UsableWithLmb, true);
+            }
         }
 
         private static bool IsStandardLiquidContainer(ItemInfo info)
@@ -631,7 +631,6 @@ namespace CUCoreLib.Registries
 
             if (info.Bandage != null)
             {
-                info.usableOnLimb = true;
                 info.useLimbAction = (limb, item) =>
                 {
                     BandageProperties bandage = info.Bandage;
@@ -656,7 +655,6 @@ namespace CUCoreLib.Registries
 
             if (info.Syringe != null)
             {
-                info.usableOnLimb = true;
                 info.useLimbAction = (limb, item) =>
                 {
                     WaterContainerItem wat = item.GetComponent<WaterContainerItem>();
@@ -676,10 +674,7 @@ namespace CUCoreLib.Registries
 
             if (info.Tool != null)
             {
-                info.usable = true;
-                info.usableWithLMB = true;
                 info.autoAttack = true;
-                info.destroyAtZeroCondition = true;
                 info.useAction = (body, item) =>
                 {
                     if (body == null || item == null) return;

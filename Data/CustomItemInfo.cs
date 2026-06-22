@@ -6,7 +6,8 @@ using UnityEngine;
 
     public class CustomItemInfo : LiquidItemInfo
     {
-        private bool destroyAtZeroConditionWasExplicitlySet;
+        private readonly HashSet<CustomItemExplicitField> explicitlySetFields =
+            new HashSet<CustomItemExplicitField>();
 
         public string ID;
         public Sprite Icon;
@@ -28,22 +29,77 @@ using UnityEngine;
         public List<string> SpawnComponents = new List<string>();
         public Dictionary<string, object> CustomData = new Dictionary<string, object>();
 
+        public new bool usable
+        {
+            get => base.usable;
+            set
+            {
+                base.usable = value;
+                explicitlySetFields.Add(CustomItemExplicitField.Usable);
+            }
+        }
+
+        public new bool usableOnLimb
+        {
+            get => base.usableOnLimb;
+            set
+            {
+                base.usableOnLimb = value;
+                explicitlySetFields.Add(CustomItemExplicitField.UsableOnLimb);
+            }
+        }
+
+        public new bool usableWithLMB
+        {
+            get => base.usableWithLMB;
+            set
+            {
+                base.usableWithLMB = value;
+                explicitlySetFields.Add(CustomItemExplicitField.UsableWithLmb);
+            }
+        }
+
         public new bool destroyAtZeroCondition
         {
             get => base.destroyAtZeroCondition;
             set
             {
                 base.destroyAtZeroCondition = value;
-                destroyAtZeroConditionWasExplicitlySet = true;
+                explicitlySetFields.Add(CustomItemExplicitField.DestroyAtZeroCondition);
             }
         }
 
-        internal bool DestroyAtZeroConditionWasExplicitlySet => destroyAtZeroConditionWasExplicitlySet;
-
-        internal void SetDestroyAtZeroConditionDefault(bool value)
+        internal bool WasExplicitlySet(CustomItemExplicitField field)
         {
-            base.destroyAtZeroCondition = value;
+            return explicitlySetFields.Contains(field);
         }
+
+        internal void SetDefault(CustomItemExplicitField field, bool value)
+        {
+            switch (field)
+            {
+                case CustomItemExplicitField.Usable:
+                    base.usable = value;
+                    break;
+                case CustomItemExplicitField.UsableOnLimb:
+                    base.usableOnLimb = value;
+                    break;
+                case CustomItemExplicitField.UsableWithLmb:
+                    base.usableWithLMB = value;
+                    break;
+                case CustomItemExplicitField.DestroyAtZeroCondition:
+                    base.destroyAtZeroCondition = value;
+                    break;
+            }
+        }
+    }
+
+    internal enum CustomItemExplicitField
+    {
+        Usable,
+        UsableOnLimb,
+        UsableWithLmb,
+        DestroyAtZeroCondition
     }
 
     [System.Serializable]
