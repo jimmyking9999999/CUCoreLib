@@ -2099,7 +2099,7 @@ function savingPage(): string {
     <section class="lesson-card">
       <h2>What is JObject?</h2>
       <p>A <span class="inline-code">JObject</span> is a JSON object that (in our case) represents the serialized state of a mod's custom data. It is used to store and retrieve complex data structures that cannot be directly serialized by the vanilla save system.</p>
-      <p>For more info, see <a href="https://dev.to/roelvs/how-to-c-using-the-jobject-class-47e2" target="_blank">https://dev.to/roelvs/how-to-c-using-the-jobject-class-47e2</a></p>
+      <p>For more info, see <a href="https://kodershop.com/blog/dot-net-tutorials-15/what-is-jobject-in-json-net-345#blog_content" target="_blank">https://kodershop.com/blog/dot-net-tutorials-15/what-is-jobject-in-json-net-345#blog_content</a></p>
     </section>
     <section class="lesson-card">
       <h2>Register a provider</h2>

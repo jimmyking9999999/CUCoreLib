@@ -309,27 +309,7 @@ namespace CUCoreLib.Patches
             {
                 return prefab != null;
             }
-
-            prefab = Resources.Load<GameObject>(normalized);
-            if (prefab != null)
-            {
-                return true;
-            }
-
-            if (!normalized.StartsWith("KMPSR_", StringComparison.Ordinal))
-            {
-                return false;
-            }
-
-            if (_knownEntitiesWithNonUniqueIdField != null && _knownEntitiesWithNonUniqueIdField.GetValue(null) is IDictionary knownEntities && knownEntities.Contains(normalized))
-            {
-                prefab = knownEntities[normalized] as GameObject;
-                parentToWorldGrid = prefab != null && prefab.TryGetComponent(out Tilemap _);
-                return prefab != null;
-            }
-
-            prefab = Resources.Load<GameObject>(normalized.Substring("KMPSR_".Length));
-            return prefab != null;
+            return false;
         }
 
         private static bool TryResolveCustomPrefab(string resourceStringId, out GameObject prefab)
