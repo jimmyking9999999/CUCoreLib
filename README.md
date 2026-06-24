@@ -29,6 +29,12 @@ For developers looking to use this mod, please refer to the [Setup](https://cuco
 - API documentation is in `CUCoreLibWebapp/`.
 - The live website exists at https://cucorelib.web.app
 
+## Discord / Support
+<div align="center">
+<img width="492" height="540" alt="discord" src="https://github.com/user-attachments/assets/36913023-ac63-4f0a-a43b-21e836718edb" />
+</div>
+
+For inquires and to talk to other C:U mod developers, please send a message in the Discord: [https://discord.gg/ehCptz9pwU](https://discord.gg/ehCptz9pwU)!
 
 ---
 
