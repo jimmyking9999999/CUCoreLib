@@ -1,6 +1,8 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using CUCoreLib.ContentReload;
 using CUCoreLib.Data;
 using CUCoreLib.Helpers;
 using CUCoreLib.Patches;
@@ -13,6 +15,9 @@ namespace CUCoreLib.Registries
     {
         internal static Dictionary<string, CustomItemInfo> RegisteredItems =
             new Dictionary<string, CustomItemInfo>(System.StringComparer.OrdinalIgnoreCase);
+        private static readonly Dictionary<string, string> ItemOwners =
+            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        private static string ActiveOwnerId;
 
         // In-game decals are manually blacklisted. Which is probably really bad to do, but it's not too dangerous if it fails after an update
         private static readonly HashSet<string> IgnoredMissingIconIds = new HashSet<string>(System.StringComparer.OrdinalIgnoreCase)
@@ -91,6 +96,10 @@ namespace CUCoreLib.Registries
             // Store or replace the registry entry, apply defaults and inject into runtime tables.
             bool replacingExisting = RegisteredItems.ContainsKey(id);
             RegisteredItems[id] = info;
+            if (!string.IsNullOrWhiteSpace(ActiveOwnerId))
+            {
+                ItemOwners[id] = ActiveOwnerId;
+            }
 
             if (Item.GlobalItems != null)
             {
@@ -105,9 +114,70 @@ namespace CUCoreLib.Registries
             CUCoreLib.Networking.MultiplayerSyncRegistry.QueueHostSnapshotBroadcast();
         }
 
+        public static IDisposable BeginOwnerRegistration(string ownerId)
+        {
+            return new OwnerScope(ownerId);
+        }
+
         public static IEnumerable<string> GetRegisteredItemIds()
         {
             return RegisteredItems.Keys.ToArray();
+        }
+
+        internal static Dictionary<string, CustomItemInfo> CaptureOwnerEntries(string ownerId)
+        {
+            if (string.IsNullOrWhiteSpace(ownerId))
+            {
+                return new Dictionary<string, CustomItemInfo>(StringComparer.OrdinalIgnoreCase);
+            }
+
+            string normalizedOwnerId = ownerId.Trim();
+            return ItemOwners
+                .Where(entry => string.Equals(entry.Value, normalizedOwnerId, StringComparison.OrdinalIgnoreCase))
+                .Select(entry => entry.Key)
+                .Where(id => RegisteredItems.TryGetValue(id, out _))
+                .ToDictionary(id => id, id => RegisteredItems[id], StringComparer.OrdinalIgnoreCase);
+        }
+
+        internal static void RestoreOwnerEntries(string ownerId, IDictionary<string, CustomItemInfo> entries)
+        {
+            if (entries == null || entries.Count == 0)
+            {
+                return;
+            }
+
+            foreach (KeyValuePair<string, CustomItemInfo> entry in entries)
+            {
+                Register(entry.Key, entry.Value);
+            }
+        }
+
+        internal static void ClearOwnerEntries(string ownerId, ContentReloadResult result)
+        {
+            if (string.IsNullOrWhiteSpace(ownerId))
+            {
+                return;
+            }
+
+            string normalizedOwnerId = ownerId.Trim();
+            string[] ids = ItemOwners
+                .Where(entry => string.Equals(entry.Value, normalizedOwnerId, StringComparison.OrdinalIgnoreCase))
+                .Select(entry => entry.Key)
+                .ToArray();
+
+            for (int i = 0; i < ids.Length; i++)
+            {
+                string id = ids[i];
+                RegisteredItems.Remove(id);
+                ItemOwners.Remove(id);
+                Item.GlobalItems?.Remove(id);
+                RemoveLootPoolEntries(id);
+            }
+
+            if (ids.Length > 0)
+            {
+                result?.AddInfo("Cleared " + ids.Length + " item registrations owned by '" + normalizedOwnerId + "'.");
+            }
         }
 
         // Serialize customitemfields for mp sync
@@ -736,6 +806,35 @@ namespace CUCoreLib.Registries
             if (info.qualities.Any(q => q.id == tag)) return;
 
             info.qualities.Add(new CraftingQuality(tag));
+        }
+
+        private static void RemoveLootPoolEntries(string id)
+        {
+            if (ItemLootPool.pool == null || string.IsNullOrWhiteSpace(id))
+            {
+                return;
+            }
+
+            foreach (List<string> poolItems in ItemLootPool.pool.Values)
+            {
+                poolItems.RemoveAll(itemId => string.Equals(itemId, id, StringComparison.OrdinalIgnoreCase));
+            }
+        }
+
+        private sealed class OwnerScope : IDisposable
+        {
+            private readonly string previousOwnerId;
+
+            public OwnerScope(string ownerId)
+            {
+                previousOwnerId = ActiveOwnerId;
+                ActiveOwnerId = string.IsNullOrWhiteSpace(ownerId) ? null : ownerId.Trim();
+            }
+
+            public void Dispose()
+            {
+                ActiveOwnerId = previousOwnerId;
+            }
         }
     }
 }

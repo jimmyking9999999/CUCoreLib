@@ -4,6 +4,7 @@ using System.Linq;
 using UnityEngine;
 using BepInEx.Logging;
 using System.Reflection;
+using CUCoreLib.ContentReload;
 
 namespace CUCoreLib.Helpers
 {
@@ -17,7 +18,7 @@ namespace CUCoreLib.Helpers
 
         public static string LoadEmbeddedText(string filename)
         {
-            return AssetLoader.LoadEmbeddedText(filename, Assembly.GetExecutingAssembly());
+            return AssetLoader.LoadEmbeddedText(filename, ResolveSourceAssembly());
         }
 
 
@@ -35,7 +36,7 @@ namespace CUCoreLib.Helpers
         // Direct file loads
         public static Sprite LoadSpriteFromFile(string filename, float ppu, FilterMode filterMode, int widthMultiplier, int heightMultiplier)
         {
-            string pluginPath = Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location);
+            string pluginPath = ResolvePluginDirectory();
             string imagePath = Path.Combine(pluginPath, "Images", filename);
 
             if (!File.Exists(imagePath))
@@ -91,7 +92,7 @@ namespace CUCoreLib.Helpers
         // Embedded Resource file loads 
         public static AudioClip LoadEmbeddedAudio(string fileName)
         {
-            return AssetLoader.LoadEmbeddedAudio(fileName, Assembly.GetExecutingAssembly());
+            return AssetLoader.LoadEmbeddedAudio(fileName, ResolveSourceAssembly());
         }
 
         public static Sprite LoadEmbeddedSprite(string filename)
@@ -106,7 +107,7 @@ namespace CUCoreLib.Helpers
 
         public static Sprite LoadEmbeddedSprite(string filename, float ppu, FilterMode filterMode, int widthMultiplier, int heightMultiplier)
         {
-            Assembly asm = Assembly.GetExecutingAssembly();
+            Assembly asm = ResolveSourceAssembly();
             string newFilename = asm.GetManifestResourceNames().FirstOrDefault(n => n.EndsWith(filename));
             if (newFilename == null)
             {
@@ -138,6 +139,22 @@ namespace CUCoreLib.Helpers
             sprite.name = newFilename;
 
             return sprite;
+        }
+
+        private static Assembly ResolveSourceAssembly()
+        {
+            return ContentReloadSession.GetSourceAssemblyOverride() ?? Assembly.GetExecutingAssembly();
+        }
+
+        private static string ResolvePluginDirectory()
+        {
+            string overrideDirectory = ContentReloadSession.GetPluginDirectoryOverride();
+            if (!string.IsNullOrWhiteSpace(overrideDirectory))
+            {
+                return overrideDirectory;
+            }
+
+            return Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
         }
     }
 }

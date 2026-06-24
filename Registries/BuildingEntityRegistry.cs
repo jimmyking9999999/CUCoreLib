@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
+using CUCoreLib.ContentReload;
 using CUCoreLib.Data;
 using CUCoreLib.Helpers;
 using Newtonsoft.Json.Linq;
@@ -33,6 +34,8 @@ namespace CUCoreLib.Registries
 
         public static void Register(string id, CustomBuildingEntityDefinition definition)
         {
+            ContentReloadSession.AssertNotActive("BuildingEntityRegistry.Register()", "Buildings are excluded from strict content reload.");
+
             if (string.IsNullOrWhiteSpace(id))
             {
                 CUCoreLibPlugin.Log?.LogWarning("Ignored custom building registration with no ID.");
@@ -756,5 +759,6 @@ namespace CUCoreLib.Registries
                 obj.AddComponent<FreshItemDrop>();
             }
         }
+
     }
 }

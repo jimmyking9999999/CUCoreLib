@@ -1,9 +1,12 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using BepInEx;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using CUCoreLib.ContentReload;
+using CUCoreLib.Data;
 using CUCoreLib.Helpers;
 
 namespace CUCoreLib.Registries
@@ -23,6 +26,9 @@ namespace CUCoreLib.Registries
 
         private static readonly Dictionary<int, HashSet<string>> RequiredLocales =
             new Dictionary<int, HashSet<string>>();
+        private static readonly Dictionary<int, Dictionary<string, string>> LocaleOwners =
+            new Dictionary<int, Dictionary<string, string>>();
+        private static string ActiveOwnerId;
 
         /// <summary>
         /// Registers a localized string
@@ -53,6 +59,11 @@ namespace CUCoreLib.Registries
                 CustomLocales[type] = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             }
 
+            if (!LocaleOwners.ContainsKey(type))
+            {
+                LocaleOwners[type] = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            }
+
             string value = text ?? string.Empty;
             if (CustomLocales[type].TryGetValue(key, out string existing) && !string.IsNullOrWhiteSpace(existing) && string.IsNullOrWhiteSpace(value))
             {
@@ -60,6 +71,10 @@ namespace CUCoreLib.Registries
             }
 
             CustomLocales[type][key] = value;
+            if (!string.IsNullOrWhiteSpace(ActiveOwnerId))
+            {
+                LocaleOwners[type][key] = ActiveOwnerId;
+            }
         }
 
         /// <summary>
@@ -192,6 +207,92 @@ namespace CUCoreLib.Registries
             return Path.Combine(BepInEx.Paths.ConfigPath, "CUCoreLib", "Locales", "EN.json");
         }
 
+        public static IDisposable BeginOwnerRegistration(string ownerId)
+        {
+            return new OwnerScope(ownerId);
+        }
+
+        internal static Dictionary<int, Dictionary<string, string>> CaptureOwnerEntries(string ownerId)
+        {
+            Dictionary<int, Dictionary<string, string>> snapshot = new Dictionary<int, Dictionary<string, string>>();
+            if (string.IsNullOrWhiteSpace(ownerId))
+            {
+                return snapshot;
+            }
+
+            string normalizedOwnerId = ownerId.Trim();
+            foreach (KeyValuePair<int, Dictionary<string, string>> entry in LocaleOwners)
+            {
+                Dictionary<string, string> ownedEntries = entry.Value
+                    .Where(pair => string.Equals(pair.Value, normalizedOwnerId, StringComparison.OrdinalIgnoreCase))
+                    .Select(pair => pair.Key)
+                    .Where(key => CustomLocales.TryGetValue(entry.Key, out Dictionary<string, string> locales) && locales.ContainsKey(key))
+                    .ToDictionary(
+                        key => key,
+                        key => CustomLocales[entry.Key][key],
+                        StringComparer.OrdinalIgnoreCase);
+
+                if (ownedEntries.Count > 0)
+                {
+                    snapshot[entry.Key] = ownedEntries;
+                }
+            }
+
+            return snapshot;
+        }
+
+        internal static void RestoreOwnerEntries(string ownerId, IDictionary<int, Dictionary<string, string>> snapshot)
+        {
+            if (snapshot == null || snapshot.Count == 0)
+            {
+                return;
+            }
+
+            foreach (KeyValuePair<int, Dictionary<string, string>> category in snapshot)
+            {
+                foreach (KeyValuePair<string, string> entry in category.Value)
+                {
+                    Register(category.Key, entry.Key, entry.Value);
+                }
+            }
+        }
+
+        internal static void ClearOwnerEntries(string ownerId, ContentReloadResult result)
+        {
+            if (string.IsNullOrWhiteSpace(ownerId))
+            {
+                return;
+            }
+
+            string normalizedOwnerId = ownerId.Trim();
+            int removed = 0;
+
+            foreach (KeyValuePair<int, Dictionary<string, string>> entry in LocaleOwners.ToArray())
+            {
+                string[] keys = entry.Value
+                    .Where(pair => string.Equals(pair.Value, normalizedOwnerId, StringComparison.OrdinalIgnoreCase))
+                    .Select(pair => pair.Key)
+                    .ToArray();
+
+                for (int i = 0; i < keys.Length; i++)
+                {
+                    string key = keys[i];
+                    entry.Value.Remove(key);
+                    if (CustomLocales.TryGetValue(entry.Key, out Dictionary<string, string> locales))
+                    {
+                        locales.Remove(key);
+                    }
+
+                    removed++;
+                }
+            }
+
+            if (removed > 0)
+            {
+                result?.AddInfo("Cleared " + removed + " locale entries owned by '" + normalizedOwnerId + "'.");
+            }
+        }
+
         private static int CategoryToType(string category)
         {
             string normalizedCategory = (category ?? string.Empty).Trim().ToLowerInvariant();
@@ -251,6 +352,22 @@ namespace CUCoreLib.Registries
             }
 
             return token.ToString(Formatting.None);
+        }
+
+        private sealed class OwnerScope : IDisposable
+        {
+            private readonly string previousOwnerId;
+
+            public OwnerScope(string ownerId)
+            {
+                previousOwnerId = ActiveOwnerId;
+                ActiveOwnerId = string.IsNullOrWhiteSpace(ownerId) ? null : ownerId.Trim();
+            }
+
+            public void Dispose()
+            {
+                ActiveOwnerId = previousOwnerId;
+            }
         }
 
     }

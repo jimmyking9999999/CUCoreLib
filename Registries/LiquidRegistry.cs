@@ -1,5 +1,7 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
+using CUCoreLib.ContentReload;
 using CUCoreLib.Data;
 using CUCoreLib.Helpers;
 using Newtonsoft.Json.Linq;
@@ -11,7 +13,10 @@ namespace CUCoreLib.Registries
     {
         internal static Dictionary<string, CustomLiquidInfo> RegisteredLiquids =
             new Dictionary<string, CustomLiquidInfo>(System.StringComparer.OrdinalIgnoreCase);
+        private static readonly Dictionary<string, string> LiquidOwners =
+            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         private static bool LoggedInitialInjection;
+        private static string ActiveOwnerId;
 
         public static void Register(string id, CustomLiquidInfo info)
         {
@@ -28,9 +33,18 @@ namespace CUCoreLib.Registries
 
             id = id.Trim();
             RegisteredLiquids[id] = info;
+            if (!string.IsNullOrWhiteSpace(ActiveOwnerId))
+            {
+                LiquidOwners[id] = ActiveOwnerId;
+            }
 
             InjectSingleLiquid(id, info);
             LogInitialInjectionSummary();
+        }
+
+        public static IDisposable BeginOwnerRegistration(string ownerId)
+        {
+            return new OwnerScope(ownerId);
         }
 
         internal static int InjectRegisteredLiquids(bool logSummary = false)
@@ -111,6 +125,61 @@ namespace CUCoreLib.Registries
             return RegisteredLiquids.Keys.ToArray();
         }
 
+        internal static Dictionary<string, CustomLiquidInfo> CaptureOwnerEntries(string ownerId)
+        {
+            if (string.IsNullOrWhiteSpace(ownerId))
+            {
+                return new Dictionary<string, CustomLiquidInfo>(StringComparer.OrdinalIgnoreCase);
+            }
+
+            string normalizedOwnerId = ownerId.Trim();
+            return LiquidOwners
+                .Where(entry => string.Equals(entry.Value, normalizedOwnerId, StringComparison.OrdinalIgnoreCase))
+                .Select(entry => entry.Key)
+                .Where(id => RegisteredLiquids.TryGetValue(id, out _))
+                .ToDictionary(id => id, id => RegisteredLiquids[id], StringComparer.OrdinalIgnoreCase);
+        }
+
+        internal static void RestoreOwnerEntries(string ownerId, IDictionary<string, CustomLiquidInfo> entries)
+        {
+            if (entries == null || entries.Count == 0)
+            {
+                return;
+            }
+
+            foreach (KeyValuePair<string, CustomLiquidInfo> entry in entries)
+            {
+                Register(entry.Key, entry.Value);
+            }
+        }
+
+        internal static void ClearOwnerEntries(string ownerId, ContentReloadResult result)
+        {
+            if (string.IsNullOrWhiteSpace(ownerId))
+            {
+                return;
+            }
+
+            string normalizedOwnerId = ownerId.Trim();
+            string[] ids = LiquidOwners
+                .Where(entry => string.Equals(entry.Value, normalizedOwnerId, StringComparison.OrdinalIgnoreCase))
+                .Select(entry => entry.Key)
+                .ToArray();
+
+            for (int i = 0; i < ids.Length; i++)
+            {
+                string id = ids[i];
+                RegisteredLiquids.Remove(id);
+                LiquidOwners.Remove(id);
+                Liquids.Registry?.Remove(id);
+            }
+
+            if (ids.Length > 0)
+            {
+                result?.AddInfo("Cleared " + ids.Length + " liquid registrations owned by '" + normalizedOwnerId + "'.");
+            }
+        }
+
         internal static JObject CaptureNetworkSnapshot()
         {
             JObject root = new JObject();
@@ -175,6 +244,22 @@ namespace CUCoreLib.Registries
             if (string.IsNullOrWhiteSpace(id)) return false;
 
             return RegisteredLiquids.TryGetValue(id.Trim(), out info);
+        }
+
+        private sealed class OwnerScope : IDisposable
+        {
+            private readonly string previousOwnerId;
+
+            public OwnerScope(string ownerId)
+            {
+                previousOwnerId = ActiveOwnerId;
+                ActiveOwnerId = string.IsNullOrWhiteSpace(ownerId) ? null : ownerId.Trim();
+            }
+
+            public void Dispose()
+            {
+                ActiveOwnerId = previousOwnerId;
+            }
         }
     }
 }

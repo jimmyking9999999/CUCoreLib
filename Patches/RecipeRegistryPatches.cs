@@ -10,6 +10,28 @@ namespace CUCoreLib.Patches
     [HarmonyPatch]
     internal static class RecipeRegistryPatches
     {
+        internal static void RefreshCraftingUi()
+        {
+            PlayerCamera camera = PlayerCamera.main;
+            if (camera == null || Recipes.recipes == null)
+            {
+                return;
+            }
+
+            int recipeCount = Recipes.recipes.Count;
+            if (recipeCount <= 0)
+            {
+                camera.selectedRecipe = 0;
+            }
+            else
+            {
+                camera.selectedRecipe = Mathf.Clamp(camera.selectedRecipe, 0, recipeCount - 1);
+            }
+
+            camera.RefreshRecipeList();
+            camera.RefreshCurrentlySelectedRecipe();
+        }
+
         [HarmonyPatch(typeof(Recipes), "SetUpRecipes")]
         [HarmonyPostfix]
         private static void InjectRecipes()

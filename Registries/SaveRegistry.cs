@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using CUCoreLib.ContentReload;
 using CUCoreLib.Saving;
 
 namespace CUCoreLib.Registries
@@ -76,6 +77,11 @@ namespace CUCoreLib.Registries
 
         private static void RegisterProvider<T>(Dictionary<string, T> map, string scope, string key, T provider) where T : class
         {
+            string scopeLabel = string.IsNullOrWhiteSpace(scope)
+                ? "Provider"
+                : char.ToUpperInvariant(scope[0]) + scope.Substring(1) + "Provider";
+            ContentReloadSession.AssertNotActive("SaveRegistry.Register" + scopeLabel + "()", "Save providers are excluded from strict content reload.");
+
             if (string.IsNullOrWhiteSpace(key))
             {
                 CUCoreLibPlugin.Log?.LogWarning("CUCoreLib Save: Ignored " + scope + " save provider registration with no key.");

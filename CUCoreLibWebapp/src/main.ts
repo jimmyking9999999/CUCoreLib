@@ -62,6 +62,7 @@ const navGroups: Array<{ label: string; pages: PageId[] }> = [
   {
     label: "Misc / API",
     pages: [
+      "debug-testing",
       "utils",
       "console",
       "tools",

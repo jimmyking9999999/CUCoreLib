@@ -7,6 +7,7 @@ using UnityEngine;
 using BepInEx.Logging;
 using BepInEx;
 using NAudio.Wave;
+using CUCoreLib.ContentReload;
 using CUCoreLib.Data;
 using UnityEngine.UI;
 
@@ -132,14 +133,14 @@ namespace CUCoreLib.Helpers
 
         public static Sprite LoadEmbeddedSprite(string resourcePath, float pixelsPerUnit = PPU_WORLD, Assembly sourceAssembly = null)
         {
-            if (sourceAssembly == null) sourceAssembly = Assembly.GetCallingAssembly();
+            if (sourceAssembly == null) sourceAssembly = ContentReloadSession.GetSourceAssemblyOverride() ?? Assembly.GetCallingAssembly();
 
             return LoadSpriteInternal(resourcePath, pixelsPerUnit, sourceAssembly);
         }
 
         public static Sprite LoadUISprite(string resourcePath, Assembly sourceAssembly = null)
         {
-            if (sourceAssembly == null) sourceAssembly = Assembly.GetCallingAssembly();
+            if (sourceAssembly == null) sourceAssembly = ContentReloadSession.GetSourceAssemblyOverride() ?? Assembly.GetCallingAssembly();
 
             return LoadSpriteInternal(resourcePath, PPU_UI, sourceAssembly);
         }
@@ -282,7 +283,7 @@ namespace CUCoreLib.Helpers
 
         public static AudioClip LoadEmbeddedAudio(string resourcePath, Assembly sourceAssembly = null)
         {
-            if (sourceAssembly == null) sourceAssembly = Assembly.GetCallingAssembly();
+            if (sourceAssembly == null) sourceAssembly = ContentReloadSession.GetSourceAssemblyOverride() ?? Assembly.GetCallingAssembly();
 
             if (sourceAssembly == null) return null;
 
@@ -345,7 +346,7 @@ namespace CUCoreLib.Helpers
 
         public static string LoadEmbeddedText(string resourcePath, Assembly sourceAssembly = null)
         {
-            if (sourceAssembly == null) sourceAssembly = Assembly.GetCallingAssembly();
+            if (sourceAssembly == null) sourceAssembly = ContentReloadSession.GetSourceAssemblyOverride() ?? Assembly.GetCallingAssembly();
 
             string foundResource = FindEmbeddedResourceName(resourcePath, sourceAssembly);
 
@@ -379,7 +380,7 @@ namespace CUCoreLib.Helpers
         {
             if (plugin == null || string.IsNullOrWhiteSpace(relativePath)) return null;
 
-            string pluginFolder = Path.GetDirectoryName(plugin.Info.Location);
+            string pluginFolder = ContentReloadSession.GetPluginDirectoryOverride() ?? Path.GetDirectoryName(plugin.Info.Location);
             if (string.IsNullOrEmpty(pluginFolder)) return null;
 
             return Path.Combine(pluginFolder, relativePath);

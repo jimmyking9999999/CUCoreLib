@@ -205,6 +205,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Data\CustomBuildingEntityDefinition.cs" />
+    <Compile Include="Data\ContentReloadEntryAttribute.cs" />
     <Compile Include="Data\CustomItemInfo.cs" />
     <Compile Include="Data\CustomLiquidInfo.cs" />
     <Compile Include="Data\ModOptionDefinition.cs" />
@@ -215,6 +216,13 @@
     <Compile Include="Data\TileGenerationStyle.cs" />
     <Compile Include="Data\CustomRecipe.cs" />
     <Compile Include="Data\CustomTileDefinition.cs" />
+    <Compile Include="ContentReload\ContentAssemblyResolver.cs" />
+    <Compile Include="ContentReload\ContentCompatibilityScanner.cs" />
+    <Compile Include="ContentReload\ContentReloadManager.cs" />
+    <Compile Include="ContentReload\ContentReloadSession.cs" />
+    <Compile Include="ContentReload\ContentReloadTypes.cs" />
+    <Compile Include="ContentReload\ContentReplayExecutor.cs" />
+    <Compile Include="ContentReload\ContentWatchService.cs" />
     <Compile Include="Helpers\AssetLoader.cs" />
     <Compile Include="Helpers\AnimatedImage.cs" />
     <Compile Include="Helpers\AnimatedSpriteRenderer.cs" />
@@ -226,6 +234,7 @@
     <Compile Include="Helpers\NetworkSnapshotSerialization.cs" />
     <Compile Include="Helpers\StatusExtensions.cs" />
     <Compile Include="Helpers\LocaleLoader.cs" />
+    <Compile Include="Helpers\LaunchOverrideManager.cs" />
     <Compile Include="Helpers\SettingsMenuCategoryExtender.cs" />
     <Compile Include="Networking\MultiplayerApi.cs" />
     <Compile Include="Networking\MultiplayerBridge.cs" />
@@ -236,6 +245,7 @@
     <Compile Include="Patches\CustomWearablePatches.cs" />
     <Compile Include="Patches\CustomItemSerializationPatches.cs" />
     <Compile Include="Patches\KrokMpCompatibilityPatches.cs" />
+    <Compile Include="Patches\LaunchOverridePatches.cs" />
     <Compile Include="Patches\ItemRegistryPatches.cs" />
     <Compile Include="Patches\LocalePatches.cs" />
     <Compile Include="Patches\LiquidRegistryPatches.cs" />

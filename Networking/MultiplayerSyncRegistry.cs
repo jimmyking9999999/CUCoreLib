@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using CUCoreLib.ContentReload;
 using CUCoreLib.Registries;
 using CUCoreLib.Saving;
 using Newtonsoft.Json.Linq;
@@ -31,6 +32,8 @@ namespace CUCoreLib.Networking
 
         public static void RegisterModule(string key, Func<JObject> capture, Action<JObject> apply = null)
         {
+            ContentReloadSession.AssertNotActive("MultiplayerSyncRegistry.RegisterModule()", "Multiplayer registration is excluded from strict content reload.");
+
             if (string.IsNullOrWhiteSpace(key) || capture == null)
             {
                 return;
@@ -146,6 +149,8 @@ namespace CUCoreLib.Networking
 
         public static void RegisterBuiltIns()
         {
+            ContentReloadSession.AssertNotActive("MultiplayerSyncRegistry.RegisterBuiltIns()", "Multiplayer registration is excluded from strict content reload.");
+
             if (_builtInsRegistered)
             {
                 return;

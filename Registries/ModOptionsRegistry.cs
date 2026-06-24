@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using CUCoreLib.ContentReload;
 using CUCoreLib.Data;
 using CUCoreLib.Helpers;
 using Newtonsoft.Json.Linq;
@@ -18,6 +19,8 @@ namespace CUCoreLib.Registries
 
         public static bool Register(ModOptionDefinition option)
         {
+            ContentReloadSession.AssertNotActive("ModOptionsRegistry.Register()", "Mod options are excluded from strict content reload.");
+
             string error = Validate(option);
             if (!string.IsNullOrWhiteSpace(error))
             {
@@ -331,6 +334,7 @@ namespace CUCoreLib.Registries
         {
             return (category ?? string.Empty).Trim().ToLowerInvariant();
         }
+
     }
 
     internal sealed class ModOptionCategoryEntry

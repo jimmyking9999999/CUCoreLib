@@ -2,7 +2,7 @@
   "version": "1.0",
   "library": "CUCoreLib",
   "description": "Machine-readable CUCoreLib web docs generated from the interactive docs sources.",
-  "generatedAt": "2026-06-22T09:25:49.480Z",
+  "generatedAt": "2026-06-24T11:56:10.109Z",
   "baseUrl": "/",
   "topics": [
     {
@@ -175,6 +175,15 @@
       "lead": "Woah, custom layers and biomes?",
       "appUrl": "/docs/traps/",
       "machineUrl": "/api/topics/traps.json"
+    },
+    {
+      "id": "debug-testing",
+      "label": "Debugging / Testing",
+      "crumb": "Debug APIs",
+      "title": "Debugging, testing, and hot reload",
+      "lead": "Speed up iteration with logs, tutorial-friendly config toggles, console harnesses, and CUCoreLib's strict content reload flow.",
+      "appUrl": "/docs/debug-testing/",
+      "machineUrl": "/api/topics/debug-testing.json"
     },
     {
       "id": "utils",

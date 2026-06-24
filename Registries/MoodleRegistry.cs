@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using CUCoreLib.ContentReload;
 using CUCoreLib.Data;
 using CUCoreLib.Helpers;
 using Newtonsoft.Json.Linq;
@@ -21,6 +22,8 @@ namespace CUCoreLib.Registries
         public static void RegisterBody<TStatus>(Func<Body, TStatus, StatusMoodleDefinition> buildMoodle)
             where TStatus : BodyStatus, new()
         {
+            ContentReloadSession.AssertNotActive("MoodleRegistry.RegisterBody()", "Status and moodle registration are excluded from strict content reload.");
+
             if (buildMoodle == null)
             {
                 CUCoreLibPlugin.Log?.LogWarning("Ignored body moodle registration because the contributor was null.");
@@ -33,6 +36,8 @@ namespace CUCoreLib.Registries
         public static void RegisterLimb<TStatus>(Func<Limb, TStatus, StatusMoodleDefinition> buildMoodle)
             where TStatus : LimbStatus, new()
         {
+            ContentReloadSession.AssertNotActive("MoodleRegistry.RegisterLimb()", "Status and moodle registration are excluded from strict content reload.");
+
             if (buildMoodle == null)
             {
                 CUCoreLibPlugin.Log?.LogWarning("Ignored limb moodle registration because the contributor was null.");

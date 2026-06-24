@@ -37,157 +37,220 @@
     </style>
   </head>
   <body>
-    <h1>CUCoreLib Basic Guide Template</h1>
-
-    <p>
-      This is a simple content outline for a YouTuber making a beginner guide for CUCoreLib.
-      Replace the placeholder image boxes with your own screenshots or reference images.
-    </p>
+    <h1>Follow this on your second monitor!</h1>
+    <h1>This'll be ordered chronologically as in how the video plays for the viewer</h1>
 
     <hr>
 
-    <h2>1. Hook</h2>
+    <h2>1. Hook. (Create this later and edit it into the start)</h2>
     <p>
-      Start with a simple explanation of what the video will cover.
+      Start with a simple explanation of what the video will cover. Show the finished result, i.e. breaking an acid shroom and crafting a battery from the material.
+      Maybe explain why you might want this library? ( See https://www.nexusmods.com/scavprototype/mods/341?tab=description for info )
+
     </p>
-    <p>
-      Example: Today we're making a simple CUCoreLib mod with one item, one liquid,
-      one building entity, and a couple of recipes.
-    </p>
+    
     <div class="image-box">Insert image here</div>
 
     <hr>
 
-    <h2>2. What Viewers Will Build</h2>
+    
+
+    <h2>2. Setup</h2>
     <p>
-      Show the finished result early so viewers know what they are working toward.
+      Keep this part short-ish. Mention only what people need before starting. Quick cuts maybe?
+    </p>
+    <p> Have https://cucorelib.web.app/docs/setup/ to the side of the screen in parallel when doing this
+
     </p>
     <ul>
-      <li>One custom item: acidshroom</li>
-      <li>One custom liquid: hydrochloricacid</li>
-      <li>One building entity: acidmushroom</li>
-      <li>Recipes using that content</li>
-      <li>Asset loading and sound loading</li>
+      <li>1. Install BepInEx (same process as mp mod)</li>
+      <li>2. Open a terminal, install git (https://git-scm.com/install/windows) if needed, run `git clone https://github.com/05126619z/ScavTemplate`</li>
+      <li>3. Add CUCoreLib as a dependency, just follow the guide but quickly!</li>
+      <li>4. Build the code, (the .dll file should automatically get placed in the bepinex/plugins folder) enable debug logging (Viewing BepInEx logs webapp section), launch the game</li>
+      <li>5. Look at the log for "Hello world!" or other message</li>
     </ul>
     <div class="image-box">Insert image here</div>
 
     <hr>
-
-    <h2>3. Prerequisites</h2>
-    <p>
-      Keep this part short. Mention only what people need before starting.
-    </p>
-    <ul>
-      <li>BepInEx installed</li>
-      <li>A template mod or starter project</li>
-      <li>CUCoreLib added as a dependency</li>
-      <li>Basic C# and Visual Studio familiarity</li>
-    </ul>
-    <div class="image-box">Insert image here</div>
-
     <hr>
 
-    <h2>4. Project Setup</h2>
+    <h2>3. Build The Mod In Small Steps</h2>
     <p>
-      Show the project structure and where the important files go.
-    </p>
-    <ul>
-      <li>Main plugin class</li>
-      <li>Dependency reference</li>
-      <li>Images folder</li>
-      <li>Audio folder</li>
-      <li>Embedded Resource build action</li>
-    </ul>
-    <div class="image-box">Insert image here</div>
-
-    <hr>
-
-    <h2>5. Build The Mod In Small Steps</h2>
-    <p>
-      Build the guide in a simple order so the audience gets regular progress.
+      Build the guide in a simple order so the audience gets regular progress. Put all of the below code in DoStuff() for ease of use.
     </p>
     <ol>
-      <li>Load assets</li>
-      <li>Register the item</li>
-      <li>Register the liquid</li>
-      <li>Register the building entity</li>
-      <li>Register the recipes</li>
-      <li>Test everything in-game</li>
+      <li>1. Load assets. Copy the sprites I sent you, then load them according to https://cucorelib.web.app/docs/assets/</li>
+      <pre><code>Sprite acidShroomSprite = AssetLoader.LoadEmbeddedSprite("Images.acidshroom.png");
+Sprite acidMushroomSprite = AssetLoader.LoadEmbeddedSprite("Images.acidmushroom.png", 8f);</code></pre>
+      <li>2. Register the item. Manually code this part, and visual studio should show all the fields. Explain how the game uses these properties and direct to the https://cucorelib.web.app/docs/item/ in the description for more info</li>
+      <pre><code>ItemRegistry.Register("acidshroom", new ItemInfo
+            {
+                fullName = "Acid shroom",
+                description = "A caustic mushroom that tingles in all the wrong ways.",
+                category = "food",
+                weight = 0.2f,
+                value = 5,
+                usable = true,
+                tags = "cangetwet",
+                rec = new Recognition(2),
+                useAction = (body, item) =>
+                {
+                    body.Eat(6f, 0.4f);
+                    body.limbs[0].pain += 100f;
+                    body.happiness += 0.5f;
+                    body.sicknessAmount = Mathf.Clamp(body.sicknessAmount + 1.5f, 0f, 100f);
+                    item.condition -= 1f;
+                    Sound.Play("eatCrunch", body.transform.position);
+                }
+            }, acidShroomSprite, 1);</code></pre>
+    
+      <li>3. Build, and test in-game. You should go into shock from eating it :></li>
     </ol>
-    <div class="image-box">Insert image here</div>
+    <div class="image-box"><img src="acid.png"></div>
+
+    
+
+    <h2>4. Create the liquid, hydrochloric acid</h2>
+    
+    <ul>
+      <li>1. Add this to your code, once again line by line (sped up if needed)</li>
+      <pre><code> LiquidRegistry.Register("hydrochloricacid", new CustomLiquidInfo
+    {
+        name = "Hydrochloric acid",
+        description = "A very highly corrosive liquid. Don't drink it!",
+        color = new Color(0.8f, 0.8f, 0.8f),
+        valuePerLiter = 22f,
+        healthUsable = true,
+        injectionSickness = 100f,
+        onDrink = (ml, body) =>
+        {
+            float liters = ml * 0.01f; // Convert ml to 100ml for more intuitive values. 100ml is a sip.
+            body.Drink(liters * 9f); 
+            body.temperature -= liters * 3f; 
+            body.limbs[0].pain += 100f;
+            body.brainHealth -= liters * 32f;
+            body.talker.EatBad();
+        },
+        onHealthUse = (ml, limb) =>
+        {
+            float dose = ml * 0.01f; // 100ml = 1 full opium syringe
+            
+            limb.pain += dose * 100f;
+            limb.skinHealth -= dose * 50f;
+            limb.muscleHealth -= dose * 50f;
+            
+            limb.infectionAmount -= dose * 10f;
+            limb.disinfectionTime += dose * 1000f;
+            
+        },
+        qualities = new List<CraftingQuality>
+        {
+            new CraftingQuality("water", 0.5f)
+        }
+    });</code></pre>
+      <li>2. Mention the docs!<li>
+      <li>3. In-game, build and test via spawning a minibarrel, then running the `addliquid hydrochloricacid 5000` command. Apply it to the wounds, heal, then drink it ;)<li>
+      
+    </ul>
+    <div class="image-box"></div>
 
     <hr>
 
-    <h2>6. Explain Why, Not Every Field</h2>
+    <h2>5. Add the recipes. You know what's up.</h2>
+   
+    <ul>
+      <li>Here is the code:</li>
+      <pre><code> 
+            RecipeRegistry.Register(new Recipe
+            {
+                INT = 6,
+                category = Recipes.RecipeCategory.Materials,
+                result = new RecipeResult
+                {
+                    id = "biochem",
+                    isLiquid = true,
+                    resultCondition = 40f
+                },
+                items = new List<RecipeItem>
+                {
+                    new RecipeItem(1f)
+                    {
+                        specific = true,
+                        specificId = "acidshroom"
+                    }
+                }
+            });
+
+            RecipeRegistry.Register(new Recipe
+            {
+                INT = 9,
+                category = Recipes.RecipeCategory.Tools,
+                result = new RecipeResult
+                {
+                    id = "mediumbattery",
+                    amount = 1,
+                    isLiquid = false,
+                    resultCondition = 1f
+                },
+                items = new List<RecipeItem>
+                {
+                    new RecipeItem()
+                    {
+                        specific = true,
+                        specificId = "acidshroom"
+                    },
+                    new RecipeItem()
+                    {
+                        specific = true,
+                        specificId = "acidshroom"
+                    },
+                    new RecipeItem()
+                    {
+                        specific = true,
+                        minimumCondition = 0.5f,
+                        specificId = "processedcopper"
+                    }
+                }
+            });</code></pre>
+      
+      <li>Test! Craft the recipe</li>
+    </ul>
+   <div class="image-box">Insert image here</div>
+    
+   
+    <h2>6. Last thing. Let's add it to the actual world.</h2>
+   
+    <ul>
+      <li>Here is the code:</li>
+      <pre><code> 
+            BuildingEntityRegistry.Register("acidmushroom", new CustomBuildingEntityDefinition
+{
+    Name = "Acid mushroom colony",
+    Description = "A dangerous mushroom cluster that leaks acidic fumes.",
+    Sprite = AssetLoader.LoadEmbeddedSprite("Images/glowshroom_plant"),
+    Health = 120f,
+    Placement = BuildingPlacementType.Floor,
+    SurfaceOffset = 0.5f,
+    SpawnMinPerChunk = 0.3f,
+    SpawnMaxPerChunk = 0.4f,
+    ItemsDropOnDestroy = new[]
+    {
+        BuildingEntityRegistry.AddDrop("acidshroom", 1f, 1f, 2f)
+    }
+});
+      </code></pre>
+      
+      <li>Test! This time, I want you to go into an actual non-sandbox world and find the entity, then break it and use it to craft a battery or biochem</li>
+    </ul>
+
+    <p>(remember to get footage for the hook of the video now)</p>
+    <h2>Conclusion</h2>
     <p>
-      Do not read every property line by line. Focus on what matters for beginners.
+      That's it! You now have a basic guide for creating a mod that adds a new item, liquid, recipes, and a building entity to the game, etc etc..
+      For more info, see the nexusmods in the desc, and the docs also linked in the desc
+      Happy modding~
     </p>
-    <ul>
-      <li>What the API does</li>
-      <li>Which fields matter most</li>
-      <li>One common mistake to avoid</li>
-    </ul>
-    <p>Examples:</p>
-    <ul>
-      <li>Items: ID, name, sprite, category, usable behavior</li>
-      <li>Liquids: color, behavior, usage</li>
-      <li>Buildings: sprite, placement, drops, sound</li>
-      <li>Recipes: ingredients, result, matching item IDs</li>
-    </ul>
-    <div class="image-box">Insert image here</div>
 
     <hr>
-
-    <h2>7. Show Testing And Debugging</h2>
-    <p>
-      Include a section where viewers can see how to verify that the mod works.
-    </p>
-    <ul>
-      <li>Confirm the mod loads</li>
-      <li>Check the item appears correctly</li>
-      <li>Check the building uses the right sprite and sound</li>
-      <li>Check recipes work</li>
-      <li>Mention common issues like wrong resource names</li>
-    </ul>
-    <div class="image-box">Insert image here</div>
-
-    <hr>
-
-    <h2>8. End With Next Steps</h2>
-    <p>
-      Close by pointing viewers to where they can go after the basics.
-    </p>
-    <ul>
-      <li>Advanced item usage</li>
-      <li>Building entity expansion</li>
-      <li>Locale and translations</li>
-      <li>Console commands</li>
-      <li>Saving or multiplayer as future topics</li>
-    </ul>
-    <p>
-      Example closing: If you can register one item, one liquid, one building,
-      and one recipe, then you already understand the core loop of using CUCoreLib.
-    </p>
-    <div class="image-box">Insert image here</div>
-
-    <hr>
-
-    <h2>Recommended Style</h2>
-    <ul>
-      <li>Start practical, not theoretical</li>
-      <li>Keep each section tied to visible progress</li>
-      <li>Build confidence with small wins</li>
-      <li>Use repeated phrases like register, test, verify</li>
-      <li>Put deeper detail in the description or follow-up content</li>
-    </ul>
-
-    <h2>Simple Script Flow</h2>
-    <ul>
-      <li>Here's what we're making</li>
-      <li>Here's the code for this step</li>
-      <li>Here's why this part matters</li>
-      <li>Here's the in-game result</li>
-      <li>Now let's build the next piece</li>
-    </ul>
   </body>
 </html>

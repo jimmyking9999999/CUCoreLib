@@ -20,6 +20,7 @@ export const machineExportEnabledPageIds = [
   "minigames",
   "tiles",
   "traps",
+  "debug-testing",
   "utils",
   "console",
   "tools",

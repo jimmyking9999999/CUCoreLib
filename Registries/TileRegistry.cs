@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using CUCoreLib.ContentReload;
 using CUCoreLib.Data;
 using CUCoreLib.Helpers;
 using HarmonyLib;
@@ -54,6 +55,8 @@ namespace CUCoreLib.Registries
 
         public static bool Register(ushort tileIndex, CustomTileDefinition definition)
         {
+            ContentReloadSession.AssertNotActive("TileRegistry.Register()", "Tile registration is excluded from strict content reload.");
+
             if (tileIndex < FirstCustomTileIndex)
             {
                 CUCoreLibPlugin.Log?.LogWarning(

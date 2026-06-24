@@ -543,6 +543,7 @@ export function currentCode(nextPage: PageId, nextItemState: ItemState, nextReci
   if (currentPage === "assets") return assetCode();
   if (currentPage === "audio") return audioCode();
   if (currentPage === "console") return consoleCode();
+  if (currentPage === "debug-testing") return debugTestingCode();
   if (currentPage === "utils") return utilsCode();
   if (currentPage === "tools") return toolsCode();
   if (currentPage === "item") return itemCode();
@@ -574,6 +575,7 @@ export function codeTitle(currentPage: PageId): string {
   if (currentPage === "assets") return "LoadAssets.cs";
   if (currentPage === "audio") return "LoadAudio.cs";
   if (currentPage === "console") return "RegisterConsole.cs";
+  if (currentPage === "debug-testing") return "DebugHarness.cs";
   if (currentPage === "utils") return "UseCUCoreUtils.cs";
   if (currentPage === "tools") return "CustomItemTool.cs";
   if (currentPage === "item") return "RegisterItems.cs";
@@ -1375,6 +1377,112 @@ private void RegisterConsoleCommands()
         },
         null
     );
+}`;
+}
+
+function debugTestingCode(): string {
+  return `using BepInEx;
+using CUCoreLib.Data;
+using CUCoreLib.Helpers;
+using CUCoreLib.Registries;
+using UnityEngine;
+
+namespace AcidShroomTutorial
+{
+    [BepInPlugin(ModGuid, ModName, ModVersion)]
+    [BepInDependency("net.cucorelib", BepInDependency.DependencyFlags.HardDependency)]
+    public sealed class Plugin : BaseUnityPlugin
+    {
+        private const string ModGuid = "com.example.acidshroomtutorial";
+        private const string ModName = "Acid Shroom Tutorial";
+        private const string ModVersion = "1.0.0";
+
+        private Sprite acidShroomSprite;
+
+        private void Awake()
+        {
+            RegisterDebugCommands();
+
+            // Keep content in split methods so strict reload can replay it.
+            LoadAcidAssets();
+            RegisterAcidItems();
+            RegisterAcidRecipes();
+        }
+
+        [ContentReloadEntry(ContentReloadEntryStage.LoadAssets)]
+        private void LoadAcidAssets()
+        {
+            acidShroomSprite = AssetLoader.LoadEmbeddedSprite("Images.acidshroom.png");
+        }
+
+        [ContentReloadEntry(ContentReloadEntryStage.RegisterItems)]
+        private void RegisterAcidItems()
+        {
+            ItemRegistry.Register("acidshroom", new ItemInfo
+            {
+                fullName = "Acid shroom",
+                description = "A caustic mushroom that tingles in all the wrong ways.",
+                category = "food",
+                usable = true,
+                useAction = (body, item) =>
+                {
+                    body.Eat(6f, 0.4f);
+                    item.condition -= 1f;
+                    Sound.Play("eatCrunch", body.transform.position);
+                }
+            }, acidShroomSprite, 1);
+        }
+
+        [ContentReloadEntry(ContentReloadEntryStage.RegisterRecipes)]
+        private void RegisterAcidRecipes()
+        {
+            RecipeRegistry.Register(new Recipe
+            {
+                INT = 0,
+                category = Recipes.RecipeCategory.Materials,
+                result = new RecipeResult
+                {
+                    id = "biochem",
+                    amount = 40,
+                    isLiquid = false,
+                    resultCondition = 1f
+                },
+                items = new()
+                {
+                    new RecipeItem(1f)
+                    {
+                        specific = true,
+                        specificId = "acidshroom"
+                    }
+                }
+            });
+        }
+
+        private void RegisterDebugCommands()
+        {
+            ConsoleCommandRegistry.Register(
+                "acidshroom",
+                "Spawns one Acid Shroom next to the player.",
+                args =>
+                {
+                    CUCoreUtils.ConsoleCheckForWorld(ConsoleScript.instance);
+
+                    Vector3 spawnPos = PlayerCamera.main.body.transform.position + Vector3.right;
+                    Utils.Create("acidshroom", spawnPos, 0f);
+                    CUCoreUtils.ConsoleLog(ConsoleScript.instance, "Spawned acidshroom.");
+                }
+            );
+
+            ConsoleCommandRegistry.Register(
+                "acidreload",
+                "Runs strict content reload for this mod.",
+                args =>
+                {
+                    CUCoreUtils.ConsoleRunCommand(ConsoleScript.instance, "reloadcontent " + ModGuid);
+                }
+            );
+        }
+    }
 }`;
 }
 

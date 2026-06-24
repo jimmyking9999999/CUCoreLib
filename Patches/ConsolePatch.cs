@@ -11,6 +11,14 @@ namespace CUCoreLib.Patches
     [HarmonyPatch(typeof(ConsoleScript), "RegisterAllCommands")]
     internal static class ConsolePatch
     {
+        internal static void RefreshRuntimeAutofill()
+        {
+            RefreshSpawnAutofill();
+            RefreshCustomSpawnAutofill();
+            RefreshAddLiquidAutofill();
+            RefreshSetTileAutofill();
+        }
+
         [HarmonyPostfix]
         private static void AddBuiltInCommands(ConsoleScript __instance)
         {
@@ -151,6 +159,11 @@ namespace CUCoreLib.Patches
         [HarmonyPostfix]
         private static void AppendSpawnAutofill(ConsoleScript __instance)
         {
+            RefreshSpawnAutofill();
+        }
+
+        private static void RefreshSpawnAutofill()
+        {
             Command spawnCommand = ConsoleScript.SearchExact("spawn");
             if (spawnCommand == null) return;
 
@@ -172,6 +185,14 @@ namespace CUCoreLib.Patches
                     spawnIds.Add(id);
                 }
             }
+        }
+
+        private static void RefreshCustomSpawnAutofill()
+        {
+            Command customSpawnCommand = ConsoleScript.SearchExact("cuspawn");
+            if (customSpawnCommand == null) return;
+
+            customSpawnCommand.argAutofill = BuildCustomSpawnAutofill();
         }
 
         private static IEnumerable<string> GetVanillaSpawnIds()
@@ -210,30 +231,45 @@ namespace CUCoreLib.Patches
             [HarmonyPostfix]
             private static void AddCustomLiquidsToAutofill()
             {
-                LiquidRegistry.InjectRegisteredLiquids(logSummary: true);
+                RefreshAddLiquidAutofill();
+            }
+        }
 
-                Command addLiquidCommand = ConsoleScript.SearchExact("addliquid");
-                if (addLiquidCommand == null) return;
+        private static void RefreshAddLiquidAutofill()
+        {
+            LiquidRegistry.InjectRegisteredLiquids(logSummary: true);
 
-                if (addLiquidCommand.argAutofill == null)
+            Command addLiquidCommand = ConsoleScript.SearchExact("addliquid");
+            if (addLiquidCommand == null) return;
+
+            if (addLiquidCommand.argAutofill == null)
+            {
+                addLiquidCommand.argAutofill = new Dictionary<int, List<string>>();
+            }
+
+            if (!addLiquidCommand.argAutofill.TryGetValue(0, out var liquidIds))
+            {
+                liquidIds = new List<string>();
+                addLiquidCommand.argAutofill[0] = liquidIds;
+            }
+
+            liquidIds.RemoveAll(id => LiquidRegistry.RegisteredLiquids.ContainsKey(id));
+
+            foreach (string id in LiquidRegistry.GetRegisteredLiquidIds())
+            {
+                if (!liquidIds.Contains(id, StringComparer.OrdinalIgnoreCase))
                 {
-                    addLiquidCommand.argAutofill = new Dictionary<int, List<string>>();
-                }
-
-                if (!addLiquidCommand.argAutofill.TryGetValue(0, out var liquidIds))
-                {
-                    liquidIds = new List<string>();
-                    addLiquidCommand.argAutofill[0] = liquidIds;
-                }
-
-                foreach (string id in LiquidRegistry.GetRegisteredLiquidIds())
-                {
-                    if (!liquidIds.Contains(id, StringComparer.OrdinalIgnoreCase))
-                    {
-                        liquidIds.Add(id);
-                    }
+                    liquidIds.Add(id);
                 }
             }
+        }
+
+        private static void RefreshSetTileAutofill()
+        {
+            Command setTileCommand = ConsoleScript.SearchExact("settile");
+            if (setTileCommand == null) return;
+
+            setTileCommand.argAutofill = BuildSetTileAutofill();
         }
 
         private static string FindBestMatch(string query)

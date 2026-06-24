@@ -134,6 +134,18 @@ namespace CUCoreLib.Helpers
 
             if (item != null)
             {
+                if (info.Battery != null)
+                {
+                    BatteryItem batteryItem = obj.GetComponent<BatteryItem>();
+                    bool createdBattery = batteryItem == null;
+                    if (batteryItem == null)
+                    {
+                        batteryItem = obj.AddComponent<BatteryItem>();
+                    }
+
+                    ItemRegistryPatches.ApplyBatteryProperties(item, batteryItem, info, initializeState: true, forceBatteryType: true);
+                }
+
                 ItemRegistryPatches.ApplyCustomScale(item, info);
             }
 

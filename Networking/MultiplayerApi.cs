@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using CUCoreLib.ContentReload;
 using CUCoreLib.Registries;
 using Newtonsoft.Json.Linq;
 
@@ -25,11 +26,13 @@ namespace CUCoreLib.Networking
 
         public static void RegisterServerHandler(string channel, Func<JToken, JToken> handler)
         {
+            ContentReloadSession.AssertNotActive("MultiplayerApi.RegisterServerHandler()", "Multiplayer registration is excluded from strict content reload.");
             MultiplayerBridge.RegisterServerHandler(channel, handler);
         }
 
         public static void RegisterClientHandler(string channel, Action<JToken> handler)
         {
+            ContentReloadSession.AssertNotActive("MultiplayerApi.RegisterClientHandler()", "Multiplayer registration is excluded from strict content reload.");
             MultiplayerBridge.RegisterClientHandler(channel, handler);
         }
 
@@ -55,6 +58,7 @@ namespace CUCoreLib.Networking
 
         public static void RegisterSyncModule(string key, Func<JObject> capture, Action<JObject> apply = null)
         {
+            ContentReloadSession.AssertNotActive("MultiplayerApi.RegisterSyncModule()", "Multiplayer registration is excluded from strict content reload.");
             MultiplayerSyncRegistry.RegisterModule(key, capture, apply);
         }
 
@@ -85,6 +89,7 @@ namespace CUCoreLib.Networking
 
         public static void RegisterBuiltIns()
         {
+            ContentReloadSession.AssertNotActive("MultiplayerApi.RegisterBuiltIns()", "Multiplayer registration is excluded from strict content reload.");
             MultiplayerSyncRegistry.RegisterBuiltIns();
             RegisterCustomPlayerDataHandlers();
         }
@@ -139,6 +144,8 @@ namespace CUCoreLib.Networking
 
         public static void RegisterCustomPlayerDataHandlers()
         {
+            ContentReloadSession.AssertNotActive("MultiplayerApi.RegisterCustomPlayerDataHandlers()", "Multiplayer registration is excluded from strict content reload.");
+
             if (_playerDataHandlersRegistered)
             {
                 return;

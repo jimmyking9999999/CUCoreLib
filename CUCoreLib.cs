@@ -3,6 +3,8 @@ using BepInEx;
 using BepInEx.Bootstrap;
 using BepInEx.Logging;
 using HarmonyLib;
+using CUCoreLib.ContentReload;
+using CUCoreLib.Data;
 using CUCoreLib.Helpers;
 using CUCoreLib.Networking;
 using CUCoreLib.Patches;
@@ -34,6 +36,8 @@ namespace CUCoreLib
             AssetLoader.Initialize(Logger);
             FileLoader.Initialize(Logger);
             LocaleLoader.Initialize(Logger);
+            LaunchOverrideManager.Initialize();
+            ContentReloadManager.Initialize();
             SaveRegistry.RegisterBuiltIns();
             MultiplayerApi.RegisterBuiltIns();
             RegisterBuiltInCommands();
@@ -91,6 +95,21 @@ namespace CUCoreLib
                     }
                 }
             });
+
+            ConsoleCommandRegistry.Register("reloadcontent", "Strictly reloads item/liquid/recipe/locale content from a rebuilt mod DLL.",
+            delegate (string[] args)
+            {
+                if (args.Length < 2)
+                {
+                    throw new System.Exception("Usage: reloadcontent [modGuid]");
+                }
+
+                ContentReloadResult result = ContentReloadManager.Reload(args[1]);
+                ContentReloadManager.WriteReloadSummaryToConsole(ConsoleScript.instance, result);
+            }, new System.Collections.Generic.Dictionary<int, System.Collections.Generic.List<string>>
+            {
+                [1] = ContentReloadManager.GetLoadedModGuids().ToList()
+            }, ("modGuid", "BepInEx plugin GUID to strictly reload from a rebuilt DLL."));
         }
     }
 }

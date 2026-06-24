@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using CUCoreLib.ContentReload;
 
 namespace CUCoreLib.Registries
 {
@@ -10,6 +11,8 @@ namespace CUCoreLib.Registries
 
         public static void Register(string name, string description, Command.Action action, Dictionary<int, List<string>> argAutofill = null, params (string, string)[] argDescription)
         {
+            ContentReloadSession.AssertNotActive("ConsoleCommandRegistry.Register()", "Console command registration is excluded from strict content reload.");
+
             if (string.IsNullOrWhiteSpace(name) || action == null)
             {
                 // Probably better then allowing
@@ -24,6 +27,8 @@ namespace CUCoreLib.Registries
 
         public static void Register(Command command)
         {
+            ContentReloadSession.AssertNotActive("ConsoleCommandRegistry.Register()", "Console command registration is excluded from strict content reload.");
+
             if (command == null || string.IsNullOrWhiteSpace(command.name))
             {
                 CUCoreLibPlugin.Log.LogWarning("Ignored null console command registration.");

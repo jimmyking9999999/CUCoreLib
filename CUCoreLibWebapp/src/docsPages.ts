@@ -219,6 +219,13 @@ export const pages: Page[] = [
     lead: "...and the many commands for the few~. Register development commands that can be ran via the game's console."
   },
   {
+    id: "debug-testing",
+    label: "Debugging / Testing",
+    crumb: "Debug APIs",
+    title: "Debugging, testing, and hot reload",
+    lead: "Speed up iteration with logs, tutorial-friendly config toggles, console harnesses, and CUCoreLib's strict content reload flow."
+  },
+  {
     id: "utils",
     label: "CUCoreUtils",
     crumb: "Helper APIs",
@@ -257,6 +264,7 @@ export function pageBody(page: PageId, nextItemState: ItemState, nextRecipeState
   else if (page === "assets") content = assetPage();
   else if (page === "audio") content = audioPage();
   else if (page === "console") content = consolePage();
+  else if (page === "debug-testing") content = debugTestingPage();
   else if (page === "utils") content = utilsPage();
   else if (page === "tools") content = toolsPage();
   else if (page === "item") content = itemPage();
@@ -287,9 +295,9 @@ function normalizeMediaUrls(value: string): string {
 }
 
 const externalVideoUrls = {
-  setup: "https://cdn.discordapp.com/attachments/1517813732321919026/1518543593126494318/setup.mp4?ex=6a3a4d6d&is=6a38fbed&hm=239083ce97c1133e839ccc08df12b17aed97ba9fd0d850ac720642e41a512aea&",
-  embeddingImages: "https://cdn.discordapp.com/attachments/1517813732321919026/1518543592585564180/embedding-images.mp4?ex=6a3a4d6d&is=6a38fbed&hm=55b6ea100180685f48f591ff0bc7039b6f0bc3347418a1a29f3ddec040a580d7&",
-  sporeTrap: "https://cdn.discordapp.com/attachments/1517813732321919026/1518543591914340392/spore-trap-ingame.mp4?ex=6a3a4d6d&is=6a38fbed&hm=931c5987b80c06331b913e0402bf471f563398989c7e41c7c6c5434c13b527e3&"
+  setup: "https://jimmyking9999999.github.io/Metadata-generator/videos/setup.mp4",
+  embeddingImages: "https://jimmyking9999999.github.io/Metadata-generator/videos/embedding-images.mp4",
+  sporeTrap: "https://jimmyking9999999.github.io/Metadata-generator/videos/spore-trap-ingame.mp4"
 } as const;
 
 function docsVideo(src: string, fallbackSrc: string, className: string): string {
@@ -1257,6 +1265,7 @@ function setupPage(): string {
       <pre><code>dotnet build</code></pre>
       <p>If you are using an IDE, it is just calling the same build underneath. Visual Studio and Rider can both build the solution normally after the reference is added.</p>
       <p>The compiled DLL also exists in your project output folder, <span class="inline-code">bin/Debug/net48/&lt;ProjectName&gt;.dll</span>. </p>
+      <p>Once the basic build works, the <a href="/docs/debug-testing/">Debugging / Testing</a> page covers faster iteration loops, hot reload, and common config toggles.</p>
 
       <p>If you are getting a 'skipping due to missing net.cucorelib' error, ensure that the CUCoreLib.dll is placed in the correct BepInEx\\plugins folder and that the reference is properly added to your project.</p>
     </section>
@@ -2786,6 +2795,63 @@ function consolePage(): string {
         <p>Because the second argument description starts with <span class="inline-code">bool</span>, vanilla adds <span class="inline-code">true</span> and <span class="inline-code">false</span> suggestions automatically. Descriptions beginning with <span class="inline-code">position</span> get <span class="inline-code">cursor</span>, <span class="inline-code">player</span>, <span class="inline-code">random</span>, and <span class="inline-code">#.#</span>.</p>
       </div>
     </details>
+  `;
+}
+
+function debugTestingPage(): string {
+  return `
+    <section class="lesson-card">
+      <h2>Fast mod-testing loop</h2>
+      <p>Most CUCoreLib iteration gets faster when you separate startup-only work from content registration. Keep console commands, Harmony patches, and other one-time setup in <span class="inline-code">Awake()</span>, but move content into split methods like <span class="inline-code">LoadAssets()</span>, <span class="inline-code">RegisterItems()</span>, <span class="inline-code">RegisterLiquids()</span>, and <span class="inline-code">RegisterRecipes()</span>.</p>
+      <p>That split helps even before hot reload enters the picture: it keeps your mod easier to reason about, gives you narrow places to debug, and lines up with the strict CUCoreLib content reload flow.</p>
+      <ol>
+        <li>Build the mod.</li>
+        <li>Watch the BepInEx console or <span class="inline-code">BepInEx/LogOutput.log</span>.</li>
+        <li>Use temporary console commands to spawn or verify exactly what you changed.</li>
+        <li>If the mod follows the strict content shape, rebuild and run <span class="inline-code">reloadcontent &lt;modGuid&gt;</span> in singleplayer.</li>
+      </ol>
+    </section>
+
+    <section class="lesson-card">
+      <h2>Strict content reload</h2>
+      <p>CUCoreLib's built-in DLL reload path is intentionally narrow. It is <strong>singleplayer only</strong> and only reloads item, liquid, recipe, and locale/text content. It does not rerun <span class="inline-code">Awake()</span>, and it does not support buildings, save providers, moodles, Harmony setup, mod options, or multiplayer registration.</p>
+      <pre><code>reloadcontent com.example.mymod
+listhotreload
+reloaddll com.example.mymod</code></pre>
+      <ul>
+        <li><span class="inline-code">reloadcontent &lt;modGuid&gt;</span> loads the rebuilt DLL, clears the previous owner-scoped content, and replays only recognized content methods.</li>
+        <li><span class="inline-code">listhotreload</span> shows which loaded mods are compatible, which methods were recognized, and the selected DLL source path.</li>
+        <li><span class="inline-code">reloaddll</span> is now a strict-mode help/inspection command rather than a generic runtime assembly swap.</li>
+      </ul>
+      <p>The preferred entrypoint contract is now an explicit attribute on parameterless methods, so mods are not forced to use specific method names.</p>
+      <pre><code>[ContentReloadEntry(ContentReloadEntryStage.LoadAssets)]
+private void LoadAcidAssets() { ... }
+
+[ContentReloadEntry(ContentReloadEntryStage.RegisterItems)]
+private void RegisterAcidItems() { ... }
+
+[ContentReloadEntry(ContentReloadEntryStage.RegisterRecipes, Order = 10)]
+private void RegisterLateRecipes() { ... }</code></pre>
+      <p>Methods are replayed by stage, then by optional <span class="inline-code">Order</span>. Mods that want strict content reload support must opt in with <span class="inline-code">[ContentReloadEntry(...)]</span> on parameterless methods.</p>
+    </section>
+
+    <section class="lesson-card">
+      <h2>Watch mode and override DLL paths</h2>
+      <p>Strict content reload also has an optional watch loop. It is configured per mod in <span class="inline-code">BepInEx/config/CUCoreLib/ContentReload.json</span>.</p>
+      <pre><code>{
+  "PollIntervalSeconds": 2,
+  "DebounceMilliseconds": 1200,
+  "Mods": {
+    "com.example.mymod": {
+      "OverrideDllPath": "C:/Users/you/source/MyMod/bin/Debug/net48/MyMod.dll",
+      "WatchEnabled": true
+    }
+  }
+}</code></pre>
+      <p>Use an override path when the loaded plugin DLL is not the file you are actively rebuilding. Watch mode compares timestamp and size first, then hashes when needed, so it avoids doing heavy work every poll.</p>
+    </section>
+
+
   `;
 }
 

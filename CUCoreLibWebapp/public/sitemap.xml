@@ -20,6 +20,7 @@
   <url><loc>https://cucorelib.jimmyking.dev/docs/minigames/</loc></url>
   <url><loc>https://cucorelib.jimmyking.dev/docs/tiles/</loc></url>
   <url><loc>https://cucorelib.jimmyking.dev/docs/traps/</loc></url>
+  <url><loc>https://cucorelib.jimmyking.dev/docs/debug-testing/</loc></url>
   <url><loc>https://cucorelib.jimmyking.dev/docs/utils/</loc></url>
   <url><loc>https://cucorelib.jimmyking.dev/docs/console/</loc></url>
   <url><loc>https://cucorelib.jimmyking.dev/docs/settings/</loc></url>
@@ -46,6 +47,7 @@
   <url><loc>https://cucorelib.jimmyking.dev/api/topics/minigames.json</loc></url>
   <url><loc>https://cucorelib.jimmyking.dev/api/topics/tiles.json</loc></url>
   <url><loc>https://cucorelib.jimmyking.dev/api/topics/traps.json</loc></url>
+  <url><loc>https://cucorelib.jimmyking.dev/api/topics/debug-testing.json</loc></url>
   <url><loc>https://cucorelib.jimmyking.dev/api/topics/utils.json</loc></url>
   <url><loc>https://cucorelib.jimmyking.dev/api/topics/console.json</loc></url>
   <url><loc>https://cucorelib.jimmyking.dev/api/topics/tools.json</loc></url>
