@@ -6,6 +6,10 @@ namespace CUCoreLib.Data
 {
     public sealed class ModOptionDefinition
     {
+        private ModOptionDefinition()
+        {
+        }
+
         internal ModOptionKind Kind { get; private set; }
         public string Id { get; private set; }
         public string Label { get; private set; }
@@ -25,10 +29,6 @@ namespace CUCoreLib.Data
         internal Action<int> DropdownApply { get; private set; }
         internal Action<bool> BoolApply { get; private set; }
         internal Action<KeyCode> KeybindApply { get; private set; }
-
-        private ModOptionDefinition()
-        {
-        }
 
         internal bool UsesCustomCategory => !string.IsNullOrWhiteSpace(CustomCategory);
 
@@ -174,11 +174,8 @@ namespace CUCoreLib.Data
                         formatValue = FloatFormatter,
                         apply = () =>
                         {
-                            SettingFloat setting = Settings.Get<SettingFloat>(Id);
-                            if (setting != null)
-                            {
-                                FloatApply?.Invoke(setting.value);
-                            }
+                            var setting = Settings.Get<SettingFloat>(Id);
+                            if (setting != null) FloatApply?.Invoke(setting.value);
                         }
                     };
                 case ModOptionKind.Int:
@@ -191,11 +188,8 @@ namespace CUCoreLib.Data
                         category = Category,
                         apply = () =>
                         {
-                            SettingInt setting = Settings.Get<SettingInt>(Id);
-                            if (setting != null)
-                            {
-                                IntApply?.Invoke(setting.value);
-                            }
+                            var setting = Settings.Get<SettingInt>(Id);
+                            if (setting != null) IntApply?.Invoke(setting.value);
                         }
                     };
                 case ModOptionKind.Bool:
@@ -206,11 +200,8 @@ namespace CUCoreLib.Data
                         category = Category,
                         apply = () =>
                         {
-                            SettingBool setting = Settings.Get<SettingBool>(Id);
-                            if (setting != null)
-                            {
-                                BoolApply?.Invoke(setting.value);
-                            }
+                            var setting = Settings.Get<SettingBool>(Id);
+                            if (setting != null) BoolApply?.Invoke(setting.value);
                         }
                     };
                 case ModOptionKind.Dropdown:
@@ -222,11 +213,8 @@ namespace CUCoreLib.Data
                         category = Category,
                         apply = () =>
                         {
-                            SettingDropdown setting = Settings.Get<SettingDropdown>(Id);
-                            if (setting != null)
-                            {
-                                DropdownApply?.Invoke(setting.value);
-                            }
+                            var setting = Settings.Get<SettingDropdown>(Id);
+                            if (setting != null) DropdownApply?.Invoke(setting.value);
                         }
                     };
                 case ModOptionKind.Keybind:
@@ -237,11 +225,8 @@ namespace CUCoreLib.Data
                         category = Category,
                         apply = () =>
                         {
-                            SettingKeybind setting = Settings.Get<SettingKeybind>(Id);
-                            if (setting != null)
-                            {
-                                KeybindApply?.Invoke(setting.value);
-                            }
+                            var setting = Settings.Get<SettingKeybind>(Id);
+                            if (setting != null) KeybindApply?.Invoke(setting.value);
                         }
                     };
                 default:
@@ -278,7 +263,7 @@ namespace CUCoreLib.Data
             Action<float> apply,
             Func<float, string> formatValue)
         {
-            ModOptionDefinition definition = CreateBase(id, label, description, category, customCategory);
+            var definition = CreateBase(id, label, description, category, customCategory);
             definition.Kind = ModOptionKind.Float;
             definition.FloatDefault = defaultValue;
             definition.Min = min;
@@ -299,7 +284,7 @@ namespace CUCoreLib.Data
             int max,
             Action<int> apply)
         {
-            ModOptionDefinition definition = CreateBase(id, label, description, category, customCategory);
+            var definition = CreateBase(id, label, description, category, customCategory);
             definition.Kind = ModOptionKind.Int;
             definition.IntDefault = defaultValue;
             definition.Min = min;
@@ -317,7 +302,7 @@ namespace CUCoreLib.Data
             bool defaultValue,
             Action<bool> apply)
         {
-            ModOptionDefinition definition = CreateBase(id, label, description, category, customCategory);
+            var definition = CreateBase(id, label, description, category, customCategory);
             definition.Kind = ModOptionKind.Bool;
             definition.BoolDefault = defaultValue;
             definition.BoolApply = apply;
@@ -334,10 +319,10 @@ namespace CUCoreLib.Data
             ModDropdownChoice[] choices,
             Action<int> apply)
         {
-            ModOptionDefinition definition = CreateBase(id, label, description, category, customCategory);
+            var definition = CreateBase(id, label, description, category, customCategory);
             definition.Kind = ModOptionKind.Dropdown;
             definition.IntDefault = defaultValue;
-            definition.Choices = choices == null ? null : choices.ToArray();
+            definition.Choices = choices?.ToArray();
             definition.DropdownApply = apply;
             return definition;
         }
@@ -351,7 +336,7 @@ namespace CUCoreLib.Data
             KeyCode defaultValue,
             Action<KeyCode> apply)
         {
-            ModOptionDefinition definition = CreateBase(id, label, description, category, customCategory);
+            var definition = CreateBase(id, label, description, category, customCategory);
             definition.Kind = ModOptionKind.Keybind;
             definition.KeyDefault = defaultValue;
             definition.KeybindApply = apply;
@@ -361,14 +346,14 @@ namespace CUCoreLib.Data
 
     public sealed class ModDropdownChoice
     {
-        public string Key { get; private set; }
-        public string Label { get; private set; }
-
         public ModDropdownChoice(string key, string label)
         {
             Key = key;
             Label = label;
         }
+
+        public string Key { get; }
+        public string Label { get; private set; }
     }
 
     internal enum ModOptionKind

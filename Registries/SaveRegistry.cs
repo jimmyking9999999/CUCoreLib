@@ -24,6 +24,18 @@ namespace CUCoreLib.Registries
 
         private static bool _builtInsRegistered;
 
+        internal static IReadOnlyDictionary<string, ICustomSaveProvider> GlobalProviders => GlobalProviderMap;
+        internal static IReadOnlyDictionary<string, IItemSaveProvider> ItemProviders => ItemProviderMap;
+        internal static IReadOnlyDictionary<string, IBodySaveProvider> BodyProviders => BodyProviderMap;
+        internal static IReadOnlyDictionary<string, ILimbSaveProvider> LimbProviders => LimbProviderMap;
+        internal static IReadOnlyDictionary<string, IWorldSaveProvider> WorldProviders => WorldProviderMap;
+
+        internal static IEnumerable<string> GlobalProviderKeys => GlobalProviderMap.Keys;
+        internal static IEnumerable<string> ItemProviderKeys => ItemProviderMap.Keys;
+        internal static IEnumerable<string> BodyProviderKeys => BodyProviderMap.Keys;
+        internal static IEnumerable<string> LimbProviderKeys => LimbProviderMap.Keys;
+        internal static IEnumerable<string> WorldProviderKeys => WorldProviderMap.Keys;
+
         public static void RegisterGlobalProvider(string key, ICustomSaveProvider provider)
         {
             RegisterProvider(GlobalProviderMap, "global", key, provider);
@@ -49,24 +61,9 @@ namespace CUCoreLib.Registries
             RegisterProvider(WorldProviderMap, "world", key, provider);
         }
 
-        internal static IReadOnlyDictionary<string, ICustomSaveProvider> GlobalProviders => GlobalProviderMap;
-        internal static IReadOnlyDictionary<string, IItemSaveProvider> ItemProviders => ItemProviderMap;
-        internal static IReadOnlyDictionary<string, IBodySaveProvider> BodyProviders => BodyProviderMap;
-        internal static IReadOnlyDictionary<string, ILimbSaveProvider> LimbProviders => LimbProviderMap;
-        internal static IReadOnlyDictionary<string, IWorldSaveProvider> WorldProviders => WorldProviderMap;
-
-        internal static IEnumerable<string> GlobalProviderKeys => GlobalProviderMap.Keys;
-        internal static IEnumerable<string> ItemProviderKeys => ItemProviderMap.Keys;
-        internal static IEnumerable<string> BodyProviderKeys => BodyProviderMap.Keys;
-        internal static IEnumerable<string> LimbProviderKeys => LimbProviderMap.Keys;
-        internal static IEnumerable<string> WorldProviderKeys => WorldProviderMap.Keys;
-
         internal static void RegisterBuiltIns()
         {
-            if (_builtInsRegistered)
-            {
-                return;
-            }
+            if (_builtInsRegistered) return;
 
             _builtInsRegistered = true;
             RegisterItemProvider("cucorelib.itemRuntime", new BuiltInItemRuntimeSaveProvider());
@@ -75,7 +72,8 @@ namespace CUCoreLib.Registries
             RegisterWorldProvider("cucorelib.buildings", new BuiltInBuildingEntitySaveProvider());
         }
 
-        private static void RegisterProvider<T>(Dictionary<string, T> map, string scope, string key, T provider) where T : class
+        private static void RegisterProvider<T>(Dictionary<string, T> map, string scope, string key, T provider)
+            where T : class
         {
             string scopeLabel = string.IsNullOrWhiteSpace(scope)
                 ? "Provider"
@@ -84,24 +82,25 @@ namespace CUCoreLib.Registries
 
             if (string.IsNullOrWhiteSpace(key))
             {
-                CUCoreLibPlugin.Log?.LogWarning("CUCoreLib Save: Ignored " + scope + " save provider registration with no key.");
+                CUCoreLibPlugin.Log?.LogWarning("CUCoreLib Save: Ignored " + scope +
+                                                " save provider registration with no key.");
                 return;
             }
 
             if (provider == null)
             {
-                CUCoreLibPlugin.Log?.LogWarning("CUCoreLib Save: Ignored " + scope + " save provider '" + key + "' because the provider was null.");
+                CUCoreLibPlugin.Log?.LogWarning("CUCoreLib Save: Ignored " + scope + " save provider '" + key +
+                                                "' because the provider was null.");
                 return;
             }
 
             key = key.Trim();
-            bool replacing = map.ContainsKey(key);
+            var replacing = map.ContainsKey(key);
             map[key] = provider;
 
             if (replacing)
-            {
-                CUCoreLibPlugin.Log?.LogWarning("CUCoreLib Save: Replaced existing " + scope + " save provider '" + key + "'.");
-            }
+                CUCoreLibPlugin.Log?.LogWarning("CUCoreLib Save: Replaced existing " + scope + " save provider '" +
+                                                key + "'.");
         }
     }
 }

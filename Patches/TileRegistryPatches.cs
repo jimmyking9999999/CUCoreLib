@@ -8,12 +8,6 @@ namespace CUCoreLib.Patches
     [HarmonyPatch]
     internal static class TileRegistryPatches
     {
-        private sealed class BreakDropState
-        {
-            public ushort TileIndex;
-            public bool ShouldSpawn;
-        }
-
         [HarmonyPatch(typeof(WorldGeneration), "Awake")]
         [HarmonyPostfix]
         private static void InjectCustomTiles(WorldGeneration __instance)
@@ -38,8 +32,8 @@ namespace CUCoreLib.Patches
             return false;
         }
 
-        [HarmonyPatch(typeof(WorldGeneration), nameof(WorldGeneration.DamageBlock),
-            new[] { typeof(Vector2Int), typeof(float), typeof(bool), typeof(bool), typeof(bool) })]
+        [HarmonyPatch(typeof(WorldGeneration), nameof(WorldGeneration.DamageBlock), typeof(Vector2Int), typeof(float),
+            typeof(bool), typeof(bool), typeof(bool))]
         [HarmonyPrefix]
         private static void TrackCustomTileBreak(
             WorldGeneration __instance,
@@ -49,10 +43,10 @@ namespace CUCoreLib.Patches
             bool ignoreLoot,
             out BreakDropState __state)
         {
-            __state = default;
+            __state = null;
             if (__instance == null || ignoreLoot) return;
 
-            ushort tileIndex = __instance.GetBlock(pos);
+            var tileIndex = __instance.GetBlock(pos);
             if (!TileRegistry.TryGetDefinition(tileIndex, out var definition)) return;
             if (definition.Drops == null || definition.Drops.Length == 0) return;
 
@@ -63,8 +57,8 @@ namespace CUCoreLib.Patches
             };
         }
 
-        [HarmonyPatch(typeof(WorldGeneration), nameof(WorldGeneration.DamageBlock),
-            new[] { typeof(Vector2Int), typeof(float), typeof(bool), typeof(bool), typeof(bool) })]
+        [HarmonyPatch(typeof(WorldGeneration), nameof(WorldGeneration.DamageBlock), typeof(Vector2Int), typeof(float),
+            typeof(bool), typeof(bool), typeof(bool))]
         [HarmonyPostfix]
         private static void SpawnCustomTileDrops(WorldGeneration __instance, Vector2Int pos, BreakDropState __state)
         {
@@ -80,6 +74,12 @@ namespace CUCoreLib.Patches
             }
 
             TileRegistry.SpawnDrops(__instance, pos, __state.TileIndex);
+        }
+
+        private sealed class BreakDropState
+        {
+            public bool ShouldSpawn;
+            public ushort TileIndex;
         }
     }
 }

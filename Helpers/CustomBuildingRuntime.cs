@@ -1,6 +1,6 @@
+using System;
 using CUCoreLib.Data;
 using CUCoreLib.Registries;
-using System;
 using UnityEngine;
 
 namespace CUCoreLib.Helpers
@@ -10,10 +10,10 @@ namespace CUCoreLib.Helpers
         public string DefinitionId;
 
         private BuildingEntity _building;
+        private CustomBuildingEntityDefinition _definition;
         private bool _isQuitting;
         private bool _registered;
         private bool _spawnedDrops;
-        private CustomBuildingEntityDefinition _definition;
 
         private void Awake()
         {
@@ -44,11 +44,6 @@ namespace CUCoreLib.Helpers
             _registered = false;
         }
 
-        private void OnApplicationQuit()
-        {
-            _isQuitting = true;
-        }
-
         private void OnDestroy()
         {
             if (_registered)
@@ -64,62 +59,45 @@ namespace CUCoreLib.Helpers
             BuildingEntityRegistry.SpawnDrops(_building, DefinitionId);
         }
 
+        private void OnApplicationQuit()
+        {
+            _isQuitting = true;
+        }
+
         private void ApplyHeatAura()
         {
-            if (_definition == null || _definition.HeatRadius <= 0f || _definition.HeatPerSecond == 0f)
-            {
-                return;
-            }
+            if (_definition == null || _definition.HeatRadius <= 0f || _definition.HeatPerSecond == 0f) return;
 
-            PlayerCamera playerCamera = PlayerCamera.main;
-            Body body = playerCamera != null ? playerCamera.body : null;
-            if (body == null)
-            {
-                return;
-            }
+            var playerCamera = PlayerCamera.main;
+            var body = playerCamera != null ? playerCamera.body : null;
+            if (body == null) return;
 
-            float distance = Vector2.Distance(transform.position, body.transform.position);
-            if (distance > _definition.HeatRadius)
-            {
-                return;
-            }
+            var distance = Vector2.Distance(transform.position, body.transform.position);
+            if (distance > _definition.HeatRadius) return;
 
-            float targetTemperature = _definition.MaxHeatBodyTemperature > 0f
+            var targetTemperature = _definition.MaxHeatBodyTemperature > 0f
                 ? _definition.MaxHeatBodyTemperature
                 : float.MaxValue;
 
-            if (body.temperature >= targetTemperature)
-            {
-                return;
-            }
+            if (body.temperature >= targetTemperature) return;
 
-            body.temperature = Mathf.Min(targetTemperature, body.temperature + (_definition.HeatPerSecond * Time.deltaTime));
+            body.temperature = Mathf.Min(targetTemperature,
+                body.temperature + _definition.HeatPerSecond * Time.deltaTime);
         }
 
         private void ApplySpawnComponents()
         {
-            if (_definition == null || _definition.SpawnComponents == null || _definition.SpawnComponents.Count == 0)
+            if (_definition == null || _definition.SpawnComponents == null ||
+                _definition.SpawnComponents.Count == 0) return;
+
+            foreach (var componentName in _definition.SpawnComponents)
             {
-                return;
-            }
+                if (string.IsNullOrWhiteSpace(componentName)) continue;
 
-            foreach (string componentName in _definition.SpawnComponents)
-            {
-                if (string.IsNullOrWhiteSpace(componentName))
-                {
-                    continue;
-                }
+                var componentType = Type.GetType(componentName, false);
+                if (componentType == null || !typeof(MonoBehaviour).IsAssignableFrom(componentType)) continue;
 
-                Type componentType = Type.GetType(componentName, false);
-                if (componentType == null || !typeof(MonoBehaviour).IsAssignableFrom(componentType))
-                {
-                    continue;
-                }
-
-                if (GetComponent(componentType) == null)
-                {
-                    gameObject.AddComponent(componentType);
-                }
+                if (GetComponent(componentType) == null) gameObject.AddComponent(componentType);
             }
         }
     }

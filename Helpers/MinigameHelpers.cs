@@ -64,103 +64,84 @@ namespace CUCoreLib.Helpers
 
     public sealed class CUCoreMinigameSession
     {
-        private static readonly FieldInfo HandSpriteField = typeof(MinigameBase).GetField("handSprite", BindingFlags.Instance | BindingFlags.NonPublic);
-
-        private readonly MinigameBase game;
+        private static readonly FieldInfo HandSpriteField =
+            typeof(MinigameBase).GetField("handSprite", BindingFlags.Instance | BindingFlags.NonPublic);
 
         internal CUCoreMinigameSession(MinigameBase game)
         {
-            this.game = game;
+            this.Game = game;
         }
 
-        public MinigameBase Game => game;
+        public MinigameBase Game { get; }
 
-        public Body Body => game != null ? game.body : null;
+        public Body Body => Game != null ? Game.body : null;
 
-        public Item CurrentItem => game != null ? game.currentItem : null;
+        public Item CurrentItem => Game != null ? Game.currentItem : null;
 
-        public Minigame CurrentMinigame => game != null ? game.currentMinigame : null;
+        public Minigame CurrentMinigame => Game != null ? Game.currentMinigame : null;
 
-        public GameObject SpawnedMiniGame => game != null ? game.spawnedMiniGame?.gameObject : null;
+        public GameObject SpawnedMiniGame => Game != null ? Game.spawnedMiniGame?.gameObject : null;
 
-        public Transform SpawnedMiniGameTransform => game != null ? game.spawnedMiniGame : null;
+        public Transform SpawnedMiniGameTransform => Game != null ? Game.spawnedMiniGame : null;
 
-        public RectTransform MinigameScreen => game != null ? game.minigameScreen : null;
+        public RectTransform MinigameScreen => Game != null ? Game.minigameScreen : null;
 
-        public RectTransform HandTransform => game != null ? game.handTransform : null;
+        public RectTransform HandTransform => Game != null ? Game.handTransform : null;
 
-        public Sprite[] HandSprites => game != null ? game.handSprites : null;
+        public Sprite[] HandSprites => Game != null ? Game.handSprites : null;
 
         public Vector2 HandPosition
         {
-            get => game != null ? game.handPos : default;
+            get => Game != null ? Game.handPos : default;
             set
             {
-                if (game != null)
-                {
-                    game.handPos = value;
-                }
+                if (Game != null) Game.handPos = value;
             }
         }
 
         public Vector2 HandVelocity
         {
-            get => game != null ? game.handVelocity : default;
+            get => Game != null ? Game.handVelocity : default;
             set
             {
-                if (game != null)
-                {
-                    game.handVelocity = value;
-                }
+                if (Game != null) Game.handVelocity = value;
             }
         }
 
-        public bool HandClicking => game != null && game.handClicking;
+        public bool HandClicking => Game != null && Game.handClicking;
 
-        public bool HandStartedClicking => game != null && game.handStartedClicking;
+        public bool HandStartedClicking => Game != null && Game.handStartedClicking;
 
-        public bool HandStoppedClicking => game != null && game.handStoppedClicking;
+        public bool HandStoppedClicking => Game != null && Game.handStoppedClicking;
 
         public float HandShakeForce
         {
-            get => game != null ? game.handShakeForce : 1f;
+            get => Game != null ? Game.handShakeForce : 1f;
             set
             {
-                if (game != null)
-                {
-                    game.handShakeForce = value;
-                }
+                if (Game != null) Game.handShakeForce = value;
             }
         }
 
-        public bool IsActive => game != null && game.currentMinigame != null;
+        public bool IsActive => Game != null && Game.currentMinigame != null;
 
         public bool TryCreateScreen(string resourceId)
         {
-            if (game == null || string.IsNullOrWhiteSpace(resourceId))
-            {
-                return false;
-            }
+            if (Game == null || string.IsNullOrWhiteSpace(resourceId)) return false;
 
-            game.CreateScreen(resourceId);
+            Game.CreateScreen(resourceId);
             return true;
         }
 
         public void End()
         {
-            if (game != null)
-            {
-                game.EndMinigame();
-            }
+            if (Game != null) Game.EndMinigame();
         }
 
         public bool TryGetUiCasts(Vector3 screenPosition, out List<RaycastResult> uiCasts)
         {
             uiCasts = null;
-            if (game == null)
-            {
-                return false;
-            }
+            if (Game == null) return false;
 
             uiCasts = UIUtil.GetEventSystemRaycastResults(screenPosition);
             return true;
@@ -169,16 +150,10 @@ namespace CUCoreLib.Helpers
         public bool TryGetSpawnedMiniGameChild(int index, out Transform child)
         {
             child = null;
-            if (game == null || game.spawnedMiniGame == null || index < 0)
-            {
-                return false;
-            }
+            if (Game == null || Game.spawnedMiniGame == null || index < 0) return false;
 
-            Transform root = game.spawnedMiniGame;
-            if (index >= root.childCount)
-            {
-                return false;
-            }
+            var root = Game.spawnedMiniGame;
+            if (index >= root.childCount) return false;
 
             child = root.GetChild(index);
             return child != null;
@@ -187,10 +162,7 @@ namespace CUCoreLib.Helpers
         public bool TryGetSpawnedMiniGameObject(int index, out GameObject gameObject)
         {
             gameObject = null;
-            if (!TryGetSpawnedMiniGameChild(index, out Transform child))
-            {
-                return false;
-            }
+            if (!TryGetSpawnedMiniGameChild(index, out var child)) return false;
 
             gameObject = child.gameObject;
             return gameObject != null;
@@ -200,10 +172,7 @@ namespace CUCoreLib.Helpers
             where T : Component
         {
             component = null;
-            if (!TryGetSpawnedMiniGameChild(index, out Transform child))
-            {
-                return false;
-            }
+            if (!TryGetSpawnedMiniGameChild(index, out var child)) return false;
 
             return child.TryGetComponent(out component) && component != null;
         }
@@ -212,10 +181,7 @@ namespace CUCoreLib.Helpers
             where T : Component
         {
             component = null;
-            if (!TryGetSpawnedMiniGameChild(index, out Transform child))
-            {
-                return false;
-            }
+            if (!TryGetSpawnedMiniGameChild(index, out var child)) return false;
 
             component = child.GetComponentInChildren<T>();
             return component != null;
@@ -223,11 +189,8 @@ namespace CUCoreLib.Helpers
 
         public bool TrySetHandSprite(Sprite sprite)
         {
-            Image image = GetHandSpriteImage();
-            if (image == null || sprite == null)
-            {
-                return false;
-            }
+            var image = GetHandSpriteImage();
+            if (image == null || sprite == null) return false;
 
             image.sprite = sprite;
             return true;
@@ -235,69 +198,46 @@ namespace CUCoreLib.Helpers
 
         public bool TrySetHandSprite(int index)
         {
-            if (game == null || game.handSprites == null)
-            {
-                return false;
-            }
+            if (Game == null || Game.handSprites == null) return false;
 
-            if (index < 0 || index >= game.handSprites.Length)
-            {
-                return false;
-            }
+            if (index < 0 || index >= Game.handSprites.Length) return false;
 
-            return TrySetHandSprite(game.handSprites[index]);
+            return TrySetHandSprite(Game.handSprites[index]);
         }
 
         public bool TrySetHandSpriteSlot(int index, Sprite sprite)
         {
-            if (game == null || game.handSprites == null || sprite == null)
-            {
-                return false;
-            }
+            if (Game == null || Game.handSprites == null || sprite == null) return false;
 
-            if (index < 0 || index >= game.handSprites.Length)
-            {
-                return false;
-            }
+            if (index < 0 || index >= Game.handSprites.Length) return false;
 
-            game.handSprites[index] = sprite;
+            Game.handSprites[index] = sprite;
             return true;
         }
 
         public bool TrySetHandSpriteSlots(params (int index, Sprite sprite)[] sprites)
         {
-            if (sprites == null)
-            {
-                return false;
-            }
+            if (sprites == null) return false;
 
-            bool updated = false;
-            for (int i = 0; i < sprites.Length; i++)
-            {
+            var updated = false;
+            for (var i = 0; i < sprites.Length; i++)
                 updated |= TrySetHandSpriteSlot(sprites[i].index, sprites[i].sprite);
-            }
 
             return updated;
         }
 
         public Image GetHandSpriteImage()
         {
-            if (game == null)
-            {
-                return null;
-            }
+            if (Game == null) return null;
 
-            return HandSpriteField?.GetValue(game) as Image;
+            return HandSpriteField?.GetValue(Game) as Image;
         }
 
         public bool TryRefreshHandSprite()
         {
-            if (game == null)
-            {
-                return false;
-            }
+            if (Game == null) return false;
 
-            game.UpdateHandSprite(reset: true);
+            Game.UpdateHandSprite(true);
             return true;
         }
     }
@@ -306,19 +246,16 @@ namespace CUCoreLib.Helpers
     {
         public static MinigameBase Game => MinigameBase.main;
 
+        public static CUCoreMinigameSession CurrentSession => Game != null ? new CUCoreMinigameSession(Game) : null;
+
         public static bool IsBusy()
         {
             return Game != null && Game.currentMinigame != null;
         }
 
-        public static CUCoreMinigameSession CurrentSession => Game != null ? new CUCoreMinigameSession(Game) : null;
-
         public static bool TryStart(Minigame minigame, Item item = null)
         {
-            if (minigame == null || Game == null || Game.currentMinigame != null)
-            {
-                return false;
-            }
+            if (minigame == null || Game == null || Game.currentMinigame != null) return false;
 
             Game.StartMinigame(minigame, item);
             return true;
@@ -327,10 +264,7 @@ namespace CUCoreLib.Helpers
         public static bool TryStart<TMinigame>(Func<TMinigame> factory, Item item = null)
             where TMinigame : Minigame
         {
-            if (factory == null)
-            {
-                return false;
-            }
+            if (factory == null) return false;
 
             return TryStart(factory(), item);
         }
@@ -343,10 +277,7 @@ namespace CUCoreLib.Helpers
         public static bool TryStartDefinition<TDefinition>(Func<TDefinition> factory, Item item = null)
             where TDefinition : ICUCoreMinigameDefinition
         {
-            if (factory == null)
-            {
-                return false;
-            }
+            if (factory == null) return false;
 
             return TryStartDefinition(factory(), item);
         }
@@ -545,7 +476,7 @@ namespace CUCoreLib.Helpers
             return CUCoreMinigames.TryStart(minigame, item);
         }
 
-        public static bool TryStart<TMinigame>(System.Func<TMinigame> factory, Item item = null)
+        public static bool TryStart<TMinigame>(Func<TMinigame> factory, Item item = null)
             where TMinigame : Minigame
         {
             return CUCoreMinigames.TryStart(factory, item);
@@ -661,7 +592,7 @@ namespace CUCoreLib.Helpers
 
         protected bool CreateDefaultScreen()
         {
-            string resourceId = GetScreenResourceId();
+            var resourceId = GetScreenResourceId();
             return !string.IsNullOrWhiteSpace(resourceId) && TryCreateScreen(resourceId);
         }
     }

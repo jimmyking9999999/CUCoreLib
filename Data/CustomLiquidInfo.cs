@@ -5,16 +5,16 @@ namespace CUCoreLib.Data
 {
     public class CustomLiquidInfo
     {
-        public string name;
-        public string description;
         public Color color = Color.white;
-        public float valuePerLiter;
-        public LiquidType.OnDrink onDrink;
-        public LiquidType.OnHealthUse onHealthUse;
+        public string description;
         public bool healthUsable;
         public bool injectable;
         public float injectionSickness = 1f;
         public bool localeFromItem;
+        public string name;
+        public LiquidType.OnDrink onDrink;
+        public LiquidType.OnHealthUse onHealthUse;
         public List<CraftingQuality> qualities = new List<CraftingQuality>();
+        public float valuePerLiter;
     }
 }

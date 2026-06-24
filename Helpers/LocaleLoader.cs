@@ -19,79 +19,59 @@ namespace CUCoreLib.Helpers
 
         public static void ApplyActiveLocaleOverlay()
         {
-            if (Locale.currentLang == null)
-            {
-                return;
-            }
+            if (Locale.currentLang == null) return;
 
-            string localeName = Locale.currentLangName;
-            if (string.IsNullOrWhiteSpace(localeName))
-            {
-                return;
-            }
+            var localeName = Locale.currentLangName;
+            if (string.IsNullOrWhiteSpace(localeName)) return;
 
-            string normalizedLocaleName = localeName.Trim();
-            List<string> overlayFiles = FindOverlayFiles(normalizedLocaleName);
-            if (overlayFiles.Count == 0)
-            {
-                return;
-            }
+            var normalizedLocaleName = localeName.Trim();
+            var overlayFiles = FindOverlayFiles(normalizedLocaleName);
+            if (overlayFiles.Count == 0) return;
 
-            foreach (string path in overlayFiles)
-            {
+            foreach (var path in overlayFiles)
                 try
                 {
-                    JObject localeJson = JObject.Parse(File.ReadAllText(path));
+                    var localeJson = JObject.Parse(File.ReadAllText(path));
                     MergeLocaleJson(Locale.currentLang, localeJson);
                 }
                 catch (Exception ex)
                 {
                     Logger?.LogWarning($"Failed to load locale overlay '{path}': {ex.Message}");
                 }
-            }
         }
 
         public static string GetLocalizedText(string category, string key, string fallback = null)
         {
-            if (string.IsNullOrWhiteSpace(key))
-            {
-                return string.IsNullOrWhiteSpace(fallback) ? string.Empty : fallback;
-            }
+            if (string.IsNullOrWhiteSpace(key)) return string.IsNullOrWhiteSpace(fallback) ? string.Empty : fallback;
 
-            string normalizedKey = key.Trim();
-            string normalizedCategory = (category ?? string.Empty).Trim().ToLowerInvariant();
+            var normalizedKey = key.Trim();
+            var normalizedCategory = (category ?? string.Empty).Trim().ToLowerInvariant();
 
-            string value = TryReadValue(Locale.currentLang, normalizedCategory, normalizedKey);
-            if (!string.IsNullOrWhiteSpace(value))
-            {
-                return value;
-            }
+            var value = TryReadValue(Locale.currentLang, normalizedCategory, normalizedKey);
+            if (!string.IsNullOrWhiteSpace(value)) return value;
 
-            if (!string.IsNullOrWhiteSpace(fallback))
-            {
-                return fallback;
-            }
+            if (!string.IsNullOrWhiteSpace(fallback)) return fallback;
 
             return normalizedKey;
         }
 
         private static List<string> FindOverlayFiles(string localeName)
         {
-            List<string> results = new List<string>();
-            string fileName = localeName + ".json";
+            var results = new List<string>();
+            var fileName = localeName + ".json";
 
-            string configPath = Path.Combine(Paths.ConfigPath, "CUCoreLib", "Locales", fileName);
-            if (File.Exists(configPath))
-            {
-                results.Add(configPath);
-            }
+            var configPath = Path.Combine(Paths.ConfigPath, "CUCoreLib", "Locales", fileName);
+            if (File.Exists(configPath)) results.Add(configPath);
 
-            string pluginRoot = Path.Combine(Path.GetDirectoryName(Paths.ConfigPath) ?? string.Empty, "plugins");
+            var pluginRoot = Path.Combine(Path.GetDirectoryName(Paths.ConfigPath) ?? string.Empty, "plugins");
             if (Directory.Exists(pluginRoot))
             {
-                IEnumerable<string> pluginMatches = Directory.EnumerateFiles(pluginRoot, fileName, SearchOption.AllDirectories)
-                    .Where(path => path.IndexOf(Path.DirectorySeparatorChar + "Locales" + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) >= 0 ||
-                        path.IndexOf(Path.AltDirectorySeparatorChar + "Locales" + Path.AltDirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) >= 0);
+                var pluginMatches = Directory.EnumerateFiles(pluginRoot, fileName, SearchOption.AllDirectories)
+                    .Where(path =>
+                        path.IndexOf(Path.DirectorySeparatorChar + "Locales" + Path.DirectorySeparatorChar,
+                            StringComparison.OrdinalIgnoreCase) >= 0 ||
+                        path.IndexOf(Path.AltDirectorySeparatorChar + "Locales" + Path.AltDirectorySeparatorChar,
+                            StringComparison.OrdinalIgnoreCase) >= 0);
 
                 results.AddRange(pluginMatches);
             }
@@ -104,10 +84,7 @@ namespace CUCoreLib.Helpers
 
         private static void MergeLocaleJson(Language target, JObject source)
         {
-            if (target == null || source == null)
-            {
-                return;
-            }
+            if (target == null || source == null) return;
 
             MergeSection(target.main, source["item"]);
             MergeSection(target.main, source["main"]);
@@ -123,29 +100,19 @@ namespace CUCoreLib.Helpers
 
         private static void MergeSection(Dictionary<string, string> target, JToken sectionToken)
         {
-            if (target == null || sectionToken == null)
-            {
-                return;
-            }
+            if (target == null || sectionToken == null) return;
 
-            JObject section = sectionToken as JObject;
-            if (section == null)
-            {
-                return;
-            }
+            if (!(sectionToken is JObject section)) return;
 
-            foreach (JProperty property in section.Properties())
+            foreach (var property in section.Properties())
             {
-                if (string.IsNullOrWhiteSpace(property.Name) || property.Value == null)
-                {
-                    continue;
-                }
+                // property.Value == null is always false
+                if (string.IsNullOrWhiteSpace(property.Name) || property.Value == null) continue;
 
-                string value = property.Value.Type == JTokenType.String ? property.Value.Value<string>() : property.Value.ToString();
-                if (string.IsNullOrWhiteSpace(value))
-                {
-                    continue;
-                }
+                var value = property.Value.Type == JTokenType.String
+                    ? property.Value.Value<string>()
+                    : property.Value.ToString();
+                if (string.IsNullOrWhiteSpace(value)) continue;
 
                 target[property.Name.Trim()] = value;
             }
@@ -153,25 +120,16 @@ namespace CUCoreLib.Helpers
 
         private static string TryReadValue(Language language, string category, string key)
         {
-            if (language == null || string.IsNullOrWhiteSpace(key))
-            {
-                return string.Empty;
-            }
+            if (language == null || string.IsNullOrWhiteSpace(key)) return string.Empty;
 
-            Dictionary<string, string> section = category == "item" ? language.main :
+            var section = category == "item" ? language.main :
                 category == "building" ? language.buildings :
                 category == "moodle" ? language.moodles :
                 language.other;
 
-            if (section == null)
-            {
-                return string.Empty;
-            }
+            if (section == null) return string.Empty;
 
-            if (section.TryGetValue(key, out string value))
-            {
-                return value ?? string.Empty;
-            }
+            if (section.TryGetValue(key, out var value)) return value ?? string.Empty;
 
             return string.Empty;
         }

@@ -1,5 +1,7 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
+using CUCoreLib.Helpers;
 using Newtonsoft.Json.Linq;
 
 namespace CUCoreLib.Saving
@@ -60,33 +62,26 @@ namespace CUCoreLib.Saving
 
         public void Defer(Action action)
         {
-            if (action == null)
-            {
-                return;
-            }
+            if (action == null) return;
 
             _deferredActions.Add(action);
         }
 
         internal void ExecuteDeferred()
         {
-            if (_deferredActions.Count == 0)
-            {
-                return;
-            }
+            if (_deferredActions.Count == 0) return;
 
-            List<Action> actions = new List<Action>(_deferredActions);
+            var actions = new List<Action>(_deferredActions);
             _deferredActions.Clear();
 
-            CUCoreLib.Helpers.CUCoreUtils.StartCoroutine(RunDeferred(actions));
+            CUCoreUtils.StartCoroutine(RunDeferred(actions));
         }
 
-        private static System.Collections.IEnumerator RunDeferred(List<Action> actions)
+        private static IEnumerator RunDeferred(List<Action> actions)
         {
             yield return null;
 
-            foreach (Action action in actions)
-            {
+            foreach (var action in actions)
                 try
                 {
                     action();
@@ -95,7 +90,6 @@ namespace CUCoreLib.Saving
                 {
                     CUCoreLibPlugin.Log?.LogWarning("CUCoreLib Save: Deferred restore action failed.\n" + ex);
                 }
-            }
         }
     }
 }
