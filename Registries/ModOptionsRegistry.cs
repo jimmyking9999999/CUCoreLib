@@ -196,9 +196,7 @@ namespace CUCoreLib.Registries
 
         private static void ApplyOptionValue(ModOptionDefinition option, JObject payload)
         {
-            if (payload == null) return;
-
-            var valueToken = payload["value"];
+            var valueToken = payload?["value"];
             if (valueToken == null) return;
 
             switch (option.Kind)
@@ -259,6 +257,8 @@ namespace CUCoreLib.Registries
 
                     break;
                 }
+                default:
+                    throw new ArgumentOutOfRangeException();
             }
         }
 

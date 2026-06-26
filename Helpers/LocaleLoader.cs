@@ -100,6 +100,10 @@ namespace CUCoreLib.Helpers
             MergeSection(target.moodles, source["moodles"]);
 
             MergeSection(target.other, source["other"]);
+
+            MergeSection(target.other, source["log"]);
+            MergeSection(target.other, source["command"]);
+            MergeSection(target.other, source["option"]);
         }
 
         private static void MergeSection(Dictionary<string, string> target, JToken sectionToken)

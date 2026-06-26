@@ -17,7 +17,10 @@ namespace CUCoreLib.Registries
             Item = 0,
             Building = 1,
             Moodle = 2,
-            Other = 3
+            Other = 3,
+            Log = 4,
+            Command = 5,
+            Option = 6
         }
 
         internal static Dictionary<int, Dictionary<string, string>> CustomLocales =
@@ -34,7 +37,7 @@ namespace CUCoreLib.Registries
         /// <summary>
         ///     Registers a localized string
         /// </summary>
-        /// <param name="type">0=Item, 1=Building, 2=Moodle, 3=Other (UI/Fluids)</param>
+        /// <param name="type">0=Item, 1=Building, 2=Moodle, 3=Other, 4=Log, 5=Command, 6=Option</param>
         /// <param name="key">The ID key (e.g. "sunpear")</param>
         /// <param name="text">The text to display</param>
         public static void Register(int type, string key, string text)
@@ -103,6 +106,7 @@ namespace CUCoreLib.Registries
         }
 
         public static string Get(string category, string key,
+            // Methods with optional parameters are overloaded and hidden
             string optionalFallbackIfLocaleValueNullOrWhitespace = null)
         {
             if (string.IsNullOrWhiteSpace(key)) return optionalFallbackIfLocaleValueNullOrWhitespace ?? string.Empty;
@@ -115,21 +119,19 @@ namespace CUCoreLib.Registries
                 return string.IsNullOrWhiteSpace(runtimeValue) ? normalizedKey : runtimeValue;
             }
 
-            var fallback = optionalFallbackIfLocaleValueNullOrWhitespace;
-            Register(category, normalizedKey, fallback);
-            var value = LocaleLoader.GetLocalizedText(category, normalizedKey, fallback);
-            return string.IsNullOrWhiteSpace(value) ? fallback : value;
+            Register(category, normalizedKey, optionalFallbackIfLocaleValueNullOrWhitespace);
+            var value = LocaleLoader.GetLocalizedText(category, normalizedKey, optionalFallbackIfLocaleValueNullOrWhitespace);
+            return string.IsNullOrWhiteSpace(value) ? optionalFallbackIfLocaleValueNullOrWhitespace : value;
         }
 
         public static JObject BuildLocaleJson(JObject existing = null)
         {
             var root = existing != null ? (JObject)existing.DeepClone() : new JObject();
 
-            for (var type = 0; type <= 3; type++)
+            for (var type = 0; type <= 6; type++)
             {
                 var category = TypeToCategory(type);
-                var categoryObject = root[category] as JObject;
-                if (categoryObject == null)
+                if (!(root[category] is JObject categoryObject))
                 {
                     categoryObject = new JObject();
                     root[category] = categoryObject;
@@ -139,10 +141,9 @@ namespace CUCoreLib.Registries
                     foreach (var entry in generated)
                         categoryObject[entry.Key] = entry.Value ?? string.Empty;
 
-                if (RequiredLocales.TryGetValue(type, out var requiredKeys))
-                    foreach (var key in requiredKeys)
-                        if (categoryObject[key] == null)
-                            categoryObject[key] = string.Empty;
+                if (!RequiredLocales.TryGetValue(type, out var requiredKeys)) continue;
+                foreach (var key in requiredKeys.Where(key => categoryObject[key] == null))
+                    categoryObject[key] = string.Empty;
             }
 
             return root;
@@ -232,9 +233,8 @@ namespace CUCoreLib.Registries
                     .Select(pair => pair.Key)
                     .ToArray();
 
-                for (var i = 0; i < keys.Length; i++)
+                foreach (var key in keys)
                 {
-                    var key = keys[i];
                     entry.Value.Remove(key);
                     if (CustomLocales.TryGetValue(entry.Key, out var locales)) locales.Remove(key);
 
@@ -252,6 +252,9 @@ namespace CUCoreLib.Registries
             return (int)(normalizedCategory == "item" ? LocaleCategory.Item :
                 normalizedCategory == "building" ? LocaleCategory.Building :
                 normalizedCategory == "moodle" ? LocaleCategory.Moodle :
+                normalizedCategory == "log" ? LocaleCategory.Log :
+                normalizedCategory == "command" ? LocaleCategory.Command :
+                normalizedCategory == "option" ? LocaleCategory.Option :
                 LocaleCategory.Other);
         }
 
@@ -265,6 +268,13 @@ namespace CUCoreLib.Registries
                     return "building";
                 case LocaleCategory.Moodle:
                     return "moodle";
+                case LocaleCategory.Log:
+                    return "log";
+                case LocaleCategory.Command:
+                    return "command";
+                case LocaleCategory.Option:
+                    return "option";
+                case LocaleCategory.Other:
                 default:
                     return "other";
             }
@@ -272,38 +282,36 @@ namespace CUCoreLib.Registries
 
         private static object ConvertTokenToPlainObject(JToken token)
         {
-            if (token == null || token.Type == JTokenType.Null || token.Type == JTokenType.Undefined) return null;
-
-            if (token is JObject obj)
+            while (true)
             {
-                var result = new Dictionary<string, object>(StringComparer.Ordinal);
-                foreach (var property in obj.Properties())
-                    result[property.Name] = ConvertTokenToPlainObject(property.Value);
+                if (token == null || token.Type == JTokenType.Null || token.Type == JTokenType.Undefined) return null;
 
-                return result;
+                switch (token)
+                {
+                    case JObject obj:
+                    {
+                        var result = new Dictionary<string, object>(StringComparer.Ordinal);
+                        foreach (var property in obj.Properties()) result[property.Name] = ConvertTokenToPlainObject(property.Value);
+
+                        return result;
+                    }
+                    case JArray array:
+                    {
+                        return array.Select(ConvertTokenToPlainObject).ToList();
+                    }
+                    case JProperty propertyToken:
+                        token = propertyToken.Value;
+                        continue;
+                    case JValue value:
+                        return value.Value;
+                    case JContainer container:
+                    {
+                        return container.Children().Select(ConvertTokenToPlainObject).ToList();
+                    }
+                    default:
+                        return null;
+                }
             }
-
-            if (token is JArray array)
-            {
-                var result = new List<object>();
-                foreach (var entry in array) result.Add(ConvertTokenToPlainObject(entry));
-
-                return result;
-            }
-
-            if (token is JProperty propertyToken) return ConvertTokenToPlainObject(propertyToken.Value);
-
-            if (token is JValue value) return value.Value;
-
-            if (token is JContainer container)
-            {
-                var result = new List<object>();
-                foreach (var child in container.Children()) result.Add(ConvertTokenToPlainObject(child));
-
-                return result;
-            }
-
-            return null;
         }
 
         private sealed class OwnerScope : IDisposable
