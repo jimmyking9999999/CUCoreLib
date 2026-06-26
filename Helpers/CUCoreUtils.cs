@@ -298,6 +298,28 @@ namespace CUCoreLib.Helpers
             ShowAlert(text, important);
         }
 
+        public static void Alert(string text, bool important, float delay = 0f)
+        {
+            if (string.IsNullOrWhiteSpace(text) || PlayerCamera.main == null) return;
+
+            if (delay <= 0f)
+                PlayerCamera.main.DoAlert(text, important);
+            else
+                StartCoroutine(AlertDelayedRoutine(text, important, delay));
+        }
+
+        public static void alert(string text, bool important, float delay = 0f)
+        {
+            Alert(text, important, delay);
+        }
+
+        private static IEnumerator AlertDelayedRoutine(string text, bool important, float delay)
+        {
+            yield return new WaitForSecondsRealtime(delay);
+            if (PlayerCamera.main != null)
+                PlayerCamera.main.DoAlert(text, important);
+        }
+
         public static void GiveItem(string id, int count)
         {
             if (!IsInWorld() || string.IsNullOrWhiteSpace(id) || count <= 0) return;
