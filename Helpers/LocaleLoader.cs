@@ -25,7 +25,17 @@ namespace CUCoreLib.Helpers
             if (string.IsNullOrWhiteSpace(localeName)) return;
 
             var normalizedLocaleName = localeName.Trim();
-            var overlayFiles = FindOverlayFiles(normalizedLocaleName);
+            
+            var isEnglish = string.Equals(normalizedLocaleName, "EN", StringComparison.OrdinalIgnoreCase);
+            if (!isEnglish)
+                ApplyLocaleFile("EN");
+
+            ApplyLocaleFile(normalizedLocaleName);
+        }
+
+        private static void ApplyLocaleFile(string localeName)
+        {
+            var overlayFiles = FindOverlayFiles(localeName);
             if (overlayFiles.Count == 0) return;
 
             foreach (var path in overlayFiles)
