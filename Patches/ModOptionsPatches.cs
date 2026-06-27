@@ -65,6 +65,9 @@ namespace CUCoreLib.Patches
             SettingsMenuCategoryExtender.EnsureAttached(__instance);
             var helper = __instance.GetComponent<SettingsMenuCategoryExtender>();
             helper?.OnTabSelected(category);
+
+            if (__instance && __instance.content && helper)
+                helper.FixDropdownsInContent(__instance.content);
         }
     }
 }

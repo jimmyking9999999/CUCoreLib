@@ -14,12 +14,15 @@ namespace CUCoreLib.Helpers
         private readonly Dictionary<Button, int> buttonCategoryIndices = new Dictionary<Button, int>();
 
         private readonly List<Button> customButtons = new List<Button>();
+        private readonly List<TMP_Dropdown> cachedDropdowns = new List<TMP_Dropdown>();
         private int activeCategoryIndex;
         private SettingsMenu menu;
 
         private void Update()
         {
             if (!menu || !menu.content) return;
+
+            if (IsMouseOverExpandedDropdown()) return;
 
             var maxScroll = GetMaxScroll();
             if (maxScroll <= 0f)
@@ -38,6 +41,64 @@ namespace CUCoreLib.Helpers
             var anchoredPosition = menu.content.anchoredPosition;
             anchoredPosition.y = Mathf.Clamp(anchoredPosition.y - scroll * ScrollPixelsPerWheelStep, 0f, maxScroll);
             menu.content.anchoredPosition = anchoredPosition;
+        }
+
+        private bool IsMouseOverExpandedDropdown()
+        {
+            var mousePos = Input.mousePosition;
+            return (from dd in cachedDropdowns
+                where dd && dd.IsExpanded && dd.template
+                select dd.template).Any(templateRect =>
+                templateRect && templateRect.gameObject.activeInHierarchy &&
+                RectTransformUtility.RectangleContainsScreenPoint(templateRect, mousePos));
+        }
+
+        // fixes dropdown templates created by the game's SettingsMenu.
+        // vanilla prefab has a cramped viewport (only ~4 items visible)
+        internal void FixDropdownsInContent(Transform content)
+        {
+            cachedDropdowns.Clear();
+            if (!content) return;
+
+            foreach (var dropdown in content.GetComponentsInChildren<TMP_Dropdown>(true))
+            {
+                if (!dropdown) continue;
+                cachedDropdowns.Add(dropdown);
+                FixDropdown(dropdown);
+            }
+        }
+
+        // the overlay is too strange, i don't get it lol
+        private static void FixDropdown(TMP_Dropdown dropdown)
+        {
+            var template = dropdown.template;
+            if (!template) return;
+
+            var templateCanvas = template.GetComponent<Canvas>();
+            if (templateCanvas)
+                templateCanvas.overrideSorting = true;
+
+            var scrollRect = template.GetComponent<ScrollRect>();
+            if (!scrollRect)
+                scrollRect = template.gameObject.AddComponent<ScrollRect>();
+
+            var viewport = template.Find("Viewport");
+            if (viewport)
+            {
+                scrollRect.viewport = viewport as RectTransform;
+                var viewportRect = viewport as RectTransform;
+                if (viewportRect)
+                    viewportRect.sizeDelta = new Vector2(viewportRect.sizeDelta.x, 200f);
+
+                var content = viewport.Find("Content");
+                if (content)
+                    scrollRect.content = content as RectTransform;
+            }
+
+            scrollRect.horizontal = false;
+            scrollRect.vertical = true;
+            scrollRect.movementType = ScrollRect.MovementType.Clamped;
+            scrollRect.scrollSensitivity = 24f;
         }
 
         internal static void EnsureAttached(SettingsMenu menu)
