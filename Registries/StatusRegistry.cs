@@ -15,12 +15,16 @@ public static class StatusRegistry
 
     internal static IEnumerable<KeyValuePair<Type, BodyStatus>> EnumerateBodyStatuses(Body body)
     {
-        return body == null ? Array.Empty<KeyValuePair<Type, BodyStatus>>() : Get(body).Entries;
+        return body == null
+            ? []
+            : Get(body).Entries;
     }
 
     internal static IEnumerable<KeyValuePair<Type, LimbStatus>> EnumerateLimbStatuses(Limb limb)
     {
-        return limb == null ? Array.Empty<KeyValuePair<Type, LimbStatus>>() : Get(limb).Entries;
+        return limb == null
+            ? []
+            : Get(limb).Entries;
     }
 
     internal static BodyStatusCollection Get(Body body)
@@ -45,7 +49,7 @@ public static class StatusRegistry
             payload = new JObject
             {
                 ["type"] = metadata.Key,
-                ["data"] = values ?? new JObject()
+                ["data"] = values
             };
             return true;
         }
@@ -77,9 +81,9 @@ public static class StatusRegistry
     {
         var root = new JObject();
         var body = PlayerCamera.main != null ? PlayerCamera.main.body : null;
-        if (body == null) return root;
-
-        return CaptureBodyNetworkSnapshot(body);
+        return body == null
+            ? root
+            : CaptureBodyNetworkSnapshot(body);
     }
 
     internal static JObject CaptureBodyNetworkSnapshot(Body body)
@@ -116,24 +120,24 @@ public static class StatusRegistry
     {
         var limbStatuses = new JArray();
         var limbs = body != null ? body.limbs : null;
-        if (limbs != null)
-            for (var limbIndex = 0; limbIndex < limbs.Length; limbIndex++)
+        if (limbs == null) return limbStatuses;
+        for (var limbIndex = 0; limbIndex < limbs.Length; limbIndex++)
+        {
+            var limb = limbs[limbIndex];
+            if (limb == null) continue;
+
+            foreach (var entry in EnumerateLimbStatuses(limb))
             {
-                var limb = limbs[limbIndex];
-                if (limb == null) continue;
+                if (entry.Value == null || !TryCapture(entry.Value, out var payload)) continue;
 
-                foreach (var entry in EnumerateLimbStatuses(limb))
+                limbStatuses.Add(new JObject
                 {
-                    if (entry.Value == null || !TryCapture(entry.Value, out var payload)) continue;
-
-                    limbStatuses.Add(new JObject
-                    {
-                        ["slot"] = limbIndex,
-                        ["type"] = entry.Key.AssemblyQualifiedName ?? entry.Key.FullName,
-                        ["payload"] = payload
-                    });
-                }
+                    ["slot"] = limbIndex,
+                    ["type"] = entry.Key.AssemblyQualifiedName ?? entry.Key.FullName,
+                    ["payload"] = payload
+                });
             }
+        }
 
         return limbStatuses;
     }
@@ -151,12 +155,10 @@ public static class StatusRegistry
 
     private static void RestoreStatusToken(IStatusCollection collection, JToken token, bool isBody)
     {
-        var obj = token as JObject;
-        if (obj == null) return;
+        if (token is not JObject obj) return;
 
         var key = obj.Value<string>("type");
-        var data = obj["data"] as JObject;
-        if (string.IsNullOrWhiteSpace(key) || data == null) return;
+        if (string.IsNullOrWhiteSpace(key) || obj["data"] is not JObject data) return;
 
         if (!StatusMetadata.TryResolve(key, out var metadata))
         {
@@ -165,20 +167,26 @@ public static class StatusRegistry
             return;
         }
 
-        if (isBody && !typeof(BodyStatus).IsAssignableFrom(metadata.StatusType)) return;
-
-        if (!isBody && !typeof(LimbStatus).IsAssignableFrom(metadata.StatusType)) return;
-
-        try
+        switch (isBody)
         {
-            var restored = (StatusBase)data.ToObject(metadata.StatusType);
-            if (restored == null) return;
+            case true when !typeof(BodyStatus).IsAssignableFrom(metadata.StatusType):
+            case false when !typeof(LimbStatus).IsAssignableFrom(metadata.StatusType):
+                return;
+            default:
+                try
+                {
+                    var restored = (StatusBase)data.ToObject(metadata.StatusType);
+                    if (restored == null) return;
 
-            collection.Set(metadata.StatusType, restored);
-        }
-        catch (Exception ex)
-        {
-            CUCoreLibPlugin.Log?.LogWarning("CUCoreLib Statuses: Failed to restore status '" + key + "'.\n" + ex);
+                    collection.Set(metadata.StatusType, restored);
+                }
+                catch (Exception ex)
+                {
+                    CUCoreLibPlugin.Log?.LogWarning(
+                        "CUCoreLib Statuses: Failed to restore status '" + key + "'.\n" + ex);
+                }
+
+                break;
         }
     }
 
@@ -196,8 +204,7 @@ public static class StatusRegistry
 
         foreach (var token in payloads)
         {
-            var obj = token as JObject;
-            if (obj == null) continue;
+            if (token is not JObject obj) continue;
 
             var limbIndex = obj.Value<int?>("slot") ?? -1;
             if (limbIndex < 0 || limbIndex >= body.limbs.Length) continue;
@@ -211,8 +218,7 @@ public static class StatusRegistry
 
     private static void ApplySnapshotToken(IStatusCollection collection, JToken token, bool isBody)
     {
-        var obj = token as JObject;
-        if (collection == null || obj == null) return;
+        if (collection == null || token is not JObject obj) return;
 
         var typeName = obj.Value<string>("type");
         var payload = obj["payload"] as JObject ?? obj["data"] as JObject;
@@ -221,19 +227,25 @@ public static class StatusRegistry
         var statusType = Type.GetType(typeName, false);
         if (statusType == null || !StatusMetadata.TryCreate(statusType, out var metadata)) return;
 
-        if (isBody && !typeof(BodyStatus).IsAssignableFrom(metadata.StatusType)) return;
-
-        if (!isBody && !typeof(LimbStatus).IsAssignableFrom(metadata.StatusType)) return;
-
-        try
+        switch (isBody)
         {
-            var restored = (StatusBase)payload.ToObject(metadata.StatusType);
-            if (restored != null) collection.Set(metadata.StatusType, restored);
-        }
-        catch (Exception ex)
-        {
-            CUCoreLibPlugin.Log?.LogWarning("CUCoreLib Statuses: Failed to apply network snapshot for status '" +
-                                            typeName + "'.\n" + ex);
+            case true when !typeof(BodyStatus).IsAssignableFrom(metadata.StatusType):
+            case false when !typeof(LimbStatus).IsAssignableFrom(metadata.StatusType):
+                return;
+            default:
+                try
+                {
+                    var restored = (StatusBase)payload.ToObject(metadata.StatusType);
+                    if (restored != null) collection.Set(metadata.StatusType, restored);
+                }
+                catch (Exception ex)
+                {
+                    CUCoreLibPlugin.Log?.LogWarning(
+                        "CUCoreLib Statuses: Failed to apply network snapshot for status '" +
+                        typeName + "'.\n" + ex);
+                }
+
+                break;
         }
     }
 
@@ -322,6 +334,7 @@ public static class StatusRegistry
             };
 
             ByType[type] = metadata;
+            // `key` maybe null
             ByKey[key] = metadata;
             return true;
         }

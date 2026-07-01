@@ -10,7 +10,7 @@ namespace CUCoreLib.Registries;
 
 public static class RecipeRegistry
 {
-    internal static List<Recipe> RegisteredRecipes = new();
+    internal static List<Recipe> RegisteredRecipes = [];
 
     private static readonly HashSet<string> RegisteredRecipeKeys = new(StringComparer.OrdinalIgnoreCase);
 
@@ -111,7 +111,7 @@ public static class RecipeRegistry
 
     internal static List<Recipe> CaptureOwnerEntries(string ownerId)
     {
-        if (string.IsNullOrWhiteSpace(ownerId)) return new List<Recipe>();
+        if (string.IsNullOrWhiteSpace(ownerId)) return [];
 
         var normalizedOwnerId = ownerId.Trim();
         return RegisteredRecipes

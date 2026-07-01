@@ -12,7 +12,7 @@ namespace CUCoreLib.Registries;
 public static class ModOptionsRegistry
 {
     private const int CustomCategoryBaseIndex = 100;
-    internal static readonly List<ModOptionDefinition> RegisteredOptions = new();
+    internal static readonly List<ModOptionDefinition> RegisteredOptions = new() { };
     private static readonly HashSet<string> RegisteredIds = new(StringComparer.Ordinal);
     private static readonly List<ModOptionCategoryEntry> CustomCategories = new();
 
@@ -139,7 +139,7 @@ public static class ModOptionsRegistry
         if (option.UsesCustomCategory && string.IsNullOrWhiteSpace(option.CustomCategory))
             return $"option '{option.Id}' custom category was empty.";
 
-        if ((option.Kind == ModOptionKind.Float || option.Kind == ModOptionKind.Int) && option.Min > option.Max)
+        if (option.Kind is ModOptionKind.Float or ModOptionKind.Int && option.Min > option.Max)
             return $"option '{option.Id}' has min > max.";
 
         if (option.Kind != ModOptionKind.Dropdown) return null;
@@ -280,14 +280,8 @@ public static class ModOptionsRegistry
     }
 }
 
-internal sealed class ModOptionCategoryEntry
+internal sealed class ModOptionCategoryEntry(string displayName, int categoryIndex)
 {
-    public ModOptionCategoryEntry(string displayName, int categoryIndex)
-    {
-        DisplayName = displayName;
-        CategoryIndex = categoryIndex;
-    }
-
-    public string DisplayName { get; }
-    public int CategoryIndex { get; }
+    public string DisplayName { get; } = displayName;
+    public int CategoryIndex { get; } = categoryIndex;
 }

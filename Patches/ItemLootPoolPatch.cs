@@ -8,12 +8,12 @@ using UnityEngine;
 
 namespace CUCoreLib.Patches;
 
-[HarmonyPatch]
+[HarmonyPatch(typeof(ItemLootPool))]
 internal static class ItemLootPoolPatch
 {
     private static bool hasLoggedInjection;
 
-    [HarmonyPatch(typeof(ItemLootPool), nameof(ItemLootPool.InitializePool))]
+    [HarmonyPatch(nameof(ItemLootPool.InitializePool))]
     [HarmonyPostfix]
     [HarmonyPriority(Priority.Last)]
     private static void InjectLoot()
@@ -41,7 +41,7 @@ internal static class ItemLootPoolPatch
 
         RemoveExistingEntries(id);
 
-        if (!ItemLootPool.pool.ContainsKey(category)) ItemLootPool.pool.Add(category, new List<string>());
+        if (!ItemLootPool.pool.ContainsKey(category)) ItemLootPool.pool.Add(category, []);
 
         var frequency = 1;
         if (def is CustomItemInfo customInfo) frequency = Mathf.Max(0, customInfo.SpawnFrequency);

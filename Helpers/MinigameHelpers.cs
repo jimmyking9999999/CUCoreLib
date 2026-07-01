@@ -264,9 +264,7 @@ public static class CUCoreMinigames
     public static bool TryStart<TMinigame>(Func<TMinigame> factory, Item item = null)
         where TMinigame : Minigame
     {
-        if (factory == null) return false;
-
-        return TryStart(factory(), item);
+        return factory != null && TryStart(factory(), item);
     }
 
     public static bool TryStartDefinition(ICUCoreMinigameDefinition definition, Item item = null)
@@ -277,9 +275,7 @@ public static class CUCoreMinigames
     public static bool TryStartDefinition<TDefinition>(Func<TDefinition> factory, Item item = null)
         where TDefinition : ICUCoreMinigameDefinition
     {
-        if (factory == null) return false;
-
-        return TryStartDefinition(factory(), item);
+        return factory != null && TryStartDefinition(factory(), item);
     }
 
     public static bool TryCreateScreen(string resourceId)
@@ -312,59 +308,45 @@ public static class CUCoreMinigames
 
     public static bool TryGetUiCasts(Vector3 screenPosition, out List<RaycastResult> uiCasts)
     {
-        if (CurrentSession == null)
-        {
-            uiCasts = null;
-            return false;
-        }
+        if (CurrentSession != null) return CurrentSession.TryGetUiCasts(screenPosition, out uiCasts);
+        uiCasts = null;
+        return false;
 
-        return CurrentSession.TryGetUiCasts(screenPosition, out uiCasts);
     }
 
     public static bool TryGetSpawnedMiniGameChild(int index, out Transform child)
     {
-        if (CurrentSession == null)
-        {
-            child = null;
-            return false;
-        }
+        if (CurrentSession != null) return CurrentSession.TryGetSpawnedMiniGameChild(index, out child);
+        child = null;
+        return false;
 
-        return CurrentSession.TryGetSpawnedMiniGameChild(index, out child);
     }
 
     public static bool TryGetSpawnedMiniGameObject(int index, out GameObject gameObject)
     {
-        if (CurrentSession == null)
-        {
-            gameObject = null;
-            return false;
-        }
+        if (CurrentSession != null) return CurrentSession.TryGetSpawnedMiniGameObject(index, out gameObject);
+        gameObject = null;
+        return false;
 
-        return CurrentSession.TryGetSpawnedMiniGameObject(index, out gameObject);
     }
 
     public static bool TryGetSpawnedMiniGameComponent<T>(int index, out T component)
         where T : Component
     {
-        if (CurrentSession == null)
-        {
-            component = null;
-            return false;
-        }
+        if (CurrentSession != null) return CurrentSession.TryGetSpawnedMiniGameComponent(index, out component);
+        component = null;
+        return false;
 
-        return CurrentSession.TryGetSpawnedMiniGameComponent(index, out component);
     }
 
     public static bool TryGetSpawnedMiniGameComponentInChildren<T>(int index, out T component)
         where T : Component
     {
-        if (CurrentSession == null)
-        {
-            component = null;
-            return false;
-        }
+        if (CurrentSession != null)
+            return CurrentSession.TryGetSpawnedMiniGameComponentInChildren(index, out component);
+        component = null;
+        return false;
 
-        return CurrentSession.TryGetSpawnedMiniGameComponentInChildren(index, out component);
     }
 
     public static bool TrySetHandSprite(Sprite sprite)

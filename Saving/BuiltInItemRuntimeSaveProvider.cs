@@ -27,7 +27,7 @@ internal sealed class BuiltInItemRuntimeSaveProvider : IItemSaveProvider
 
     public void Restore(Item item, string itemKey, JToken payload, int version, SaveRestoreContext context)
     {
-        if (item == null || !(payload is JObject obj) || !ItemRegistry.TryGetCustomInfo(item, out _)) return;
+        if (item == null || payload is not JObject obj || !ItemRegistry.TryGetCustomInfo(item, out _)) return;
 
         var enabledToken = obj["lightEnabled"];
         if (enabledToken == null || enabledToken.Type == JTokenType.Null) return;

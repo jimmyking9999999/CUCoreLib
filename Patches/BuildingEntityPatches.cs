@@ -3,10 +3,10 @@ using HarmonyLib;
 
 namespace CUCoreLib.Patches;
 
-[HarmonyPatch(typeof(BuildingEntity), "Start")]
+[HarmonyPatch(typeof(BuildingEntity))]
 internal static class BuildingEntityPatches
 {
-    // todo hold on
+    [HarmonyPatch("Start")]
     [HarmonyPostfix]
     private static void PreserveRegisteredBuildingLocale(BuildingEntity __instance)
     {

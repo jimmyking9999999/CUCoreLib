@@ -4,18 +4,22 @@ using HarmonyLib;
 
 namespace CUCoreLib.Patches;
 
-[HarmonyPatch(typeof(Locale), "GetString")]
+[HarmonyPatch(typeof(Locale))]
 internal static class LocalePatches
 {
+    [HarmonyPatch("GetString")]
     [HarmonyPrefix]
     private static bool InterceptLocale(string str, int type, ref string __result)
     {
         if (Locale.currentLang != null)
         {
-            var section = type == 0 ? Locale.currentLang.main :
-                type == 1 ? Locale.currentLang.buildings :
-                type == 2 ? Locale.currentLang.moodles :
-                Locale.currentLang.other;
+            var section = type switch
+            {
+                0 => Locale.currentLang.main,
+                1 => Locale.currentLang.buildings,
+                2 => Locale.currentLang.moodles,
+                _ => Locale.currentLang.other
+            };
 
             if (section != null && section.TryGetValue(str, out var localizedText) &&
                 !string.IsNullOrWhiteSpace(localizedText))
@@ -31,11 +35,8 @@ internal static class LocalePatches
         __result = fallbackText;
         return false;
     }
-}
-
-[HarmonyPatch(typeof(Locale), "LoadLanguage")]
-internal static class LocaleLoadPatches
-{
+    
+    [HarmonyPatch("LoadLanguage")]
     [HarmonyPostfix]
     private static void ApplyLocaleOverlays()
     {

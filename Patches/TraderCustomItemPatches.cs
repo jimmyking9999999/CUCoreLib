@@ -44,13 +44,9 @@ internal static class TraderCustomItemPatches
         var yOffset = 0f;
         var hasRenderedEntries = false;
 
-        for (var i = 0; i < currentTrader.items.Count; i++)
+        foreach (var traderItem in currentTrader.items)
         {
-            var traderItem = currentTrader.items[i];
-            ItemInfo info;
-            Sprite sprite;
-            GameObject template;
-            if (!TryResolveTraderListing(traderItem, out info, out sprite, out template)) continue;
+            if (!TryResolveTraderListing(traderItem, out var info, out var sprite, out var template)) continue;
 
             if (!hasRenderedEntries || traderItem.preference != traderItemPreference)
             {
@@ -67,9 +63,10 @@ internal static class TraderCustomItemPatches
                     0f,
                     0f,
                     currentTrader.collapsedCategories.Contains(traderItemPreference) ? -90f : 0f);
+                var item = traderItem;
                 split.transform.GetChild(1).GetComponent<Button>().onClick.AddListener(delegate
                 {
-                    __instance.TraderToggleCategory(traderItem.preference);
+                    __instance.TraderToggleCategory(item.preference);
                 });
                 yOffset += 50f;
             }
@@ -111,8 +108,7 @@ internal static class TraderCustomItemPatches
         var body = camera != null ? camera.body : null;
         if (camera == null || body == null) return false;
 
-        ItemInfo info;
-        if (!TryResolveTraderItemInfo(item.id, out info))
+        if (!TryResolveTraderItemInfo(item.id, out var info))
         {
             WarnTraderIssue(item.id, "purchase skipped because no ItemInfo could be resolved (?)");
             // Not sure if this will occur, it'd probably become the large geofruit unity default prefab
@@ -120,8 +116,7 @@ internal static class TraderCustomItemPatches
             return false;
         }
 
-        int price;
-        if (!TryGetTraderItemPrice(__instance, item, info, out price))
+        if (!TryGetTraderItemPrice(__instance, item, info, out var price))
         {
             WarnTraderIssue(item.id, "purchase skipped because price was invalid...");
             camera.PlayUISound(PlayerCamera.UISoundType.Deny);
@@ -147,10 +142,19 @@ internal static class TraderCustomItemPatches
             __instance.valueGiven -= price;
             if (price > 0)
             {
-                if (item.preference == TraderScript.TraderItemPreference.WantsTrade)
-                    __instance.reputation += 7f;
-                else if (item.preference == TraderScript.TraderItemPreference.Indifferent)
-                    __instance.reputation += 4f;
+                switch (item.preference)
+                {
+                    case TraderScript.TraderItemPreference.WantsTrade:
+                        __instance.reputation += 7f;
+                        break;
+                    case TraderScript.TraderItemPreference.Indifferent:
+                        __instance.reputation += 4f;
+                        break;
+                    case TraderScript.TraderItemPreference.WantsKeep:
+                        break;
+                    default:
+                        throw new ArgumentOutOfRangeException();
+                }
             }
 
             var freeAmount = GetFreeAmount(__instance);
@@ -169,8 +173,7 @@ internal static class TraderCustomItemPatches
             __instance.items.Remove(item);
 
             spawned.AddComponent<BoughtItem>();
-            AmmoScript ammo;
-            if (spawned.TryGetComponent(out ammo) &&
+            if (spawned.TryGetComponent(out AmmoScript ammo) &&
                 ammo.itemType == AmmoScript.AmmoItemType.Magazine)
                 ammo.rounds = Random.Range(
                     (int)(ammo.maxRounds * 0.5f),
@@ -181,10 +184,9 @@ internal static class TraderCustomItemPatches
         }
         else
         {
-            if (__instance.totalValueGiven != TraderScript.MAX_VALUE_GIVEN)
-                __instance.talker.Talk(Locale.GetCharacter("traderbuyfail", __instance.character));
-            else
-                __instance.talker.Talk(Locale.GetCharacter("traderbuyfailmaxvalue", __instance.character));
+            __instance.talker.Talk(__instance.totalValueGiven != TraderScript.MAX_VALUE_GIVEN
+                ? Locale.GetCharacter("traderbuyfail", __instance.character)
+                : Locale.GetCharacter("traderbuyfailmaxvalue", __instance.character));
 
             camera.PlayUISound(PlayerCamera.UISoundType.Deny);
             __instance.reputation -= 2f;
@@ -201,16 +203,14 @@ internal static class TraderCustomItemPatches
     {
         if (__instance == null || item == null) return false;
 
-        Container container;
-        if (item.TryGetComponent(out container) && container.GetHoldingWeight() > 0f)
+        if (item.TryGetComponent(out Container container) && container.GetHoldingWeight() > 0f)
         {
             if (PlayerCamera.main != null) PlayerCamera.main.DoAlert(Locale.GetOther("alertsellcontainer"));
 
             return false;
         }
 
-        ItemInfo info;
-        if (!TryResolveTraderItemInfo(item.id, out info))
+        if (!TryResolveTraderItemInfo(item.id, out var info))
         {
             WarnTraderIssue(item.id, "sell skipped because no ItemInfo could be resolved.");
             return false;
@@ -273,8 +273,7 @@ internal static class TraderCustomItemPatches
                 droppedItem.gameObject.GetComponent<SpriteRenderer>() != null)
                 droppedItem.gameObject.AddComponent<FreshItemDrop>();
 
-            AmmoScript ammo;
-            if (droppedItem.TryGetComponent(out ammo) &&
+            if (droppedItem.TryGetComponent(out AmmoScript ammo) &&
                 ammo.itemType == AmmoScript.AmmoItemType.Magazine)
                 ammo.rounds = (int)Mathf.Lerp(0f, ammo.maxRounds, Random.value);
         }
@@ -293,7 +292,7 @@ internal static class TraderCustomItemPatches
         sprite = null;
         template = null;
 
-        var itemId = NormalizeId(traderItem != null ? traderItem.id : null);
+        var itemId = NormalizeId(traderItem?.id);
         if (string.IsNullOrWhiteSpace(itemId))
         {
             WarnTraderIssue(itemId, "skipped trader entry because the item ID was blank.");
@@ -314,13 +313,10 @@ internal static class TraderCustomItemPatches
         }
 
         sprite = GetItemSprite(itemId, template);
-        if (sprite == null)
-        {
-            WarnTraderIssue(itemId, "skipped trader entry because no renderable sprite was found.");
-            return false;
-        }
+        if (sprite != null) return true;
+        WarnTraderIssue(itemId, "skipped trader entry because no renderable sprite was found.");
+        return false;
 
-        return true;
     }
 
     private static void ApplyLiquidFill(GameObject panel, ItemInfo info, GameObject template)
@@ -330,13 +326,11 @@ internal static class TraderCustomItemPatches
 
         var waterContainer = template != null ? template.GetComponent<WaterContainerItem>() : null;
         var fillSprite = GetFillSprite(waterContainer);
-        var liquidInfo = info as LiquidItemInfo;
-        if (fillSprite == null || liquidInfo == null || liquidInfo.defaultContents == null ||
+        if (fillSprite == null || info is not LiquidItemInfo liquidInfo || liquidInfo.defaultContents == null ||
             liquidInfo.defaultContents.Count == 0) return;
 
         var liquidId = liquidInfo.defaultContents[0].liquidId;
-        LiquidType liquidType;
-        if (string.IsNullOrWhiteSpace(liquidId) || !Liquids.Registry.TryGetValue(liquidId, out liquidType)) return;
+        if (string.IsNullOrWhiteSpace(liquidId) || !Liquids.Registry.TryGetValue(liquidId, out var liquidType)) return;
 
         fillImage.enabled = true;
         fillImage.sprite = fillSprite;
@@ -364,15 +358,14 @@ internal static class TraderCustomItemPatches
         tooltip.tipName = info.fullName;
         tooltip.tipDesc = info.description;
 
-        int price;
-        if (!TryGetTraderItemPrice(trader, traderItem, info, out price)) price = 0;
+        if (!TryGetTraderItemPrice(trader, traderItem, info, out var price)) price = 0;
 
         var priceText = panel.transform.GetChild(4).GetComponent<TextMeshProUGUI>();
-        priceText.text = string.Format("{0}{1}", Locale.GetOther("costs"), price);
+        priceText.text = $"{Locale.GetOther("costs")}{price}";
         if (price == 0) priceText.text = Locale.GetOther("free");
 
         panel.transform.GetChild(5).GetComponent<TextMeshProUGUI>().text =
-            string.Format("{0}{1:0.##}u", Locale.GetOther("weighs"), info.weight);
+            $"{Locale.GetOther("weighs")}{info.weight:0.##}u";
         panel.transform.GetChild(6).GetComponent<Button>().onClick.AddListener(delegate
         {
             trader.TryPurchase(traderItem);
@@ -388,9 +381,19 @@ internal static class TraderCustomItemPatches
         if (trader == null || traderItem == null || info == null) return false;
 
         var adjustedValue = traderItem.value * trader.ValueMultiplier();
-        if (traderItem.preference == TraderScript.TraderItemPreference.WantsTrade) adjustedValue *= 0.7f;
-
-        if (traderItem.preference == TraderScript.TraderItemPreference.WantsKeep) adjustedValue *= 1.5f;
+        switch (traderItem.preference)
+        {
+            case TraderScript.TraderItemPreference.WantsTrade:
+                adjustedValue *= 0.7f;
+                break;
+            case TraderScript.TraderItemPreference.WantsKeep:
+                adjustedValue *= 1.5f;
+                break;
+            case TraderScript.TraderItemPreference.Indifferent:
+                break;
+            default:
+                throw new ArgumentOutOfRangeException();
+        }
 
         if (GetFreeDressing(trader) && info.HasTag("dressing")) adjustedValue = 0f;
 
@@ -411,8 +414,7 @@ internal static class TraderCustomItemPatches
 
     private static Sprite GetItemSprite(string id, GameObject template)
     {
-        CustomItemInfo customInfo;
-        if (ItemRegistry.TryGetCustomInfo(id, out customInfo) && customInfo.Icon != null) return customInfo.Icon;
+        if (ItemRegistry.TryGetCustomInfo(id, out var customInfo) && customInfo.Icon != null) return customInfo.Icon;
 
         var renderer = template != null ? template.GetComponent<SpriteRenderer>() : null;
         return renderer != null ? renderer.sprite : null;
@@ -423,9 +425,9 @@ internal static class TraderCustomItemPatches
         if (string.IsNullOrWhiteSpace(id)) return null;
 
         var vanilla = Resources.Load<GameObject>(id);
-        if (vanilla != null) return vanilla;
-
-        return CustomInstantiate.GetOrCreateTemplate(id);
+        return vanilla != null
+            ? vanilla 
+            : CustomInstantiate.GetOrCreateTemplate(id);
     }
 
     private static GameObject CreateResource(string id, Transform parent)
@@ -446,7 +448,7 @@ internal static class TraderCustomItemPatches
         if (trader == null || FreeAmountField == null) return 0;
 
         var value = FreeAmountField.GetValue(trader);
-        return value is int ? (int)value : 0;
+        return value is int v ? v : 0;
     }
 
     private static void SetFreeAmount(TraderScript trader, int value)
@@ -461,7 +463,7 @@ internal static class TraderCustomItemPatches
         if (trader == null || FreeDressingField == null) return false;
 
         var value = FreeDressingField.GetValue(trader);
-        return value is bool && (bool)value;
+        return value is true;
     }
 
     private static void SetFreeDressing(TraderScript trader, bool value)

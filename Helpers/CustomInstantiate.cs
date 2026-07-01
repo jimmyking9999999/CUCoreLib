@@ -14,7 +14,7 @@ public static class CustomInstantiate
     private static readonly Dictionary<string, GameObject> _templateCache = new(StringComparer.OrdinalIgnoreCase);
 
     // Shared buffer avoids per-shape allocations (physics)
-    private static readonly List<Vector2> SharedPhysicsShapeBuffer = new();
+    private static readonly List<Vector2> SharedPhysicsShapeBuffer = [];
 
     public static GameObject InstantiateReturn(string id, Vector3 position, Quaternion rotation,
         float? condition = null)
@@ -241,9 +241,9 @@ public static class CustomInstantiate
         if (info.Battery != null || info.Light != null) return "flashlight";
         if (info.capacity > 0f || (info.defaultContents != null && info.defaultContents.Count > 0))
             return "waterbottle";
-        if (info.category == "water" || info.category == "liquid") return "waterbottle";
-
-        return "bandage";
+        return info.category is "water" or "liquid"
+            ? "waterbottle"
+            : "bandage";
     }
 
     private static Light2D.LightType ToLight2DType(CustomLightType type)

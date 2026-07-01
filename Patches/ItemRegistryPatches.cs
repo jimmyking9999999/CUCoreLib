@@ -20,7 +20,7 @@ internal static class ItemRegistryPatches
 
     private static readonly Dictionary<int, int> NextLightLookupFrameByInstance = new();
 
-    private static readonly HashSet<string> WarnedInvalidDecayConfigurations = new();
+    private static readonly HashSet<string> WarnedInvalidDecayConfigurations = [];
 
     // Startup injection
     [HarmonyPatch("SetupItems")]
@@ -75,7 +75,7 @@ internal static class ItemRegistryPatches
         if (def != null && !string.IsNullOrWhiteSpace(def.IconAnimationId))
         {
             var animation = AssetLoader.GetCachedSpriteAnimation(def.IconAnimationId);
-            if (animation != null && animation.Frames != null && animation.Frames.Length > 0)
+            if (animation is { Frames.Length: > 0 })
                 return animation.Frames[0];
         }
 
@@ -233,7 +233,7 @@ internal static class ItemRegistryPatches
             wat.fillSprite = def.LiquidMask;
 
             if (!createdWaterContainer || (wat.stack != null && wat.stack.Count != 0)) return;
-            wat.stack = new List<LiquidStack>();
+            wat.stack = [];
             if (def.Syringe.DefaultContents != null)
                 foreach (var liquid in def.Syringe.DefaultContents)
                     wat.stack.Add(new LiquidStack(liquid.liquidId, liquid.amount));
@@ -245,7 +245,7 @@ internal static class ItemRegistryPatches
 
     private static bool IsLiquidContainer(CustomItemInfo def)
     {
-        return def != null && (def.capacity > 0f || (def.defaultContents != null && def.defaultContents.Count > 0));
+        return def != null && (def.capacity > 0f || def.defaultContents is { Count: > 0 });
     }
 
     private static List<LiquidStack> CopyLiquidStacks(List<LiquidStack> source)
@@ -515,7 +515,7 @@ internal static class ItemRegistryPatches
 
     // GetItem Patch
     [HarmonyPatch("GetItem")]
-    [HarmonyPatch(new[] { typeof(string) })]
+    [HarmonyPatch([typeof(string)])]
     [HarmonyPrefix]
     public static bool GetItem_Prefix(string id, ref ItemInfo __result)
     {

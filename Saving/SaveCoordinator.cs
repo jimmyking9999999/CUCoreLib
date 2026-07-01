@@ -141,7 +141,7 @@ internal static class SaveCoordinator
         // Need all sections present
         root["global"] = global ?? new JObject();
         root["body"] = bodyPayload ?? new JObject();
-        root["limbs"] = limbs ?? new JArray();
+        root["limbs"] = limbs ?? [];
         root["items"] = items ?? new JObject();
         root["world"] = world ?? new JObject();
 
@@ -171,7 +171,7 @@ internal static class SaveCoordinator
     private static JArray CaptureLimbProviders(Body body)
     {
         var result = new JArray();
-        var limbs = body.limbs ?? Array.Empty<Limb>();
+        var limbs = body.limbs ?? [];
         for (var i = 0; i < limbs.Length; i++)
         {
             var limbObject = new JObject();
@@ -285,8 +285,7 @@ internal static class SaveCoordinator
                 continue;
             }
 
-            var limbObject = payloadRoot[i] as JObject;
-            if (limbObject == null) continue;
+            if (payloadRoot[i] is not JObject limbObject) continue;
 
             WarnUnknownProviders(limbObject, SaveRegistry.LimbProviderKeys, "limb[" + i + "]");
 
@@ -325,8 +324,7 @@ internal static class SaveCoordinator
                 continue;
             }
 
-            var itemObject = itemProperty.Value as JObject;
-            if (itemObject == null) continue;
+            if (itemProperty.Value is not JObject itemObject) continue;
 
             WarnUnknownProviders(itemObject, SaveRegistry.ItemProviderKeys, "item[" + itemProperty.Name + "]");
 
@@ -399,21 +397,15 @@ internal static class SaveCoordinator
 
     private static int GetProviderVersion(object provider)
     {
-        switch (provider)
+        return provider switch
         {
-            case ICustomSaveProvider custom:
-                return Math.Max(0, custom.GetVersion());
-            case IItemSaveProvider item:
-                return Math.Max(0, item.GetVersion());
-            case IBodySaveProvider body:
-                return Math.Max(0, body.GetVersion());
-            case ILimbSaveProvider limb:
-                return Math.Max(0, limb.GetVersion());
-            case IWorldSaveProvider world:
-                return Math.Max(0, world.GetVersion());
-            default:
-                return 0;
-        }
+            ICustomSaveProvider custom => Math.Max(0, custom.GetVersion()),
+            IItemSaveProvider item => Math.Max(0, item.GetVersion()),
+            IBodySaveProvider body => Math.Max(0, body.GetVersion()),
+            ILimbSaveProvider limb => Math.Max(0, limb.GetVersion()),
+            IWorldSaveProvider world => Math.Max(0, world.GetVersion()),
+            _ => 0
+        };
     }
 
     private static List<SaveItemEntry> BuildItemEntries(Body body)

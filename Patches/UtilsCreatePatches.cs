@@ -16,7 +16,7 @@ internal static class UtilsCreatePatches
 
     private static MethodBase TargetMethod()
     {
-        return AccessTools.Method("Utils:Create", new[] { typeof(string), typeof(Vector2), typeof(float) });
+        return AccessTools.Method("Utils:Create", [typeof(string), typeof(Vector2), typeof(float)]);
     }
 
     [HarmonyPrefix]

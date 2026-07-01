@@ -18,6 +18,7 @@ public class UpdateChecker : MonoBehaviour
     private static bool _initialized;
     private static bool _hasChecked;
     private static string _currentVersion;
+    private static ConsoleScript _cachedConsole;
 
     public static void Initialize(ManualLogSource logger)
     {
@@ -111,32 +112,23 @@ public class UpdateChecker : MonoBehaviour
         else
             _logger?.LogInfo(message);
 
-        if (_instance != null)
+        if (_instance)
             _instance.StartCoroutine(NotifyRoutine(message, warning));
     }
 
     private static IEnumerator NotifyRoutine(string message, bool warning)
     {
-        ConsoleScript console = null;
-        var attempts = 0;
-
-        while (!console && attempts < 50)
+        if (!_cachedConsole)
         {
-            console = ConsoleScript.instance
-                ? ConsoleScript.instance
-                : FindObjectOfType<ConsoleScript>();
-
-            if (console) continue;
-            attempts++;
-            yield return new WaitForSecondsRealtime(0.2f);
+            _cachedConsole = ConsoleScript.instance;
+            if (!_cachedConsole)
+                _cachedConsole = FindObjectOfType<ConsoleScript>();
         }
 
-        if (console != null)
-        {
-            var consoleMessage = warning
-                ? "<color=#FFA500>" + message + "</color>"
-                : message;
-            ConsoleUtils.LogToConsole(console, consoleMessage);
-        }
+        if (!_cachedConsole) yield break;
+        var consoleMessage = warning
+            ? "<color=#FFA500>" + message + "</color>"
+            : message;
+        ConsoleUtils.LogToConsole(_cachedConsole, consoleMessage);
     }
 }

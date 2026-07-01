@@ -7,7 +7,7 @@ namespace CUCoreLib.Registries;
 
 public static class ConsoleCommandRegistry
 {
-    private static readonly List<Command> RegisteredCommands = new();
+    private static readonly List<Command> RegisteredCommands = [];
 
     public static void Register(string name, string description, Command.Action action,
         Dictionary<int, List<string>> argAutofill = null, params (string, string)[] argDescription)

@@ -26,7 +26,7 @@ public static class LiquidRegistry
             return;
         }
 
-        if (info == null) info = new CustomLiquidInfo();
+        info ??= new CustomLiquidInfo();
 
         id = id.Trim();
         RegisteredLiquids[id] = info;
@@ -72,9 +72,9 @@ public static class LiquidRegistry
     {
         if (string.IsNullOrWhiteSpace(id) || info == null) return false;
 
-        if (info.onDrink == null) info.onDrink = (amount, body) => { };
+        info.onDrink ??= (amount, body) => { };
 
-        if (info.onHealthUse == null) info.onHealthUse = (amount, limb) => { };
+        info.onHealthUse ??= (amount, limb) => { };
 
         var wasPresent = Liquids.Registry.ContainsKey(id);
         Liquids.Registry[id] = new LiquidType
@@ -88,7 +88,7 @@ public static class LiquidRegistry
             injectable = info.injectable,
             injectionSickness = info.injectionSickness,
             localeFromItem = info.localeFromItem,
-            qualities = info.qualities ?? new List<CraftingQuality>()
+            qualities = info.qualities ?? []
         };
 
         if (!string.IsNullOrEmpty(info.name)) LocaleRegistry.Register("liquid", id, info.name);
@@ -175,7 +175,7 @@ public static class LiquidRegistry
 
         foreach (var property in snapshot.Properties())
         {
-            if (!(property.Value is JObject obj)) continue;
+            if (property.Value is not JObject obj) continue;
 
             Register(property.Name, new CustomLiquidInfo
             {

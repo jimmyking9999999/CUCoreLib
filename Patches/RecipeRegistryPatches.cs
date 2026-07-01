@@ -1,5 +1,4 @@
-﻿using System.Collections.Generic;
-using CUCoreLib.Helpers;
+﻿using CUCoreLib.Helpers;
 using CUCoreLib.Registries;
 using HarmonyLib;
 using UnityEngine;
@@ -128,7 +127,7 @@ internal static class RecipeRegistryPatches
 
                 if (!__instance.dontDrainResultLiquid &&
                     component.TryGetComponent<WaterContainerItem>(out var wat))
-                    wat.stack = new List<LiquidStack>();
+                    wat.stack = [];
             }
             else
             {

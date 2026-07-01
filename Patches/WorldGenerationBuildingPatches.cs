@@ -4,9 +4,10 @@ using HarmonyLib;
 
 namespace CUCoreLib.Patches;
 
-[HarmonyPatch(typeof(WorldGeneration), "PlaceCrystals")]
+[HarmonyPatch(typeof(WorldGeneration))]
 internal static class WorldGenerationBuildingPatches
 {
+    [HarmonyPatch("PlaceCrystals")]
     [HarmonyPostfix]
     private static void DistributeRegisteredBuildings(WorldGeneration __instance)
     {

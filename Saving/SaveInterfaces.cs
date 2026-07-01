@@ -50,7 +50,7 @@ public sealed class WorldSaveContext
 
 public sealed class SaveRestoreContext
 {
-    private readonly List<Action> _deferredActions = new();
+    private readonly List<Action> _deferredActions = [];
 
     internal SaveRestoreContext()
     {

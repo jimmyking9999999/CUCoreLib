@@ -10,7 +10,7 @@ using UnityEngine;
 
 namespace CUCoreLib.Patches;
 
-[HarmonyPatch(typeof(ConsoleScript), "RegisterAllCommands")]
+[HarmonyPatch(typeof(ConsoleScript))]
 internal static class ConsolePatch
 {
     internal static void RefreshRuntimeAutofill()
@@ -22,6 +22,7 @@ internal static class ConsolePatch
         RefreshSetTileAutofill();
     }
 
+    [HarmonyPatch("RegisterAllCommands")]
     [HarmonyPostfix]
     private static void AddBuiltInCommands(ConsoleScript __instance)
     {
@@ -134,7 +135,7 @@ internal static class ConsolePatch
         };
     }
 
-    [HarmonyPatch(typeof(ConsoleScript), "RegisterSpawnEntities")]
+    [HarmonyPatch("RegisterSpawnEntities")]
     [HarmonyPostfix]
     private static void AppendSpawnAutofill(ConsoleScript __instance)
     {
@@ -146,11 +147,11 @@ internal static class ConsolePatch
         var spawnCommand = ConsoleScript.SearchExact("spawn");
         if (spawnCommand == null) return;
 
-        if (spawnCommand.argAutofill == null) spawnCommand.argAutofill = new Dictionary<int, List<string>>();
+        spawnCommand.argAutofill ??= new Dictionary<int, List<string>>();
 
         if (!spawnCommand.argAutofill.TryGetValue(0, out var spawnIds))
         {
-            spawnIds = new List<string>();
+            spawnIds = [];
             spawnCommand.argAutofill[0] = spawnIds;
         }
 
@@ -162,9 +163,8 @@ internal static class ConsolePatch
     private static void RefreshCustomSpawnAutofill()
     {
         var customSpawnCommand = ConsoleScript.SearchExact("cuspawn");
-        if (customSpawnCommand == null) return;
 
-        customSpawnCommand.argAutofill = BuildCustomSpawnAutofill();
+        customSpawnCommand?.argAutofill = BuildCustomSpawnAutofill();
     }
 
     private static IEnumerable<string> GetVanillaSpawnIds()
@@ -198,12 +198,11 @@ internal static class ConsolePatch
         var addLiquidCommand = ConsoleScript.SearchExact("addliquid");
         if (addLiquidCommand == null) return;
 
-        if (addLiquidCommand.argAutofill == null)
-            addLiquidCommand.argAutofill = new Dictionary<int, List<string>>();
+        addLiquidCommand.argAutofill ??= new Dictionary<int, List<string>>();
 
         if (!addLiquidCommand.argAutofill.TryGetValue(0, out var liquidIds))
         {
-            liquidIds = new List<string>();
+            liquidIds = [];
             addLiquidCommand.argAutofill[0] = liquidIds;
         }
 
@@ -217,9 +216,8 @@ internal static class ConsolePatch
     private static void RefreshSetTileAutofill()
     {
         var setTileCommand = ConsoleScript.SearchExact("settile");
-        if (setTileCommand == null) return;
 
-        setTileCommand.argAutofill = BuildSetTileAutofill();
+        setTileCommand?.argAutofill = BuildSetTileAutofill();
     }
 
     private static Dictionary<int, List<string>> BuildReloadContentAutofill()
@@ -233,9 +231,8 @@ internal static class ConsolePatch
     private static void RefreshReloadContentAutofill()
     {
         var reloadContentCommand = ConsoleScript.SearchExact("reloadcontent");
-        if (reloadContentCommand == null) return;
 
-        reloadContentCommand.argAutofill = BuildReloadContentAutofill();
+        reloadContentCommand?.argAutofill = BuildReloadContentAutofill();
     }
 
     private static string FindBestMatch(string query)
@@ -258,12 +255,12 @@ internal static class ConsolePatch
     private static bool TryParsePosition(ConsoleScript console, string value, out Vector2 position)
     {
         position = default;
-        var parsePosition = AccessTools.Method(typeof(ConsoleScript), "ParsePosition", new[] { typeof(string) });
+        var parsePosition = AccessTools.Method(typeof(ConsoleScript), "ParsePosition", [typeof(string)]);
         if (console == null || parsePosition == null) return false;
 
         try
         {
-            position = (Vector2)parsePosition.Invoke(console, new object[] { value });
+            position = (Vector2)parsePosition.Invoke(console, [value]);
             return true;
         }
         catch

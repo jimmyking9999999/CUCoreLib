@@ -4,9 +4,10 @@ using UnityEngine;
 
 namespace CUCoreLib.Patches;
 
-[HarmonyPatch(typeof(CorpseScript), "Start")]
+[HarmonyPatch(typeof(CorpseScript))]
 internal static class CorpsePatches
 {
+    [HarmonyPatch("Start")]
     // May produce unwanted behaviour with another corpsescript patcher
     private static bool Prefix(CorpseScript __instance)
     {

@@ -55,9 +55,9 @@ internal static class CustomWearablePatches
         var item = __instance != null ? __instance.GetComponent<Item>() : null;
         if (item == null || !ItemRegistry.TryGetCustomInfo(item, out var def) || def.WornSprite == null) return;
 
-        __instance.secondaryLimbs = Array.Empty<string>();
-        __instance.secondaryLimbSprites = Array.Empty<Sprite>();
-        __instance.secondaryObjects = Array.Empty<GameObject>();
+        __instance.secondaryLimbs = [];
+        __instance.secondaryLimbSprites = [];
+        __instance.secondaryObjects = [];
     }
 
     private static void ApplySprite(Item item, Sprite sprite)

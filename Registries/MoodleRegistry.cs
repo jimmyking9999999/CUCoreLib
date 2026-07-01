@@ -11,8 +11,8 @@ namespace CUCoreLib.Registries;
 public static class MoodleRegistry
 {
     private const float DefaultHoldSeconds = 0.75f;
-    private static readonly List<IBodyMoodleContributor> BodyContributors = new();
-    private static readonly List<ILimbMoodleContributor> LimbContributors = new();
+    private static readonly List<IBodyMoodleContributor> BodyContributors = [];
+    private static readonly List<ILimbMoodleContributor> LimbContributors = [];
 
     private static readonly Dictionary<string, QueuedMoodle> QueuedMoodles = new(StringComparer.Ordinal);
 
@@ -99,7 +99,7 @@ public static class MoodleRegistry
         float holdSeconds = DefaultHoldSeconds)
     {
         var animation = AssetLoader.GetCachedSpriteAnimation(animationId);
-        if (animation == null || animation.Frames == null || animation.Frames.Length == 0) return;
+        if (animation?.Frames == null || animation.Frames.Length == 0) return;
 
         QueueMoodle(
             key,
@@ -142,7 +142,7 @@ public static class MoodleRegistry
         {
             if (entry.Value.ExpiresAt < Time.unscaledTime)
             {
-                if (expiredKeys == null) expiredKeys = new List<string>();
+                expiredKeys ??= [];
 
                 expiredKeys.Add(entry.Key);
                 continue;
@@ -205,16 +205,12 @@ public static class MoodleRegistry
 
     internal static void ApplyNetworkSnapshot(JObject snapshot)
     {
-        if (snapshot == null) return;
-
-        var queued = snapshot["queued"] as JArray;
-        if (queued == null) return;
+        if (snapshot?["queued"] is not JArray queued) return;
 
         QueuedMoodles.Clear();
         foreach (var token in queued)
         {
-            var obj = token as JObject;
-            if (obj == null) continue;
+            if (token is not JObject obj) continue;
 
             var key = obj.Value<string>("key");
             var iconId = obj.Value<string>("iconId");
@@ -339,35 +335,23 @@ public static class MoodleRegistry
         StatusMoodleDefinition Build(Limb limb);
     }
 
-    private sealed class BodyMoodleContributor<TStatus> : IBodyMoodleContributor
+    private sealed class BodyMoodleContributor<TStatus>(Func<Body, TStatus, StatusMoodleDefinition> buildMoodle)
+        : IBodyMoodleContributor
         where TStatus : BodyStatus, new()
     {
-        private readonly Func<Body, TStatus, StatusMoodleDefinition> _buildMoodle;
-
-        public BodyMoodleContributor(Func<Body, TStatus, StatusMoodleDefinition> buildMoodle)
-        {
-            _buildMoodle = buildMoodle;
-        }
-
         public StatusMoodleDefinition Build(Body body)
         {
-            return _buildMoodle(body, body.GetStatus<TStatus>());
+            return buildMoodle(body, body.GetStatus<TStatus>());
         }
     }
 
-    private sealed class LimbMoodleContributor<TStatus> : ILimbMoodleContributor
+    private sealed class LimbMoodleContributor<TStatus>(Func<Limb, TStatus, StatusMoodleDefinition> buildMoodle)
+        : ILimbMoodleContributor
         where TStatus : LimbStatus, new()
     {
-        private readonly Func<Limb, TStatus, StatusMoodleDefinition> _buildMoodle;
-
-        public LimbMoodleContributor(Func<Limb, TStatus, StatusMoodleDefinition> buildMoodle)
-        {
-            _buildMoodle = buildMoodle;
-        }
-
         public StatusMoodleDefinition Build(Limb limb)
         {
-            return _buildMoodle(limb, limb.GetStatus<TStatus>());
+            return buildMoodle(limb, limb.GetStatus<TStatus>());
         }
     }
 

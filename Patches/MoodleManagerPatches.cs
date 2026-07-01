@@ -8,9 +8,10 @@ using UnityEngine.UI;
 
 namespace CUCoreLib.Patches;
 
-[HarmonyPatch(typeof(MoodleManager), "AddAllMoodles")]
+[HarmonyPatch(typeof(MoodleManager))]
 internal static class MoodleManagerPatches
 {
+    [HarmonyPatch("AddAllMoodles")]
     [HarmonyPrefix]
     private static void AddAllMoodles_Prefix(MoodleManager __instance)
     {
@@ -42,9 +43,10 @@ internal static class MoodleManagerPatches
             var instruction = codes[i];
             yield return instruction;
 
-            if (instruction.opcode != OpCodes.Ldc_I4_1 || i + 1 >= codes.Count ||
-                codes[i + 1].opcode != OpCodes.Stfld || !(codes[i + 1].operand is FieldInfo field) ||
-                field.Name != "sideMoodles") continue;
+            if (instruction.opcode != OpCodes.Ldc_I4_1
+                || i + 1 >= codes.Count
+                || codes[i + 1].opcode != OpCodes.Stfld 
+                || codes[i + 1].operand is not FieldInfo { Name: "sideMoodles" }) continue;
             yield return new CodeInstruction(OpCodes.Ldarg_0);
             yield return CodeInstruction.Call(typeof(MoodleManagerPatches), nameof(AddSideCustomMoodles));
         }

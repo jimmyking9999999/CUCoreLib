@@ -149,7 +149,7 @@ internal static class NetworkSnapshotSerialization
 
     internal static Type[] ReadTypeNames(JToken token)
     {
-        if (!(token is JArray array)) return null;
+        if (token is not JArray array) return null;
 
         return (from entry in array
                 select entry?

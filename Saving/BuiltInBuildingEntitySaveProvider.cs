@@ -35,7 +35,7 @@ internal sealed class BuiltInBuildingEntitySaveProvider : IWorldSaveProvider
 
     public void Restore(WorldSaveContext context, JToken payload, int version, SaveRestoreContext contextForRestore)
     {
-        if (!(payload is JArray buildings)) return;
+        if (payload is not JArray buildings) return;
 
         contextForRestore.Defer(() =>
         {

@@ -53,7 +53,7 @@ internal static class KrokMpCompatibilityPatches
         var packetType = ResolveLoadedType(GOSyncPacketTypeName);
         if (packetType != null)
         {
-            var apply = AccessTools.Method(packetType, "Apply", new[] { typeof(string), typeof(uint) });
+            var apply = AccessTools.Method(packetType, "Apply", [typeof(string), typeof(uint)]);
             if (apply != null && TryResolveReflection(packetType))
             {
                 var replacement = CreateApplyReplacement(packetType);
@@ -98,12 +98,11 @@ internal static class KrokMpCompatibilityPatches
         var method = new DynamicMethod(
             "CUCoreLib_KrokMP_GOSyncPacket_ApplyReplacement",
             _syncInfoType,
-            new[]
-            {
+            [
                 packetType.MakeByRefType(),
                 typeof(string),
                 typeof(uint)
-            },
+            ],
             typeof(KrokMpCompatibilityPatches).Module,
             true);
 
@@ -127,10 +126,10 @@ internal static class KrokMpCompatibilityPatches
 
         _getSyncInfoMethod = AccessTools.Method(packetType, "GetSyncInfo");
         _registerGoMethod = AccessTools.Method(_netObjectRegistryType, "_RegisterGO",
-            new[] { typeof(GameObject), typeof(uint) });
-        _unregisterGoMethod = AccessTools.Method(_netObjectRegistryType, "_UnregisterGO", new[] { typeof(uint) });
+            [typeof(GameObject), typeof(uint)]);
+        _unregisterGoMethod = AccessTools.Method(_netObjectRegistryType, "_UnregisterGO", [typeof(uint)]);
         _clientGetRequestedExistenceObjFromIdMethod = AccessTools.Method(_netObjectRegistryType,
-            "Client_GetRequestedExistenceObjFromId", new[] { typeof(uint) });
+            "Client_GetRequestedExistenceObjFromId", [typeof(uint)]);
         _netSyncIdField = AccessTools.Field(packetType, "net_syncid");
         _objTypeField = AccessTools.Field(packetType, "objtype");
         _posField = AccessTools.Field(packetType, "pos");
@@ -171,7 +170,7 @@ internal static class KrokMpCompatibilityPatches
         if (request_response != 0u)
         {
             var requested =
-                _clientGetRequestedExistenceObjFromIdMethod.Invoke(null, new object[] { request_response }) as
+                _clientGetRequestedExistenceObjFromIdMethod.Invoke(null, [request_response]) as
                     GameObject;
             if (requested != null)
             {
@@ -197,7 +196,7 @@ internal static class KrokMpCompatibilityPatches
                 return syncInfo;
             }
 
-            _unregisterGoMethod.Invoke(null, new object[] { (uint)_syncInfoSyncIdField.GetValue(syncInfo) });
+            _unregisterGoMethod.Invoke(null, [(uint)_syncInfoSyncIdField.GetValue(syncInfo)]);
         }
 
         if (string.IsNullOrWhiteSpace(resource_stringid)) return null;
@@ -232,7 +231,7 @@ internal static class KrokMpCompatibilityPatches
     private static bool IsIgnored(object syncInfo)
     {
         var result = _syncInfoIsIgnoredMethod.Invoke(syncInfo, null);
-        return result is bool flag && flag;
+        return result is true;
     }
 
     private static void ApplyTransform(object packet, GameObject instance)
@@ -258,7 +257,7 @@ internal static class KrokMpCompatibilityPatches
     private static object RegisterPacketObject(object packet, GameObject instance)
     {
         var registered =
-            _registerGoMethod.Invoke(null, new object[] { instance, (uint)_netSyncIdField.GetValue(packet) });
+            _registerGoMethod.Invoke(null, [instance, (uint)_netSyncIdField.GetValue(packet)]);
         if (registered != null) _syncInfoObjTypeField.SetValue(registered, _objTypeField.GetValue(packet));
 
         return registered;

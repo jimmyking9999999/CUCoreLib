@@ -66,7 +66,7 @@ public static class ItemRegistry
             return;
         }
 
-        if (info == null) info = new CustomItemInfo();
+        info ??= new CustomItemInfo();
 
         id = id.Trim();
         info.ID = id;
@@ -136,9 +136,8 @@ public static class ItemRegistry
             .Select(entry => entry.Key)
             .ToArray();
 
-        for (var i = 0; i < ids.Length; i++)
+        foreach (var id in ids)
         {
-            var id = ids[i];
             RegisteredItems.Remove(id);
             ItemOwners.Remove(id);
             Item.GlobalItems?.Remove(id);
@@ -189,7 +188,7 @@ public static class ItemRegistry
                 ["decayInfo"] = info.decayInfo,
                 ["decayMinutes"] = info.decayMinutes,
                 ["spawnFrequency"] = info.SpawnFrequency,
-                ["recognitionMin"] = info.rec != null ? info.rec.min : 0,
+                ["recognitionMin"] = info.rec?.min ?? 0,
                 ["capacity"] = info.capacity,
                 ["autoFill"] = info.autoFill,
                 ["defaultContents"] = NetworkSnapshotSerialization.WriteLiquidStacks(info.defaultContents),
@@ -206,7 +205,7 @@ public static class ItemRegistry
                 ["spriteScaleExpandToFirstMetCondition"] = info.SpriteScaleDimensions.ExpandToFirstMetCondition,
                 ["spawnComponents"] = info.SpawnComponents != null
                     ? JArray.FromObject(info.SpawnComponents)
-                    : new JArray(),
+                    : [],
                 ["customData"] = info.CustomData != null ? JObject.FromObject(info.CustomData) : new JObject()
             };
 
@@ -267,8 +266,7 @@ public static class ItemRegistry
         foreach (var property in snapshot.Properties())
         {
             var id = property.Name;
-            var obj = property.Value as JObject;
-            if (string.IsNullOrWhiteSpace(id) || obj == null) continue;
+            if (string.IsNullOrWhiteSpace(id) || property.Value is not JObject obj) continue;
 
             var info = new CustomItemInfo
             {
@@ -322,14 +320,11 @@ public static class ItemRegistry
                     obj.Value<float?>("wornSpriteOffsetY") ?? 0f)
             };
 
-            var container = obj["container"] as JObject;
-            if (container != null) info.Container = container.ToObject<ContainerProperties>();
+            if (obj["container"] is JObject container) info.Container = container.ToObject<ContainerProperties>();
 
-            var battery = obj["battery"] as JObject;
-            if (battery != null) info.Battery = battery.ToObject<BatteryProperties>();
+            if (obj["battery"] is JObject battery) info.Battery = battery.ToObject<BatteryProperties>();
 
-            var light = obj["light"] as JObject;
-            if (light != null)
+            if (obj["light"] is JObject light)
                 info.Light = new LightProperties
                 {
                     Intensity = light.Value<float?>("intensity") ?? 0.75f,
@@ -342,11 +337,9 @@ public static class ItemRegistry
                     AddLightItem = light.Value<bool?>("addLightItem") ?? true
                 };
 
-            var bandage = obj["bandage"] as JObject;
-            if (bandage != null) info.Bandage = bandage.ToObject<BandageProperties>();
+            if (obj["bandage"] is JObject bandage) info.Bandage = bandage.ToObject<BandageProperties>();
 
-            var syringe = obj["syringe"] as JObject;
-            if (syringe != null)
+            if (obj["syringe"] is JObject syringe)
                 info.Syringe = new SyringeProperties
                 {
                     Capacity = syringe.Value<float?>("capacity") ?? 0f,
@@ -357,8 +350,7 @@ public static class ItemRegistry
                     DefaultContents = NetworkSnapshotSerialization.ReadLiquidStacks(syringe["defaultContents"])
                 };
 
-            var tool = obj["tool"] as JObject;
-            if (tool != null) info.Tool = tool.ToObject<ToolProperties>();
+            if (obj["tool"] is JObject tool) info.Tool = tool.ToObject<ToolProperties>();
 
             var qualities = obj["qualities"];
             if (qualities != null) info.qualities = NetworkSnapshotSerialization.ReadCraftingQualities(qualities);
@@ -379,17 +371,13 @@ public static class ItemRegistry
     public static bool TryGetCustomInfo(string id, out CustomItemInfo info)
     {
         info = null;
-        if (string.IsNullOrWhiteSpace(id)) return false;
-
-        return RegisteredItems.TryGetValue(SpawnIdHelpers.NormalizeSpawnId(id), out info);
+        return !string.IsNullOrWhiteSpace(id) && RegisteredItems.TryGetValue(SpawnIdHelpers.NormalizeSpawnId(id), out info);
     }
 
     public static bool TryGetCustomInfo(Item item, out CustomItemInfo info)
     {
         info = null;
-        if (item == null) return false;
-
-        return TryGetCustomInfo(item.id, out info);
+        return item != null && TryGetCustomInfo(item.id, out info);
     }
 
     public static bool TryGetCustomInfo(ItemInfo stats, out CustomItemInfo info)
@@ -408,7 +396,7 @@ public static class ItemRegistry
 
         if (!TryGetCustomInfo(item.Stats, out var info)) return false;
         if (info.CustomData == null || !info.CustomData.TryGetValue(key, out var rawValue)) return false;
-        if (!(rawValue is T typedValue)) return false;
+        if (rawValue is not T typedValue) return false;
 
         value = typedValue;
         return true;
@@ -543,18 +531,12 @@ public static class ItemRegistry
     {
         if (info?.Battery == null || !string.IsNullOrWhiteSpace(info.Battery.BatteryType)) return;
 
-        switch (info.Battery.Preset)
+        info.Battery.BatteryType = info.Battery.Preset switch
         {
-            case BatteryItem.BatteryPreset.Small:
-                info.Battery.BatteryType = "smallbattery";
-                break;
-            case BatteryItem.BatteryPreset.Large:
-                info.Battery.BatteryType = "largebattery";
-                break;
-            default:
-                info.Battery.BatteryType = "mediumbattery";
-                break;
-        }
+            BatteryItem.BatteryPreset.Small => "smallbattery",
+            BatteryItem.BatteryPreset.Large => "largebattery",
+            _ => "mediumbattery"
+        };
     }
 
     private static void ApplyDestroyAtZeroConditionDefault(CustomItemInfo info)
@@ -591,10 +573,10 @@ public static class ItemRegistry
 
     private static bool IsStandardLiquidContainer(ItemInfo info)
     {
-        if (!(info is LiquidItemInfo liquidInfo)) return false;
+        if (info is not LiquidItemInfo liquidInfo) return false;
 
         return liquidInfo.capacity > 0f ||
-               (liquidInfo.defaultContents != null && liquidInfo.defaultContents.Count > 0) ||
+               liquidInfo.defaultContents is { Count: > 0 } ||
                liquidInfo.autoFill;
     }
 
@@ -636,7 +618,7 @@ public static class ItemRegistry
                         color), item);
             };
 
-        if (info.Tool != null)
+        if (info.Tool == null) return;
         {
             info.autoAttack = true;
             info.useAction = (body, item) =>
@@ -657,9 +639,9 @@ public static class ItemRegistry
                         : Resources.Load<GameObject>(tool.AttackAnimation),
                     staminaUse = tool.StaminaUse,
                     piercing = tool.Piercing,
-                    swingSounds = tool.SwingSounds != null && tool.SwingSounds.Length > 0
+                    swingSounds = tool.SwingSounds is { Length: > 0 }
                         ? tool.SwingSounds
-                        : new[] { "BSSwing1", "BSSwing2", "BSSwing3", "BSSwing4" },
+                        : ["BSSwing1", "BSSwing2", "BSSwing3", "BSSwing4"],
                     volume = tool.Volume,
                     rotateAmount = tool.RotateAmount,
                     physicalSwing = tool.PhysicalSwing,
@@ -675,7 +657,7 @@ public static class ItemRegistry
     private static void EnsureQualitiesForTags(ItemInfo info)
     {
         if (info == null || string.IsNullOrWhiteSpace(info.tags)) return;
-        if (info.qualities == null) info.qualities = new List<CraftingQuality>();
+        info.qualities ??= [];
 
         AddQualityForTag(info, "dressing");
         AddQualityForTag(info, "hammering");
@@ -694,7 +676,7 @@ public static class ItemRegistry
     private static void AddQualityForTag(ItemInfo info, string tag)
     {
         var tags = info.tags.Split(',');
-        if (!tags.Any(t => t.Trim() == tag)) return;
+        if (tags.All(t => t.Trim() != tag)) return;
         if (info.qualities.Any(q => q.id == tag)) return;
 
         info.qualities.Add(new CraftingQuality(tag));

@@ -43,17 +43,17 @@ public sealed class AnimatedImage : MonoBehaviour
 
     private void ApplyCurrentFrame()
     {
-        if (_image == null || _animation == null || _animation.Frames == null ||
+        if (!_image || _animation?.Frames == null ||
             _animation.Frames.Length == 0) return;
 
         var frameIndex = ResolveFrameIndex();
         var frame = _animation.Frames[frameIndex];
-        if (frame != null) _image.sprite = frame;
+        if (frame) _image.sprite = frame;
     }
 
     private int ResolveFrameIndex()
     {
-        if (_animation == null || _animation.Frames == null || _animation.Frames.Length == 0) return 0;
+        if (_animation?.Frames == null || _animation.Frames.Length == 0) return 0;
 
         if (_animation.Frames.Length == 1 || _animation.FramesPerSecond <= 0f) return 0;
 

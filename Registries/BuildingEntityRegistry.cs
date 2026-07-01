@@ -24,10 +24,10 @@ public static class BuildingEntityRegistry
 
     private static readonly Dictionary<string, string> DefinitionOwners = new(StringComparer.OrdinalIgnoreCase);
 
-    private static readonly HashSet<CustomBuildingRuntime> ActiveRuntimes = new();
+    private static readonly HashSet<CustomBuildingRuntime> ActiveRuntimes = [];
 
-    private static readonly ItemDrop[] EmptyDrops = Array.Empty<ItemDrop>();
-    private static readonly string[] EmptyCategories = Array.Empty<string>();
+    private static readonly ItemDrop[] EmptyDrops = [];
+    private static readonly string[] EmptyCategories = [];
     private static readonly int GroundMask = LayerMask.GetMask("Ground");
     private static readonly int GroundLayer = LayerMask.NameToLayer("Ground");
     private static string ActiveOwnerId;
@@ -51,7 +51,7 @@ public static class BuildingEntityRegistry
         }
 
         id = id.Trim();
-        if (definition == null) definition = new CustomBuildingEntityDefinition();
+        definition ??= new CustomBuildingEntityDefinition();
 
         definition.ID = id;
         var replacingExisting = RegisteredDefinitions.ContainsKey(id);
@@ -79,9 +79,8 @@ public static class BuildingEntityRegistry
     public static bool TryGetDefinition(string id, out CustomBuildingEntityDefinition definition)
     {
         definition = null;
-        if (string.IsNullOrWhiteSpace(id)) return false;
-
-        return RegisteredDefinitions.TryGetValue(SpawnIdHelpers.NormalizeSpawnId(id), out definition);
+        return !string.IsNullOrWhiteSpace(id) &&
+               RegisteredDefinitions.TryGetValue(SpawnIdHelpers.NormalizeSpawnId(id), out definition);
     }
 
     public static bool TryGetRegisteredDefinition(string id, out CustomBuildingEntityDefinition definition)
@@ -151,9 +150,8 @@ public static class BuildingEntityRegistry
             .Select(entry => entry.Key)
             .ToArray();
 
-        for (var i = 0; i < ids.Length; i++)
+        foreach (var id in ids)
         {
-            var id = ids[i];
             RegisteredDefinitions.Remove(id);
             DefinitionOwners.Remove(id);
             PrefabCache.Remove(id);
@@ -502,15 +500,13 @@ public static class BuildingEntityRegistry
         }
 
         var building = instance.GetComponent<BuildingEntity>();
-        if (building != null)
-        {
-            ApplyBuildingFields(building, definition);
-            if (!string.IsNullOrEmpty(definition.Name))
-                building.fullName = LocaleRegistry.Get("building", id, definition.Name);
+        if (building == null) return;
+        ApplyBuildingFields(building, definition);
+        if (!string.IsNullOrEmpty(definition.Name))
+            building.fullName = LocaleRegistry.Get("building", id, definition.Name);
 
-            if (!string.IsNullOrEmpty(definition.Description))
-                building.description = LocaleRegistry.Get("building", id + "dsc", definition.Description);
-        }
+        if (!string.IsNullOrEmpty(definition.Description))
+            building.description = LocaleRegistry.Get("building", id + "dsc", definition.Description);
     }
 
     private static GameObject CreatePrefab(string id, CustomBuildingEntityDefinition definition)
@@ -599,41 +595,20 @@ public static class BuildingEntityRegistry
         if (string.IsNullOrWhiteSpace(referenceId)) return null;
 
         var normalized = referenceId.Trim();
-        switch (normalized.ToLower())
+        normalized = normalized.ToLower() switch
         {
-            case "metal":
-                normalized = "turret";
-                break;
-            case "rubber":
-                normalized = "glowplant";
-                break;
-            case "plant":
-                normalized = "glowplant";
-                break;
-            case "rustle":
-                normalized = "geotree";
-                break;
-            case "crystal":
-                normalized = "BloodCrystal";
-                break;
-            case "flesh":
-                normalized = "shadecrawler";
-                break;
-            case "pop":
-                normalized = "pop";
-                break;
-            case "ice":
-            case "glass":
-                normalized = "icestalagmite";
-                break;
-            case "stone":
-            case "rock":
-                normalized = "stoneplant";
-                break;
-            case "chain":
-                normalized = "barbedwirefence";
-                break;
-        }
+            "metal" => "turret",
+            "rubber" => "glowplant",
+            "plant" => "glowplant",
+            "rustle" => "geotree",
+            "crystal" => "BloodCrystal",
+            "flesh" => "shadecrawler",
+            "pop" => "pop",
+            "ice" or "glass" => "icestalagmite",
+            "stone" or "rock" => "stoneplant",
+            "chain" => "barbedwirefence",
+            _ => normalized
+        };
         // TODO add more, add to documentation, and allow mods to specify 
         // - custom sound references
         // - exact buildingentity names as references
@@ -771,9 +746,8 @@ public static class BuildingEntityRegistry
             chunkY >= world.ChunkUpdated.GetLength(1)) return;
 
         var chunkUpdated = world.ChunkUpdated[chunkX, chunkY];
-        if (chunkUpdated == null) return;
 
-        chunkUpdated.AddListener(building.CheckSeating);
+        chunkUpdated?.AddListener(building.CheckSeating);
     }
 
     private static void SpawnDropArray(BuildingEntity source, ItemDrop[] drops, float multiplier, bool isNearPlayer,
