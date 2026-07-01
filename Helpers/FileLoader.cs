@@ -5,149 +5,147 @@ using BepInEx.Logging;
 using CUCoreLib.ContentReload;
 using UnityEngine;
 
-namespace CUCoreLib.Helpers
+namespace CUCoreLib.Helpers;
+
+internal static class FileLoader
 {
-    internal static class FileLoader
+    private static ManualLogSource Logger;
+
+    public static void Initialize(ManualLogSource logger)
     {
-        private static ManualLogSource Logger;
+        Logger = logger;
+    }
 
-        public static void Initialize(ManualLogSource logger)
+    public static string LoadEmbeddedText(string filename)
+    {
+        return AssetLoader.LoadEmbeddedText(filename, ResolveSourceAssembly());
+    }
+
+
+    public static Sprite LoadSpriteFromFile(string filename)
+    {
+        // Introduced optional parameters for method 'Sprite LoadSpriteFromFile(string, float, FilterMode, int, int)'
+        return LoadSpriteFromFile(filename, 100, FilterMode.Point, 1, 1);
+    }
+
+    public static Sprite LoadSpriteFromFile(string filename, float ppu, FilterMode filterMode)
+    {
+        return LoadSpriteFromFile(filename, ppu, filterMode, 1, 1);
+    }
+
+    // Direct file loads
+    public static Sprite LoadSpriteFromFile(string filename, float ppu, FilterMode filterMode, int widthMultiplier,
+        int heightMultiplier)
+    {
+        var pluginPath = ResolvePluginDirectory();
+        var imagePath = Path.Combine(pluginPath, "Images", filename);
+
+        if (!File.Exists(imagePath))
         {
-            Logger = logger;
-        }
-
-        public static string LoadEmbeddedText(string filename)
-        {
-            return AssetLoader.LoadEmbeddedText(filename, ResolveSourceAssembly());
-        }
-
-
-        public static Sprite LoadSpriteFromFile(string filename)
-        {
-            // Introduced optional parameters for method 'Sprite LoadSpriteFromFile(string, float, FilterMode, int, int)'
-            return LoadSpriteFromFile(filename, 100, FilterMode.Point, 1, 1);
-        }
-
-        public static Sprite LoadSpriteFromFile(string filename, float ppu, FilterMode filterMode)
-        {
-            return LoadSpriteFromFile(filename, ppu, filterMode, 1, 1);
-        }
-
-        // Direct file loads
-        public static Sprite LoadSpriteFromFile(string filename, float ppu, FilterMode filterMode, int widthMultiplier,
-            int heightMultiplier)
-        {
-            var pluginPath = ResolvePluginDirectory();
-            var imagePath = Path.Combine(pluginPath, "Images", filename);
-
+            imagePath = Path.Combine(pluginPath, filename);
             if (!File.Exists(imagePath))
             {
-                imagePath = Path.Combine(pluginPath, filename);
+                imagePath = Path.Combine(pluginPath, "Images", "Images", filename);
                 if (!File.Exists(imagePath))
                 {
-                    imagePath = Path.Combine(pluginPath, "Images", "Images", filename);
-                    if (!File.Exists(imagePath))
-                    {
-                        // Debug.LogError($"You didn't download the image: {filename}");
-                        Debug.LogError($"Image file not found: {filename}");
-                        return null;
-                    }
+                    // Debug.LogError($"You didn't download the image: {filename}");
+                    Debug.LogError($"Image file not found: {filename}");
+                    return null;
                 }
             }
-
-
-            var fileData = File.ReadAllBytes(imagePath);
-
-            var originalTexture = new Texture2D(2, 2, TextureFormat.RGBA32, false);
-
-            if (!originalTexture.LoadImage(fileData)) return null;
-            Texture2D finalTexture;
-
-            if (widthMultiplier > 1 || heightMultiplier > 1)
-                finalTexture = ModifyTextures.ResizeTexture(originalTexture, widthMultiplier, heightMultiplier);
-            else
-                finalTexture = originalTexture;
-
-            finalTexture.filterMode = filterMode;
-            finalTexture.wrapMode = TextureWrapMode.Clamp;
-
-            return Sprite.Create(
-                finalTexture,
-                new Rect(0, 0, finalTexture.width, finalTexture.height),
-                new Vector2(0.5f, 0.5f),
-                ppu
-            );
-
         }
 
 
-        // Embedded Resource file loads 
-        public static AudioClip LoadEmbeddedAudio(string fileName)
+        var fileData = File.ReadAllBytes(imagePath);
+
+        var originalTexture = new Texture2D(2, 2, TextureFormat.RGBA32, false);
+
+        if (!originalTexture.LoadImage(fileData)) return null;
+        Texture2D finalTexture;
+
+        if (widthMultiplier > 1 || heightMultiplier > 1)
+            finalTexture = ModifyTextures.ResizeTexture(originalTexture, widthMultiplier, heightMultiplier);
+        else
+            finalTexture = originalTexture;
+
+        finalTexture.filterMode = filterMode;
+        finalTexture.wrapMode = TextureWrapMode.Clamp;
+
+        return Sprite.Create(
+            finalTexture,
+            new Rect(0, 0, finalTexture.width, finalTexture.height),
+            new Vector2(0.5f, 0.5f),
+            ppu
+        );
+    }
+
+
+    // Embedded Resource file loads 
+    public static AudioClip LoadEmbeddedAudio(string fileName)
+    {
+        return AssetLoader.LoadEmbeddedAudio(fileName, ResolveSourceAssembly());
+    }
+
+    public static Sprite LoadEmbeddedSprite(string filename)
+    {
+        // Introduced optional parameters for method 'Sprite LoadEmbeddedSprite(string, float, FilterMode, int, int)' 
+        return LoadEmbeddedSprite(filename, 100, FilterMode.Point, 1, 1);
+    }
+
+    public static Sprite LoadEmbeddedSprite(string filename, float ppu, FilterMode filterMode)
+    {
+        return LoadEmbeddedSprite(filename, ppu, filterMode, 1, 1);
+    }
+
+    public static Sprite LoadEmbeddedSprite(string filename, float ppu, FilterMode filterMode, int widthMultiplier,
+        int heightMultiplier)
+    {
+        var asm = ResolveSourceAssembly();
+        var newFilename = asm.GetManifestResourceNames().FirstOrDefault(n => n.EndsWith(filename));
+        if (newFilename == null)
         {
-            return AssetLoader.LoadEmbeddedAudio(fileName, ResolveSourceAssembly());
+            Logger.LogError(
+                $"Image by the name of {filename} does not exist. Check capitalization and file extension");
+            return null;
         }
 
-        public static Sprite LoadEmbeddedSprite(string filename)
+        // to read file data from manifest resource
+        var stream = asm.GetManifestResourceStream(newFilename);
+        var fileData = new byte[stream.Length]; // maybe null
+        stream.Read(fileData, 0, fileData.Length);
+
+        var texture = new Texture2D(2, 2, TextureFormat.RGBAHalf, false)
         {
-            // Introduced optional parameters for method 'Sprite LoadEmbeddedSprite(string, float, FilterMode, int, int)' 
-            return LoadEmbeddedSprite(filename, 100, FilterMode.Point, 1, 1);
-        }
+            wrapMode = TextureWrapMode.Clamp,
+            filterMode = filterMode,
+            name = newFilename
+        };
+        texture.LoadImage(fileData);
+        texture.Apply();
+        if (widthMultiplier > 1 || heightMultiplier > 1)
+            texture = ModifyTextures.ResizeTexture(texture, widthMultiplier, heightMultiplier);
 
-        public static Sprite LoadEmbeddedSprite(string filename, float ppu, FilterMode filterMode)
-        {
-            return LoadEmbeddedSprite(filename, ppu, filterMode, 1, 1);
-        }
+        var sprite = Sprite.Create(
+            texture,
+            new Rect(0, 0, texture.width, texture.height),
+            new Vector2(0.5f, 0.5f),
+            ppu
+        );
+        sprite.name = newFilename;
 
-        public static Sprite LoadEmbeddedSprite(string filename, float ppu, FilterMode filterMode, int widthMultiplier,
-            int heightMultiplier)
-        {
-            var asm = ResolveSourceAssembly();
-            var newFilename = asm.GetManifestResourceNames().FirstOrDefault(n => n.EndsWith(filename));
-            if (newFilename == null)
-            {
-                Logger.LogError(
-                    $"Image by the name of {filename} does not exist. Check capitalization and file extension");
-                return null;
-            }
+        return sprite;
+    }
 
-            // to read file data from manifest resource
-            var stream = asm.GetManifestResourceStream(newFilename);
-            var fileData = new byte[stream.Length]; // maybe null
-            stream.Read(fileData, 0, fileData.Length);
+    private static Assembly ResolveSourceAssembly()
+    {
+        return ContentReloadSession.GetSourceAssemblyOverride() ?? Assembly.GetExecutingAssembly();
+    }
 
-            var texture = new Texture2D(2, 2, TextureFormat.RGBAHalf, false)
-            {
-                wrapMode = TextureWrapMode.Clamp,
-                filterMode = filterMode,
-                name = newFilename
-            };
-            texture.LoadImage(fileData);
-            texture.Apply();
-            if (widthMultiplier > 1 || heightMultiplier > 1)
-                texture = ModifyTextures.ResizeTexture(texture, widthMultiplier, heightMultiplier);
-
-            var sprite = Sprite.Create(
-                texture,
-                new Rect(0, 0, texture.width, texture.height),
-                new Vector2(0.5f, 0.5f),
-                ppu
-            );
-            sprite.name = newFilename;
-
-            return sprite;
-        }
-
-        private static Assembly ResolveSourceAssembly()
-        {
-            return ContentReloadSession.GetSourceAssemblyOverride() ?? Assembly.GetExecutingAssembly();
-        }
-
-        private static string ResolvePluginDirectory()
-        {
-            var overrideDirectory = ContentReloadSession.GetPluginDirectoryOverride();
-            return !string.IsNullOrWhiteSpace(overrideDirectory)
-                ? overrideDirectory
-                : Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
-        }
+    private static string ResolvePluginDirectory()
+    {
+        var overrideDirectory = ContentReloadSession.GetPluginDirectoryOverride();
+        return !string.IsNullOrWhiteSpace(overrideDirectory)
+            ? overrideDirectory
+            : Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
     }
 }

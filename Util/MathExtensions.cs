@@ -1,10 +1,9 @@
-namespace CUCoreLib.Util
+namespace CUCoreLib.Util;
+
+public static class MathExtensions
 {
-    public static class MathExtensions
+    public static bool IsFinite(this float value)
     {
-        public static bool IsFinite(this float value)
-        {
-            return !float.IsNaN(value) && !float.IsInfinity(value);
-        }
+        return !float.IsNaN(value) && !float.IsInfinity(value);
     }
 }

@@ -3,105 +3,99 @@ using System.Collections.Generic;
 using CUCoreLib.ContentReload;
 using CUCoreLib.Saving;
 
-namespace CUCoreLib.Registries
+namespace CUCoreLib.Registries;
+
+public static class SaveRegistry
 {
-    public static class SaveRegistry
+    private static readonly Dictionary<string, ICustomSaveProvider> GlobalProviderMap = new(StringComparer.Ordinal);
+
+    private static readonly Dictionary<string, IItemSaveProvider> ItemProviderMap = new(StringComparer.Ordinal);
+
+    private static readonly Dictionary<string, IBodySaveProvider> BodyProviderMap = new(StringComparer.Ordinal);
+
+    private static readonly Dictionary<string, ILimbSaveProvider> LimbProviderMap = new(StringComparer.Ordinal);
+
+    private static readonly Dictionary<string, IWorldSaveProvider> WorldProviderMap = new(StringComparer.Ordinal);
+
+    private static bool _builtInsRegistered;
+
+    internal static IReadOnlyDictionary<string, ICustomSaveProvider> GlobalProviders => GlobalProviderMap;
+    internal static IReadOnlyDictionary<string, IItemSaveProvider> ItemProviders => ItemProviderMap;
+    internal static IReadOnlyDictionary<string, IBodySaveProvider> BodyProviders => BodyProviderMap;
+    internal static IReadOnlyDictionary<string, ILimbSaveProvider> LimbProviders => LimbProviderMap;
+    internal static IReadOnlyDictionary<string, IWorldSaveProvider> WorldProviders => WorldProviderMap;
+
+    internal static IEnumerable<string> GlobalProviderKeys => GlobalProviderMap.Keys;
+    internal static IEnumerable<string> ItemProviderKeys => ItemProviderMap.Keys;
+    internal static IEnumerable<string> BodyProviderKeys => BodyProviderMap.Keys;
+    internal static IEnumerable<string> LimbProviderKeys => LimbProviderMap.Keys;
+    internal static IEnumerable<string> WorldProviderKeys => WorldProviderMap.Keys;
+
+    public static void RegisterGlobalProvider(string key, ICustomSaveProvider provider)
     {
-        private static readonly Dictionary<string, ICustomSaveProvider> GlobalProviderMap =
-            new Dictionary<string, ICustomSaveProvider>(StringComparer.Ordinal);
+        RegisterProvider(GlobalProviderMap, "global", key, provider);
+    }
 
-        private static readonly Dictionary<string, IItemSaveProvider> ItemProviderMap =
-            new Dictionary<string, IItemSaveProvider>(StringComparer.Ordinal);
+    public static void RegisterItemProvider(string key, IItemSaveProvider provider)
+    {
+        RegisterProvider(ItemProviderMap, "item", key, provider);
+    }
 
-        private static readonly Dictionary<string, IBodySaveProvider> BodyProviderMap =
-            new Dictionary<string, IBodySaveProvider>(StringComparer.Ordinal);
+    public static void RegisterBodyProvider(string key, IBodySaveProvider provider)
+    {
+        RegisterProvider(BodyProviderMap, "body", key, provider);
+    }
 
-        private static readonly Dictionary<string, ILimbSaveProvider> LimbProviderMap =
-            new Dictionary<string, ILimbSaveProvider>(StringComparer.Ordinal);
+    public static void RegisterLimbProvider(string key, ILimbSaveProvider provider)
+    {
+        RegisterProvider(LimbProviderMap, "limb", key, provider);
+    }
 
-        private static readonly Dictionary<string, IWorldSaveProvider> WorldProviderMap =
-            new Dictionary<string, IWorldSaveProvider>(StringComparer.Ordinal);
+    public static void RegisterWorldProvider(string key, IWorldSaveProvider provider)
+    {
+        RegisterProvider(WorldProviderMap, "world", key, provider);
+    }
 
-        private static bool _builtInsRegistered;
+    internal static void RegisterBuiltIns()
+    {
+        if (_builtInsRegistered) return;
 
-        internal static IReadOnlyDictionary<string, ICustomSaveProvider> GlobalProviders => GlobalProviderMap;
-        internal static IReadOnlyDictionary<string, IItemSaveProvider> ItemProviders => ItemProviderMap;
-        internal static IReadOnlyDictionary<string, IBodySaveProvider> BodyProviders => BodyProviderMap;
-        internal static IReadOnlyDictionary<string, ILimbSaveProvider> LimbProviders => LimbProviderMap;
-        internal static IReadOnlyDictionary<string, IWorldSaveProvider> WorldProviders => WorldProviderMap;
+        _builtInsRegistered = true;
+        RegisterItemProvider("cucorelib.itemRuntime", new BuiltInItemRuntimeSaveProvider());
+        RegisterBodyProvider("cucorelib.bodyStatuses", new BuiltInBodyStatusSaveProvider());
+        RegisterLimbProvider("cucorelib.limbStatuses", new BuiltInLimbStatusSaveProvider());
+        RegisterWorldProvider("cucorelib.buildings", new BuiltInBuildingEntitySaveProvider());
+    }
 
-        internal static IEnumerable<string> GlobalProviderKeys => GlobalProviderMap.Keys;
-        internal static IEnumerable<string> ItemProviderKeys => ItemProviderMap.Keys;
-        internal static IEnumerable<string> BodyProviderKeys => BodyProviderMap.Keys;
-        internal static IEnumerable<string> LimbProviderKeys => LimbProviderMap.Keys;
-        internal static IEnumerable<string> WorldProviderKeys => WorldProviderMap.Keys;
+    private static void RegisterProvider<T>(Dictionary<string, T> map, string scope, string key, T provider)
+        where T : class
+    {
+        var scopeLabel = string.IsNullOrWhiteSpace(scope)
+            ? "Provider"
+            : char.ToUpperInvariant(scope[0]) + scope.Substring(1) + "Provider";
+        ContentReloadSession.AssertNotActive("SaveRegistry.Register" + scopeLabel + "()",
+            "Save providers are excluded from strict content reload.");
 
-        public static void RegisterGlobalProvider(string key, ICustomSaveProvider provider)
+        if (string.IsNullOrWhiteSpace(key))
         {
-            RegisterProvider(GlobalProviderMap, "global", key, provider);
+            CUCoreLibPlugin.Log?.LogWarning("CUCoreLib Save: Ignored " + scope +
+                                            " save provider registration with no key.");
+            return;
         }
 
-        public static void RegisterItemProvider(string key, IItemSaveProvider provider)
+        if (provider == null)
         {
-            RegisterProvider(ItemProviderMap, "item", key, provider);
+            CUCoreLibPlugin.Log?.LogWarning("CUCoreLib Save: Ignored " + scope + " save provider '" + key +
+                                            "' because the provider was null.");
+            return;
         }
 
-        public static void RegisterBodyProvider(string key, IBodySaveProvider provider)
-        {
-            RegisterProvider(BodyProviderMap, "body", key, provider);
-        }
+        key = key.Trim();
+        var replacing = map.ContainsKey(key);
+        map[key] = provider;
 
-        public static void RegisterLimbProvider(string key, ILimbSaveProvider provider)
-        {
-            RegisterProvider(LimbProviderMap, "limb", key, provider);
-        }
-
-        public static void RegisterWorldProvider(string key, IWorldSaveProvider provider)
-        {
-            RegisterProvider(WorldProviderMap, "world", key, provider);
-        }
-
-        internal static void RegisterBuiltIns()
-        {
-            if (_builtInsRegistered) return;
-
-            _builtInsRegistered = true;
-            RegisterItemProvider("cucorelib.itemRuntime", new BuiltInItemRuntimeSaveProvider());
-            RegisterBodyProvider("cucorelib.bodyStatuses", new BuiltInBodyStatusSaveProvider());
-            RegisterLimbProvider("cucorelib.limbStatuses", new BuiltInLimbStatusSaveProvider());
-            RegisterWorldProvider("cucorelib.buildings", new BuiltInBuildingEntitySaveProvider());
-        }
-
-        private static void RegisterProvider<T>(Dictionary<string, T> map, string scope, string key, T provider)
-            where T : class
-        {
-            var scopeLabel = string.IsNullOrWhiteSpace(scope)
-                ? "Provider"
-                : char.ToUpperInvariant(scope[0]) + scope.Substring(1) + "Provider";
-            ContentReloadSession.AssertNotActive("SaveRegistry.Register" + scopeLabel + "()",
-                "Save providers are excluded from strict content reload.");
-
-            if (string.IsNullOrWhiteSpace(key))
-            {
-                CUCoreLibPlugin.Log?.LogWarning("CUCoreLib Save: Ignored " + scope +
-                                                " save provider registration with no key.");
-                return;
-            }
-
-            if (provider == null)
-            {
-                CUCoreLibPlugin.Log?.LogWarning("CUCoreLib Save: Ignored " + scope + " save provider '" + key +
-                                                "' because the provider was null.");
-                return;
-            }
-
-            key = key.Trim();
-            var replacing = map.ContainsKey(key);
-            map[key] = provider;
-
-            if (replacing)
-                CUCoreLibPlugin.Log?.LogWarning("CUCoreLib Save: Replaced existing " + scope + " save provider '" +
-                                                key + "'.");
-        }
+        if (replacing)
+            CUCoreLibPlugin.Log?.LogWarning("CUCoreLib Save: Replaced existing " + scope + " save provider '" +
+                                            key + "'.");
     }
 }

@@ -1,32 +1,30 @@
 using System.Collections;
-using CUCoreLib.Helpers;
 using CUCoreLib.Util;
 using UnityEngine;
 
-namespace CUCoreLib.ContentReload
+namespace CUCoreLib.ContentReload;
+
+internal static class ContentWatchService
 {
-    internal static class ContentWatchService
+    private static bool started;
+
+    internal static void Initialize()
     {
-        private static bool started;
+        if (started) return;
 
-        internal static void Initialize()
-        {
-            if (started) return;
-
-            started = true;
-            CoroutineUtils.StartCoroutine(WatchLoop());
-        }
-
-        private static IEnumerator WatchLoop()
-        {
-            while (true)
-            {
-                var intervalSeconds = ContentReloadManager.GetPollIntervalSeconds();
-                if (intervalSeconds <= 0) intervalSeconds = 2;
-
-                yield return new WaitForSecondsRealtime(intervalSeconds);
-                ContentReloadManager.PollWatchers();
-            }
-        } // The iterator never returned
+        started = true;
+        CoroutineUtils.StartCoroutine(WatchLoop());
     }
+
+    private static IEnumerator WatchLoop()
+    {
+        while (true)
+        {
+            var intervalSeconds = ContentReloadManager.GetPollIntervalSeconds();
+            if (intervalSeconds <= 0) intervalSeconds = 2;
+
+            yield return new WaitForSecondsRealtime(intervalSeconds);
+            ContentReloadManager.PollWatchers();
+        }
+    } // The iterator never returned
 }

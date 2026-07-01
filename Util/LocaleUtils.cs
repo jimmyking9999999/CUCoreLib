@@ -12,7 +12,7 @@ public class LocaleUtils
         var text = LocaleRegistry.Get(category, key, key);
         return !string.IsNullOrWhiteSpace(text) && text != key;
     }
-    
+
     public static bool HasKeyItem(string key)
     {
         return HasKey("item", key);
@@ -57,18 +57,18 @@ public class LocaleUtils
     {
         return HasKey("title", key);
     }
-    
+
     private static string Replace(string key, [NotNull] params object[] args)
     {
         if (args == null) throw new ArgumentNullException(nameof(args));
-        if (args == null || args.Length == 0) return key;
+        if (args.Length == 0) return key;
         return Regex.Replace(key, @"\{(\d+)\}", match =>
         {
             var index = int.Parse(match.Groups[1].Value);
             return args[index].ToString();
         });
     }
-    
+
     private static string Get(string category, string key, params object[] args)
     {
         var resolvedKey = Replace(key, args);

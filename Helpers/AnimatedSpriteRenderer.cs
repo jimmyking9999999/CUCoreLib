@@ -1,69 +1,68 @@
 using CUCoreLib.Data;
 using UnityEngine;
 
-namespace CUCoreLib.Helpers
+namespace CUCoreLib.Helpers;
+
+[DisallowMultipleComponent]
+public sealed class AnimatedSpriteRenderer : MonoBehaviour
 {
-    [DisallowMultipleComponent]
-    public sealed class AnimatedSpriteRenderer : MonoBehaviour
+    private RegisteredSpriteAnimation _animation;
+    private SpriteRenderer _renderer;
+    private float _time;
+
+    public string AnimationId { get; private set; }
+
+    private void Awake()
     {
-        private RegisteredSpriteAnimation _animation;
-        private SpriteRenderer _renderer;
-        private float _time;
+        _renderer = GetComponent<SpriteRenderer>();
+    }
 
-        public string AnimationId { get; private set; }
+    private void Update()
+    {
+        if (!_renderer || _animation?.Frames == null ||
+            _animation.Frames.Length == 0) return;
 
-        private void Awake()
-        {
-            _renderer = GetComponent<SpriteRenderer>();
-        }
+        _time += Time.deltaTime;
+        ApplyCurrentFrame();
+    }
 
-        private void Update()
-        {
-            if (!_renderer || _animation?.Frames == null ||
-                _animation.Frames.Length == 0) return;
+    private void OnEnable()
+    {
+        _time = 0f;
+        ApplyCurrentFrame();
+    }
 
-            _time += Time.deltaTime;
-            ApplyCurrentFrame();
-        }
+    public void SetAnimation(string animationId, RegisteredSpriteAnimation animation)
+    {
+        AnimationId = animationId;
+        _animation = animation;
+        _time = 0f;
+        ApplyCurrentFrame();
+    }
 
-        private void OnEnable()
-        {
-            _time = 0f;
-            ApplyCurrentFrame();
-        }
+    private void ApplyCurrentFrame()
+    {
+        if (_renderer == null || _animation == null || _animation.Frames == null ||
+            _animation.Frames.Length == 0) return;
 
-        public void SetAnimation(string animationId, RegisteredSpriteAnimation animation)
-        {
-            AnimationId = animationId;
-            _animation = animation;
-            _time = 0f;
-            ApplyCurrentFrame();
-        }
+        var frameIndex = ResolveFrameIndex();
+        var frame = _animation.Frames[frameIndex];
+        if (frame != null) _renderer.sprite = frame;
+    }
 
-        private void ApplyCurrentFrame()
-        {
-            if (_renderer == null || _animation == null || _animation.Frames == null ||
-                _animation.Frames.Length == 0) return;
+    private int ResolveFrameIndex()
+    {
+        if (_animation == null || _animation.Frames == null || _animation.Frames.Length == 0) return 0;
 
-            var frameIndex = ResolveFrameIndex();
-            var frame = _animation.Frames[frameIndex];
-            if (frame != null) _renderer.sprite = frame;
-        }
+        if (_animation.Frames.Length == 1 || _animation.FramesPerSecond <= 0f) return 0;
 
-        private int ResolveFrameIndex()
-        {
-            if (_animation == null || _animation.Frames == null || _animation.Frames.Length == 0) return 0;
+        var frameCount = _animation.Frames.Length;
+        var frameIndex = Mathf.FloorToInt(_time * _animation.FramesPerSecond);
+        if (_animation.Loop)
+            frameIndex %= frameCount;
+        else
+            frameIndex = Mathf.Min(frameIndex, frameCount - 1);
 
-            if (_animation.Frames.Length == 1 || _animation.FramesPerSecond <= 0f) return 0;
-
-            var frameCount = _animation.Frames.Length;
-            var frameIndex = Mathf.FloorToInt(_time * _animation.FramesPerSecond);
-            if (_animation.Loop)
-                frameIndex %= frameCount;
-            else
-                frameIndex = Mathf.Min(frameIndex, frameCount - 1);
-
-            return Mathf.Clamp(frameIndex, 0, frameCount - 1);
-        }
+        return Mathf.Clamp(frameIndex, 0, frameCount - 1);
     }
 }

@@ -21,7 +21,7 @@ public class TextUtils
         if (!hex.StartsWith("#")) hex = "#" + hex;
         return Color(text, hex);
     }
-    
+
     public static string Alpha(string text, string alpha)
     {
         if (string.IsNullOrEmpty(text) || string.IsNullOrEmpty(alpha)) return text;
@@ -63,7 +63,7 @@ public class TextUtils
     {
         return string.IsNullOrEmpty(text) ? text : $"<size={size}>{text}</size>";
     }
-    
+
     public static string Blue(string text)
     {
         return Color(text, "blue");

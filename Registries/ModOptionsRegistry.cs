@@ -7,292 +7,287 @@ using CUCoreLib.Helpers;
 using Newtonsoft.Json.Linq;
 using UnityEngine;
 
-namespace CUCoreLib.Registries
+namespace CUCoreLib.Registries;
+
+public static class ModOptionsRegistry
 {
-    public static class ModOptionsRegistry
+    private const int CustomCategoryBaseIndex = 100;
+    internal static readonly List<ModOptionDefinition> RegisteredOptions = new();
+    private static readonly HashSet<string> RegisteredIds = new(StringComparer.Ordinal);
+    private static readonly List<ModOptionCategoryEntry> CustomCategories = new();
+
+    private static readonly Dictionary<string, ModOptionCategoryEntry> CustomCategoriesByKey =
+        new(StringComparer.Ordinal);
+
+    public static bool Register(ModOptionDefinition option)
     {
-        private const int CustomCategoryBaseIndex = 100;
-        internal static readonly List<ModOptionDefinition> RegisteredOptions = new List<ModOptionDefinition>();
-        private static readonly HashSet<string> RegisteredIds = new HashSet<string>(StringComparer.Ordinal);
-        private static readonly List<ModOptionCategoryEntry> CustomCategories = new List<ModOptionCategoryEntry>();
+        ContentReloadSession.AssertNotActive("ModOptionsRegistry.Register()",
+            "Mod options are excluded from strict content reload.");
 
-        private static readonly Dictionary<string, ModOptionCategoryEntry> CustomCategoriesByKey =
-            new Dictionary<string, ModOptionCategoryEntry>(StringComparer.Ordinal);
-
-        public static bool Register(ModOptionDefinition option)
+        var error = Validate(option);
+        if (!string.IsNullOrWhiteSpace(error))
         {
-            ContentReloadSession.AssertNotActive("ModOptionsRegistry.Register()",
-                "Mod options are excluded from strict content reload.");
+            CUCoreLibPlugin.Log?.LogError($"Mod option registration failed :( {error}");
+            return false;
+        }
 
-            var error = Validate(option);
-            if (!string.IsNullOrWhiteSpace(error))
+        if (!RegisteredIds.Add(option.Id))
+        {
+            CUCoreLibPlugin.Log?.LogError($"Ignored duplicate mod option '{option.Id}'.");
+            return false;
+        }
+
+        ResolveCategory(option);
+        RegisteredOptions.Add(option);
+        RegisterLocale(option);
+        MergeIntoLoadedSettings(option);
+        SettingsMenuCategoryExtender.RefreshLiveMenu();
+        return true;
+    }
+
+    internal static void AppendRegisteredOptions(List<Setting> settings)
+    {
+        if (settings == null) return;
+
+        foreach (var option in from option in RegisteredOptions
+                 let option1 = option
+                 where option != null && !settings.Any(setting => setting != null && setting.name == option1.Id)
+                 select option)
+            settings.Add(option.CreateSetting());
+    }
+
+    internal static List<ModOptionCategoryEntry> GetCustomCategories()
+    {
+        return CustomCategories.ToList();
+    }
+
+    private static void MergeIntoLoadedSettings(ModOptionDefinition option)
+    {
+        if (Settings.settings == null ||
+            Settings.settings.Any(setting => setting != null && setting.name == option.Id)) return;
+
+        var createdSetting = option.CreateSetting();
+        Settings.settings.Add(createdSetting);
+        createdSetting.Apply();
+    }
+
+    private static void RegisterLocale(ModOptionDefinition option)
+    {
+        LocaleRegistry.Register(LocaleRegistry.LocaleCategory.Option, option.Id, option.Label);
+        if (!string.IsNullOrWhiteSpace(option.Description))
+            LocaleRegistry.Register(LocaleRegistry.LocaleCategory.Option, option.Id + "dsc",
+                option.Description);
+        // todo I really need to figure this out
+        // man this is kinda ass ngl
+        if (option.Kind != ModOptionKind.Dropdown || option.Choices == null) return;
+
+        foreach (var choice in option.Choices)
+            LocaleRegistry.Register(LocaleRegistry.LocaleCategory.Option, option.Id + choice.Key,
+                choice.Label);
+    }
+
+    internal static JObject CaptureNetworkSnapshot()
+    {
+        var root = new JObject();
+        foreach (var option in RegisteredOptions)
+        {
+            if (option == null) continue;
+
+            var value = CaptureOptionValue(option);
+            if (value == null) continue;
+
+            root[option.Id] = new JObject
             {
-                CUCoreLibPlugin.Log?.LogError($"Mod option registration failed :( {error}");
-                return false;
-            }
-
-            if (!RegisteredIds.Add(option.Id))
-            {
-                CUCoreLibPlugin.Log?.LogError($"Ignored duplicate mod option '{option.Id}'.");
-                return false;
-            }
-
-            ResolveCategory(option);
-            RegisteredOptions.Add(option);
-            RegisterLocale(option);
-            MergeIntoLoadedSettings(option);
-            SettingsMenuCategoryExtender.RefreshLiveMenu();
-            return true;
+                ["kind"] = option.Kind.ToString(),
+                ["value"] = value is string v
+                    ? new JValue(v)
+                    : JToken.FromObject(value)
+            };
         }
 
-        internal static void AppendRegisteredOptions(List<Setting> settings)
+        return root;
+    }
+
+    internal static void ApplyNetworkSnapshot(JObject snapshot)
+    {
+        if (snapshot == null) return;
+
+        foreach (var property in snapshot.Properties())
         {
-            if (settings == null) return;
+            var option = RegisteredOptions.FirstOrDefault(entry =>
+                entry != null && string.Equals(entry.Id, property.Name, StringComparison.Ordinal));
+            if (option == null) continue;
 
-            foreach (var option in from option in RegisteredOptions
-                     let option1 = option
-                     where option != null && !settings.Any(setting => setting != null && setting.name == option1.Id)
-                     select option)
-            {
-                settings.Add(option.CreateSetting());
-            }
-        }
-
-        internal static List<ModOptionCategoryEntry> GetCustomCategories()
-        {
-            return CustomCategories.ToList();
-        }
-
-        private static void MergeIntoLoadedSettings(ModOptionDefinition option)
-        {
-            if (Settings.settings == null ||
-                Settings.settings.Any(setting => setting != null && setting.name == option.Id)) return;
-
-            var createdSetting = option.CreateSetting();
-            Settings.settings.Add(createdSetting);
-            createdSetting.Apply();
-        }
-
-        private static void RegisterLocale(ModOptionDefinition option)
-        {
-            LocaleRegistry.Register(LocaleRegistry.LocaleCategory.Option, option.Id, option.Label);
-            if (!string.IsNullOrWhiteSpace(option.Description))
-                LocaleRegistry.Register(LocaleRegistry.LocaleCategory.Option, option.Id + "dsc",
-                    option.Description);
-            // todo I really need to figure this out
-            // man this is kinda ass ngl
-            if (option.Kind != ModOptionKind.Dropdown || option.Choices == null) return;
-
-            foreach (var choice in option.Choices)
-            {
-                LocaleRegistry.Register(LocaleRegistry.LocaleCategory.Option, option.Id + choice.Key,
-                    choice.Label);
-            }
-        }
-
-        internal static JObject CaptureNetworkSnapshot()
-        {
-            var root = new JObject();
-            foreach (var option in RegisteredOptions)
-            {
-                if (option == null) continue;
-
-                var value = CaptureOptionValue(option);
-                if (value == null) continue;
-
-                root[option.Id] = new JObject
-                {
-                    ["kind"] = option.Kind.ToString(),
-                    ["value"] = value is string v
-                        ? new JValue(v)
-                        : JToken.FromObject(value)
-                };
-            }
-
-            return root;
-        }
-
-        internal static void ApplyNetworkSnapshot(JObject snapshot)
-        {
-            if (snapshot == null) return;
-
-            foreach (var property in snapshot.Properties())
-            {
-                var option = RegisteredOptions.FirstOrDefault(entry =>
-                    entry != null && string.Equals(entry.Id, property.Name, StringComparison.Ordinal));
-                if (option == null) continue;
-
-                ApplyOptionValue(option, property.Value as JObject);
-            }
-        }
-
-        private static string Validate(ModOptionDefinition option)
-        {
-            if (option == null) return "definition was null.";
-
-            if (string.IsNullOrWhiteSpace(option.Id)) return "definition ID was empty.";
-
-            if (option.Id != option.Id.Trim()) return $"option ID '{option.Id}' cannot begin or end with whitespace.";
-
-            if (option.Id.IndexOf('.') < 1 || option.Id.EndsWith(".", StringComparison.Ordinal))
-                return
-                    $"option '{option.Id}' must use a namespaced ID like 'modid.setting'. Might be annoying, but needed.";
-
-            if (string.IsNullOrWhiteSpace(option.Label)) return $"option '{option.Id}' must have a label.";
-
-            if (option.UsesCustomCategory && string.IsNullOrWhiteSpace(option.CustomCategory))
-                return $"option '{option.Id}' custom category was empty.";
-
-            if ((option.Kind == ModOptionKind.Float || option.Kind == ModOptionKind.Int) && option.Min > option.Max)
-                return $"option '{option.Id}' has min > max.";
-
-            if (option.Kind != ModOptionKind.Dropdown) return null;
-
-            if (option.Choices == null || option.Choices.Length == 0)
-                return $"dropdown option '{option.Id}' must have at least one choice.";
-
-            var choiceKeys = new HashSet<string>(StringComparer.Ordinal);
-            for (var i = 0; i < option.Choices.Length; i++)
-            {
-                var choice = option.Choices[i];
-                if (choice == null || string.IsNullOrWhiteSpace(choice.Key) || string.IsNullOrWhiteSpace(choice.Label))
-                    return $"dropdown option '{option.Id}' has an invalid choice at index {i}.";
-
-                if (!choiceKeys.Add(choice.Key))
-                    return $"dropdown option '{option.Id}' has duplicate choice key '{choice.Key}'.";
-            }
-
-            if (option.IntDefault < 0 || option.IntDefault >= option.Choices.Length)
-                return $"dropdown option '{option.Id}' default index is outside the choice range.";
-
-            return null;
-        }
-
-        private static object CaptureOptionValue(ModOptionDefinition option)
-        {
-            switch (option.Kind)
-            {
-                case ModOptionKind.Float:
-                    var floatSetting = Settings.Get<SettingFloat>(option.Id);
-                    return floatSetting != null ? (object)floatSetting.value : option.FloatDefault;
-                case ModOptionKind.Int:
-                    var intSetting = Settings.Get<SettingInt>(option.Id);
-                    return intSetting != null ? (object)intSetting.value : option.IntDefault;
-                case ModOptionKind.Bool:
-                    var boolSetting = Settings.Get<SettingBool>(option.Id);
-                    return boolSetting != null ? (object)boolSetting.value : option.BoolDefault;
-                case ModOptionKind.Dropdown:
-                    var dropdownSetting = Settings.Get<SettingDropdown>(option.Id);
-                    return dropdownSetting != null ? (object)dropdownSetting.value : option.IntDefault;
-                case ModOptionKind.Keybind:
-                    var keybindSetting = Settings.Get<SettingKeybind>(option.Id);
-                    return keybindSetting != null
-                        ? (object)keybindSetting.value.ToString()
-                        : option.KeyDefault.ToString();
-                default:
-                    return null;
-            }
-        }
-
-        private static void ApplyOptionValue(ModOptionDefinition option, JObject payload)
-        {
-            var valueToken = payload?["value"];
-            if (valueToken == null) return;
-
-            switch (option.Kind)
-            {
-                case ModOptionKind.Float:
-                {
-                    var setting = Settings.Get<SettingFloat>(option.Id);
-                    if (setting != null && valueToken.Type != JTokenType.Null)
-                    {
-                        setting.value = valueToken.Value<float>();
-                        setting.Apply();
-                    }
-
-                    break;
-                }
-                case ModOptionKind.Int:
-                {
-                    var setting = Settings.Get<SettingInt>(option.Id);
-                    if (setting != null && valueToken.Type != JTokenType.Null)
-                    {
-                        setting.value = valueToken.Value<int>();
-                        setting.Apply();
-                    }
-
-                    break;
-                }
-                case ModOptionKind.Bool:
-                {
-                    var setting = Settings.Get<SettingBool>(option.Id);
-                    if (setting != null && valueToken.Type != JTokenType.Null)
-                    {
-                        setting.value = valueToken.Value<bool>();
-                        setting.Apply();
-                    }
-
-                    break;
-                }
-                case ModOptionKind.Dropdown:
-                {
-                    var setting = Settings.Get<SettingDropdown>(option.Id);
-                    if (setting != null && valueToken.Type != JTokenType.Null)
-                    {
-                        setting.value = valueToken.Value<int>();
-                        setting.Apply();
-                    }
-
-                    break;
-                }
-                case ModOptionKind.Keybind:
-                {
-                    var setting = Settings.Get<SettingKeybind>(option.Id);
-                    if (setting != null && valueToken.Type != JTokenType.Null &&
-                        Enum.TryParse(valueToken.Value<string>(), out KeyCode keyCode))
-                    {
-                        setting.value = keyCode;
-                        setting.Apply();
-                    }
-
-                    break;
-                }
-                default:
-                    throw new ArgumentOutOfRangeException();
-            }
-        }
-
-        private static void ResolveCategory(ModOptionDefinition option)
-        {
-            if (!option.UsesCustomCategory) return;
-
-            var normalizedKey = NormalizeCategoryKey(option.CustomCategory);
-            if (!CustomCategoriesByKey.TryGetValue(normalizedKey, out var entry))
-            {
-                entry = new ModOptionCategoryEntry(option.CustomCategory.Trim(),
-                    CustomCategoryBaseIndex + CustomCategories.Count);
-                CustomCategories.Add(entry);
-                CustomCategoriesByKey.Add(normalizedKey, entry);
-            }
-
-            option.SetResolvedCategory((Setting.SettingCategory)entry.CategoryIndex);
-        }
-
-        private static string NormalizeCategoryKey(string category)
-        {
-            return (category ?? string.Empty).Trim().ToLowerInvariant();
+            ApplyOptionValue(option, property.Value as JObject);
         }
     }
 
-    internal sealed class ModOptionCategoryEntry
+    private static string Validate(ModOptionDefinition option)
     {
-        public ModOptionCategoryEntry(string displayName, int categoryIndex)
+        if (option == null) return "definition was null.";
+
+        if (string.IsNullOrWhiteSpace(option.Id)) return "definition ID was empty.";
+
+        if (option.Id != option.Id.Trim()) return $"option ID '{option.Id}' cannot begin or end with whitespace.";
+
+        if (option.Id.IndexOf('.') < 1 || option.Id.EndsWith(".", StringComparison.Ordinal))
+            return
+                $"option '{option.Id}' must use a namespaced ID like 'modid.setting'. Might be annoying, but needed.";
+
+        if (string.IsNullOrWhiteSpace(option.Label)) return $"option '{option.Id}' must have a label.";
+
+        if (option.UsesCustomCategory && string.IsNullOrWhiteSpace(option.CustomCategory))
+            return $"option '{option.Id}' custom category was empty.";
+
+        if ((option.Kind == ModOptionKind.Float || option.Kind == ModOptionKind.Int) && option.Min > option.Max)
+            return $"option '{option.Id}' has min > max.";
+
+        if (option.Kind != ModOptionKind.Dropdown) return null;
+
+        if (option.Choices == null || option.Choices.Length == 0)
+            return $"dropdown option '{option.Id}' must have at least one choice.";
+
+        var choiceKeys = new HashSet<string>(StringComparer.Ordinal);
+        for (var i = 0; i < option.Choices.Length; i++)
         {
-            DisplayName = displayName;
-            CategoryIndex = categoryIndex;
+            var choice = option.Choices[i];
+            if (choice == null || string.IsNullOrWhiteSpace(choice.Key) || string.IsNullOrWhiteSpace(choice.Label))
+                return $"dropdown option '{option.Id}' has an invalid choice at index {i}.";
+
+            if (!choiceKeys.Add(choice.Key))
+                return $"dropdown option '{option.Id}' has duplicate choice key '{choice.Key}'.";
         }
 
-        public string DisplayName { get; }
-        public int CategoryIndex { get; }
+        if (option.IntDefault < 0 || option.IntDefault >= option.Choices.Length)
+            return $"dropdown option '{option.Id}' default index is outside the choice range.";
+
+        return null;
     }
+
+    private static object CaptureOptionValue(ModOptionDefinition option)
+    {
+        switch (option.Kind)
+        {
+            case ModOptionKind.Float:
+                var floatSetting = Settings.Get<SettingFloat>(option.Id);
+                return floatSetting != null ? (object)floatSetting.value : option.FloatDefault;
+            case ModOptionKind.Int:
+                var intSetting = Settings.Get<SettingInt>(option.Id);
+                return intSetting != null ? (object)intSetting.value : option.IntDefault;
+            case ModOptionKind.Bool:
+                var boolSetting = Settings.Get<SettingBool>(option.Id);
+                return boolSetting != null ? (object)boolSetting.value : option.BoolDefault;
+            case ModOptionKind.Dropdown:
+                var dropdownSetting = Settings.Get<SettingDropdown>(option.Id);
+                return dropdownSetting != null ? (object)dropdownSetting.value : option.IntDefault;
+            case ModOptionKind.Keybind:
+                var keybindSetting = Settings.Get<SettingKeybind>(option.Id);
+                return keybindSetting != null
+                    ? (object)keybindSetting.value.ToString()
+                    : option.KeyDefault.ToString();
+            default:
+                return null;
+        }
+    }
+
+    private static void ApplyOptionValue(ModOptionDefinition option, JObject payload)
+    {
+        var valueToken = payload?["value"];
+        if (valueToken == null) return;
+
+        switch (option.Kind)
+        {
+            case ModOptionKind.Float:
+            {
+                var setting = Settings.Get<SettingFloat>(option.Id);
+                if (setting != null && valueToken.Type != JTokenType.Null)
+                {
+                    setting.value = valueToken.Value<float>();
+                    setting.Apply();
+                }
+
+                break;
+            }
+            case ModOptionKind.Int:
+            {
+                var setting = Settings.Get<SettingInt>(option.Id);
+                if (setting != null && valueToken.Type != JTokenType.Null)
+                {
+                    setting.value = valueToken.Value<int>();
+                    setting.Apply();
+                }
+
+                break;
+            }
+            case ModOptionKind.Bool:
+            {
+                var setting = Settings.Get<SettingBool>(option.Id);
+                if (setting != null && valueToken.Type != JTokenType.Null)
+                {
+                    setting.value = valueToken.Value<bool>();
+                    setting.Apply();
+                }
+
+                break;
+            }
+            case ModOptionKind.Dropdown:
+            {
+                var setting = Settings.Get<SettingDropdown>(option.Id);
+                if (setting != null && valueToken.Type != JTokenType.Null)
+                {
+                    setting.value = valueToken.Value<int>();
+                    setting.Apply();
+                }
+
+                break;
+            }
+            case ModOptionKind.Keybind:
+            {
+                var setting = Settings.Get<SettingKeybind>(option.Id);
+                if (setting != null && valueToken.Type != JTokenType.Null &&
+                    Enum.TryParse(valueToken.Value<string>(), out KeyCode keyCode))
+                {
+                    setting.value = keyCode;
+                    setting.Apply();
+                }
+
+                break;
+            }
+            default:
+                throw new ArgumentOutOfRangeException();
+        }
+    }
+
+    private static void ResolveCategory(ModOptionDefinition option)
+    {
+        if (!option.UsesCustomCategory) return;
+
+        var normalizedKey = NormalizeCategoryKey(option.CustomCategory);
+        if (!CustomCategoriesByKey.TryGetValue(normalizedKey, out var entry))
+        {
+            entry = new ModOptionCategoryEntry(option.CustomCategory.Trim(),
+                CustomCategoryBaseIndex + CustomCategories.Count);
+            CustomCategories.Add(entry);
+            CustomCategoriesByKey.Add(normalizedKey, entry);
+        }
+
+        option.SetResolvedCategory((Setting.SettingCategory)entry.CategoryIndex);
+    }
+
+    private static string NormalizeCategoryKey(string category)
+    {
+        return (category ?? string.Empty).Trim().ToLowerInvariant();
+    }
+}
+
+internal sealed class ModOptionCategoryEntry
+{
+    public ModOptionCategoryEntry(string displayName, int categoryIndex)
+    {
+        DisplayName = displayName;
+        CategoryIndex = categoryIndex;
+    }
+
+    public string DisplayName { get; }
+    public int CategoryIndex { get; }
 }

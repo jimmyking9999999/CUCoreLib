@@ -11,663 +11,654 @@ using UnityEngine;
 using UnityEngine.Tilemaps;
 using Random = UnityEngine.Random;
 
-namespace CUCoreLib.Registries
+namespace CUCoreLib.Registries;
+
+public static class TileRegistry
 {
-    public static class TileRegistry
+    private const string HitSoundTokenPrefix = "CUCoreLib.TileHitSound.";
+
+    public const ushort FirstCustomTileIndex = 36;
+    // TODO need to make this dynamic, don't want this to be based off people agreeing to use certain indices
+    // I think encoding a string ID to an int is fine
+
+    private static readonly Dictionary<ushort, CustomTileDefinition> RegisteredDefinitions = new();
+
+    private static readonly Dictionary<string, ushort> RegisteredDefinitionIds = new(StringComparer.OrdinalIgnoreCase);
+
+    private static readonly Dictionary<ushort, AudioClip> ResolvedHitSounds = new();
+
+    private static readonly HashSet<ushort> ResolvingHitSounds = new();
+
+    private static readonly Dictionary<ushort, TileBase> RegisteredTiles = new();
+
+    private static readonly Dictionary<ushort, TileBase> ReservedTiles = new();
+
+    private static readonly FieldInfo WorldBlocksField =
+        AccessTools.Field(typeof(WorldGeneration), "worldBlocks");
+
+    private static readonly TileGenerationStyle[] AllGenerationStyles =
     {
-        private const string HitSoundTokenPrefix = "CUCoreLib.TileHitSound.";
+        TileGenerationStyle.Vein,
+        TileGenerationStyle.HeavyVeins,
+        TileGenerationStyle.Singular,
+        TileGenerationStyle.Stripe,
+        TileGenerationStyle.Inner,
+        TileGenerationStyle.Outskirt
+        // Potentially add flags for location/specific. Eg. bottom/left side of the world, near buildingEntites, etc..
+        // Custom Structures layer update when? ;)
+    };
 
-        public const ushort FirstCustomTileIndex = 36;
-        // TODO need to make this dynamic, don't want this to be based off people agreeing to use certain indices
-        // I think encoding a string ID to an int is fine
+    public static int AllSpawnLayersMask => -1;
 
-        private static readonly Dictionary<ushort, CustomTileDefinition> RegisteredDefinitions =
-            new Dictionary<ushort, CustomTileDefinition>();
+    public static bool Register(ushort tileIndex, CustomTileDefinition definition)
+    {
+        ContentReloadSession.AssertNotActive("TileRegistry.Register()",
+            "Tile registration is excluded from strict content reload.");
 
-        private static readonly Dictionary<string, ushort> RegisteredDefinitionIds =
-            new Dictionary<string, ushort>(StringComparer.OrdinalIgnoreCase);
-
-        private static readonly Dictionary<ushort, AudioClip> ResolvedHitSounds =
-            new Dictionary<ushort, AudioClip>();
-
-        private static readonly HashSet<ushort> ResolvingHitSounds =
-            new HashSet<ushort>();
-
-        private static readonly Dictionary<ushort, TileBase> RegisteredTiles =
-            new Dictionary<ushort, TileBase>();
-
-        private static readonly Dictionary<ushort, TileBase> ReservedTiles =
-            new Dictionary<ushort, TileBase>();
-
-        private static readonly FieldInfo WorldBlocksField =
-            AccessTools.Field(typeof(WorldGeneration), "worldBlocks");
-
-        private static readonly TileGenerationStyle[] AllGenerationStyles =
+        if (tileIndex < FirstCustomTileIndex)
         {
-            TileGenerationStyle.Vein,
-            TileGenerationStyle.HeavyVeins,
-            TileGenerationStyle.Singular,
-            TileGenerationStyle.Stripe,
-            TileGenerationStyle.Inner,
-            TileGenerationStyle.Outskirt
-            // Potentially add flags for location/specific. Eg. bottom/left side of the world, near buildingEntites, etc..
-            // Custom Structures layer update when? ;)
-        };
+            CUCoreLibPlugin.Log?.LogWarning(
+                $"Tile index {tileIndex} is reserved by the base game. Custom tile indices must be {FirstCustomTileIndex} or higher.");
+            return false;
+        }
 
-        public static int AllSpawnLayersMask => -1;
-
-        public static bool Register(ushort tileIndex, CustomTileDefinition definition)
+        if (definition == null)
         {
-            ContentReloadSession.AssertNotActive("TileRegistry.Register()",
-                "Tile registration is excluded from strict content reload.");
+            CUCoreLibPlugin.Log?.LogWarning($"Tile registration ignored for index {tileIndex} with no definition.");
+            return false;
+        }
 
-            if (tileIndex < FirstCustomTileIndex)
+        if (definition.Sprite == null)
+        {
+            CUCoreLibPlugin.Log?.LogWarning($"Tile registration ignored for index {tileIndex} with no sprite.");
+            return false;
+        }
+
+        if (RegisteredDefinitions.ContainsKey(tileIndex))
+        {
+            CUCoreLibPlugin.Log?.LogWarning(
+                $"Tile index {tileIndex} is already registered, potentially from another mod.");
+            return false;
+        }
+
+        definition.ID = string.IsNullOrWhiteSpace(definition.ID)
+            ? "customtile" + tileIndex
+            : definition.ID.Trim();
+
+        RegisteredDefinitions.Add(tileIndex, definition);
+        RegisteredDefinitionIds[definition.ID] = tileIndex;
+        RegisteredTiles.Add(tileIndex, CreateTile(definition));
+
+        if (!string.IsNullOrEmpty(definition.Name))
+            LocaleRegistry.Register("title", definition.ID, definition.Name);
+
+        if (!string.IsNullOrEmpty(definition.Description))
+            LocaleRegistry.Register("title", definition.ID + "dsc", definition.Description);
+
+        InjectRegisteredTiles(WorldGeneration.world);
+        return true;
+    }
+
+    public static bool TryGetDefinition(ushort tileIndex, out CustomTileDefinition definition)
+    {
+        return RegisteredDefinitions.TryGetValue(tileIndex, out definition);
+    }
+
+    public static bool TryGetTile(ushort tileIndex, out TileBase tile)
+    {
+        return RegisteredTiles.TryGetValue(tileIndex, out tile);
+    }
+
+    public static IEnumerable<ushort> GetRegisteredIndices()
+    {
+        return RegisteredDefinitions.Keys.OrderBy(index => index).ToArray();
+    }
+
+    public static int LayerToMask(int layerNumber)
+    {
+        if (layerNumber <= 0 || layerNumber > 31) return 0;
+
+        return 1 << (layerNumber - 1);
+    }
+
+    public static int LayersToMask(params int[] layerNumbers)
+    {
+        if (layerNumbers == null || layerNumbers.Length == 0) return 0;
+
+        return layerNumbers.Aggregate(0, (current, layerNumber) => current | LayerToMask(layerNumber));
+    }
+
+    public static int AllLayersExcept(params int[] excludedLayerNumbers)
+    {
+        var mask = AllSpawnLayersMask;
+        if (excludedLayerNumbers == null || excludedLayerNumbers.Length == 0) return mask;
+
+        return excludedLayerNumbers.Select(LayerToMask).Where(layerMask => layerMask != 0)
+            .Aggregate(mask, (current, layerMask) => current & ~layerMask);
+    }
+
+    internal static JObject CaptureNetworkSnapshot()
+    {
+        var root = new JObject();
+        foreach (var entry in RegisteredDefinitions)
+        {
+            var definition = entry.Value;
+            if (definition == null) continue;
+
+            root[entry.Key.ToString()] = new JObject
             {
-                CUCoreLibPlugin.Log?.LogWarning(
-                    $"Tile index {tileIndex} is reserved by the base game. Custom tile indices must be {FirstCustomTileIndex} or higher.");
-                return false;
-            }
-
-            if (definition == null)
-            {
-                CUCoreLibPlugin.Log?.LogWarning($"Tile registration ignored for index {tileIndex} with no definition.");
-                return false;
-            }
-
-            if (definition.Sprite == null)
-            {
-                CUCoreLibPlugin.Log?.LogWarning($"Tile registration ignored for index {tileIndex} with no sprite.");
-                return false;
-            }
-
-            if (RegisteredDefinitions.ContainsKey(tileIndex))
-            {
-                CUCoreLibPlugin.Log?.LogWarning(
-                    $"Tile index {tileIndex} is already registered, potentially from another mod.");
-                return false;
-            }
-
-            definition.ID = string.IsNullOrWhiteSpace(definition.ID)
-                ? "customtile" + tileIndex
-                : definition.ID.Trim();
-
-            RegisteredDefinitions.Add(tileIndex, definition);
-            RegisteredDefinitionIds[definition.ID] = tileIndex;
-            RegisteredTiles.Add(tileIndex, CreateTile(definition));
-
-            if (!string.IsNullOrEmpty(definition.Name))
-                LocaleRegistry.Register("title", definition.ID, definition.Name);
-
-            if (!string.IsNullOrEmpty(definition.Description))
-                LocaleRegistry.Register("title", definition.ID + "dsc", definition.Description);
-
-            InjectRegisteredTiles(WorldGeneration.world);
-            return true;
-        }
-
-        public static bool TryGetDefinition(ushort tileIndex, out CustomTileDefinition definition)
-        {
-            return RegisteredDefinitions.TryGetValue(tileIndex, out definition);
-        }
-
-        public static bool TryGetTile(ushort tileIndex, out TileBase tile)
-        {
-            return RegisteredTiles.TryGetValue(tileIndex, out tile);
-        }
-
-        public static IEnumerable<ushort> GetRegisteredIndices()
-        {
-            return RegisteredDefinitions.Keys.OrderBy(index => index).ToArray();
-        }
-
-        public static int LayerToMask(int layerNumber)
-        {
-            if (layerNumber <= 0 || layerNumber > 31) return 0;
-
-            return 1 << (layerNumber - 1);
-        }
-
-        public static int LayersToMask(params int[] layerNumbers)
-        {
-            if (layerNumbers == null || layerNumbers.Length == 0) return 0;
-
-            return layerNumbers.Aggregate(0, (current, layerNumber) => current | LayerToMask(layerNumber));
-        }
-
-        public static int AllLayersExcept(params int[] excludedLayerNumbers)
-        {
-            var mask = AllSpawnLayersMask;
-            if (excludedLayerNumbers == null || excludedLayerNumbers.Length == 0) return mask;
-
-            return excludedLayerNumbers.Select(LayerToMask).Where(layerMask => layerMask != 0)
-                .Aggregate(mask, (current, layerMask) => current & ~layerMask);
-        }
-
-        internal static JObject CaptureNetworkSnapshot()
-        {
-            var root = new JObject();
-            foreach (var entry in RegisteredDefinitions)
-            {
-                var definition = entry.Value;
-                if (definition == null) continue;
-
-                root[entry.Key.ToString()] = new JObject
-                {
-                    ["id"] = definition.ID ?? string.Empty,
-                    ["name"] = definition.Name ?? string.Empty,
-                    ["description"] = definition.Description ?? string.Empty,
-                    ["sprite"] = NetworkSnapshotSerialization.WriteSprite(definition.Sprite),
-                    ["tileName"] = definition.TileName ?? string.Empty,
-                    ["color"] = NetworkSnapshotSerialization.WriteColor(definition.Color),
-                    ["colliderType"] = (int)definition.ColliderType,
-                    ["health"] = definition.Health,
-                    ["hitSound"] = definition.HitSound ?? string.Empty,
-                    ["stepSound"] = definition.StepSound ?? string.Empty,
-                    ["sleepQuality"] = (int)definition.SleepQuality,
-                    ["noVariation"] = definition.NoVariation,
-                    ["metallic"] = definition.Metallic,
-                    ["toxicity"] = definition.Toxicity,
-                    ["slippery"] = definition.Slippery,
-                    ["spawnAmount"] = definition.SpawnAmount,
-                    ["spawnLayers"] = definition.SpawnLayers,
-                    ["generationStyle"] = (byte)definition.GenerationStyle,
-                    ["drops"] = JArray.FromObject(definition.Drops),
-                    ["customData"] = definition.CustomData != null
-                        ? JObject.FromObject(definition.CustomData)
-                        : new JObject()
-                };
-            }
-
-            return root;
-        }
-
-        internal static void ApplyNetworkSnapshot(JObject snapshot)
-        {
-            if (snapshot == null) return;
-
-            foreach (var property in snapshot.Properties())
-            {
-                if (!ushort.TryParse(property.Name, out var tileIndex)) continue;
-
-                var obj = property.Value as JObject;
-                if (obj == null) continue;
-
-                var definition = new CustomTileDefinition
-                {
-                    ID = obj.Value<string>("id"),
-                    Name = obj.Value<string>("name"),
-                    Description = obj.Value<string>("description"),
-                    Sprite = NetworkSnapshotSerialization.ReadSprite(obj["sprite"]),
-                    TileName = obj.Value<string>("tileName"),
-                    Color = NetworkSnapshotSerialization.ReadColor(obj["color"], Color.white),
-                    ColliderType = (Tile.ColliderType)(obj.Value<int?>("colliderType") ?? 1),
-                    Health = obj.Value<float?>("health") ?? 100f,
-                    HitSound = obj.Value<string>("hitSound"),
-                    StepSound = obj.Value<string>("stepSound"),
-                    SleepQuality = (Body.SleepQuality)(obj.Value<int?>("sleepQuality") ?? 0),
-                    NoVariation = obj.Value<bool?>("noVariation") ?? false,
-                    Metallic = obj.Value<bool?>("metallic") ?? false,
-                    Toxicity = obj.Value<float?>("toxicity") ?? 0f,
-                    Slippery = obj.Value<bool?>("slippery") ?? false,
-                    SpawnAmount = obj.Value<float?>("spawnAmount") ?? 0f,
-                    SpawnLayers = obj.Value<int?>("spawnLayers") ?? AllSpawnLayersMask,
-                    GenerationStyle =
-                        (TileGenerationStyle)(obj.Value<byte?>("generationStyle") ?? (byte)TileGenerationStyle.Vein)
-                };
-
-                if (obj["drops"] is JArray drops) definition.Drops = drops.ToObject<ItemDrop[]>();
-                if (obj["customData"] is JObject customData)
-                    definition.CustomData = customData.ToObject<Dictionary<string, object>>() ??
-                                            new Dictionary<string, object>();
-
-                Register(tileIndex, definition);
-            }
-        }
-
-        public static bool TryGetCustomData<T>(ushort tileIndex, string key, out T value)
-        {
-            value = default;
-            if (string.IsNullOrWhiteSpace(key)) return false;
-            if (!RegisteredDefinitions.TryGetValue(tileIndex, out var definition)) return false;
-            if (definition.CustomData == null || !definition.CustomData.TryGetValue(key, out var rawValue))
-                return false;
-            if (!(rawValue is T typedValue)) return false;
-
-            value = typedValue;
-            return true;
-        }
-
-        internal static bool WillBreak(WorldGeneration world, Vector2Int position, float damage, bool bonusMetal)
-        {
-            if (world == null) return false;
-
-            var tileIndex = world.GetBlock(position);
-            if (!RegisteredDefinitions.TryGetValue(tileIndex, out var definition)) return false;
-
-            var existingDamage = world.GetBlockDamage(position);
-            var appliedDamage = damage * (bonusMetal && definition.Metallic ? 10f : 1f);
-            return (existingDamage?.damage ?? 0f) + appliedDamage >= definition.Health;
-        }
-
-        internal static void SpawnDrops(WorldGeneration world, Vector2Int position, ushort tileIndex)
-        {
-            if (world == null) return;
-            if (!RegisteredDefinitions.TryGetValue(tileIndex, out var definition)) return;
-            if (definition.Drops == null || definition.Drops.Length == 0) return;
-
-            Vector3 worldPosition = world.BlockToWorldPos(position);
-            foreach (var drop in definition.Drops)
-            {
-                if (drop == null || string.IsNullOrWhiteSpace(drop.id)) continue;
-                if (Random.Range(0f, 1f) >= drop.chance) continue;
-
-                var spawned = CustomInstantiate.InstantiateReturn(
-                    drop.id,
-                    worldPosition,
-                    Quaternion.identity,
-                    Random.Range(drop.conditionMin, drop.conditionMax));
-
-                if (spawned == null)
-                    CUCoreLibPlugin.Log?.LogWarning(
-                        "Custom tile '" + definition.ID + "' failed to spawn drop '" + drop.id + "'.");
-            }
-        }
-
-        internal static void GenerateWorldTiles(WorldGeneration world)
-        {
-            if (world == null || RegisteredDefinitions.Count == 0) return;
-
-            var worldBlocks = WorldBlocksField?.GetValue(world) as ushort[,];
-            if (worldBlocks == null) return;
-
-            foreach (var entry in RegisteredDefinitions
-                         .Where(entry => entry.Value != null && !(entry.Value.SpawnAmount <= 0))
-                         .Where(entry => CanSpawnInLayer(entry.Value, world.biomeDepth)))
-            {
-                GenerateWorldTile(entry.Value, world, worldBlocks, entry.Key);
-            }
-        }
-
-        public static bool SetBlock(WorldGeneration world, Vector2Int position, ushort tileIndex)
-        {
-            if (world == null || !RegisteredDefinitions.ContainsKey(tileIndex)) return false;
-
-            InjectRegisteredTiles(world);
-            world.SetBlock(position, tileIndex);
-            return true;
-        }
-
-        public static bool SetBlockNoUpdate(WorldGeneration world, Vector2Int position, ushort tileIndex)
-        {
-            if (world == null || !RegisteredDefinitions.ContainsKey(tileIndex)) return false;
-
-            InjectRegisteredTiles(world);
-            world.SetBlockNoUpdate(position, tileIndex);
-            return true;
-        }
-
-        internal static void InjectRegisteredTiles(WorldGeneration world)
-        {
-            if (world == null || RegisteredTiles.Count == 0) return;
-
-            var requiredLength = RegisteredTiles.Keys.Max(index => (int)index) + 1;
-            if (world.tiles == null)
-                world.tiles = new TileBase[requiredLength];
-            else if (world.tiles.Length < requiredLength) Array.Resize(ref world.tiles, requiredLength);
-
-            foreach (var entry in RegisteredTiles) world.tiles[entry.Key] = entry.Value;
-
-            for (int i = FirstCustomTileIndex; i < requiredLength; i++)
-                if (world.tiles[i] == null)
-                    world.tiles[i] = GetReservedTile((ushort)i);
-        }
-
-        internal static BlockInfo CreateBlockInfo(ushort tileIndex, CustomTileDefinition definition)
-        {
-            return new BlockInfo
-            {
-                name = Locale.GetOther(definition.ID),
-                health = definition.Health,
-                hitsound = GetHitSoundToken(tileIndex),
-                stepsound = definition.StepSound,
-                sleep = definition.SleepQuality,
-                noVariation = definition.NoVariation,
-                metallic = definition.Metallic,
-                toxicity = definition.Toxicity,
-                slippery = definition.Slippery
+                ["id"] = definition.ID ?? string.Empty,
+                ["name"] = definition.Name ?? string.Empty,
+                ["description"] = definition.Description ?? string.Empty,
+                ["sprite"] = NetworkSnapshotSerialization.WriteSprite(definition.Sprite),
+                ["tileName"] = definition.TileName ?? string.Empty,
+                ["color"] = NetworkSnapshotSerialization.WriteColor(definition.Color),
+                ["colliderType"] = (int)definition.ColliderType,
+                ["health"] = definition.Health,
+                ["hitSound"] = definition.HitSound ?? string.Empty,
+                ["stepSound"] = definition.StepSound ?? string.Empty,
+                ["sleepQuality"] = (int)definition.SleepQuality,
+                ["noVariation"] = definition.NoVariation,
+                ["metallic"] = definition.Metallic,
+                ["toxicity"] = definition.Toxicity,
+                ["slippery"] = definition.Slippery,
+                ["spawnAmount"] = definition.SpawnAmount,
+                ["spawnLayers"] = definition.SpawnLayers,
+                ["generationStyle"] = (byte)definition.GenerationStyle,
+                ["drops"] = JArray.FromObject(definition.Drops),
+                ["customData"] = definition.CustomData != null
+                    ? JObject.FromObject(definition.CustomData)
+                    : new JObject()
             };
         }
 
-        private static TileBase CreateTile(CustomTileDefinition definition)
+        return root;
+    }
+
+    internal static void ApplyNetworkSnapshot(JObject snapshot)
+    {
+        if (snapshot == null) return;
+
+        foreach (var property in snapshot.Properties())
         {
-            var tile = ScriptableObject.CreateInstance<Tile>();
-            tile.sprite = definition.Sprite;
-            tile.color = definition.Color;
-            tile.name = string.IsNullOrWhiteSpace(definition.TileName) ? definition.ID : definition.TileName.Trim();
-            tile.colliderType = definition.ColliderType;
-            return tile;
+            if (!ushort.TryParse(property.Name, out var tileIndex)) continue;
+
+            var obj = property.Value as JObject;
+            if (obj == null) continue;
+
+            var definition = new CustomTileDefinition
+            {
+                ID = obj.Value<string>("id"),
+                Name = obj.Value<string>("name"),
+                Description = obj.Value<string>("description"),
+                Sprite = NetworkSnapshotSerialization.ReadSprite(obj["sprite"]),
+                TileName = obj.Value<string>("tileName"),
+                Color = NetworkSnapshotSerialization.ReadColor(obj["color"], Color.white),
+                ColliderType = (Tile.ColliderType)(obj.Value<int?>("colliderType") ?? 1),
+                Health = obj.Value<float?>("health") ?? 100f,
+                HitSound = obj.Value<string>("hitSound"),
+                StepSound = obj.Value<string>("stepSound"),
+                SleepQuality = (Body.SleepQuality)(obj.Value<int?>("sleepQuality") ?? 0),
+                NoVariation = obj.Value<bool?>("noVariation") ?? false,
+                Metallic = obj.Value<bool?>("metallic") ?? false,
+                Toxicity = obj.Value<float?>("toxicity") ?? 0f,
+                Slippery = obj.Value<bool?>("slippery") ?? false,
+                SpawnAmount = obj.Value<float?>("spawnAmount") ?? 0f,
+                SpawnLayers = obj.Value<int?>("spawnLayers") ?? AllSpawnLayersMask,
+                GenerationStyle =
+                    (TileGenerationStyle)(obj.Value<byte?>("generationStyle") ?? (byte)TileGenerationStyle.Vein)
+            };
+
+            if (obj["drops"] is JArray drops) definition.Drops = drops.ToObject<ItemDrop[]>();
+            if (obj["customData"] is JObject customData)
+                definition.CustomData = customData.ToObject<Dictionary<string, object>>() ??
+                                        new Dictionary<string, object>();
+
+            Register(tileIndex, definition);
+        }
+    }
+
+    public static bool TryGetCustomData<T>(ushort tileIndex, string key, out T value)
+    {
+        value = default;
+        if (string.IsNullOrWhiteSpace(key)) return false;
+        if (!RegisteredDefinitions.TryGetValue(tileIndex, out var definition)) return false;
+        if (definition.CustomData == null || !definition.CustomData.TryGetValue(key, out var rawValue))
+            return false;
+        if (!(rawValue is T typedValue)) return false;
+
+        value = typedValue;
+        return true;
+    }
+
+    internal static bool WillBreak(WorldGeneration world, Vector2Int position, float damage, bool bonusMetal)
+    {
+        if (world == null) return false;
+
+        var tileIndex = world.GetBlock(position);
+        if (!RegisteredDefinitions.TryGetValue(tileIndex, out var definition)) return false;
+
+        var existingDamage = world.GetBlockDamage(position);
+        var appliedDamage = damage * (bonusMetal && definition.Metallic ? 10f : 1f);
+        return (existingDamage?.damage ?? 0f) + appliedDamage >= definition.Health;
+    }
+
+    internal static void SpawnDrops(WorldGeneration world, Vector2Int position, ushort tileIndex)
+    {
+        if (world == null) return;
+        if (!RegisteredDefinitions.TryGetValue(tileIndex, out var definition)) return;
+        if (definition.Drops == null || definition.Drops.Length == 0) return;
+
+        Vector3 worldPosition = world.BlockToWorldPos(position);
+        foreach (var drop in definition.Drops)
+        {
+            if (drop == null || string.IsNullOrWhiteSpace(drop.id)) continue;
+            if (Random.Range(0f, 1f) >= drop.chance) continue;
+
+            var spawned = CustomInstantiate.InstantiateReturn(
+                drop.id,
+                worldPosition,
+                Quaternion.identity,
+                Random.Range(drop.conditionMin, drop.conditionMax));
+
+            if (spawned == null)
+                CUCoreLibPlugin.Log?.LogWarning(
+                    "Custom tile '" + definition.ID + "' failed to spawn drop '" + drop.id + "'.");
+        }
+    }
+
+    internal static void GenerateWorldTiles(WorldGeneration world)
+    {
+        if (world == null || RegisteredDefinitions.Count == 0) return;
+
+        var worldBlocks = WorldBlocksField?.GetValue(world) as ushort[,];
+        if (worldBlocks == null) return;
+
+        foreach (var entry in RegisteredDefinitions
+                     .Where(entry => entry.Value != null && !(entry.Value.SpawnAmount <= 0))
+                     .Where(entry => CanSpawnInLayer(entry.Value, world.biomeDepth)))
+            GenerateWorldTile(entry.Value, world, worldBlocks, entry.Key);
+    }
+
+    public static bool SetBlock(WorldGeneration world, Vector2Int position, ushort tileIndex)
+    {
+        if (world == null || !RegisteredDefinitions.ContainsKey(tileIndex)) return false;
+
+        InjectRegisteredTiles(world);
+        world.SetBlock(position, tileIndex);
+        return true;
+    }
+
+    public static bool SetBlockNoUpdate(WorldGeneration world, Vector2Int position, ushort tileIndex)
+    {
+        if (world == null || !RegisteredDefinitions.ContainsKey(tileIndex)) return false;
+
+        InjectRegisteredTiles(world);
+        world.SetBlockNoUpdate(position, tileIndex);
+        return true;
+    }
+
+    internal static void InjectRegisteredTiles(WorldGeneration world)
+    {
+        if (world == null || RegisteredTiles.Count == 0) return;
+
+        var requiredLength = RegisteredTiles.Keys.Max(index => (int)index) + 1;
+        if (world.tiles == null)
+            world.tiles = new TileBase[requiredLength];
+        else if (world.tiles.Length < requiredLength) Array.Resize(ref world.tiles, requiredLength);
+
+        foreach (var entry in RegisteredTiles) world.tiles[entry.Key] = entry.Value;
+
+        for (int i = FirstCustomTileIndex; i < requiredLength; i++)
+            if (world.tiles[i] == null)
+                world.tiles[i] = GetReservedTile((ushort)i);
+    }
+
+    internal static BlockInfo CreateBlockInfo(ushort tileIndex, CustomTileDefinition definition)
+    {
+        return new BlockInfo
+        {
+            name = Locale.GetOther(definition.ID),
+            health = definition.Health,
+            hitsound = GetHitSoundToken(tileIndex),
+            stepsound = definition.StepSound,
+            sleep = definition.SleepQuality,
+            noVariation = definition.NoVariation,
+            metallic = definition.Metallic,
+            toxicity = definition.Toxicity,
+            slippery = definition.Slippery
+        };
+    }
+
+    private static TileBase CreateTile(CustomTileDefinition definition)
+    {
+        var tile = ScriptableObject.CreateInstance<Tile>();
+        tile.sprite = definition.Sprite;
+        tile.color = definition.Color;
+        tile.name = string.IsNullOrWhiteSpace(definition.TileName) ? definition.ID : definition.TileName.Trim();
+        tile.colliderType = definition.ColliderType;
+        return tile;
+    }
+
+    internal static string GetHitSoundToken(ushort tileIndex)
+    {
+        return HitSoundTokenPrefix + tileIndex;
+    }
+
+    internal static bool TryPlayHitSoundToken(string token, Vector2 pos, bool twoDimensional, bool pitchShift,
+        Transform follow, float volume, float pitch, bool noReverb, bool ignoreMixer, out AudioSource audioSource)
+    {
+        audioSource = null;
+        if (!TryGetTokenTileIndex(token, out var tileIndex)) return false;
+
+        var clip = ResolveHitSound(tileIndex);
+        if (clip == null) return false;
+
+        audioSource = Sound.Play(clip, pos, twoDimensional, pitchShift, follow, volume, pitch, noReverb,
+            ignoreMixer);
+        return audioSource != null;
+    }
+
+    private static bool TryGetTokenTileIndex(string token, out ushort tileIndex)
+    {
+        tileIndex = 0;
+        if (string.IsNullOrWhiteSpace(token) ||
+            !token.StartsWith(HitSoundTokenPrefix, StringComparison.Ordinal)) return false;
+
+        return ushort.TryParse(token.Substring(HitSoundTokenPrefix.Length), out tileIndex);
+    }
+
+    private static AudioClip ResolveHitSound(ushort tileIndex)
+    {
+        if (ResolvedHitSounds.TryGetValue(tileIndex, out var cached) && cached != null) return cached;
+
+        if (!RegisteredDefinitions.TryGetValue(tileIndex, out var definition) || definition == null) return null;
+
+        if (!ResolvingHitSounds.Add(tileIndex)) return null;
+
+        try
+        {
+            var clip = definition.HitSoundClip;
+            if (clip == null) TryResolveTileHitSoundReference(definition.HitSound, out clip);
+
+            if (clip != null) ResolvedHitSounds[tileIndex] = clip;
+
+            return clip;
+        }
+        finally
+        {
+            ResolvingHitSounds.Remove(tileIndex);
+        }
+    }
+
+    private static bool TryResolveTileHitSoundReference(string reference, out AudioClip resolved)
+    {
+        resolved = null;
+        if (string.IsNullOrWhiteSpace(reference)) return false;
+
+        var normalized = reference.Trim();
+        switch (normalized.ToLowerInvariant())
+        {
+            case "metal":
+                normalized = "turret";
+                break;
+            case "rubber":
+                normalized = "glowplant";
+                break;
+            case "rustle":
+                normalized = "geotree";
+                break;
+            case "crystal":
+                normalized = "BloodCrystal";
+                break;
+            case "flesh":
+                normalized = "shadecrawler";
+                break;
+            case "pop":
+                normalized = "pop";
+                break;
+            case "ice":
+            case "glass":
+                normalized = "icestalagmite";
+                break;
+            case "stone":
+            case "rock":
+                normalized = "stoneplant";
+                break;
+            case "chain":
+                normalized = "barbedwirefence";
+                break;
         }
 
-        internal static string GetHitSoundToken(ushort tileIndex)
+        if (RegisteredDefinitionIds.TryGetValue(normalized, out var targetTileIndex))
         {
-            return HitSoundTokenPrefix + tileIndex;
+            resolved = ResolveHitSound(targetTileIndex);
+            return resolved != null;
         }
 
-        internal static bool TryPlayHitSoundToken(string token, Vector2 pos, bool twoDimensional, bool pitchShift,
-            Transform follow, float volume, float pitch, bool noReverb, bool ignoreMixer, out AudioSource audioSource)
+        var clip = AssetLoader.GetCachedAudioClip(normalized) ?? Resources.Load<AudioClip>("Sounds/" + normalized);
+        if (clip != null)
         {
-            audioSource = null;
-            if (!TryGetTokenTileIndex(token, out var tileIndex)) return false;
-
-            var clip = ResolveHitSound(tileIndex);
-            if (clip == null) return false;
-
-            audioSource = Sound.Play(clip, pos, twoDimensional, pitchShift, follow, volume, pitch, noReverb,
-                ignoreMixer);
-            return audioSource != null;
-        }
-
-        private static bool TryGetTokenTileIndex(string token, out ushort tileIndex)
-        {
-            tileIndex = 0;
-            if (string.IsNullOrWhiteSpace(token) ||
-                !token.StartsWith(HitSoundTokenPrefix, StringComparison.Ordinal)) return false;
-
-            return ushort.TryParse(token.Substring(HitSoundTokenPrefix.Length), out tileIndex);
-        }
-
-        private static AudioClip ResolveHitSound(ushort tileIndex)
-        {
-            if (ResolvedHitSounds.TryGetValue(tileIndex, out var cached) && cached != null) return cached;
-
-            if (!RegisteredDefinitions.TryGetValue(tileIndex, out var definition) || definition == null) return null;
-
-            if (!ResolvingHitSounds.Add(tileIndex)) return null;
-
-            try
-            {
-                var clip = definition.HitSoundClip;
-                if (clip == null) TryResolveTileHitSoundReference(definition.HitSound, out clip);
-
-                if (clip != null) ResolvedHitSounds[tileIndex] = clip;
-
-                return clip;
-            }
-            finally
-            {
-                ResolvingHitSounds.Remove(tileIndex);
-            }
-        }
-
-        private static bool TryResolveTileHitSoundReference(string reference, out AudioClip resolved)
-        {
-            resolved = null;
-            if (string.IsNullOrWhiteSpace(reference)) return false;
-
-            var normalized = reference.Trim();
-            switch (normalized.ToLowerInvariant())
-            {
-                case "metal":
-                    normalized = "turret";
-                    break;
-                case "rubber":
-                    normalized = "glowplant";
-                    break;
-                case "rustle":
-                    normalized = "geotree";
-                    break;
-                case "crystal":
-                    normalized = "BloodCrystal";
-                    break;
-                case "flesh":
-                    normalized = "shadecrawler";
-                    break;
-                case "pop":
-                    normalized = "pop";
-                    break;
-                case "ice":
-                case "glass":
-                    normalized = "icestalagmite";
-                    break;
-                case "stone":
-                case "rock":
-                    normalized = "stoneplant";
-                    break;
-                case "chain":
-                    normalized = "barbedwirefence";
-                    break;
-            }
-
-            if (RegisteredDefinitionIds.TryGetValue(normalized, out var targetTileIndex))
-            {
-                resolved = ResolveHitSound(targetTileIndex);
-                return resolved != null;
-            }
-
-            var clip = AssetLoader.GetCachedAudioClip(normalized) ?? Resources.Load<AudioClip>("Sounds/" + normalized);
-            if (clip != null)
-            {
-                AssetLoader.CacheAudioClip(normalized, clip);
-                resolved = clip;
-                return true;
-            }
-
-            var buildingReference = Resources.Load<GameObject>(normalized);
-            if (buildingReference == null || !buildingReference.TryGetComponent(out BuildingEntity building) ||
-                building.hitSound == null) return false;
-            resolved = building.hitSound;
-            if (!string.IsNullOrWhiteSpace(resolved.name)) AssetLoader.CacheAudioClip(resolved.name, resolved);
+            AssetLoader.CacheAudioClip(normalized, clip);
+            resolved = clip;
             return true;
         }
 
-        private static TileBase GetReservedTile(ushort index)
-        {
-            if (ReservedTiles.TryGetValue(index, out var reservedTile)) return reservedTile;
+        var buildingReference = Resources.Load<GameObject>(normalized);
+        if (buildingReference == null || !buildingReference.TryGetComponent(out BuildingEntity building) ||
+            building.hitSound == null) return false;
+        resolved = building.hitSound;
+        if (!string.IsNullOrWhiteSpace(resolved.name)) AssetLoader.CacheAudioClip(resolved.name, resolved);
+        return true;
+    }
 
-            var tile = ScriptableObject.CreateInstance<Tile>();
-            tile.name = "CUCoreLibReservedTile" + index;
-            tile.colliderType = Tile.ColliderType.None;
-            ReservedTiles[index] = tile;
-            return tile;
+    private static TileBase GetReservedTile(ushort index)
+    {
+        if (ReservedTiles.TryGetValue(index, out var reservedTile)) return reservedTile;
+
+        var tile = ScriptableObject.CreateInstance<Tile>();
+        tile.name = "CUCoreLibReservedTile" + index;
+        tile.colliderType = Tile.ColliderType.None;
+        ReservedTiles[index] = tile;
+        return tile;
+    }
+
+    private static bool CanSpawnInLayer(CustomTileDefinition definition, int biomeDepth)
+    {
+        if (definition == null) return false;
+
+        var spawnLayers = definition.SpawnLayers;
+        if (spawnLayers == 0) return false;
+
+        if (spawnLayers == AllSpawnLayersMask) return true;
+
+        var layerNumber = biomeDepth + 1;
+        var layerMask = LayerToMask(layerNumber);
+        return layerMask != 0 && (spawnLayers & layerMask) != 0;
+    }
+
+    private static void GenerateWorldTile(CustomTileDefinition definition, WorldGeneration world,
+        ushort[,] worldBlocks, ushort tileIndex)
+    {
+        var styleMask = GetGenerationStyles(definition);
+        var styleCount = CountGenerationStyles(styleMask);
+        if (styleCount <= 0) return;
+
+        var normalizedSpawnAmount = Mathf.Max(0f, definition.SpawnAmount) / styleCount;
+        if (normalizedSpawnAmount <= 0f) return;
+
+        foreach (var style in AllGenerationStyles)
+        {
+            if ((styleMask & style) == 0) continue;
+
+            GenerateWorldTileStyle(world, worldBlocks, tileIndex, normalizedSpawnAmount, style);
         }
+    }
 
-        private static bool CanSpawnInLayer(CustomTileDefinition definition, int biomeDepth)
+    private static TileGenerationStyle GetGenerationStyles(CustomTileDefinition definition)
+    {
+        if (definition == null || definition.GenerationStyle == TileGenerationStyle.None)
+            return TileGenerationStyle.Vein;
+
+        return definition.GenerationStyle;
+    }
+
+    private static int CountGenerationStyles(TileGenerationStyle styleMask)
+    {
+        return AllGenerationStyles.Count(style => (styleMask & style) != 0);
+    }
+
+    private static void GenerateWorldTileStyle(
+        WorldGeneration world,
+        ushort[,] worldBlocks,
+        ushort tileIndex,
+        float spawnAmount,
+        TileGenerationStyle style)
+    {
+        switch (style)
         {
-            if (definition == null) return false;
-
-            var spawnLayers = definition.SpawnLayers;
-            if (spawnLayers == 0) return false;
-
-            if (spawnLayers == AllSpawnLayersMask) return true;
-
-            var layerNumber = biomeDepth + 1;
-            var layerMask = LayerToMask(layerNumber);
-            return layerMask != 0 && (spawnLayers & layerMask) != 0;
+            case TileGenerationStyle.HeavyVeins:
+                GenerateOreVeins(world, worldBlocks, tileIndex, spawnAmount, 2f, 18, 42);
+                break;
+            case TileGenerationStyle.Singular:
+                GenerateSingular(world, worldBlocks, tileIndex, spawnAmount);
+                break;
+            case TileGenerationStyle.Stripe:
+                GenerateStripes(world, worldBlocks, tileIndex, spawnAmount);
+                break;
+            case TileGenerationStyle.Inner:
+                GenerateClusteredCircles(world, tileIndex, spawnAmount, true);
+                break;
+            case TileGenerationStyle.Outskirt:
+                GenerateClusteredCircles(world, tileIndex, spawnAmount, false);
+                break;
+            case TileGenerationStyle.Vein:
+            case TileGenerationStyle.None:
+            default:
+                GenerateOreVeins(world, worldBlocks, tileIndex, spawnAmount, 1f, 1, 25);
+                break;
         }
+    }
 
-        private static void GenerateWorldTile(CustomTileDefinition definition, WorldGeneration world,
-            ushort[,] worldBlocks, ushort tileIndex)
+    private static void GenerateOreVeins(
+        WorldGeneration world,
+        ushort[,] worldBlocks,
+        ushort tileIndex,
+        float spawnAmount,
+        float attemptMultiplier,
+        int minSteps,
+        int maxStepsExclusive)
+    {
+        var attempts = GetCopperStyleAttempts(world, spawnAmount * Mathf.Max(0f, attemptMultiplier));
+
+        for (var attempt = attempts; attempt > 0; attempt--)
         {
-            var styleMask = GetGenerationStyles(definition);
-            var styleCount = CountGenerationStyles(styleMask);
-            if (styleCount <= 0) return;
+            var position = new Vector2Int(
+                Mathf.FloorToInt(Random.Range(0f, world.width)),
+                Mathf.FloorToInt(Random.Range(0f, world.height)));
 
-            var normalizedSpawnAmount = Mathf.Max(0f, definition.SpawnAmount) / styleCount;
-            if (normalizedSpawnAmount <= 0f) return;
-
-            foreach (var style in AllGenerationStyles)
+            for (var steps = Random.Range(minSteps, maxStepsExclusive); steps > 0; steps--)
             {
-                if ((styleMask & style) == 0) continue;
+                if (position.x > 0
+                    && position.x < world.width - 1
+                    && position.y > 0
+                    && position.y < world.height - 1
+                    && worldBlocks[position.x, position.y] > 0)
+                    worldBlocks[position.x, position.y] = tileIndex;
 
-                GenerateWorldTileStyle(world, worldBlocks, tileIndex, normalizedSpawnAmount, style);
+                position += new Vector2Int(
+                    Random.value > 0.5f ? Random.value > 0.5f ? 1 : -1 : 0,
+                    Random.value > 0.5f ? Random.value > 0.5f ? 1 : -1 : 0);
             }
         }
+    }
 
-        private static TileGenerationStyle GetGenerationStyles(CustomTileDefinition definition)
+    private static void GenerateSingular(WorldGeneration world, ushort[,] worldBlocks, ushort tileIndex,
+        float spawnAmount)
+    {
+        var attempts = GetCopperStyleAttempts(world, spawnAmount);
+        for (var attempt = attempts; attempt > 0; attempt--)
         {
-            if (definition == null || definition.GenerationStyle == TileGenerationStyle.None)
-                return TileGenerationStyle.Vein;
+            var position = new Vector2Int(
+                Mathf.FloorToInt(Random.Range(0f, world.width)),
+                Mathf.FloorToInt(Random.Range(0f, world.height)));
 
-            return definition.GenerationStyle;
+            if (position.x <= 0
+                || position.x >= world.width - 1
+                || position.y <= 0
+                || position.y >= world.height - 1)
+                continue;
+
+            if (worldBlocks[position.x, position.y] > 0) worldBlocks[position.x, position.y] = tileIndex;
         }
+    }
 
-        private static int CountGenerationStyles(TileGenerationStyle styleMask)
+    private static void GenerateStripes(WorldGeneration world, ushort[,] worldBlocks, ushort tileIndex,
+        float spawnAmount)
+    {
+        var stripeCount = Mathf.Max(1, Mathf.RoundToInt(GetCopperStyleAttempts(world, spawnAmount) / 12f));
+        for (var stripe = 0; stripe < stripeCount; stripe++)
         {
-            return AllGenerationStyles.Count(style => (styleMask & style) != 0);
-        }
+            var horizontal = Random.value > 0.5f;
+            var stripeWidth = Random.Range(2, 6);
+            var stripeLength = Random.Range(18, 56);
+            var origin = new Vector2Int(
+                Mathf.FloorToInt(Random.Range(0f, world.width)),
+                Mathf.FloorToInt(Random.Range(0f, world.height)));
 
-        private static void GenerateWorldTileStyle(
-            WorldGeneration world,
-            ushort[,] worldBlocks,
-            ushort tileIndex,
-            float spawnAmount,
-            TileGenerationStyle style)
-        {
-            switch (style)
+            for (var step = 0; step < stripeLength; step++)
+            for (var widthOffset = -stripeWidth; widthOffset <= stripeWidth; widthOffset++)
             {
-                case TileGenerationStyle.HeavyVeins:
-                    GenerateOreVeins(world, worldBlocks, tileIndex, spawnAmount, 2f, 18, 42);
-                    break;
-                case TileGenerationStyle.Singular:
-                    GenerateSingular(world, worldBlocks, tileIndex, spawnAmount);
-                    break;
-                case TileGenerationStyle.Stripe:
-                    GenerateStripes(world, worldBlocks, tileIndex, spawnAmount);
-                    break;
-                case TileGenerationStyle.Inner:
-                    GenerateClusteredCircles(world, tileIndex, spawnAmount, true);
-                    break;
-                case TileGenerationStyle.Outskirt:
-                    GenerateClusteredCircles(world, tileIndex, spawnAmount, false);
-                    break;
-                case TileGenerationStyle.Vein:
-                case TileGenerationStyle.None:
-                default:
-                    GenerateOreVeins(world, worldBlocks, tileIndex, spawnAmount, 1f, 1, 25);
-                    break;
+                var x = horizontal ? origin.x + step : origin.x + widthOffset;
+                var y = horizontal ? origin.y + widthOffset : origin.y + step;
+                TrySetGeneratedBlock(world, worldBlocks, x, y, tileIndex);
             }
         }
+    }
 
-        private static void GenerateOreVeins(
-            WorldGeneration world,
-            ushort[,] worldBlocks,
-            ushort tileIndex,
-            float spawnAmount,
-            float attemptMultiplier,
-            int minSteps,
-            int maxStepsExclusive)
+    private static void GenerateClusteredCircles(WorldGeneration world, ushort tileIndex, float spawnAmount,
+        bool innerBias)
+    {
+        var clusterCount = Mathf.Max(1, Mathf.RoundToInt(GetCopperStyleAttempts(world, spawnAmount) / 18f));
+        var horizontalRadius = world.width * (innerBias ? 0.18f : 0.42f);
+        var verticalRadius = world.height * (innerBias ? 0.18f : 0.42f);
+        var center = new Vector2(world.halfWidth, world.halfHeight);
+
+        for (var cluster = 0; cluster < clusterCount; cluster++)
         {
-            var attempts = GetCopperStyleAttempts(world, spawnAmount * Mathf.Max(0f, attemptMultiplier));
-
-            for (var attempt = attempts; attempt > 0; attempt--)
-            {
-                var position = new Vector2Int(
-                    Mathf.FloorToInt(Random.Range(0f, world.width)),
-                    Mathf.FloorToInt(Random.Range(0f, world.height)));
-
-                for (var steps = Random.Range(minSteps, maxStepsExclusive); steps > 0; steps--)
-                {
-                    if (position.x > 0
-                        && position.x < world.width - 1
-                        && position.y > 0
-                        && position.y < world.height - 1
-                        && worldBlocks[position.x, position.y] > 0)
-                        worldBlocks[position.x, position.y] = tileIndex;
-
-                    position += new Vector2Int(
-                        Random.value > 0.5f ? Random.value > 0.5f ? 1 : -1 : 0,
-                        Random.value > 0.5f ? Random.value > 0.5f ? 1 : -1 : 0);
-                }
-            }
+            var position = center + SampleEllipseOffset(horizontalRadius, verticalRadius, innerBias);
+            var size = Random.Range(innerBias ? 4 : 3, innerBias ? 9 : 7);
+            var chance = innerBias ? 0.95f : 0.9f;
+            var chanceEnd = innerBias ? 0.45f : 0.15f;
+            world.GenerateBlockCircle(position, size, tileIndex, chance, chanceEnd);
         }
+    }
 
-        private static void GenerateSingular(WorldGeneration world, ushort[,] worldBlocks, ushort tileIndex,
-            float spawnAmount)
-        {
-            var attempts = GetCopperStyleAttempts(world, spawnAmount);
-            for (var attempt = attempts; attempt > 0; attempt--)
-            {
-                var position = new Vector2Int(
-                    Mathf.FloorToInt(Random.Range(0f, world.width)),
-                    Mathf.FloorToInt(Random.Range(0f, world.height)));
+    private static Vector2 SampleEllipseOffset(float horizontalRadius, float verticalRadius, bool innerBias)
+    {
+        var radius = innerBias
+            ? Mathf.Sqrt(Random.value) * 0.7f
+            : Mathf.Lerp(0.72f, 1f, Mathf.Sqrt(Random.value));
 
-                if (position.x <= 0
-                    || position.x >= world.width - 1
-                    || position.y <= 0
-                    || position.y >= world.height - 1)
-                    continue;
+        var angle = Random.Range(0f, Mathf.PI * 2f);
+        return new Vector2(
+            Mathf.Cos(angle) * horizontalRadius * radius,
+            Mathf.Sin(angle) * verticalRadius * radius);
+    }
 
-                if (worldBlocks[position.x, position.y] > 0) worldBlocks[position.x, position.y] = tileIndex;
-            }
-        }
+    private static int GetCopperStyleAttempts(WorldGeneration world, float spawnAmount)
+    {
+        var oreAmount = WorldGeneration.GetRunSettingFloat("oreamount");
+        // Scores may be lost
+        return Mathf.RoundToInt((int)(world.chunkWidth * world.chunkHeight) / 2 * oreAmount *
+                                Mathf.Max(0f, spawnAmount));
+    }
 
-        private static void GenerateStripes(WorldGeneration world, ushort[,] worldBlocks, ushort tileIndex,
-            float spawnAmount)
-        {
-            var stripeCount = Mathf.Max(1, Mathf.RoundToInt(GetCopperStyleAttempts(world, spawnAmount) / 12f));
-            for (var stripe = 0; stripe < stripeCount; stripe++)
-            {
-                var horizontal = Random.value > 0.5f;
-                var stripeWidth = Random.Range(2, 6);
-                var stripeLength = Random.Range(18, 56);
-                var origin = new Vector2Int(
-                    Mathf.FloorToInt(Random.Range(0f, world.width)),
-                    Mathf.FloorToInt(Random.Range(0f, world.height)));
+    private static void TrySetGeneratedBlock(WorldGeneration world, ushort[,] worldBlocks, int x, int y,
+        ushort tileIndex)
+    {
+        if (x <= 0 || x >= world.width - 1 || y <= 0 || y >= world.height - 1) return;
 
-                for (var step = 0; step < stripeLength; step++)
-                for (var widthOffset = -stripeWidth; widthOffset <= stripeWidth; widthOffset++)
-                {
-                    var x = horizontal ? origin.x + step : origin.x + widthOffset;
-                    var y = horizontal ? origin.y + widthOffset : origin.y + step;
-                    TrySetGeneratedBlock(world, worldBlocks, x, y, tileIndex);
-                }
-            }
-        }
-
-        private static void GenerateClusteredCircles(WorldGeneration world, ushort tileIndex, float spawnAmount,
-            bool innerBias)
-        {
-            var clusterCount = Mathf.Max(1, Mathf.RoundToInt(GetCopperStyleAttempts(world, spawnAmount) / 18f));
-            var horizontalRadius = world.width * (innerBias ? 0.18f : 0.42f);
-            var verticalRadius = world.height * (innerBias ? 0.18f : 0.42f);
-            var center = new Vector2(world.halfWidth, world.halfHeight);
-
-            for (var cluster = 0; cluster < clusterCount; cluster++)
-            {
-                var position = center + SampleEllipseOffset(horizontalRadius, verticalRadius, innerBias);
-                var size = Random.Range(innerBias ? 4 : 3, innerBias ? 9 : 7);
-                var chance = innerBias ? 0.95f : 0.9f;
-                var chanceEnd = innerBias ? 0.45f : 0.15f;
-                world.GenerateBlockCircle(position, size, tileIndex, chance, chanceEnd);
-            }
-        }
-
-        private static Vector2 SampleEllipseOffset(float horizontalRadius, float verticalRadius, bool innerBias)
-        {
-            var radius = innerBias
-                ? Mathf.Sqrt(Random.value) * 0.7f
-                : Mathf.Lerp(0.72f, 1f, Mathf.Sqrt(Random.value));
-
-            var angle = Random.Range(0f, Mathf.PI * 2f);
-            return new Vector2(
-                Mathf.Cos(angle) * horizontalRadius * radius,
-                Mathf.Sin(angle) * verticalRadius * radius);
-        }
-
-        private static int GetCopperStyleAttempts(WorldGeneration world, float spawnAmount)
-        {
-            var oreAmount = WorldGeneration.GetRunSettingFloat("oreamount");
-            // Scores may be lost
-            return Mathf.RoundToInt((int)(world.chunkWidth * world.chunkHeight) / 2 * oreAmount *
-                                    Mathf.Max(0f, spawnAmount));
-        }
-
-        private static void TrySetGeneratedBlock(WorldGeneration world, ushort[,] worldBlocks, int x, int y,
-            ushort tileIndex)
-        {
-            if (x <= 0 || x >= world.width - 1 || y <= 0 || y >= world.height - 1) return;
-
-            if (worldBlocks[x, y] > 0) worldBlocks[x, y] = tileIndex;
-        }
+        if (worldBlocks[x, y] > 0) worldBlocks[x, y] = tileIndex;
     }
 }
