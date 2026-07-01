@@ -12,6 +12,7 @@
         <AssemblyCSharpPath Condition="'$(AssemblyCSharpPath)' == '' and '$(CUCORELIB_ASSEMBLY_CSHARP_PATH)' != ''">$(CUCORELIB_ASSEMBLY_CSHARP_PATH)</AssemblyCSharpPath>
         <AssemblyCSharpPath Condition="'$(AssemblyCSharpPath)' == '' and '$(GameManagedDir)' != ''">$(GameManagedDir)\Assembly-CSharp.dll</AssemblyCSharpPath>
         <BepInExDir Condition="'$(BepInExDir)' == '' and '$(BaseGamePath)' != ''">$(BaseGamePath)\BepInEx</BepInExDir>
+        <LangVersion>latest</LangVersion>
     </PropertyGroup>
     <PropertyGroup>
         <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
@@ -65,14 +66,14 @@
             <HintPath>packages\Mono.Cecil.0.11.4\lib\net40\Mono.Cecil.dll</HintPath>
         </Reference>
         <Reference Include="Mono.Cecil.Mdb, Version=0.11.4.0, Culture=neutral, PublicKeyToken=50cebf1cceb9d05e, processorArchitecture=MSIL">
-            <HintPath>packages\Mono.Cecil.0.11.4\lib\net40\Mono.Cecil.Mdb.dll</HintPath>
+            <HintPath>packages\Mono.Cecil.Mdb.0.11.4\lib\net40\Mono.Cecil.Mdb.dll</HintPath>
         </Reference>
         <Reference Include="Mono.Cecil.Pdb, Version=0.11.4.0, Culture=neutral, PublicKeyToken=50cebf1cceb9d05e, processorArchitecture=MSIL">
-            <HintPath>packages\Mono.Cecil.0.11.4\lib\net40\Mono.Cecil.Pdb.dll</HintPath>
+            <HintPath>packages\Mono.Cecil.Pdb.0.11.4\lib\net40\Mono.Cecil.Pdb.dll</HintPath>
             <Private>True</Private>
         </Reference>
         <Reference Include="Mono.Cecil.Rocks, Version=0.11.4.0, Culture=neutral, PublicKeyToken=50cebf1cceb9d05e, processorArchitecture=MSIL">
-            <HintPath>packages\Mono.Cecil.0.11.4\lib\net40\Mono.Cecil.Rocks.dll</HintPath>
+            <HintPath>packages\Mono.Cecil.Rocks.0.11.4\lib\net40\Mono.Cecil.Rocks.dll</HintPath>
         </Reference>
         <Reference Include="MonoMod, Version=22.7.31.1, Culture=neutral, processorArchitecture=MSIL">
             <HintPath>packages\MonoMod.22.7.31.1\lib\net452\MonoMod.exe</HintPath>
@@ -204,6 +205,24 @@
         </Reference>
     </ItemGroup>
     <ItemGroup>
+        <Compile Include="Util\AssetUtils.cs"/>
+        <Compile Include="Util\AwaitUtils.cs"/>
+        <Compile Include="Util\CheckUtils.cs"/>
+        <Compile Include="Util\CompressionUtils.cs"/>
+        <Compile Include="Util\ConsoleUtils.cs"/>
+        <Compile Include="Util\CoroutineUtils.cs"/>
+        <Compile Include="Util\ItemUtils.cs"/>
+        <Compile Include="Util\KeyUtils.cs"/>
+        <Compile Include="Util\LocaleUtils.cs"/>
+        <Compile Include="Util\MathExtensions.cs"/>
+        <Compile Include="Util\PlayerInventoryUtils.cs"/>
+        <Compile Include="Util\PlayerLimbUtils.cs"/>
+        <Compile Include="Util\PlayerPrefsUtils.cs"/>
+        <Compile Include="Util\PlayerSkillUtils.cs"/>
+        <Compile Include="Util\PlayerUtils.cs"/>
+        <Compile Include="Util\ReflectionUtils.cs"/>
+        <Compile Include="Util\TextUtils.cs"/>
+        <Compile Include="Util\WorldUtils.cs"/>
         <Compile Include="Data\CustomBuildingEntityDefinition.cs"/>
         <Compile Include="Data\ContentReloadEntryAttribute.cs"/>
         <Compile Include="Data\CustomItemInfo.cs"/>
@@ -226,7 +245,6 @@
         <Compile Include="Helpers\AssetLoader.cs"/>
         <Compile Include="Helpers\AnimatedImage.cs"/>
         <Compile Include="Helpers\AnimatedSpriteRenderer.cs"/>
-        <Compile Include="Helpers\CUCoreUtils.cs"/>
         <Compile Include="Helpers\CustomBuildingRuntime.cs"/>
         <Compile Include="Helpers\MinigameHelpers.cs"/>
         <Compile Include="Helpers\ExtensionData.cs"/>
