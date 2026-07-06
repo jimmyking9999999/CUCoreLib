@@ -92,7 +92,7 @@ export const hoverPanels: Record<string, HoverPanel> = {
   },
   AssetLoader: {
     title: "AssetLoader",
-    body: "CUCoreLib helper for embedded and loose sprites, audio clips, text resources, UI sprites, and shared asset cache lookup."
+    body: "CUCoreLib helper for embedded and loose sprites, audio clips, text resources, UI sprites, AssetBundle registration/loading, and shared asset cache lookup."
   },
   CustomInstantiate: {
     title: "CustomInstantiate",
@@ -108,7 +108,15 @@ export const hoverPanels: Record<string, HoverPanel> = {
   },
   CUCoreMinigameSession: {
     title: "CUCoreMinigameSession",
-    body: "Live view over the active MinigameBase runner. It exposes the active body, current item, hand state, spawned minigame UI, screen creation helpers, and runtime hand-sprite utilities without forcing global lookups throughout your minigame logic."
+    body: "Live view over the active MinigameBase runner. It exposes the active body, current item, hand state, spawned minigame UI, vanilla-style and bundled screen creation helpers, and runtime hand-sprite utilities without forcing global lookups throughout your minigame logic."
+  },
+  BodyAnimationCurves: {
+    title: "BodyAnimationCurves",
+    body: "Typed helper surface for assigning bundled or already-resolved AnimationCurve data onto the vanilla Body curve fields without rewriting the same field switch in every mod."
+  },
+  BodyAnimationCurveField: {
+    title: "BodyAnimationCurveField",
+    body: "Enum listing the supported vanilla Body AnimationCurve fields exposed through BodyAnimationCurves, such as staminaStrength, movement curves, heart curves, and thirstBloodPressureCurve."
   },
   CUCoreMinigameDefinition: {
     title: "CUCoreMinigameDefinition",
@@ -241,7 +249,7 @@ export const hoverPanels: Record<string, HoverPanel> = {
   },
   CustomItemInfo: {
     title: "CustomItemInfo",
-    body: "CUCoreLib item definition with vanilla ItemInfo fields, vanilla LiquidItemInfo fields such as capacity/defaultContents/autoFill, and extras like Container, Battery, WornSprite, MultiWornSprites, LiquidMask, SpawnFrequency, SpriteScale, InventoryIconScale, SpriteScaleDimensions, CustomData, and fluent spawn-script helpers like AddSpawnComponent<T>()."
+    body: "CUCoreLib item definition with vanilla ItemInfo fields, vanilla LiquidItemInfo fields such as capacity/defaultContents/autoFill, and extras like Container, Battery, WornSprite, MultiWornSprites, WearableSortingOrder, LiquidMask, SpawnFrequency, SpriteScale, InventoryIconScale, SpriteScaleDimensions, CustomData, and fluent spawn-script helpers like AddSpawnComponent<T>()."
   },
   LiquidMask: {
     title: "LiquidMask",
@@ -250,6 +258,10 @@ export const hoverPanels: Record<string, HoverPanel> = {
   WornSpriteOffset: {
     title: "WornSpriteOffset",
     body: "Vector2 local offset applied after the item is worn. X moves left/right on the limb, Y moves up/down. Start tiny, such as new Vector2(0f, -0.04f)."
+  },
+  WearableSortingOrder: {
+    title: "WearableSortingOrder",
+    body: "Optional worn-renderer sorting order override. CUCoreLib applies the exact integer to the main worn item sprite and any MultiWornSprites, and higher values draw on top of lower values."
   },
   MultiWornSprites: {
     title: "MultiWornSprites",

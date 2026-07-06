@@ -1065,6 +1065,17 @@ namespace CUCoreLib.Helpers
             return AssetLoader.LoadEmbeddedSprite(resourcePath, pixelsPerUnit, sourceAssembly);
         }
 
+        /// <summary>
+        /// Opens a readable stream for an embedded resource resolved from the calling assembly or an explicit assembly override.
+        /// The caller owns the returned stream and should dispose it when finished.
+        /// </summary>
+        /// <param name="resourcePath">Full or suffix resource name to resolve.</param>
+        /// <param name="sourceAssembly">Optional assembly override. Defaults to CUCoreLib's content-reload override or the calling assembly.</param>
+        public static Stream LoadEmbeddedStream(string resourcePath, Assembly sourceAssembly = null)
+        {
+            return AssetLoader.LoadEmbeddedStream(resourcePath, sourceAssembly);
+        }
+
         public static byte[] CompressGZip(byte[] data)
         {
             if (data == null) return null;

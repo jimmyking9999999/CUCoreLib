@@ -46,6 +46,7 @@ namespace CUCoreLib.Patches
                 item.transform.localPosition = new Vector3(def.WornSpriteOffset.x, def.WornSpriteOffset.y,
                     item.transform.localPosition.z);
 
+            ApplySortingOrder(item, def);
             ItemRegistryPatches.ApplyCustomItemRuntime(item, true);
         }
 
@@ -87,6 +88,7 @@ namespace CUCoreLib.Patches
             if (item == null || !ItemRegistry.TryGetCustomInfo(item, out var def)) return;
 
             ApplySecondarySpriteOffsets(__instance, def);
+            ApplySecondarySpriteSortingOrder(__instance, def);
         }
 
         private static void ApplySprite(Item item, Sprite sprite)
@@ -148,6 +150,32 @@ namespace CUCoreLib.Patches
                 if (!def.MultiWornSpriteOffsets.TryGetValue(limb, out var offset)) continue;
 
                 obj.transform.localPosition = new Vector3(offset.x, offset.y, obj.transform.localPosition.z);
+            }
+        }
+
+        private static void ApplySortingOrder(Item item, CustomItemInfo def)
+        {
+            if (item == null || def == null || !def.WearableSortingOrder.HasValue) return;
+
+            var renderer = item.GetComponent<SpriteRenderer>();
+            if (renderer == null) return;
+
+            renderer.sortingOrder = def.WearableSortingOrder.Value;
+        }
+
+        private static void ApplySecondarySpriteSortingOrder(Wearable wearable, CustomItemInfo def)
+        {
+            if (wearable == null || def == null || !def.WearableSortingOrder.HasValue) return;
+            if (wearable.secondaryObjects == null) return;
+
+            foreach (var obj in wearable.secondaryObjects)
+            {
+                if (obj == null) continue;
+
+                var renderer = obj.GetComponent<SpriteRenderer>();
+                if (renderer == null) continue;
+
+                renderer.sortingOrder = def.WearableSortingOrder.Value;
             }
         }
 

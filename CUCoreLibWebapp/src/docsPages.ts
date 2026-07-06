@@ -626,6 +626,8 @@ function minigamesPage(): string {
             <tr><td><span class="inline-code">CUCoreMinigameDefinition</span></td><td>Composable definition layer for new minigames. Override <span class="inline-code">Configure</span>, <span class="inline-code">Start</span>, <span class="inline-code">Update</span>, and optional <span class="inline-code">End</span> hooks.</td></tr>
             <tr><td><span class="inline-code">CUCoreMinigames.TryStart(...)</span> / <span class="inline-code">TryStartDefinition(...)</span></td><td>Starts either a vanilla <span class="inline-code">Minigame</span> or a definition-based CUCoreLib minigame only when the shared runner is idle.</td></tr>
             <tr><td><span class="inline-code">session.TryCreateScreen(...)</span></td><td>Loads a minigame screen prefab through the game's existing UI system.</td></tr>
+            <tr><td><span class="inline-code">session.TryCreateBundledScreen(bundleId, assetName)</span></td><td>Instantiates a bundled screen prefab under the live minigame canvas using the same parenting and <span class="inline-code">spawnedMiniGame</span> bookkeeping as the vanilla screen factory.</td></tr>
+            <tr><td><span class="inline-code">cclbundle://bundleId/assetName</span></td><td>Reserved screen-resource prefix that lets existing <span class="inline-code">TryCreateScreen(...)</span> style code route through a bundled prefab without inventing a second user-facing identifier format.</td></tr>
             <tr><td><span class="inline-code">session.Complete()</span> / <span class="inline-code">Fail()</span> / <span class="inline-code">Cancel()</span></td><td>Ends the active minigame through the shared runner and reports an explicit end reason into the definition lifecycle.</td></tr>
             <tr><td><span class="inline-code">session.TrySetHandSprite(...)</span></td><td>Swaps the current hand sprite immediately, either from a sprite asset or one of the game's existing hand slots.</td></tr>
             <tr><td><span class="inline-code">session.GetOrCreateState&lt;T&gt;(...)</span></td><td>Stores modular per-run state without inventing extra globals or singleton managers.</td></tr>
@@ -696,6 +698,24 @@ public sealed class WireSpliceMinigame : CUCoreMinigameDefinition
         Debug.Log("WireSplice ended with reason: " + reason);
     }
 }</code></pre>
+    </section>
+    <section class="lesson-card">
+      <h2>Bundled screen prefabs</h2>
+      <p>If your minigame UI lives in an AssetBundle instead of the game's normal <span class="inline-code">Resources</span> path, register the bundle once during plugin setup and then use either the typed bundled helper or the reserved <span class="inline-code">cclbundle://</span> screen ID.</p>
+      <pre><code>private void Awake()
+{
+    AssetLoader.RegisterBundleFromPluginFolder(this, "glassworks.minigames", "Bundles/glassworks-minigames");
+}
+
+public override void Start(CUCoreMinigameSession session)
+{
+    session.TryCreateBundledScreen("glassworks.minigames", "WireSpliceScreen");
+}</code></pre>
+      <pre><code>public override void Start(CUCoreMinigameSession session)
+{
+    session.TryCreateScreen("cclbundle://glassworks.minigames/WireSpliceScreen");
+}</code></pre>
+      <p>Both paths instantiate the prefab under <span class="inline-code">minigameScreen</span>, move it to sibling index <span class="inline-code">0</span>, and update <span class="inline-code">spawnedMiniGame</span> so the rest of CUCoreLib's lookup helpers behave exactly the same as a vanilla screen.</p>
     </section>
 
     <section class="lesson-card">
@@ -821,6 +841,65 @@ function playerPage(): string {
 float hunger = body.hunger;
 Vector3 position = body.transform.position;</code></pre>
       <p>This page is intentionally a reference page. Field names come from the decompiled vanilla <span class="inline-code">Body.cs</span>, so these are the names to search for in dnSpyEx or patch against in your own code.</p>
+    </section>
+    <section class="lesson-card">
+      <h2>Typed body-curve helpers</h2>
+      <p>CUCoreLib now exposes a lightweight typed layer for the repetitive <span class="inline-code">Body.AnimationCurve</span> fields. The goal is ergonomics, not abstraction for its own sake: generic bundle asset loading still exists, but common body curve assignments no longer need every mod to repeat the same switch statement.</p>
+      <div class="table-wrap">
+        <table class="field-table">
+          <thead>
+            <tr><th>Helper</th><th>Args</th><th>Description</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><span class="inline-code">BodyAnimationCurveField</span></td><td>Named enum values</td><td>Lists the supported vanilla body curve fields such as <span class="inline-code">StaminaStrength</span>, <span class="inline-code">WeightMovementCurve</span>, and <span class="inline-code">HeartCurveNormal</span>.</td></tr>
+            <tr><td><span class="inline-code">BodyAnimationCurves.TryApplyCurve</span></td><td><span class="inline-code">Body body, BodyAnimationCurveField field, AnimationCurve curve</span></td><td>Applies one already-resolved curve to one supported body field.</td></tr>
+            <tr><td><span class="inline-code">BodyAnimationCurves.TryApplyBundledCurve</span></td><td><span class="inline-code">Body body, BodyAnimationCurveField field, string bundleId, string assetName</span></td><td>Loads one bundled <span class="inline-code">AnimationCurveAsset</span> and applies it to the chosen body field.</td></tr>
+            <tr><td><span class="inline-code">BodyAnimationCurves.TryApplyBundledCurves</span></td><td><span class="inline-code">Body body, string bundleId, params BodyAnimationCurveOverride[] overrides</span></td><td>Resolves a small batch first, then applies the whole set only if every referenced curve asset loads successfully.</td></tr>
+            <tr><td><span class="inline-code">BodyAnimationCurves.TryApplyBundledProfile</span></td><td><span class="inline-code">Body body, string bundleId, string assetName</span></td><td>Loads a bundled <span class="inline-code">BodyAnimationCurveProfileAsset</span> and applies its named overrides.</td></tr>
+            <tr><td><span class="inline-code">AssetLoader.TryLoadBundleAnimationCurve</span></td><td><span class="inline-code">string bundleId, string assetName, out AnimationCurve curve</span></td><td>Keeps raw generic curve resolution available for advanced mods that want to evaluate or clone the curve themselves before assignment.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+    <section class="lesson-card">
+      <h2>Bundle authoring for curves</h2>
+      <p>Bundle curve assets through CUCoreLib's ScriptableObject wrappers. Unity does not hand CUCoreLib a bare <span class="inline-code">AnimationCurve</span> as a normal bundle asset, so the supported pattern is: create an <span class="inline-code">AnimationCurveAsset</span>, assign its <span class="inline-code">Curve</span>, then optionally reference multiple named curve assets from a <span class="inline-code">BodyAnimationCurveProfileAsset</span>.</p>
+      <pre><code>// Single curve asset name inside the bundle:
+//   SprintStaminaCurve (AnimationCurveAsset)
+//
+// Optional batch profile asset:
+//   WinterProfile (BodyAnimationCurveProfileAsset)
+//   Overrides:
+//     - Field = TemperatureMovementCurve, AssetName = "ColdMovementCurve"
+//     - Field = ThirstBloodPressureCurve, AssetName = "DryBloodPressureCurve"</code></pre>
+    </section>
+    <section class="lesson-card">
+      <h2>Curve helper examples</h2>
+      <pre><code>Body body = PlayerCamera.main.body;
+
+BodyAnimationCurves.TryApplyBundledCurve(
+    body,
+    BodyAnimationCurveField.StaminaStrength,
+    "glassworks.curves",
+    "SprintStaminaCurve");</code></pre>
+      <pre><code>BodyAnimationCurves.TryApplyBundledCurves(
+    body,
+    "glassworks.curves",
+    new BodyAnimationCurveOverride
+    {
+        Field = BodyAnimationCurveField.WeightMovementCurve,
+        AssetName = "HeavyPackCurve"
+    },
+    new BodyAnimationCurveOverride
+    {
+        Field = BodyAnimationCurveField.FoodMovementCurve,
+        AssetName = "StarvingMovementCurve"
+    });</code></pre>
+      <pre><code>BodyAnimationCurves.TryApplyBundledProfile(
+    body,
+    "glassworks.curves",
+    "WinterProfile");</code></pre>
+      <p>If any referenced bundled curve asset is missing, the batch/profile helpers return <span class="inline-code">false</span> and leave unrelated body fields untouched.</p>
     </section>
 
    
@@ -1816,6 +1895,7 @@ private void Awake()
         warmthBonus = configuredWarmth;
 }</code></pre>
       <p>Use <span class="inline-code">CustomData</span> for small registration-time knobs like ranges, multipliers, effect durations, or mode names. Keep mutable per-instance state on the script itself.</p>
+      <p>If you need to adjust a vanilla item stat from the script, remember that the field usually lives on <span class="inline-code">item.Stats</span>, not directly on the <span class="inline-code">Item</span> component. For example, use <span class="inline-code">item.Stats.wearableIsolation = 0.20f;</span> rather than <span class="inline-code">item.wearableIsolation = 0.20f;</span>.</p>
     </section>
 
     <section class="lesson-card">
@@ -1882,6 +1962,7 @@ private void Awake()
         <li>Cache <span class="inline-code">Item</span> and any other required components in <span class="inline-code">Awake</span> or <span class="inline-code">Start</span> instead of calling <span class="inline-code">GetComponent</span> every frame.</li>
         <li>Keep wearable-only behavior behind a worn-state check. The same item script also exists while the item is dropped or sitting in inventory.</li>
         <li>Use <span class="inline-code">CustomData</span> for tuning constants and the script fields for mutable state.</li>
+        <li>For vanilla item stats such as <span class="inline-code">wearableIsolation</span> or <span class="inline-code">wearableArmor</span>, mutate <span class="inline-code">item.Stats</span>, not the <span class="inline-code">Item</span> component itself.</li>
         <li>If your script needs save data, use CUCoreLib's save/status systems. A <span class="inline-code">MonoBehaviour</span> field alone is not a save format.</li>
         <li>Reach for plain <span class="inline-code">useAction</span> or built-in item modules first when they already solve the problem. Scripts are for the cases that actually need runtime behavior.</li>
       </ul>
@@ -2452,6 +2533,7 @@ function advancedItemPage(): string {
             <tr><td><span class="inline-code">WornSprite</span></td><td><span class="inline-code">Sprite</span></td><td>Optional sprite applied while a wearable custom item is worn, then restored to <span class="inline-code">Icon</span> when dropped.</td></tr>
             <tr><td><span class="inline-code">MultiWornSprites</span></td><td><span class="inline-code">Dictionary&lt;string, Sprite&gt;</span></td><td>Optional extra worn sprites keyed by vanilla limb name. CUCoreLib maps these onto the game's secondary wearable sprite arrays, so one wearable can draw on multiple limbs while equipped.</td></tr>
             <tr><td><span class="inline-code">WornSpriteOffset</span></td><td><span class="inline-code">Vector2</span></td><td>Optional local-space offset applied to the worn item sprite after vanilla attaches it to <span class="inline-code">desiredWearLimb</span>.</td></tr>
+            <tr><td><span class="inline-code">WearableSortingOrder</span></td><td><span class="inline-code">int?</span></td><td>Optional worn-renderer sorting order override. When set, CUCoreLib applies that exact order to the main worn sprite and any <span class="inline-code">MultiWornSprites</span>; higher values draw on top of lower values.</td></tr>
             <tr><td><span class="inline-code">MultiWornSpriteOffsets</span></td><td><span class="inline-code">Dictionary&lt;string, Vector2&gt;</span></td><td>Optional per-limb local offsets for entries in <span class="inline-code">MultiWornSprites</span>. Use matching limb keys, or fill it through <span class="inline-code">SetMultiWornSpriteOffset(...)</span>.</td></tr>
             <tr><td><span class="inline-code">LiquidMask</span></td><td><span class="inline-code">Sprite</span></td><td>Optional liquid-fill overlay mask for custom <span class="inline-code">WaterContainerItem</span> containers. Use a white or neutral grayscale sprite with transparency shaping the visible fill area so the game can tint it to the current liquid color.</td></tr>
             <tr><td><span class="inline-code">SpriteScale</span></td><td><span class="inline-code">float</span></td><td>Scale applied to the generated runtime template. Keep this near <span class="inline-code">1f</span> unless your art was made at a different size.</td></tr>
@@ -2775,7 +2857,7 @@ function advancedItemPage(): string {
 
     <section class="lesson-card">
       <h2>Equippables</h2>
-      <p>Wearables are regular items with wearable fields set. <span class="inline-code">wearSlotId</span> is the save/load and replacement key. <span class="inline-code">desiredWearLimb</span> points the primary visual/armor behavior at a body region, while <span class="inline-code">wearableArmor</span> and <span class="inline-code">wearableIsolation</span> affect protection and temperature. Use <span class="inline-code">MultiWornSprites</span> when the same wearable should also draw extra pieces on other limbs.</p>
+      <p>Wearables are regular items with wearable fields set. <span class="inline-code">wearSlotId</span> is the save/load and replacement key. <span class="inline-code">desiredWearLimb</span> points the primary visual/armor behavior at a body region, while <span class="inline-code">wearableArmor</span> and <span class="inline-code">wearableIsolation</span> affect protection and temperature. Use <span class="inline-code">MultiWornSprites</span> when the same wearable should also draw extra pieces on other limbs, and set <span class="inline-code">WearableSortingOrder</span> when you need that whole wearable stack to use a higher or lower draw priority than other equipment.</p>
       <p>If a wearable needs a custom script, use the same item-side <span class="inline-code">AddSpawnComponent&lt;T&gt;()</span> helper described below. There is no separate wearable-only script hook.</p>
       <pre><code> ItemRegistry.Register(
      "fieldpack",
@@ -2797,6 +2879,7 @@ function advancedItemPage(): string {
          rec = new Recognition(4),
          WornSprite = AssetLoader.LoadEmbeddedSprite("Images.fieldpack-worn.png"),
          WornSpriteOffset = new Vector2(0f, -0.04f),
+         WearableSortingOrder = 206,
          MultiWornSprites = new Dictionary<string, Sprite>
          {
              ["DownTorso"] = AssetLoader.LoadEmbeddedSprite("Images.fieldpack-bedroll.png"),
@@ -2982,12 +3065,49 @@ AssetLoader.CacheSprite("sunpear", icon);
 Sprite cachedIcon = AssetLoader.GetCachedSprite("sunpear");</code></pre>
       <p>Audio loading, caching, and playback patterns now have their own dedicated page so they are easier to find when you are wiring loops, hit sounds, or sound packs.</p>
       </section>
+    <section class="lesson-card">
+      <h2>AssetBundles in v1</h2>
+      <p>CUCoreLib's first AssetBundle pass is intentionally narrow: use bundles for minigame screen prefabs and body <span class="inline-code">AnimationCurve</span> data. BuildingEntity bundles are out of scope for this rollout, so do not treat this as a general prefab registry yet.</p>
+      <p>Register the bundle once, then resolve assets from it by bundle ID plus asset name. Loose bundles are best when you want a replaceable <span class="inline-code">.bundle</span> file beside the plugin DLL; embedded bundles are best when the bundle itself should ship inside the mod assembly.</p>
+      <pre><code>// Loose bundle next to your plugin DLL:
+AssetLoader.RegisterBundleFromPluginFolder(this, "glassworks.minigames", "Bundles/glassworks-minigames");
+
+// Embedded bundle packed into the DLL as an Embedded Resource:
+AssetLoader.RegisterEmbeddedBundle("glassworks.default", "Bundles.glassworks-default");
+
+// Generic resolution stays available for advanced mods:
+if (AssetLoader.TryLoadBundleAsset("glassworks.minigames", "WireSpliceScreen", out GameObject screenPrefab))
+{
+    Logger.LogInfo("Loaded bundled screen prefab: " + screenPrefab.name);
+}</code></pre>
+      <p>Bundle asset names must match the names you exported in Unity. For minigame screens that usually means a prefab asset name such as <span class="inline-code">WireSpliceScreen</span>. For curves, CUCoreLib expects ScriptableObject wrapper assets described below, not raw <span class="inline-code">AnimationCurve</span> fields floating by themselves.</p>
+    </section>
+    <section class="lesson-card">
+      <h2>Bundle invalidation hooks</h2>
+      <p>CUCoreLib exposes explicit cache invalidation because bundle lifetimes are now separate from sprite/audio lifetimes. That lets your mod clear a bundle registration before re-registering it, or discard the loaded bundle handle without promising full live hot-reload semantics.</p>
+      <pre><code>AssetLoader.InvalidateBundle("glassworks.minigames");   // unloads the bundle handle + clears resolved bundle-asset caches
+AssetLoader.UnregisterBundle("glassworks.minigames");  // invalidates and removes the registration definition
+AssetLoader.InvalidateAllBundles();                    // clears every registered bundle handle</code></pre>
+      <p>v1 only guarantees these hooks clear CUCoreLib-owned caches. They are not a promise that every live scene instance or Unity reference updates itself automatically after the bundle changes.</p>
+    </section>
+    <section class="lesson-card">
+      <h2>Unity / ThunderKit authoring</h2>
+      <p>For minigame screens, build a normal Unity prefab with a root <span class="inline-code">GameObject</span> or <span class="inline-code">RectTransform</span> and export it into an AssetBundle through your usual ThunderKit or Unity build pipeline. CUCoreLib instantiates that prefab under the live minigame screen canvas, then applies the same sibling-index and <span class="inline-code">spawnedMiniGame</span> bookkeeping the vanilla runner uses.</p>
+      <p>For body curves, create a CUCoreLib-owned <span class="inline-code">AnimationCurveAsset</span> ScriptableObject and assign the curve into its <span class="inline-code">Curve</span> field. If you want a reusable batch, create a <span class="inline-code">BodyAnimationCurveProfileAsset</span> and fill its array with <span class="inline-code">BodyAnimationCurveField</span> plus asset-name pairs.</p>
+      <pre><code>// Unity authoring summary:
+// 1. Create prefab asset: WireSpliceScreen
+// 2. Create ScriptableObject asset: SprintStaminaCurve (AnimationCurveAsset)
+// 3. Optional batch asset: WinterProfile (BodyAnimationCurveProfileAsset)
+// 4. Export them into an AssetBundle with stable asset names</code></pre>
+      <p>The profile stores asset-name strings on purpose so the same bundle can keep one reusable profile asset that points at multiple curve assets without forcing CUCoreLib into a separate registry layer.</p>
+    </section>
     <details open>
       <summary>When to choose which</summary>
       <div class="details-body">
         <ul>
           <li>Embed required icons, shipped sounds, and bundled text or JSON files.</li>
           <li>Use loose files for texture packs, config-adjacent assets, or anything players may replace.</li>
+          <li>Use AssetBundles in v1 only for minigame prefabs and body-curve data.</li>
           <li>See the Audio page for <span class="inline-code">AudioClip</span>-specific loading, caching, and playback guidance.</li>
         </ul>
       </div>
@@ -3335,6 +3455,7 @@ function utilsPage(): string {
             <tr><td><span class="inline-code">ConsoleLog</span></td><td><span class="inline-code">ConsoleScript instance, string message</span></td><td>Writes a message into the in-game console through the game's internal logging path.</td></tr>
             <tr><td><span class="inline-code">ConsoleRunCommand</span></td><td><span class="inline-code">ConsoleScript instance, string commandString</span></td><td>Executes a command string through the in-game console.</td></tr>
             <tr><td><span class="inline-code">ConsoleCheckForWorld</span></td><td><span class="inline-code">ConsoleScript instance</span></td><td>Runs the game's console-side world check before world-dependent commands.</td></tr>
+            <tr><td><span class="inline-code">LoadEmbeddedStream</span></td><td><span class="inline-code">string resourcePath, Assembly sourceAssembly = null</span></td><td>Opens a readable embedded-resource stream using the same suffix-based lookup as other CUCoreLib loaders. Dispose the returned stream when finished.</td></tr>
             <tr><td><span class="inline-code">CompressGZip</span></td><td><span class="inline-code">byte[] data</span></td><td>Compresses a byte array with GZip.</td></tr>
             <tr><td><span class="inline-code">DecompressGZip</span></td><td><span class="inline-code">byte[] compressedData</span></td><td>Decompresses a GZip byte array.</td></tr>
             <tr><td><span class="inline-code">CompressDeflate</span></td><td><span class="inline-code">byte[] data</span></td><td>Compresses a byte array with Deflate.</td></tr>

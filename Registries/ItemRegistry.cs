@@ -212,6 +212,9 @@ namespace CUCoreLib.Registries
                     ["icon"] = NetworkSnapshotSerialization.WriteSprite(info.Icon),
                     ["inventoryIconScale"] = info.InventoryIconScale,
                     ["wornSprite"] = NetworkSnapshotSerialization.WriteSprite(info.WornSprite),
+                    ["wearableSortingOrder"] = info.WearableSortingOrder.HasValue
+                        ? new JValue(info.WearableSortingOrder.Value)
+                        : JValue.CreateNull(),
                     ["multiWornSprites"] = NetworkSnapshotSerialization.WriteSpriteDictionary(info.MultiWornSprites),
                     ["liquidMask"] = NetworkSnapshotSerialization.WriteSprite(info.LiquidMask),
                     ["heldSpriteOffsetX"] = info.HeldSpriteOffset.x,
@@ -331,6 +334,9 @@ namespace CUCoreLib.Registries
                     Icon = NetworkSnapshotSerialization.ReadSprite(obj["icon"]),
                     InventoryIconScale = obj.Value<float?>("inventoryIconScale") ?? 1f,
                     WornSprite = NetworkSnapshotSerialization.ReadSprite(obj["wornSprite"]),
+                    WearableSortingOrder = obj["wearableSortingOrder"]?.Type == JTokenType.Null
+                        ? (int?)null
+                        : obj.Value<int?>("wearableSortingOrder"),
                     MultiWornSprites = NetworkSnapshotSerialization.ReadSpriteDictionary(obj["multiWornSprites"]),
                     LiquidMask = NetworkSnapshotSerialization.ReadSprite(obj["liquidMask"]),
                     SpriteScale = obj.Value<float?>("spriteScale") ?? 1f,

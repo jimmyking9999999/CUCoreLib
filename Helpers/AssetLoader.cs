@@ -74,6 +74,27 @@ namespace CUCoreLib.Helpers
                 ".jpeg"
             };
 
+        private static readonly Dictionary<string, RegisteredAssetBundle> RegisteredBundles =
+            new Dictionary<string, RegisteredAssetBundle>(StringComparer.OrdinalIgnoreCase);
+
+        private static readonly Dictionary<string, UnityEngine.Object> BundleAssetCache =
+            new Dictionary<string, UnityEngine.Object>(StringComparer.OrdinalIgnoreCase);
+
+        private static readonly Dictionary<string, AnimationCurve> BundleAnimationCurveCache =
+            new Dictionary<string, AnimationCurve>(StringComparer.OrdinalIgnoreCase);
+
+        private static readonly Dictionary<string, HashSet<string>> BundleAssetCacheKeysByBundleId =
+            new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
+
+        private static readonly Dictionary<string, HashSet<string>> BundleCurveCacheKeysByBundleId =
+            new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
+
+        private static readonly Dictionary<string, HashSet<string>> AssemblyBundleIds =
+            new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
+
+        private static readonly Dictionary<string, HashSet<string>> ModGuidBundleIds =
+            new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
+
         private static readonly Queue<EmbeddedSpritePreloadEntry> EmbeddedSpritePreloadQueue =
             new Queue<EmbeddedSpritePreloadEntry>();
 
@@ -252,6 +273,24 @@ namespace CUCoreLib.Helpers
             ResetEmbeddedSpritePreloadState();
         }
 
+        internal static void InvalidateBundlesForModGuid(string modGuid, bool unregister = false)
+        {
+            if (string.IsNullOrWhiteSpace(modGuid)) return;
+
+            if (!ModGuidBundleIds.TryGetValue(modGuid, out var bundleIds) || bundleIds == null || bundleIds.Count == 0)
+                return;
+
+            foreach (var bundleId in bundleIds.ToArray())
+            {
+                if (unregister)
+                    UnregisterBundle(bundleId);
+                else
+                    InvalidateBundle(bundleId);
+            }
+
+            if (unregister) ModGuidBundleIds.Remove(modGuid);
+        }
+
         internal static void InvalidateEmbeddedCachesForAssembly(Assembly assembly)
         {
             if (assembly == null) return;
@@ -287,6 +326,223 @@ namespace CUCoreLib.Helpers
 
             ResourceNameCache.Remove(assemblyKey);
             LoggedMissingResources.RemoveWhere(key => key.IndexOf(assemblyKey, StringComparison.OrdinalIgnoreCase) >= 0);
+        }
+
+        internal static void InvalidateBundlesForAssembly(Assembly assembly, bool unregister = false)
+        {
+            var assemblyKey = GetAssemblyCacheKey(assembly);
+            if (string.IsNullOrWhiteSpace(assemblyKey)) return;
+
+            if (!AssemblyBundleIds.TryGetValue(assemblyKey, out var bundleIds) || bundleIds == null || bundleIds.Count == 0)
+                return;
+
+            foreach (var bundleId in bundleIds.ToArray())
+            {
+                if (unregister)
+                    UnregisterBundle(bundleId);
+                else
+                    InvalidateBundle(bundleId);
+            }
+
+            if (unregister) AssemblyBundleIds.Remove(assemblyKey);
+        }
+
+        public static bool RegisterBundle(string bundleId, AssetBundle bundle, Assembly sourceAssembly = null)
+        {
+            var normalizedBundleId = NormalizeCacheKey(bundleId);
+            if (string.IsNullOrEmpty(normalizedBundleId) || bundle == null) return false;
+
+            UnregisterBundle(normalizedBundleId);
+
+            if (sourceAssembly == null)
+                sourceAssembly = ContentReloadSession.GetSourceAssemblyOverride() ?? Assembly.GetCallingAssembly();
+
+            RegisterBundleDefinition(new RegisteredAssetBundle
+            {
+                BundleId = normalizedBundleId,
+                RegistrationKind = AssetBundleRegistrationKind.RuntimeInstance,
+                LoadedBundle = bundle,
+                SourceAssembly = sourceAssembly,
+                OwnerAssemblyKey = GetAssemblyCacheKey(sourceAssembly),
+                OwnerModGuid = ResolveOwnerModGuid(sourceAssembly),
+                Descriptor = bundle.name
+            });
+
+            return true;
+        }
+
+        public static bool RegisterBundleFromFile(string bundleId, string filePath)
+        {
+            var normalizedBundleId = NormalizeCacheKey(bundleId);
+            if (string.IsNullOrEmpty(normalizedBundleId) || string.IsNullOrWhiteSpace(filePath)) return false;
+
+            var fullPath = Path.GetFullPath(filePath);
+            if (!File.Exists(fullPath))
+            {
+                LogMissingFileResource(fullPath, "asset bundle");
+                return false;
+            }
+
+            UnregisterBundle(normalizedBundleId);
+            RegisterBundleDefinition(new RegisteredAssetBundle
+            {
+                BundleId = normalizedBundleId,
+                RegistrationKind = AssetBundleRegistrationKind.LooseFile,
+                FilePath = fullPath,
+                OwnerModGuid = ContentReloadSession.ResolveAmbientOwnerId(),
+                Descriptor = fullPath
+            });
+            return true;
+        }
+
+        public static bool RegisterBundleFromPluginFolder(BaseUnityPlugin plugin, string bundleId, string relativePath)
+        {
+            var fullPath = GetPluginFolderPath(plugin, relativePath);
+            return !string.IsNullOrEmpty(fullPath) && RegisterBundleFromFile(bundleId, fullPath);
+        }
+
+        public static bool RegisterEmbeddedBundle(string bundleId, string resourcePath, Assembly sourceAssembly = null)
+        {
+            var normalizedBundleId = NormalizeCacheKey(bundleId);
+            if (string.IsNullOrEmpty(normalizedBundleId) || string.IsNullOrWhiteSpace(resourcePath)) return false;
+
+            if (sourceAssembly == null)
+                sourceAssembly = ContentReloadSession.GetSourceAssemblyOverride() ?? Assembly.GetCallingAssembly();
+
+            if (sourceAssembly == null) return false;
+
+            var resolvedResourceName = FindEmbeddedResourceName(resourcePath, sourceAssembly);
+            if (string.IsNullOrEmpty(resolvedResourceName))
+            {
+                LogMissingEmbeddedResource(resourcePath, sourceAssembly, "asset bundle");
+                return false;
+            }
+
+            UnregisterBundle(normalizedBundleId);
+            RegisterBundleDefinition(new RegisteredAssetBundle
+            {
+                BundleId = normalizedBundleId,
+                RegistrationKind = AssetBundleRegistrationKind.EmbeddedResource,
+                ResourcePath = resolvedResourceName,
+                SourceAssembly = sourceAssembly,
+                OwnerAssemblyKey = GetAssemblyCacheKey(sourceAssembly),
+                OwnerModGuid = ResolveOwnerModGuid(sourceAssembly),
+                Descriptor = resolvedResourceName
+            });
+            return true;
+        }
+
+        public static bool InvalidateBundle(string bundleId)
+        {
+            var normalizedBundleId = NormalizeCacheKey(bundleId);
+            if (string.IsNullOrEmpty(normalizedBundleId)) return false;
+
+            var removedAnything = false;
+            if (RegisteredBundles.TryGetValue(normalizedBundleId, out var registration) && registration != null)
+            {
+                removedAnything = true;
+
+                if (registration.LoadedBundle != null)
+                {
+                    registration.LoadedBundle.Unload(false);
+                    registration.LoadedBundle = null;
+                }
+            }
+
+            removedAnything |= ClearBundleAssetCaches(normalizedBundleId);
+            LoggedMissingResources.RemoveWhere(key => key.IndexOf("bundle-asset:" + normalizedBundleId + ":",
+                StringComparison.OrdinalIgnoreCase) >= 0 ||
+                                                   key.IndexOf("bundle-curve:" + normalizedBundleId + ":",
+                                                       StringComparison.OrdinalIgnoreCase) >= 0);
+            return removedAnything;
+        }
+
+        public static bool UnregisterBundle(string bundleId)
+        {
+            var normalizedBundleId = NormalizeCacheKey(bundleId);
+            if (string.IsNullOrEmpty(normalizedBundleId)) return false;
+
+            var removedAnything = InvalidateBundle(normalizedBundleId);
+            if (RegisteredBundles.TryGetValue(normalizedBundleId, out var registration) && registration != null)
+            {
+                RegisteredBundles.Remove(normalizedBundleId);
+                RemoveBundleOwnership(registration);
+                removedAnything = true;
+            }
+
+            return removedAnything;
+        }
+
+        public static void InvalidateAllBundles()
+        {
+            foreach (var bundleId in RegisteredBundles.Keys.ToArray()) InvalidateBundle(bundleId);
+        }
+
+        public static bool TryLoadBundleAsset<T>(string bundleId, string assetName, out T asset)
+            where T : UnityEngine.Object
+        {
+            asset = null;
+
+            var normalizedBundleId = NormalizeCacheKey(bundleId);
+            var normalizedAssetName = NormalizeCacheKey(assetName);
+            if (string.IsNullOrEmpty(normalizedBundleId) || string.IsNullOrEmpty(normalizedAssetName)) return false;
+
+            var cacheKey = BuildBundleAssetCacheKey(normalizedBundleId, typeof(T), normalizedAssetName);
+            if (BundleAssetCache.TryGetValue(cacheKey, out var cachedAsset))
+            {
+                asset = cachedAsset as T;
+                if (asset != null) return true;
+
+                BundleAssetCache.Remove(cacheKey);
+            }
+
+            if (!TryGetLoadedBundle(normalizedBundleId, out var bundle)) return false;
+
+            asset = bundle.LoadAsset<T>(normalizedAssetName);
+            if (asset == null)
+            {
+                LogMissingBundleAsset(normalizedBundleId, normalizedAssetName, typeof(T));
+                return false;
+            }
+
+            BundleAssetCache[cacheKey] = asset;
+            AddBundleCacheKey(BundleAssetCacheKeysByBundleId, normalizedBundleId, cacheKey);
+            return true;
+        }
+
+        public static bool TryLoadBundleGameObject(string bundleId, string assetName, out GameObject prefab)
+        {
+            return TryLoadBundleAsset(bundleId, assetName, out prefab);
+        }
+
+        public static bool TryLoadBundleAnimationCurve(string bundleId, string assetName, out AnimationCurve curve)
+        {
+            curve = null;
+
+            var normalizedBundleId = NormalizeCacheKey(bundleId);
+            var normalizedAssetName = NormalizeCacheKey(assetName);
+            if (string.IsNullOrEmpty(normalizedBundleId) || string.IsNullOrEmpty(normalizedAssetName)) return false;
+
+            var cacheKey = BuildBundleCurveCacheKey(normalizedBundleId, normalizedAssetName);
+            if (BundleAnimationCurveCache.TryGetValue(cacheKey, out var cachedCurve) && cachedCurve != null)
+            {
+                curve = cachedCurve;
+                return true;
+            }
+
+            if (!TryLoadBundleAsset(normalizedBundleId, normalizedAssetName, out AnimationCurveAsset curveAsset) ||
+                curveAsset == null || curveAsset.Curve == null)
+            {
+                LogMissingBundleCurve(normalizedBundleId, normalizedAssetName);
+                return false;
+            }
+
+            curve = CloneAnimationCurve(curveAsset.Curve);
+            if (curve == null) return false;
+
+            BundleAnimationCurveCache[cacheKey] = curve;
+            AddBundleCacheKey(BundleCurveCacheKeysByBundleId, normalizedBundleId, cacheKey);
+            return true;
         }
 
         public static RegisteredSpriteAnimation RegisterFrameAnimation(string id, IEnumerable<Sprite> frames,
@@ -426,21 +682,37 @@ namespace CUCoreLib.Helpers
 
         public static string LoadEmbeddedText(string resourcePath, Assembly sourceAssembly = null)
         {
+            using (var stream = LoadEmbeddedStream(resourcePath, sourceAssembly, "text"))
+            {
+                if (stream == null) return null;
+
+                using (var reader = new StreamReader(stream))
+                {
+                    return reader.ReadToEnd();
+                }
+            }
+        }
+
+        internal static Stream LoadEmbeddedStream(string resourcePath, Assembly sourceAssembly = null,
+            string resourceType = "resource stream")
+        {
             if (sourceAssembly == null)
                 sourceAssembly = ContentReloadSession.GetSourceAssemblyOverride() ?? Assembly.GetCallingAssembly();
+
+            if (sourceAssembly == null) return null;
 
             var foundResource = FindEmbeddedResourceName(resourcePath, sourceAssembly);
             if (string.IsNullOrEmpty(foundResource))
             {
-                LogMissingEmbeddedResource(resourcePath, sourceAssembly, "text");
+                LogMissingEmbeddedResource(resourcePath, sourceAssembly, resourceType);
                 return null;
             }
 
-            using (var stream = sourceAssembly.GetManifestResourceStream(foundResource))
-            using (var reader = new StreamReader(stream))
-            {
-                return reader.ReadToEnd();
-            }
+            var stream = sourceAssembly.GetManifestResourceStream(foundResource);
+            if (stream != null) return stream;
+
+            LogMissingEmbeddedResource(foundResource, sourceAssembly, resourceType);
+            return null;
         }
 
         public static Sprite LoadSpriteFromFile(string filePath, float pixelsPerUnit = PPU_WORLD)
@@ -817,6 +1089,131 @@ namespace CUCoreLib.Helpers
                 : Path.Combine(pluginFolder, relativePath);
         }
 
+        private static void RegisterBundleDefinition(RegisteredAssetBundle registration)
+        {
+            if (registration == null || string.IsNullOrEmpty(registration.BundleId)) return;
+
+            RegisteredBundles[registration.BundleId] = registration;
+            AddBundleOwner(registration.OwnerAssemblyKey, registration.BundleId, AssemblyBundleIds);
+            AddBundleOwner(registration.OwnerModGuid, registration.BundleId, ModGuidBundleIds);
+        }
+
+        private static bool TryGetLoadedBundle(string bundleId, out AssetBundle bundle)
+        {
+            bundle = null;
+
+            if (!RegisteredBundles.TryGetValue(bundleId, out var registration) || registration == null)
+            {
+                Logger?.LogWarning($"No registered asset bundle with id '{bundleId}' was found.");
+                return false;
+            }
+
+            if (registration.LoadedBundle != null)
+            {
+                bundle = registration.LoadedBundle;
+                return true;
+            }
+
+            switch (registration.RegistrationKind)
+            {
+                case AssetBundleRegistrationKind.RuntimeInstance:
+                    bundle = registration.LoadedBundle;
+                    break;
+
+                case AssetBundleRegistrationKind.LooseFile:
+                    bundle = AssetBundle.LoadFromFile(registration.FilePath);
+                    if (bundle == null) LogMissingFileResource(registration.FilePath, "asset bundle");
+                    break;
+
+                case AssetBundleRegistrationKind.EmbeddedResource:
+                    using (var stream = LoadEmbeddedStream(registration.ResourcePath, registration.SourceAssembly,
+                               "asset bundle"))
+                    {
+                        if (stream == null) return false;
+                        var bytes = ReadAllBytes(stream);
+                        bundle = bytes.Length > 0 ? AssetBundle.LoadFromMemory(bytes) : null;
+                    }
+
+                    if (bundle == null)
+                        Logger?.LogWarning(
+                            $"Could not load embedded asset bundle '{registration.Descriptor}' for bundle id '{bundleId}'.");
+                    break;
+            }
+
+            if (bundle == null) return false;
+
+            registration.LoadedBundle = bundle;
+            return true;
+        }
+
+        private static bool ClearBundleAssetCaches(string bundleId)
+        {
+            var clearedAny = false;
+
+            if (BundleAssetCacheKeysByBundleId.TryGetValue(bundleId, out var assetCacheKeys) && assetCacheKeys != null)
+            {
+                foreach (var cacheKey in assetCacheKeys.ToArray())
+                {
+                    clearedAny |= BundleAssetCache.Remove(cacheKey);
+                }
+
+                BundleAssetCacheKeysByBundleId.Remove(bundleId);
+            }
+
+            if (BundleCurveCacheKeysByBundleId.TryGetValue(bundleId, out var curveCacheKeys) && curveCacheKeys != null)
+            {
+                foreach (var cacheKey in curveCacheKeys.ToArray())
+                {
+                    clearedAny |= BundleAnimationCurveCache.Remove(cacheKey);
+                }
+
+                BundleCurveCacheKeysByBundleId.Remove(bundleId);
+            }
+
+            return clearedAny;
+        }
+
+        private static void RemoveBundleOwnership(RegisteredAssetBundle registration)
+        {
+            RemoveBundleOwner(registration?.OwnerAssemblyKey, registration?.BundleId, AssemblyBundleIds);
+            RemoveBundleOwner(registration?.OwnerModGuid, registration?.BundleId, ModGuidBundleIds);
+        }
+
+        private static void AddBundleOwner(string ownerKey, string bundleId, Dictionary<string, HashSet<string>> index)
+        {
+            if (string.IsNullOrWhiteSpace(ownerKey) || string.IsNullOrWhiteSpace(bundleId)) return;
+
+            if (!index.TryGetValue(ownerKey, out var bundleIds) || bundleIds == null)
+            {
+                bundleIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                index[ownerKey] = bundleIds;
+            }
+
+            bundleIds.Add(bundleId);
+        }
+
+        private static void RemoveBundleOwner(string ownerKey, string bundleId, Dictionary<string, HashSet<string>> index)
+        {
+            if (string.IsNullOrWhiteSpace(ownerKey) || string.IsNullOrWhiteSpace(bundleId)) return;
+            if (!index.TryGetValue(ownerKey, out var bundleIds) || bundleIds == null) return;
+
+            bundleIds.Remove(bundleId);
+            if (bundleIds.Count == 0) index.Remove(ownerKey);
+        }
+
+        private static void AddBundleCacheKey(Dictionary<string, HashSet<string>> index, string bundleId, string cacheKey)
+        {
+            if (string.IsNullOrWhiteSpace(bundleId) || string.IsNullOrWhiteSpace(cacheKey)) return;
+
+            if (!index.TryGetValue(bundleId, out var cacheKeys) || cacheKeys == null)
+            {
+                cacheKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                index[bundleId] = cacheKeys;
+            }
+
+            cacheKeys.Add(cacheKey);
+        }
+
         private static string NormalizeResourcePath(string resourcePath)
         {
             return string.IsNullOrWhiteSpace(resourcePath)
@@ -851,6 +1248,24 @@ namespace CUCoreLib.Helpers
             return sourceAssembly.FullName ?? sourceAssembly.GetName().Name ?? string.Empty;
         }
 
+        private static string ResolveOwnerModGuid(Assembly sourceAssembly)
+        {
+            var modGuid = ContentReloadSession.ResolveAmbientOwnerId();
+            if (!string.IsNullOrWhiteSpace(modGuid)) return modGuid;
+            if (sourceAssembly == null) return null;
+
+            foreach (var pluginInfo in Chainloader.PluginInfos.Values)
+            {
+                var pluginAssembly = pluginInfo?.Instance != null ? pluginInfo.Instance.GetType().Assembly : null;
+                if (pluginAssembly == null) continue;
+                if (!ReferenceEquals(pluginAssembly, sourceAssembly)) continue;
+
+                return pluginInfo.Metadata?.GUID;
+            }
+
+            return null;
+        }
+
         private static string BuildEmbeddedTextureCacheKey(string assemblyKey, string resourceName)
         {
             return assemblyKey + "|" + NormalizeResourcePath(resourceName);
@@ -859,6 +1274,16 @@ namespace CUCoreLib.Helpers
         private static string BuildEmbeddedSpriteVariantKey(string textureCacheKey, float ppu)
         {
             return textureCacheKey + "|" + ppu.ToString("R");
+        }
+
+        private static string BuildBundleAssetCacheKey(string bundleId, Type assetType, string assetName)
+        {
+            return bundleId + "|" + (assetType?.FullName ?? typeof(UnityEngine.Object).FullName) + "|" + assetName;
+        }
+
+        private static string BuildBundleCurveCacheKey(string bundleId, string assetName)
+        {
+            return bundleId + "|curve|" + assetName;
         }
 
         private static void AddAssemblyKey(Dictionary<string, HashSet<string>> index, string assemblyKey, string key)
@@ -885,6 +1310,19 @@ namespace CUCoreLib.Helpers
             }
         }
 
+        private static AnimationCurve CloneAnimationCurve(AnimationCurve source)
+        {
+            if (source == null) return null;
+
+            var clone = new AnimationCurve(source.keys)
+            {
+                preWrapMode = source.preWrapMode,
+                postWrapMode = source.postWrapMode
+            };
+
+            return clone;
+        }
+
         private static void LogMissingEmbeddedResource(string resourcePath, Assembly sourceAssembly,
             string resourceType)
         {
@@ -909,6 +1347,29 @@ namespace CUCoreLib.Helpers
             if (!LoggedMissingResources.Add(key)) return;
 
             Logger?.LogWarning($"Could not load {resourceType} file '{fullPath}'.");
+        }
+
+        private static void LogMissingBundleAsset(string bundleId, string assetName, Type assetType)
+        {
+            if (string.IsNullOrWhiteSpace(bundleId) || string.IsNullOrWhiteSpace(assetName)) return;
+
+            var key = "bundle-asset:" + bundleId + ":" + (assetType?.FullName ?? "object") + ":" + assetName;
+            if (!LoggedMissingResources.Add(key)) return;
+
+            Logger?.LogWarning(
+                $"Could not load asset '{assetName}' of type '{assetType?.Name ?? "Object"}' from asset bundle '{bundleId}'.");
+        }
+
+        private static void LogMissingBundleCurve(string bundleId, string assetName)
+        {
+            if (string.IsNullOrWhiteSpace(bundleId) || string.IsNullOrWhiteSpace(assetName)) return;
+
+            var key = "bundle-curve:" + bundleId + ":" + assetName;
+            if (!LoggedMissingResources.Add(key)) return;
+
+            Logger?.LogWarning(
+                $"Could not resolve AnimationCurve asset '{assetName}' from asset bundle '{bundleId}'. " +
+                "Wrap the curve in a CUCoreLib AnimationCurveAsset when authoring the bundle.");
         }
 
         private static AudioClip LoadAudioFromStream(Stream stream, string resourceName)
@@ -978,6 +1439,26 @@ namespace CUCoreLib.Helpers
             public Assembly Assembly { get; }
             public string ResourceName { get; }
             public string TextureCacheKey { get; }
+        }
+
+        private enum AssetBundleRegistrationKind
+        {
+            LooseFile,
+            EmbeddedResource,
+            RuntimeInstance
+        }
+
+        private sealed class RegisteredAssetBundle
+        {
+            public string BundleId;
+            public string Descriptor;
+            public string FilePath;
+            public AssetBundle LoadedBundle;
+            public string OwnerAssemblyKey;
+            public string OwnerModGuid;
+            public AssetBundleRegistrationKind RegistrationKind;
+            public string ResourcePath;
+            public Assembly SourceAssembly;
         }
     }
 }

@@ -114,6 +114,11 @@ namespace CUCoreLib.Data
         public Sprite WornSprite;
 
         /// <summary>
+        /// Optional worn-sprite sorting-order override applied to the primary and secondary worn sprite renderers. Higher values draw on top of lower values.
+        /// </summary>
+        public int? WearableSortingOrder;
+
+        /// <summary>
         /// Optional registered sprite animation id applied to <see cref="WornSprite"/>.
         /// </summary>
         public string WornSpriteAnimationId;

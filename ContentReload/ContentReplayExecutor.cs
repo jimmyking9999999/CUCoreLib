@@ -66,6 +66,7 @@ namespace CUCoreLib.ContentReload
 
             var existingContent = CaptureExistingContent(report.ModGuid);
             AssetLoader.InvalidateEmbeddedCachesForModGuid(report.ModGuid);
+            AssetLoader.InvalidateBundlesForModGuid(report.ModGuid, unregister: true);
             ClearExistingContent(report.ModGuid, result);
             var reloadMode = ContentReloadManager.GetReloadMode(report.ModGuid);
 

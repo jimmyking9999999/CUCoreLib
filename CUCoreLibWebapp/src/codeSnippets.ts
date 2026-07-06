@@ -830,7 +830,7 @@ public sealed class WireSpliceMinigame : CUCoreMinigameDefinition
 
     public override void Start(CUCoreMinigameSession session)
     {
-        session.TryCreateScreen("Special/WireSpliceMinigame");
+        session.TryCreateBundledScreen("glassworks.minigames", "WireSpliceScreen");
     }
 
     public override void Update(CUCoreMinigameSession session, List<RaycastResult> uiCasts)
@@ -1330,6 +1330,16 @@ private void LoadModAssets()
 
     // Cache shared sprites when multiple systems should resolve them by ID later.
     AssetLoader.CacheSprite("sunpear", embeddedIcon);
+
+    // Bundle registration stays explicit in v1.
+    AssetLoader.RegisterBundleFromPluginFolder(this, "glassworks.minigames", "Bundles/glassworks-minigames");
+    AssetLoader.RegisterEmbeddedBundle("glassworks.curves", "Bundles.glassworks-curves");
+
+    // Bundled prefabs still resolve through the generic helper.
+    if (AssetLoader.TryLoadBundleAsset("glassworks.minigames", "WireSpliceScreen", out GameObject screenPrefab))
+    {
+        Logger.LogInfo("Loaded bundled prefab: " + screenPrefab.name);
+    }
 }`;
 }
 
@@ -1580,6 +1590,16 @@ private void Awake()
     bool finite = mousePos.IsFinite();
     Sprite keySprite = CUCoreUtils.GetKeySprite(KeyCode.E);
     Sprite embedded = CUCoreUtils.LoadEmbeddedSprite("Images.icon.png");
+    using (var embeddedStream = CUCoreUtils.LoadEmbeddedStream("Data.default-loot.json"))
+    {
+        if (embeddedStream != null)
+        {
+            using (var reader = new System.IO.StreamReader(embeddedStream))
+            {
+                string embeddedText = reader.ReadToEnd();
+            }
+        }
+    }
     byte[] gzip = CUCoreUtils.CompressGZip(new byte[] { 1, 2, 3 });
     byte[] raw = CUCoreUtils.DecompressGZip(gzip);
 }
@@ -1907,6 +1927,7 @@ private float GetCustomFloat(Item item, string key, float fallback)
 
 function playerCode(): string {
   return `using System.Collections;
+using CUCoreLib.Data;
 using CUCoreLib.Helpers;
 using CUCoreLib.Registries;
 using UnityEngine;
@@ -1949,6 +1970,33 @@ private void RegisterPlayerDebugCommands()
         },
         null
     );
+}
+
+private void ApplyBundledBodyCurves()
+{
+    Body body = PlayerCamera.main.body;
+
+    BodyAnimationCurves.TryApplyBundledCurve(
+        body,
+        BodyAnimationCurveField.StaminaStrength,
+        "glassworks.curves",
+        "SprintStaminaCurve");
+
+    BodyAnimationCurves.TryApplyBundledCurves(
+        body,
+        "glassworks.curves",
+        new BodyAnimationCurveOverride
+        {
+            Field = BodyAnimationCurveField.WeightMovementCurve,
+            AssetName = "HeavyPackCurve"
+        },
+        new BodyAnimationCurveOverride
+        {
+            Field = BodyAnimationCurveField.FoodMovementCurve,
+            AssetName = "StarvingMovementCurve"
+        });
+
+    BodyAnimationCurves.TryApplyBundledProfile(body, "glassworks.curves", "WinterProfile");
 }`;
 }
 

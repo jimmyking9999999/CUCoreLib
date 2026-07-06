@@ -143,6 +143,10 @@
             <HintPath>$(GameManagedDir)\UnityEngine.AnimationModule.dll</HintPath>
             <Private>False</Private>
         </Reference>
+        <Reference Include="UnityEngine.AssetBundleModule">
+            <HintPath>$(GameManagedDir)\UnityEngine.AssetBundleModule.dll</HintPath>
+            <Private>False</Private>
+        </Reference>
         <Reference Include="UnityEngine.AudioModule">
             <HintPath>$(GameManagedDir)\UnityEngine.AudioModule.dll</HintPath>
             <Private>False</Private>
@@ -212,6 +216,8 @@
         <Compile Include="Data\CustomBuildingEntityDefinition.cs"/>
         <Compile Include="Data\CustomItemInfo.cs"/>
         <Compile Include="Data\CustomLiquidInfo.cs"/>
+        <Compile Include="Data\AnimationCurveAsset.cs"/>
+        <Compile Include="Data\BodyAnimationCurveProfileAsset.cs"/>
         <Compile Include="Data\ModOptionDefinition.cs"/>
         <Compile Include="Data\RegisteredSpriteAnimation.cs"/>
         <Compile Include="Data\StatusBase.cs"/>
@@ -231,6 +237,7 @@
         <Compile Include="Helpers\AssetLoader.cs"/>
         <Compile Include="Helpers\AnimatedImage.cs"/>
         <Compile Include="Helpers\AnimatedSpriteRenderer.cs"/>
+        <Compile Include="Helpers\BodyAnimationCurves.cs"/>
         <Compile Include="Helpers\CCLBase.cs"/>
         <Compile Include="Helpers\CUCoreUtils.cs"/>
         <Compile Include="Helpers\CustomBuildingRuntime.cs"/>

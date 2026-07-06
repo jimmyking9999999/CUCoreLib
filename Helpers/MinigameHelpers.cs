@@ -178,6 +178,8 @@ namespace CUCoreLib.Helpers
         private static readonly FieldInfo HandSpriteField =
             typeof(MinigameBase).GetField("handSprite", BindingFlags.Instance | BindingFlags.NonPublic);
 
+        public const string BundledScreenResourcePrefix = "cclbundle://";
+
         private readonly Minigame boundMinigame;
         private readonly Dictionary<Type, object> stateByType = new Dictionary<Type, object>();
         private ICUCoreMinigameLifecycleHost lifecycleHost;
@@ -300,8 +302,24 @@ namespace CUCoreLib.Helpers
         {
             if (Game == null || string.IsNullOrWhiteSpace(resourceId)) return false;
 
-            Game.CreateScreen(resourceId);
-            return true;
+            return TryCreateScreenInternal(resourceId, out _);
+        }
+
+        public bool TryCreateBundledScreen(string bundleId, string assetName)
+        {
+            return TryCreateBundledScreen(bundleId, assetName, out _);
+        }
+
+        public bool TryCreateBundledScreen(string bundleId, string assetName, out GameObject spawnedScreen)
+        {
+            spawnedScreen = null;
+            if (Game == null || string.IsNullOrWhiteSpace(bundleId) || string.IsNullOrWhiteSpace(assetName))
+                return false;
+
+            if (!AssetLoader.TryLoadBundleGameObject(bundleId, assetName, out var prefab) || prefab == null)
+                return false;
+
+            return TryInstantiateMinigameScreen(prefab, out spawnedScreen);
         }
 
         public void End()
@@ -480,6 +498,49 @@ namespace CUCoreLib.Helpers
             if (host != null) lifecycleHost = host;
         }
 
+        private bool TryCreateScreenInternal(string resourceId, out GameObject spawnedScreen)
+        {
+            spawnedScreen = null;
+            if (Game == null || string.IsNullOrWhiteSpace(resourceId)) return false;
+
+            if (TryParseBundledScreenResourceId(resourceId, out var bundleId, out var assetName))
+                return TryCreateBundledScreen(bundleId, assetName, out spawnedScreen);
+
+            Game.CreateScreen(resourceId);
+            spawnedScreen = SpawnedMiniGame;
+            return spawnedScreen != null;
+        }
+
+        private bool TryInstantiateMinigameScreen(GameObject prefab, out GameObject spawnedScreen)
+        {
+            spawnedScreen = null;
+            if (Game == null || prefab == null || Game.minigameScreen == null) return false;
+
+            spawnedScreen = UnityEngine.Object.Instantiate(prefab, Game.minigameScreen, false);
+            if (spawnedScreen == null) return false;
+
+            spawnedScreen.transform.SetSiblingIndex(0);
+            Game.spawnedMiniGame = spawnedScreen.transform;
+            return true;
+        }
+
+        private static bool TryParseBundledScreenResourceId(string resourceId, out string bundleId, out string assetName)
+        {
+            bundleId = null;
+            assetName = null;
+            if (string.IsNullOrWhiteSpace(resourceId) ||
+                !resourceId.StartsWith(BundledScreenResourcePrefix, StringComparison.OrdinalIgnoreCase))
+                return false;
+
+            var payload = resourceId.Substring(BundledScreenResourcePrefix.Length);
+            var separatorIndex = payload.IndexOf('/');
+            if (separatorIndex <= 0 || separatorIndex >= payload.Length - 1) return false;
+
+            bundleId = payload.Substring(0, separatorIndex).Trim();
+            assetName = payload.Substring(separatorIndex + 1).Trim();
+            return !string.IsNullOrWhiteSpace(bundleId) && !string.IsNullOrWhiteSpace(assetName);
+        }
+
         private static Transform FindChildByName(Transform root, string name)
         {
             if (root == null) return null;
@@ -541,6 +602,11 @@ namespace CUCoreLib.Helpers
         public static bool TryCreateScreen(string resourceId)
         {
             return CurrentSession != null && CurrentSession.TryCreateScreen(resourceId);
+        }
+
+        public static bool TryCreateBundledScreen(string bundleId, string assetName)
+        {
+            return CurrentSession != null && CurrentSession.TryCreateBundledScreen(bundleId, assetName);
         }
 
         public static void EndActiveMinigame()
@@ -898,6 +964,11 @@ namespace CUCoreLib.Helpers
         public static bool TryCreateScreen(string resourceId)
         {
             return CUCoreMinigames.TryCreateScreen(resourceId);
+        }
+
+        public static bool TryCreateBundledScreen(string bundleId, string assetName)
+        {
+            return CUCoreMinigames.TryCreateBundledScreen(bundleId, assetName);
         }
 
         public static void EndActiveMinigame()
