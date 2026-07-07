@@ -41,18 +41,23 @@ namespace CUCoreLib.Patches
                 {
                     CUCoreUtils.ConsoleCheckForWorld(__instance);
                     if (args == null || args.Length < 2)
-                        throw new Exception("Usage: spawncategory [category] [position]");
+                        throw new Exception("Usage: spawncategory [category] [position] [modGUID]");
 
                     var category = args[1];
                     Vector2 position = Camera.main.ScreenToWorldPoint(Input.mousePosition);
                     if (args.Length > 2)
                         position = ParsePositionOrThrow(__instance, args[2]);
+
+                    var modGuid = args.Length > 3 ? args[3] : null;
                     var items = string.Equals(category, "modded", StringComparison.OrdinalIgnoreCase)
-                        ? GetModdedSpawnCategoryIds()
+                        ? GetModdedSpawnCategoryIds(modGuid)
                         : (ItemLootPool.AllItemsFromPool(category) ??
                            throw new Exception("Invalid item category \"" + category + "\"."))
-                        .Select(entry => entry.Item1)
-                        .Where(id => !string.IsNullOrWhiteSpace(id))
+                        .Select(entry => entry.Item1);
+
+                    items = items
+                        .Select(SpawnIdHelpers.NormalizeSpawnId)
+                        .Where(id => !string.IsNullOrWhiteSpace(id) && !BuildingEntityRegistry.IsRegistered(id))
                         .Distinct(StringComparer.OrdinalIgnoreCase)
                         .ToList();
 
@@ -66,8 +71,9 @@ namespace CUCoreLib.Patches
 
                     CUCoreUtils.ConsoleLog(__instance,
                         $"Spawned all items from category \"{category}\" at {position}.");
-                }, null, ("string id", "The ID of the category to spawn from"),
-                ("position", "Where to spawn the item")));
+                }, BuildSpawnCategoryAutofill(), ("category", "The ID of the category to spawn from."),
+                ("position", "Where to spawn the item"),
+                ("modGUID", "Optional BepInEx plugin GUID filter for the modded category. Use normal for no filter.")));
 
             ConsoleScript.Commands.Add(new Command("cuspawn",
                 "Spawns a vanilla prefab or CUCoreLib-registered item/building.",
@@ -220,7 +226,8 @@ namespace CUCoreLib.Patches
 
             return new Dictionary<int, List<string>>
             {
-                { 0, categories }
+                { 0, categories },
+                { 2, BuildReloadContentAutofill()[0].Prepend("normal").ToList() }
             };
         }
 
@@ -229,19 +236,7 @@ namespace CUCoreLib.Patches
             var spawnCategoryCommand = ConsoleScript.SearchExact("spawncategory");
             if (spawnCategoryCommand == null) return;
 
-            var categoryAutofill = BuildSpawnCategoryAutofill()[0];
-            if (spawnCategoryCommand.argAutofill == null)
-                spawnCategoryCommand.argAutofill = new Dictionary<int, List<string>>();
-
-            if (!spawnCategoryCommand.argAutofill.TryGetValue(0, out var categories))
-            {
-                spawnCategoryCommand.argAutofill[0] = categoryAutofill;
-                return;
-            }
-
-            foreach (var category in categoryAutofill.Where(category =>
-                         !categories.Contains(category, StringComparer.OrdinalIgnoreCase)))
-                categories.Add(category);
+            spawnCategoryCommand.argAutofill = BuildSpawnCategoryAutofill();
         }
 
         private static bool HasRegisteredSpawnEntities(ConsoleScript console)
@@ -401,22 +396,39 @@ namespace CUCoreLib.Patches
             checkArgumentCount.Invoke(console, new object[] { args, desired });
         }
 
-        private static List<string> GetModdedSpawnCategoryIds()
+        private static List<string> GetModdedSpawnCategoryIds(string modGuid = null)
         {
             var moddedIds = new List<string>();
+            var normalizedModGuid = NormalizeSpawnCategoryModGuid(modGuid);
+            var ownerFilteredIds = normalizedModGuid == null
+                ? null
+                : new HashSet<string>(ItemRegistry.GetRegisteredItemIdsForOwner(normalizedModGuid),
+                    StringComparer.OrdinalIgnoreCase);
 
             if (Item.GlobalItems != null)
                 foreach (var id in Item.GlobalItems.Keys)
                     if (CUCoreUtils.IsModdedItem(id) &&
+                        (ownerFilteredIds == null || ownerFilteredIds.Contains(id)) &&
                         !moddedIds.Contains(id, StringComparer.OrdinalIgnoreCase))
                         moddedIds.Add(id);
 
             foreach (var id in ItemRegistry.GetRegisteredItemIds())
                 if (CUCoreUtils.IsModdedItem(id) &&
+                    (ownerFilteredIds == null || ownerFilteredIds.Contains(id)) &&
                     !moddedIds.Contains(id, StringComparer.OrdinalIgnoreCase))
                     moddedIds.Add(id);
 
             return moddedIds;
+        }
+
+        private static string NormalizeSpawnCategoryModGuid(string modGuid)
+        {
+            if (string.IsNullOrWhiteSpace(modGuid)) return null;
+
+            var normalized = modGuid.Trim();
+            return string.Equals(normalized, "normal", StringComparison.OrdinalIgnoreCase)
+                ? null
+                : normalized;
         }
 
         private static string FindClosestMatch(string query, List<string> candidates)

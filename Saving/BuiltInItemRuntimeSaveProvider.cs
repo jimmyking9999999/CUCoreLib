@@ -16,18 +16,22 @@ namespace CUCoreLib.Saving
         {
             if (item == null || !ItemRegistry.TryGetCustomInfo(item, out _)) return null;
 
-            var lightItem = item.GetComponent<LightItem>();
-            if (lightItem == null) return null;
+            var result = new JObject();
+            var customData = ItemRegistry.CaptureRuntimeCustomData(item);
+            if (customData != null) result["customData"] = customData;
 
-            return new JObject
-            {
-                ["lightEnabled"] = lightItem.shouldEnable
-            };
+            var lightItem = item.GetComponent<LightItem>();
+            if (lightItem != null) result["lightEnabled"] = lightItem.shouldEnable;
+
+            return result.HasValues ? result : null;
         }
 
         public void Restore(Item item, string itemKey, JToken payload, int version, SaveRestoreContext context)
         {
             if (item == null || !(payload is JObject obj) || !ItemRegistry.TryGetCustomInfo(item, out _)) return;
+
+            if (obj["customData"] is JObject customData)
+                ItemRegistry.RestoreRuntimeCustomData(item, customData);
 
             var enabledToken = obj["lightEnabled"];
             if (enabledToken == null || enabledToken.Type == JTokenType.Null) return;

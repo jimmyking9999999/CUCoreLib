@@ -69,6 +69,7 @@ namespace CUCoreLib.Patches
             if (!ItemRegistry.RegisteredItems.TryGetValue(item.id, out var def))
                 return;
 
+            ItemRegistry.EnsureRuntimeCustomDataState(item, out _);
             ApplyCustomItemVisuals(item, def, preferWornSprite);
             ApplyCustomItemComponents(item, def);
             ApplyCustomSpawnComponents(item, def);
@@ -102,6 +103,9 @@ namespace CUCoreLib.Patches
                         wearable.CreateSprites(body);
                     }
                 }
+
+                if (preferWornSprite)
+                    CustomWearablePatches.ApplyPrimaryWornVisualState(item, def);
             }
         }
 

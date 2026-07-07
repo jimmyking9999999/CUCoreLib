@@ -42,11 +42,9 @@ namespace CUCoreLib.Patches
                 return;
             }
 
-            if (__state && def.WornSprite != null)
-                item.transform.localPosition = new Vector3(def.WornSpriteOffset.x, def.WornSpriteOffset.y,
-                    item.transform.localPosition.z);
+            if (__state)
+                ApplyPrimaryWornVisualState(item, def);
 
-            ApplySortingOrder(item, def);
             ItemRegistryPatches.ApplyCustomItemRuntime(item, true);
         }
 
@@ -177,6 +175,17 @@ namespace CUCoreLib.Patches
 
                 renderer.sortingOrder = def.WearableSortingOrder.Value;
             }
+        }
+
+        internal static void ApplyPrimaryWornVisualState(Item item, CustomItemInfo def)
+        {
+            if (item == null || def == null) return;
+
+            item.transform.localPosition = def.WornSprite != null
+                ? new Vector3(def.WornSpriteOffset.x, def.WornSpriteOffset.y, item.transform.localPosition.z)
+                : new Vector3(0f, 0f, item.transform.localPosition.z);
+
+            ApplySortingOrder(item, def);
         }
 
         private static void EnsureWearableComponent(Item item, CustomItemInfo def)

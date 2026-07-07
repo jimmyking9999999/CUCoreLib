@@ -1703,6 +1703,12 @@ ItemRegistry.Register(
 );</code></pre>
     </section>
     <section class="lesson-card">
+      <h2>Finding values from game code</h2>
+      <p>To find values for vanilla game items, open the decompiled <span class="inline-code">Item.cs</span> file and look inside <span class="inline-code">SetupItems()</span>. The game creates its normal <span class="inline-code">ItemInfo</span> entries there.</p>
+      <p>You can usually copy the <span class="inline-code">new ItemInfo { ... }</span> block from <span class="inline-code">SetupItems()</span> into your own <span class="inline-code">ItemRegistry.Register(...)</span> call 1:1, and it will work. After that, adjust the fields you want to change for your modded item.</p>
+      <img src="images/decompiled-item-cs.png" alt="Decompiled Item.cs SetupItems method showing vanilla ItemInfo values." class="screenshot">
+    </section>
+    <section class="lesson-card">
       <h2>Fields</h2>
       <p>A field is a named value stored on an object. When you write <span class="inline-code">new ItemInfo { weight = 0.4f }</span>, you are setting the <span class="inline-code">weight</span> field on that <span class="inline-code">ItemInfo</span> instance before CUCoreLib registers it.</p>
       <p>In the decompiled game, <span class="inline-code">Item.cs</span> builds <span class="inline-code">Item.GlobalItems</span> from <span class="inline-code">ItemInfo</span> objects. The table below is based on the decompiled <span class="inline-code">ItemInfo.cs</span> fields that those vanilla items use.</p>
@@ -1882,8 +1888,8 @@ function customItemScriptsPage(): string {
     </section>
 
     <section class="lesson-card">
-      <h2>Reading the item and its custom metadata</h2>
-      <p>Inside the script, cache the attached <span class="inline-code">Item</span> component first. If you need registration-time tuning values, use <span class="inline-code">ItemRegistry.TryGetCustomData&lt;T&gt;</span> or <span class="inline-code">CUCoreUtils.TryGetCustomItemInfo</span> instead of hard-coding everything directly into the script.</p>
+      <h2>Reading the item and its custom state</h2>
+      <p>Inside the script, cache the attached <span class="inline-code">Item</span> component first. <span class="inline-code">CustomData</span> now acts as inline defaults for each spawned item instance, so use <span class="inline-code">ItemRegistry.GetCustomData&lt;T&gt;</span> or <span class="inline-code">ItemRegistry.SetCustomData(...)</span> when you want friendly per-item reads and writes without hard-coding everything directly into the script.</p>
       <pre><code>private Item item;
 private float warmthBonus;
 
@@ -1891,10 +1897,10 @@ private void Awake()
 {
     item = GetComponent&lt;Item&gt;();
 
-    if (item != null && ItemRegistry.TryGetCustomData&lt;float&gt;(item, "warmthBonus", out float configuredWarmth))
-        warmthBonus = configuredWarmth;
+    if (item != null)
+        warmthBonus = ItemRegistry.GetCustomData(item, "warmthBonus", 0.25f);
 }</code></pre>
-      <p>Use <span class="inline-code">CustomData</span> for small registration-time knobs like ranges, multipliers, effect durations, or mode names. Keep mutable per-instance state on the script itself.</p>
+      <p>Use <span class="inline-code">CustomData</span> when you want inline defaults that each item instance can later read or mutate independently. This is item-only behavior; tile <span class="inline-code">CustomData</span> still means registration metadata.</p>
       <p>If you need to adjust a vanilla item stat from the script, remember that the field usually lives on <span class="inline-code">item.Stats</span>, not directly on the <span class="inline-code">Item</span> component. For example, use <span class="inline-code">item.Stats.wearableIsolation = 0.20f;</span> rather than <span class="inline-code">item.wearableIsolation = 0.20f;</span>.</p>
     </section>
 
@@ -1936,8 +1942,8 @@ private void Awake()
     {
         item = GetComponent&lt;Item&gt;();
 
-        if (item != null && ItemRegistry.TryGetCustomData&lt;float&gt;(item, "warmthBonus", out float configuredWarmth))
-            warmthBonus = configuredWarmth;
+        if (item != null)
+            warmthBonus = ItemRegistry.GetCustomData(item, "warmthBonus", 0.25f);
     }
 
     private void Update()
@@ -1961,7 +1967,7 @@ private void Awake()
       <ul>
         <li>Cache <span class="inline-code">Item</span> and any other required components in <span class="inline-code">Awake</span> or <span class="inline-code">Start</span> instead of calling <span class="inline-code">GetComponent</span> every frame.</li>
         <li>Keep wearable-only behavior behind a worn-state check. The same item script also exists while the item is dropped or sitting in inventory.</li>
-        <li>Use <span class="inline-code">CustomData</span> for tuning constants and the script fields for mutable state.</li>
+        <li>Use <span class="inline-code">CustomData</span> for inline per-item defaults, then read or mutate them through <span class="inline-code">ItemRegistry.GetCustomData</span> and <span class="inline-code">ItemRegistry.SetCustomData</span>.</li>
         <li>For vanilla item stats such as <span class="inline-code">wearableIsolation</span> or <span class="inline-code">wearableArmor</span>, mutate <span class="inline-code">item.Stats</span>, not the <span class="inline-code">Item</span> component itself.</li>
         <li>If your script needs save data, use CUCoreLib's save/status systems. A <span class="inline-code">MonoBehaviour</span> field alone is not a save format.</li>
         <li>Reach for plain <span class="inline-code">useAction</span> or built-in item modules first when they already solve the problem. Scripts are for the cases that actually need runtime behavior.</li>
@@ -2547,7 +2553,7 @@ function advancedItemPage(): string {
             <tr><td><span class="inline-code">Syringe</span></td><td><span class="inline-code">SyringeProperties</span></td><td>Adds syringe-style liquid injection behavior through <span class="inline-code">WaterContainerItem</span> and <span class="inline-code">SyringeMinigame</span>.</td></tr>
             <tr><td><span class="inline-code">Tool</span></td><td><span class="inline-code">ToolProperties</span></td><td>Builds a vanilla <span class="inline-code">AttackInfo</span> and calls <span class="inline-code">Body.Attack</span> for melee-style tools or weapons.</td></tr>
             <tr><td><span class="inline-code">SpawnComponents</span></td><td><span class="inline-code">List&lt;string&gt;</span></td><td>Backing list of runtime-resolvable <span class="inline-code">MonoBehaviour</span> type names CUCoreLib adds to the spawned item GameObject the first time the item appears. For plugin-defined scripts, prefer <span class="inline-code">AddSpawnComponent&lt;T&gt;()</span> so you do not have to hand-write the assembly-qualified name.</td></tr>
-            <tr><td><span class="inline-code">CustomData</span></td><td><span class="inline-code">Dictionary&lt;string, object&gt;</span></td><td>Registration-time metadata for your own mod code. Read it later with <span class="inline-code">ItemRegistry.TryGetCustomData&lt;T&gt;</span>.</td></tr>
+            <tr><td><span class="inline-code">CustomData</span></td><td><span class="inline-code">Dictionary&lt;string, object&gt;</span></td><td>Inline defaults for mod-owned per-item custom state. CUCoreLib copies them onto each spawned item instance so your mod can read or mutate them later with <span class="inline-code">ItemRegistry.GetCustomData&lt;T&gt;</span> and <span class="inline-code">ItemRegistry.SetCustomData</span>.</td></tr>
           </tbody>
         </table>
       </div>
@@ -2933,7 +2939,7 @@ decayInfo = (byte)(
 
     <section class="lesson-card">
       <h2>Custom data</h2>
-      <p><span class="inline-code">CustomData</span> is for your own mod's metadata: tuning values, upgrade tiers, internal labels, or small constants you want to keep near the registration. CUCoreLib stores those values on the registered <span class="inline-code">CustomItemInfo</span> and lets you read them back from spawned items.</p>
+      <p><span class="inline-code">CustomData</span> is for your own mod's item-side custom state defaults: tuning values, upgrade tiers, internal labels, or small constants you want to keep near the registration. CUCoreLib copies those values onto each spawned item instance so one item can change without rewriting every other item of the same type.</p>
       <pre><code>ItemRegistry.Register(
     "laserdrill",
     new CustomItemInfo
@@ -2949,13 +2955,11 @@ decayInfo = (byte)(
     },
     AssetLoader.LoadEmbeddedSprite("Images.laserdrill.png")
 );</code></pre>
-      <p>Retrieve it from the item with <span class="inline-code">ItemRegistry.TryGetCustomData</span>. The generic type is intentional: the dictionary stores <span class="inline-code">object</span>, so callers should ask for the type they expect.</p>
-      <pre><code>if (ItemRegistry.TryGetCustomData&lt;float&gt;(item, "beamRange", out float beamRange))
-{
-    Logger.LogInfo($"Laser drill range: {beamRange}");
-}</code></pre>
+      <p>Retrieve it from the item with <span class="inline-code">ItemRegistry.GetCustomData</span>. The generic type is intentional: the dictionary stores <span class="inline-code">object</span>, so callers should ask for the type they expect.</p>
+      <pre><code>float beamRange = ItemRegistry.GetCustomData(item, "beamRange", 4f);
+Logger.LogInfo($"Laser drill range: {beamRange}");</code></pre>
       <p>Consider adding a function to encapsulate the retrieval logic.</p>
-      <p>If the data changes per spawned item, do not store it in <span class="inline-code">CustomData</span>. Attach per-instance state to the <span class="inline-code">Item</span> with your own component.</p>
+      <p>If the data changes per spawned item, update it through <span class="inline-code">ItemRegistry.SetCustomData</span> rather than mutating the shared registered definition. Tile <span class="inline-code">CustomData</span> still remains registration metadata.</p>
     </section>
   `;
 }
@@ -3408,6 +3412,8 @@ function utilsPage(): string {
             <tr><td><span class="inline-code">GiveItem</span> / <span class="inline-code">giveItem</span></td><td><span class="inline-code">string id, int count</span></td><td>Spawns item instances near the player and auto-picks them up.</td></tr>
             <tr><td><span class="inline-code">GiveItemSlot</span> / <span class="inline-code">giveItemSlot</span></td><td><span class="inline-code">string id, int slot, int count</span></td><td>Spawns item instances near the player and tries to put them into a specific slot.</td></tr>
             <tr><td><span class="inline-code">TryGetCustomItemInfo</span> / <span class="inline-code">tryGetCustomItemInfo</span></td><td><span class="inline-code">string id, out CustomItemInfo info</span></td><td>Looks up registered custom item metadata by ID.</td></tr>
+            <tr><td><span class="inline-code">SetWornSprite</span> / <span class="inline-code">setWornSprite</span></td><td><span class="inline-code">string itemId, Sprite wornSprite</span></td><td>Updates a registered custom item's primary worn sprite and refreshes all live instances with that item ID.</td></tr>
+            <tr><td><span class="inline-code">SetWornSprite</span> / <span class="inline-code">setWornSprite</span></td><td><span class="inline-code">Item item, Sprite wornSprite</span></td><td>Convenience overload that updates the registered custom item backing that live item instance, then refreshes matching live instances.</td></tr>
             <tr><td><span class="inline-code">IsModdedItem</span> / <span class="inline-code">isModdedItem</span></td><td><span class="inline-code">string itemId</span></td><td>Returns whether an item ID belongs to a recognized modded item path.</td></tr>
           </tbody>
         </table>

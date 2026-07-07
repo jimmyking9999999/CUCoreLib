@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using CUCoreLib.ContentReload;
 using CUCoreLib.Data;
 using CUCoreLib.Helpers;
@@ -45,6 +47,9 @@ namespace CUCoreLib.Registries
 
         private static readonly HashSet<string> WarnedMissingCustomIconIds =
             new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        private static readonly ConditionalWeakTable<Item, ItemCustomDataState> ItemCustomDataStates =
+            new ConditionalWeakTable<Item, ItemCustomDataState>();
 
         public static void Register(string id, ItemInfo info, Sprite icon, int spawnFrequency = 1)
         {
@@ -120,6 +125,17 @@ namespace CUCoreLib.Registries
         public static IEnumerable<string> GetRegisteredItemIds()
         {
             return RegisteredItems.Keys.ToArray();
+        }
+
+        internal static IEnumerable<string> GetRegisteredItemIdsForOwner(string ownerId)
+        {
+            if (string.IsNullOrWhiteSpace(ownerId)) return Array.Empty<string>();
+
+            var normalizedOwnerId = ownerId.Trim();
+            return ItemOwners
+                .Where(entry => string.Equals(entry.Value, normalizedOwnerId, StringComparison.OrdinalIgnoreCase))
+                .Select(entry => entry.Key)
+                .ToArray();
         }
 
         internal static Dictionary<string, CustomItemInfo> CaptureOwnerEntries(string ownerId)
@@ -448,12 +464,50 @@ namespace CUCoreLib.Registries
             value = default;
             if (item == null || string.IsNullOrWhiteSpace(key)) return false;
 
-            if (!TryGetCustomInfo(item.Stats, out var info)) return false;
-            if (info.CustomData == null || !info.CustomData.TryGetValue(key, out var rawValue)) return false;
-            if (!(rawValue is T typedValue)) return false;
+            if (!TryGetRuntimeCustomDataState(item, out var state)) return false;
+            if (!state.TryGetValue(key, out var rawValue)) return false;
+            if (!TryConvertCustomDataValue(rawValue, out value)) return false;
 
-            value = typedValue;
             return true;
+        }
+
+        public static bool HasCustomData(Item item, string key)
+        {
+            if (item == null || string.IsNullOrWhiteSpace(key)) return false;
+
+            return TryGetRuntimeCustomDataState(item, out var state) && state.ContainsKey(key);
+        }
+
+        public static T GetCustomData<T>(Item item, string key, T fallback = default)
+        {
+            return TryGetCustomData<T>(item, key, out var value) ? value : fallback;
+        }
+
+        public static void SetCustomData(Item item, string key, object value)
+        {
+            if (item == null || string.IsNullOrWhiteSpace(key)) return;
+            if (!EnsureRuntimeCustomDataState(item, out var state)) return;
+
+            state.SetValue(key, value);
+            MultiplayerSyncRegistry.QueueHostSnapshotBroadcast();
+        }
+
+        public static bool RemoveCustomData(Item item, string key)
+        {
+            if (item == null || string.IsNullOrWhiteSpace(key)) return false;
+            if (!TryGetRuntimeCustomDataState(item, out var state)) return false;
+
+            var removed = state.RemoveValue(key);
+            if (removed) MultiplayerSyncRegistry.QueueHostSnapshotBroadcast();
+            return removed;
+        }
+
+        public static IReadOnlyDictionary<string, object> GetAllCustomData(Item item)
+        {
+            if (!TryGetRuntimeCustomDataState(item, out var state))
+                return new ReadOnlyDictionary<string, object>(new Dictionary<string, object>(StringComparer.Ordinal));
+
+            return state.CreateSnapshot();
         }
 
         public static bool TryGetItemInfo(string id, out ItemInfo info)
@@ -578,6 +632,100 @@ namespace CUCoreLib.Registries
             foreach (var field in GetPublicInstanceFields(info.GetType())) field.SetValue(clone, field.GetValue(info));
 
             return clone;
+        }
+
+        internal static bool EnsureRuntimeCustomDataState(Item item, out ItemCustomDataState state)
+        {
+            state = null;
+            if (item == null || !TryGetCustomInfo(item, out var info)) return false;
+
+            state = ItemCustomDataStates.GetValue(item, _ => new ItemCustomDataState());
+            state.Initialize(info.CustomData);
+            return true;
+        }
+
+        internal static bool TryGetRuntimeCustomDataState(Item item, out ItemCustomDataState state)
+        {
+            state = null;
+            if (item == null || !TryGetCustomInfo(item, out var info)) return false;
+            if (!ItemCustomDataStates.TryGetValue(item, out state)) return false;
+
+            state.Initialize(info.CustomData);
+            return true;
+        }
+
+        internal static JObject CaptureRuntimeCustomData(Item item)
+        {
+            if (!EnsureRuntimeCustomDataState(item, out var state)) return null;
+            return state.Capture(item.id);
+        }
+
+        internal static void RestoreRuntimeCustomData(Item item, JObject payload)
+        {
+            if (item == null || payload == null) return;
+            if (!EnsureRuntimeCustomDataState(item, out var state)) return;
+
+            state.Restore(payload);
+        }
+
+        private static bool TryConvertCustomDataValue<T>(object rawValue, out T value)
+        {
+            value = default;
+            if (rawValue == null)
+            {
+                if (default(T) == null) return true;
+                return false;
+            }
+
+            if (rawValue is T typedValue)
+            {
+                value = typedValue;
+                return true;
+            }
+
+            try
+            {
+                if (rawValue is JToken token)
+                {
+                    value = token.ToObject<T>();
+                    return true;
+                }
+
+                var targetType = typeof(T);
+                var underlyingType = Nullable.GetUnderlyingType(targetType) ?? targetType;
+
+                if (underlyingType.IsEnum)
+                {
+                    if (rawValue is string enumString)
+                    {
+                        value = (T)Enum.Parse(underlyingType, enumString, true);
+                        return true;
+                    }
+
+                    value = (T)Enum.ToObject(underlyingType, rawValue);
+                    return true;
+                }
+
+                if (underlyingType == typeof(Guid) && rawValue is string guidString)
+                {
+                    value = (T)(object)Guid.Parse(guidString);
+                    return true;
+                }
+
+                if (rawValue is IConvertible && typeof(IConvertible).IsAssignableFrom(underlyingType))
+                {
+                    value = (T)Convert.ChangeType(rawValue, underlyingType);
+                    return true;
+                }
+
+                value = JToken.FromObject(rawValue).ToObject<T>();
+                return true;
+            }
+            catch
+            {
+                value = default;
+                return false;
+            }
         }
 
         private static void WarnMissingCustomIcon(string id, CustomItemInfo info)
@@ -756,6 +904,92 @@ namespace CUCoreLib.Registries
             AddQualityForTag(info, "flammable");
             AddQualityForTag(info, "nails");
             // I don't like hardcoding these. TODO make this more dynamic
+        }
+
+        internal sealed class ItemCustomDataState
+        {
+            private readonly Dictionary<string, object> _values =
+                new Dictionary<string, object>(StringComparer.Ordinal);
+
+            private bool _initialized;
+
+            public void Initialize(Dictionary<string, object> defaults)
+            {
+                if (_initialized) return;
+
+                if (defaults != null)
+                    foreach (var entry in defaults)
+                        _values[entry.Key] = entry.Value;
+
+                _initialized = true;
+            }
+
+            public bool ContainsKey(string key)
+            {
+                return !string.IsNullOrWhiteSpace(key) && _values.ContainsKey(key);
+            }
+
+            public bool TryGetValue(string key, out object value)
+            {
+                value = null;
+                return !string.IsNullOrWhiteSpace(key) && _values.TryGetValue(key, out value);
+            }
+
+            public void SetValue(string key, object value)
+            {
+                if (string.IsNullOrWhiteSpace(key)) return;
+
+                _values[key] = value;
+            }
+
+            public bool RemoveValue(string key)
+            {
+                return !string.IsNullOrWhiteSpace(key) && _values.Remove(key);
+            }
+
+            public IReadOnlyDictionary<string, object> CreateSnapshot()
+            {
+                return new ReadOnlyDictionary<string, object>(
+                    new Dictionary<string, object>(_values, StringComparer.Ordinal));
+            }
+
+            public JObject Capture(string itemId)
+            {
+                if (_values.Count == 0) return null;
+
+                var result = new JObject();
+                foreach (var entry in _values)
+                {
+                    if (string.IsNullOrWhiteSpace(entry.Key)) continue;
+
+                    try
+                    {
+                        result[entry.Key] = entry.Value == null
+                            ? JValue.CreateNull()
+                            : JToken.FromObject(entry.Value);
+                    }
+                    catch (Exception ex)
+                    {
+                        CUCoreLibPlugin.Log?.LogWarning(
+                            "CUCoreLib ItemRegistry: Skipped custom item data key '" + entry.Key +
+                            "' on item '" + (string.IsNullOrWhiteSpace(itemId) ? "<unknown>" : itemId) +
+                            "' because the value could not be serialized.\n" + ex);
+                    }
+                }
+
+                return result.HasValues ? result : null;
+            }
+
+            public void Restore(JObject payload)
+            {
+                if (payload == null) return;
+
+                _values.Clear();
+                foreach (var property in payload.Properties())
+                    _values[property.Name] = property.Value?.ToObject<object>();
+
+                _initialized = true;
+            }
         }
 
         private static void AddQualityForTag(ItemInfo info, string tag)

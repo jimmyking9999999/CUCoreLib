@@ -7,6 +7,7 @@ using System.Linq;
 using System.Reflection;
 using System.Text;
 using CUCoreLib.Data;
+using CUCoreLib.Patches;
 using CUCoreLib.Registries;
 using TMPro;
 using UnityEngine;
@@ -500,6 +501,46 @@ namespace CUCoreLib.Helpers
         public static bool tryGetCustomItemInfo(string id, out CustomItemInfo info)
         {
             return TryGetCustomItemInfo(id, out info);
+        }
+
+        /// <summary>
+        /// Updates the registered worn sprite for a custom item and refreshes every live instance with the same item ID.
+        /// Pass <c>null</c> to clear the custom worn sprite and fall back to the normal icon while worn.
+        /// </summary>
+        /// <param name="itemId">Registered custom item id to update.</param>
+        /// <param name="wornSprite">Sprite to use while the item is worn.</param>
+        public static bool SetWornSprite(string itemId, Sprite wornSprite)
+        {
+            if (string.IsNullOrWhiteSpace(itemId)) return false;
+
+            var normalizedId = itemId.Trim();
+            if (!ItemRegistry.TryGetCustomInfo(normalizedId, out var info) || info == null) return false;
+
+            info.WornSprite = wornSprite;
+            ItemRegistry.Register(normalizedId, info);
+            ItemRegistryPatches.RefreshLiveInstances(new[] { normalizedId });
+            return true;
+        }
+
+        /// <summary>
+        /// Updates the registered worn sprite for the item's ID and refreshes every live instance with that same item ID.
+        /// Pass <c>null</c> to clear the custom worn sprite and fall back to the normal icon while worn.
+        /// </summary>
+        /// <param name="item">Any live item instance whose registered custom item should be updated.</param>
+        /// <param name="wornSprite">Sprite to use while the item is worn.</param>
+        public static bool SetWornSprite(Item item, Sprite wornSprite)
+        {
+            return item != null && !string.IsNullOrWhiteSpace(item.id) && SetWornSprite(item.id, wornSprite);
+        }
+
+        public static bool setWornSprite(string itemId, Sprite wornSprite)
+        {
+            return SetWornSprite(itemId, wornSprite);
+        }
+
+        public static bool setWornSprite(Item item, Sprite wornSprite)
+        {
+            return SetWornSprite(item, wornSprite);
         }
 
         public static void DoAmputate(Item item, Limb limb)

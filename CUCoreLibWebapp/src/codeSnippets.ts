@@ -1578,6 +1578,8 @@ private void Awake()
     bool hasBandageEquipped = CUCoreUtils.HasEquipped("bandage");
     CUCoreUtils.GiveItem("glass", 1);
     CUCoreUtils.GiveItemSlot("glass", 0, 1);
+    Sprite alternateWorn = CUCoreUtils.LoadEmbeddedSprite("Images.glass-apron-worn-alt.png");
+    CUCoreUtils.SetWornSprite("glassworks.apron", alternateWorn);
     bool isModded = CUCoreUtils.IsModdedItem("glassworks.someitem");
 
     // ReflectionUtils + console
@@ -1673,8 +1675,8 @@ public sealed class StormMantleScript : MonoBehaviour
     {
         item = GetComponent<Item>();
 
-        if (item != null && ItemRegistry.TryGetCustomData<float>(item, "warmthBonus", out float configuredWarmth))
-            warmthBonus = configuredWarmth;
+        if (item != null)
+            warmthBonus = ItemRegistry.GetCustomData(item, "warmthBonus", 0.25f);
     }
 
     private void Update()
@@ -1919,9 +1921,7 @@ private void RegisterAdvancedItems()
 
 private float GetCustomFloat(Item item, string key, float fallback)
 {
-    return ItemRegistry.TryGetCustomData<float>(item, key, out float value)
-        ? value
-        : fallback;
+    return ItemRegistry.GetCustomData(item, key, fallback);
 }`;
 }
 

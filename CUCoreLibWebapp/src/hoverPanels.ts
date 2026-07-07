@@ -289,7 +289,7 @@ export const hoverPanels: Record<string, HoverPanel> = {
   },
   CustomData: {
     title: "CustomData",
-    body: "Dictionary for mod-owned metadata stored on CustomItemInfo. Use it for registration-time values, not per-spawn mutable state."
+    body: "Dictionary of inline defaults for mod-owned per-item custom state on CustomItemInfo. CUCoreLib copies these values onto each spawned item instance, where your mod can read or mutate them through ItemRegistry custom-data helpers."
   },
   ExtensionData: {
     title: "ExtensionData",
