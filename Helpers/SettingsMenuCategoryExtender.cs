@@ -186,13 +186,16 @@ namespace CUCoreLib.Helpers
                 var categoryIndex = category.CategoryIndex;
                 button.onClick.AddListener(delegate { menu.SelectTab(categoryIndex); });
 
-                var label = clone.GetComponentInChildren<TextMeshProUGUI>(false) ?? clone.GetComponentInChildren<TextMeshProUGUI>(true);
+                var label = clone.GetComponentInChildren<TextMeshProUGUI>(false)
+                            ?? clone.GetComponentInChildren<TextMeshProUGUI>(true);
                 if (label)
                 {
                     label.text = category.DisplayName;
-                    foreach (var loc in label.GetComponents<MonoBehaviour>()
-                                 .Where(c => c && c.GetType().Name.Contains("Local")))
-                        Destroy(loc);
+                    foreach (var localizer in label.GetComponents<MonoBehaviour>()
+                                 .Where(component => component && component.GetType().Name.Contains("Local")))
+                    {
+                        Destroy(localizer);
+                    }
                 }
 
                 menu.buttons.Add(button);

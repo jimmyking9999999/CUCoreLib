@@ -284,6 +284,19 @@ namespace CUCoreLib.Data
             }
         }
 
+        /// <summary>
+        /// Tracks an explicit assignment to the vanilla wearable flag so later defaulting logic does not overwrite it.
+        /// </summary>
+        public new bool wearable
+        {
+            get => base.wearable;
+            set
+            {
+                base.wearable = value;
+                explicitlySetFields.Add(CustomItemExplicitField.Wearable);
+            }
+        }
+
         internal bool WasExplicitlySet(CustomItemExplicitField field)
         {
             return explicitlySetFields.Contains(field);
@@ -305,6 +318,9 @@ namespace CUCoreLib.Data
                 case CustomItemExplicitField.DestroyAtZeroCondition:
                     base.destroyAtZeroCondition = value;
                     break;
+                case CustomItemExplicitField.Wearable:
+                    base.wearable = value;
+                    break;
                 default:
                     throw new ArgumentOutOfRangeException(nameof(field), field, null);
             }
@@ -316,7 +332,8 @@ namespace CUCoreLib.Data
         Usable,
         UsableOnLimb,
         UsableWithLmb,
-        DestroyAtZeroCondition
+        DestroyAtZeroCondition,
+        Wearable
     }
 
     /// <summary>

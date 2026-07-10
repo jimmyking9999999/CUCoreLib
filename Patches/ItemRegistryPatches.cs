@@ -69,8 +69,10 @@ namespace CUCoreLib.Patches
             if (!ItemRegistry.RegisteredItems.TryGetValue(item.id, out var def))
                 return;
 
+            var shouldPreferWornSprite = preferWornSprite || IsCurrentlyWornWearable(item, def);
+
             ItemRegistry.EnsureRuntimeCustomDataState(item, out _);
-            ApplyCustomItemVisuals(item, def, preferWornSprite);
+            ApplyCustomItemVisuals(item, def, shouldPreferWornSprite);
             ApplyCustomItemComponents(item, def);
             ApplyCustomSpawnComponents(item, def);
             ApplyCustomHeldOffset(item, def);

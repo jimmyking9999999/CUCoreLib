@@ -1,5 +1,29 @@
 # Changelog
 I figured that this would be nice to have, as to easily take a look at everything that's been done and why your mod might not work with the new update (sorry!)
+New stuff documents new stuff introduced in the latest version
+Changes refers to potential mod-breaking changes, which may need manual work to update
+Fixes refers to bugfixes that are very unlikely or will not break your mod
+
+## v1.0.4
+
+### New Stuff!
+- Added early AssetBundle support for minigame screens, with a guide to follow soon
+- Added bundled body animation curve/profile loading support, ^
+- Added `DropPool` support for custom items, so they can target corpses, crates, traders, and capsules directly. Access this via the new itemregistry field `DropPool = DropPool = DropPool.FoodCrate | DropPool.MedicalCrate`.
+- The specific fields are `Corpse, MedicalCrate, FoodCrate, ContainerCrate, Trader1, Trader2, Trader3, (or, for all three trader species) AllTraders, DropCapsule, CapsuleContainer`
+- Added itemregistry field `WorldSpawnPerChunk` for randomly spawning raw items into the world per chunk
+- Added `SetWornSprite` / `setWornSprite` helpers for refreshing live worn sprites
+
+### Changes
+- Massively overhauled `customData` item properties. Tl;dr it's now a per-`Item` runtime conditionalweaktable.
+- This means that it's now per-item state and can use the new apis: `SetCustomData`, `RemoveCustomData`, `HasCustomData`, `GetAllCustomData`.  It works well with custom scripts, as well
+- This means it's no longer shared between all of the same item type (???), and as always, saves between layers and runs ^^
+
+### Fixes 
+- Fixed `spawncategory` duplicate autofill weirdness
+- `spawncategory` now supports an optional `modGUID` filter
+- Fixed late applications of icon sprites not working for wearables (e.g. auto equipping via traders and whatnot)
+- More docs work, once again :)
 
 ## v1.0.3
 

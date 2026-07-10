@@ -334,7 +334,6 @@ namespace CUCoreLib.Registries
                     onlyHoldInHands = obj.Value<bool?>("onlyHoldInHands") ?? false,
                     autoAttack = obj.Value<bool?>("autoAttack") ?? false,
                     usableWithLMB = obj.Value<bool?>("usableWithLMB") ?? false,
-                    wearable = obj.Value<bool?>("wearable") ?? false,
                     wearableCanBeHeld = obj.Value<bool?>("wearableCanBeHeld") ?? false,
                     desiredWearLimb = obj.Value<string>("desiredWearLimb"),
                     wearSlotId = obj.Value<string>("wearSlotId"),
@@ -383,6 +382,9 @@ namespace CUCoreLib.Registries
                     MultiWornSpriteOffsets =
                         NetworkSnapshotSerialization.ReadVector2Dictionary(obj["multiWornSpriteOffsets"])
                 };
+
+                if (obj["wearable"] != null)
+                    info.wearable = obj.Value<bool?>("wearable") ?? false;
 
                 var container = obj["container"] as JObject;
                 if (container != null) info.Container = container.ToObject<ContainerProperties>();
@@ -809,7 +811,14 @@ namespace CUCoreLib.Registries
 
         private static void ApplyWearableDefaults(CustomItemInfo info)
         {
-            if (info == null || !info.wearable || info.useAction != null) return;
+            if (info == null) return;
+
+            if (!info.WasExplicitlySet(CustomItemExplicitField.Wearable) &&
+                !string.IsNullOrWhiteSpace(info.desiredWearLimb) &&
+                !string.IsNullOrWhiteSpace(info.wearSlotId))
+                info.SetDefault(CustomItemExplicitField.Wearable, true);
+
+            if (!info.wearable || info.useAction != null) return;
 
             info.useAction = (body, item) =>
             {

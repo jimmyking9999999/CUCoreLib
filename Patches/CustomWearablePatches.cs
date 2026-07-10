@@ -68,6 +68,34 @@ namespace CUCoreLib.Patches
             ItemRegistryPatches.ApplyCustomItemRuntime(item);
         }
 
+        [HarmonyPatch(typeof(Body), "DropItem", typeof(Item))]
+        [HarmonyPrefix]
+        private static void ClearCustomWearableVisualsBeforeGenericDrop(Item item, out bool __state)
+        {
+            __state = false;
+            if (item == null || !ItemRegistry.TryGetCustomInfo(item, out var def)) return;
+            if (!IsWorn(item)) return;
+            if (!item.TryGetComponent<Wearable>(out var wearable)) return;
+            if (def.WornSprite == null && (def.MultiWornSprites == null || def.MultiWornSprites.Count == 0)) return;
+
+            wearable.ClearSprites();
+            item.transform.localPosition = new Vector3(0f, 0f, item.transform.localPosition.z);
+            __state = true;
+        }
+
+        [HarmonyPatch(typeof(Body), "DropItem", typeof(Item))]
+        [HarmonyPostfix]
+        private static void RestoreCustomWearableVisualsAfterGenericDrop(Item item, bool __state)
+        {
+            if (!__state) return;
+            if (item == null || !ItemRegistry.TryGetCustomInfo(item, out var def)) return;
+
+            if (def.Icon != null)
+                ApplySprite(item, def.Icon);
+
+            ItemRegistryPatches.ApplyCustomItemRuntime(item);
+        }
+
         [HarmonyPatch(typeof(Wearable), "CreateSprites")]
         [HarmonyPrefix]
         private static void ConfigureSecondarySpritesForCustomWearables(Wearable __instance, Body body)
