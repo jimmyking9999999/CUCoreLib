@@ -59,6 +59,16 @@ namespace CUCoreLib.Data
         public string ID;
 
         /// <summary>
+        /// Optional fixed loot-source overrides. Leave null to use category fallback only.
+        /// </summary>
+        public DropPool? DropPool;
+
+        /// <summary>
+        /// Optional loose worldgen spawns per chunk.
+        /// </summary>
+        public float? WorldSpawnPerChunk;
+
+        /// <summary>
         /// Optional light behavior added to the spawned item.
         /// </summary>
         public LightProperties Light;

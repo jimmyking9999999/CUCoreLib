@@ -214,6 +214,7 @@
     </ItemGroup>
     <ItemGroup>
         <Compile Include="Data\CustomBuildingEntityDefinition.cs"/>
+        <Compile Include="Data\DropPool.cs"/>
         <Compile Include="Data\CustomItemInfo.cs"/>
         <Compile Include="Data\CustomLiquidInfo.cs"/>
         <Compile Include="Data\AnimationCurveAsset.cs"/>
@@ -275,6 +276,7 @@
         <Compile Include="Patches\UtilsCreatePatches.cs"/>
         <Compile Include="Patches\WorldGenerationBuildingPatches.cs"/>
         <Compile Include="Patches\WorldGenerationStructurePatches.cs"/>
+        <Compile Include="Registries\DropPoolRegistry.cs"/>
         <Compile Include="Registries\BuildingEntityRegistry.cs"/>
         <Compile Include="Registries\ItemRegistry.cs"/>
         <Compile Include="Registries\LiquidRegistry.cs"/>

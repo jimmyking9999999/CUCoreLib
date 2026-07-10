@@ -110,6 +110,8 @@ namespace CUCoreLib.Registries
                 : ContentReloadSession.ResolveAmbientOwnerId();
             if (!string.IsNullOrWhiteSpace(ownerId)) ItemOwners[id] = ownerId;
 
+            DropPoolRegistry.RegisterItem(id, info);
+
             if (Item.GlobalItems != null) InjectSingleItem(id, info, replacingExisting);
 
             if (ItemLootPool.pool != null) ItemLootPoolPatch.EnsureItemInLootPool(id, info);
@@ -221,6 +223,12 @@ namespace CUCoreLib.Registries
                     ["decayInfo"] = info.decayInfo,
                     ["decayMinutes"] = info.decayMinutes,
                     ["spawnFrequency"] = info.SpawnFrequency,
+                    ["dropPool"] = info.DropPool.HasValue
+                        ? new JValue((ushort)info.DropPool.Value)
+                        : JValue.CreateNull(),
+                    ["worldSpawnPerChunk"] = info.WorldSpawnPerChunk.HasValue
+                        ? new JValue(info.WorldSpawnPerChunk.Value)
+                        : JValue.CreateNull(),
                     ["recognitionMin"] = info.rec != null ? info.rec.min : 0,
                     ["capacity"] = info.capacity,
                     ["autoFill"] = info.autoFill,
@@ -343,6 +351,12 @@ namespace CUCoreLib.Registries
                     decayInfo = obj.Value<byte?>("decayInfo") ?? 0,
                     decayMinutes = obj.Value<float?>("decayMinutes") ?? 0f,
                     SpawnFrequency = obj.Value<int?>("spawnFrequency") ?? 1,
+                    DropPool = obj["dropPool"]?.Type == JTokenType.Null
+                        ? (DropPool?)null
+                        : (DropPool?)obj.Value<ushort?>("dropPool"),
+                    WorldSpawnPerChunk = obj["worldSpawnPerChunk"]?.Type == JTokenType.Null
+                        ? (float?)null
+                        : obj.Value<float?>("worldSpawnPerChunk"),
                     rec = new Recognition(obj.Value<int?>("recognitionMin") ?? 0),
                     capacity = obj.Value<float?>("capacity") ?? 0f,
                     autoFill = obj.Value<bool?>("autoFill") ?? true,
@@ -1003,10 +1017,13 @@ namespace CUCoreLib.Registries
 
         private static void RemoveLootPoolEntries(string id)
         {
-            if (ItemLootPool.pool == null || string.IsNullOrWhiteSpace(id)) return;
+            if (string.IsNullOrWhiteSpace(id)) return;
 
-            foreach (var poolItems in ItemLootPool.pool.Values)
-                poolItems.RemoveAll(itemId => string.Equals(itemId, id, StringComparison.OrdinalIgnoreCase));
+            if (ItemLootPool.pool != null)
+                foreach (var poolItems in ItemLootPool.pool.Values)
+                    poolItems.RemoveAll(itemId => string.Equals(itemId, id, StringComparison.OrdinalIgnoreCase));
+
+            DropPoolRegistry.RemoveItem(id);
         }
 
         private sealed class OwnerScope : IDisposable

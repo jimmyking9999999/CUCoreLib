@@ -770,6 +770,7 @@ TileRegistry.SetBlock(WorldGeneration.world, blockPosition, 36);
 
 // The vanilla equivalent after registration:
 WorldGeneration.world.SetBlock(blockPosition, 36);</code></pre>
+      <p>The built-in <span class="inline-code">settile</span> console command can place both vanilla and custom tile indices. Vanilla indices go straight through the game's normal <span class="inline-code">WorldGeneration.SetBlock</span> path, while custom indices still need to be registered first.</p>
       <p><span class="inline-code">Tilemap.SetTile()</span> is one of the ways of adding the tile into the game. Use <span class="inline-code">TileRegistry.TryGetTile</span> to retrieve the registered <span class="inline-code">TileBase</span>, then place it into a structure or another Unity <span class="inline-code">Tilemap</span>. When the game imports that tilemap through its normal structure generation methods, it resolves the tile back to the registered block index.</p>
       <p>For now, you'll have to swap into Unity for this. (Eventually I'll have the Custom Structures webapp support it though ^^)</p>
       <pre><code>if (TileRegistry.TryGetTile(36, out TileBase galenaTile))
@@ -1671,11 +1672,11 @@ ItemRegistry.Register(
             <tr><td><span class="inline-code">id</span></td><td><span class="inline-code">string</span></td><td>Stable item ID, usually lowercase with no spaces. Recipes, console spawn, save/load fallback, locale keys, and sprite cache lookup use this value.</td></tr>
             <tr><td><span class="inline-code">info</span></td><td><span class="inline-code">ItemInfo</span></td><td>The vanilla stat block. Fill fields like <span class="inline-code">fullName</span>, <span class="inline-code">description</span>, <span class="inline-code">category</span>, <span class="inline-code">weight</span>, <span class="inline-code">value</span>, <span class="inline-code">tags</span>, and use actions here.</td></tr>
             <tr><td><span class="inline-code">icon</span></td><td><span class="inline-code">Sprite</span></td><td>Inventory/item icon. Load it with <span class="inline-code">AssetLoader.LoadEmbeddedSprite</span> or <span class="inline-code">LoadSpriteFromPluginFolder</span>.</td></tr>
-            <tr><td><span class="inline-code">spawnFrequency</span></td><td><span class="inline-code">int</span></td><td>Optional. Loot pool weight for this item. CUCoreLib adds the item ID to its <span class="inline-code">category</span> loot pool this many times. <span class="inline-code">0</span> means craft-only/no loot injection. Default is <span class="inline-code">1</span>, so most items can omit it.</td></tr>
+            <tr><td><span class="inline-code">spawnFrequency</span></td><td><span class="inline-code">int</span></td><td>Optional pooled spawn weight for this item. CUCoreLib uses it for vanilla <span class="inline-code">category</span> fallback and for fixed <span class="inline-code">DropPool</span> sources. <span class="inline-code">0</span> means no pooled injection. Direct world-spawn counts use <span class="inline-code">WorldSpawnPerChunk</span>.</td></tr>
           </tbody>
         </table>
       </div>
-      <p>When you need CUCoreLib-only fields, keep the same register call and swap <span class="inline-code">ItemInfo</span> for <span class="inline-code">CustomItemInfo</span>. This avoids a second "definition" object while still giving you extras like worn sprites, custom data, containers, batteries, sprite sizing controls, and spawn weight.</p>
+      <p>When you need CUCoreLib-only fields, keep the same register call and swap <span class="inline-code">ItemInfo</span> for <span class="inline-code">CustomItemInfo</span>. This avoids a second "definition" object while still giving you extras like worn sprites, custom data, containers, batteries, sprite sizing controls, spawn weight, and explicit loot-source overrides.</p>
       <pre><code>ItemRegistry.Register(
     "sunpear",
     new CustomItemInfo
@@ -1694,6 +1695,7 @@ ItemRegistry.Register(
         SpriteScale = 1.0f,
         SpriteScaleDimensions = (14f, 14f, true),
         SpawnFrequency = 1,
+        DropPool = DropPool.FoodCrate | DropPool.AllTraders,
         CustomData =
         {
             ["sourceMod"] = "My First Mod"
@@ -1966,11 +1968,11 @@ private void Awake()
       <h2>Practical guidance</h2>
       <ul>
         <li>Cache <span class="inline-code">Item</span> and any other required components in <span class="inline-code">Awake</span> or <span class="inline-code">Start</span> instead of calling <span class="inline-code">GetComponent</span> every frame.</li>
-        <li>Keep wearable-only behavior behind a worn-state check. The same item script also exists while the item is dropped or sitting in inventory.</li>
         <li>Use <span class="inline-code">CustomData</span> for inline per-item defaults, then read or mutate them through <span class="inline-code">ItemRegistry.GetCustomData</span> and <span class="inline-code">ItemRegistry.SetCustomData</span>.</li>
         <li>For vanilla item stats such as <span class="inline-code">wearableIsolation</span> or <span class="inline-code">wearableArmor</span>, mutate <span class="inline-code">item.Stats</span>, not the <span class="inline-code">Item</span> component itself.</li>
         <li>If your script needs save data, use CUCoreLib's save/status systems. A <span class="inline-code">MonoBehaviour</span> field alone is not a save format.</li>
-        <li>Reach for plain <span class="inline-code">useAction</span> or built-in item modules first when they already solve the problem. Scripts are for the cases that actually need runtime behavior.</li>
+        <li>Use plain <span class="inline-code">useAction</span> or built-in item modules first when they already solve the problem. Scripts are for the cases that actually need runtime behavior.</li>
+        <li>To access item fields, (e.g setting item condition), use <span class="inline-code">item.Stats</span> (item.Stats.condition).</li>
       </ul>
     </section>
   `;
@@ -2515,7 +2517,7 @@ function advancedItemPage(): string {
   return `
     <section class="lesson-card">
       <h2>When to use this page</h2>
-      <p>The basic Item API page uses vanilla <span class="inline-code">ItemInfo</span> to mimic the base game. Advanced items can use <span class="inline-code">CustomItemInfo</span>, which includes normal <span class="inline-code">ItemInfo</span> fields, vanilla <span class="inline-code">LiquidItemInfo</span> fields, and CUCoreLib-only fields like <span class="inline-code">Container</span>, <span class="inline-code">Battery</span>, <span class="inline-code">Light</span>, <span class="inline-code">Tool</span>, <span class="inline-code">WornSprite</span>, <span class="inline-code">MultiWornSprites</span>, <span class="inline-code">WornSpriteOffset</span>, <span class="inline-code">MultiWornSpriteOffsets</span>, <span class="inline-code">LiquidMask</span>, <span class="inline-code">SpriteScaleDimensions</span>, <span class="inline-code">SpawnFrequency</span>, and <span class="inline-code">CustomData</span>.</p>
+      <p>The basic Item API page uses vanilla <span class="inline-code">ItemInfo</span> to mimic the base game. Advanced items can use <span class="inline-code">CustomItemInfo</span>, which includes normal <span class="inline-code">ItemInfo</span> fields, vanilla <span class="inline-code">LiquidItemInfo</span> fields, and CUCoreLib-only fields like <span class="inline-code">Container</span>, <span class="inline-code">Battery</span>, <span class="inline-code">Light</span>, <span class="inline-code">Tool</span>, <span class="inline-code">WornSprite</span>, <span class="inline-code">MultiWornSprites</span>, <span class="inline-code">WornSpriteOffset</span>, <span class="inline-code">MultiWornSpriteOffsets</span>, <span class="inline-code">LiquidMask</span>, <span class="inline-code">SpriteScaleDimensions</span>, <span class="inline-code">DropPool</span>, <span class="inline-code">SpawnFrequency</span>, <span class="inline-code">WorldSpawnPerChunk</span>, and <span class="inline-code">CustomData</span>.</p>
       <p>Why is the mod doing it this way? Traditonally, the game sets these settings via the Unity prefab editor, and as such does not appear in the game's default item code.</p>
       <pre><code>// Replace new ItemInfo{ ... } with 
       new CustomItemInfo{ ... }</code></pre>
@@ -2545,7 +2547,9 @@ function advancedItemPage(): string {
             <tr><td><span class="inline-code">SpriteScale</span></td><td><span class="inline-code">float</span></td><td>Scale applied to the generated runtime template. Keep this near <span class="inline-code">1f</span> unless your art was made at a different size.</td></tr>
             <tr><td><span class="inline-code">InventoryIconScale</span></td><td><span class="inline-code">float</span></td><td>Extra multiplier applied only to the inventory icon UI size after the normal sprite scale has been resolved. Leave it at <span class="inline-code">1f</span> unless you want the inventory icon smaller or larger than the in-world sprite.</td></tr>
             <tr><td><span class="inline-code">SpriteScaleDimensions</span></td><td><span class="inline-code">SpriteScaleDimensions</span></td><td>Scales the sprite toward a target pixel size like <span class="inline-code">(14f, 14f)</span>. Add <span class="inline-code">true</span> as the third tuple value to stop once either axis reaches the requested size instead of forcing both axes to meet it.</td></tr>
-            <tr><td><span class="inline-code">SpawnFrequency</span></td><td><span class="inline-code">int</span></td><td>Loot pool injection weight. <span class="inline-code">0</span> means craft-only, <span class="inline-code">1</span> is the normal default, higher values make it more common.</td></tr>
+            <tr><td><span class="inline-code">DropPool</span></td><td><span class="inline-code">DropPool?</span></td><td>Optional fixed loot-source flags such as <span class="inline-code">DropPool.Corpse</span>, <span class="inline-code">DropPool.MedicalCrate</span>, <span class="inline-code">DropPool.AllTraders</span>, <span class="inline-code">DropPool.DropCapsule</span>, or <span class="inline-code">DropPool.CapsuleContainer</span>. Leave it null to use category fallback.</td></tr>
+            <tr><td><span class="inline-code">SpawnFrequency</span></td><td><span class="inline-code">int</span></td><td>Pooled spawn weight. <span class="inline-code">0</span> means no pooled injection, <span class="inline-code">1</span> is the normal default, higher values make the item more common in category fallback or fixed <span class="inline-code">DropPool</span> sources.</td></tr>
+            <tr><td><span class="inline-code">WorldSpawnPerChunk</span></td><td><span class="inline-code">float?</span></td><td>Optional loose worldgen spawn density per chunk. Set it when the item should appear directly in the world after vanilla loot generation. This direct world-spawn count does not use <span class="inline-code">SpawnFrequency</span>.</td></tr>
             <tr><td><span class="inline-code">Container</span></td><td><span class="inline-code">ContainerProperties</span></td><td>Adds/configures a vanilla <span class="inline-code">Container</span> component on spawned items.</td></tr>
             <tr><td><span class="inline-code">Battery</span></td><td><span class="inline-code">BatteryProperties</span></td><td>Adds/configures a vanilla <span class="inline-code">BatteryItem</span> component on spawned items.</td></tr>
             <tr><td><span class="inline-code">Light</span></td><td><span class="inline-code">LightProperties</span></td><td>Adds/configures a <span class="inline-code">Light2D</span> emitter and optionally wires it to vanilla <span class="inline-code">LightItem</span> behavior.</td></tr>
@@ -2682,11 +2686,13 @@ function advancedItemPage(): string {
         fullName = "someName",
         // ... and other ItemInfo fields...
 
-        // Cool CUCoreLib-only fields!
-        SpawnFrequency = 0,
-        SpriteScale = 1f,
-        CustomData =
-        {
+          // Cool CUCoreLib-only fields!
+          DropPool = DropPool.Corpse | DropPool.MedicalCrate | DropPool.AllTraders,
+          SpawnFrequency = 0,
+          WorldSpawnPerChunk = 0.02f,
+          SpriteScale = 1f,
+          CustomData =
+          {
             ["family"] = "utility-bag"
         } 
         // etc...
@@ -2907,6 +2913,28 @@ function advancedItemPage(): string {
 
  <p>In this example, we combined the container tag, a primary <span class="inline-code">WornSprite</span>, and two <span class="inline-code">MultiWornSprites</span> entries to make one backpack draw across multiple limbs while still behaving like a normal wearable container. <p>
  <p>A lot of more unique items such as this can be made with combinations of tags. Give it a try!<p>
+    </section>
+
+    <section class="lesson-card">
+      <h2>Targeting specific loot sources</h2>
+      <p>Leave <span class="inline-code">DropPool</span> unset when the item should follow its broad <span class="inline-code">category</span> like vanilla. Set <span class="inline-code">DropPool</span> when the item should target explicit sources instead, such as corpses, one crate type, trader species, or capsules.</p>
+      <pre><code>ItemRegistry.Register(
+    "fieldbandagekit",
+    new CustomItemInfo
+    {
+        fullName = "Field bandage kit",
+        description = "A compact med kit meant for emergency caches and corpses.",
+        category = "medical",
+        tags = "medicine,dressing,cangetwet",
+        weight = 0.25f,
+        value = 12,
+        DropPool = DropPool.Corpse | DropPool.MedicalCrate | DropPool.AllTraders,
+        SpawnFrequency = 2,
+        WorldSpawnPerChunk = 0.02f
+    },
+    AssetLoader.LoadEmbeddedSprite("Images.fieldbandagekit.png")
+);</code></pre>
+      <p>In that example, the item no longer relies on category fallback for pooled sources. It instead uses the explicit <span class="inline-code">DropPool</span> flags, while direct loose worldgen counts come from <span class="inline-code">WorldSpawnPerChunk</span>.</p>
     </section>
 
     <section class="lesson-card">

@@ -110,7 +110,7 @@ namespace CUCoreLib.Patches
                 ("condition", "Item condition."), ("count", "Number of objects to spawn.")));
 
             ConsoleScript.Commands.Add(new Command("settile",
-                "Places a CUCoreLib-registered tile at the chosen block position.",
+                "Places a vanilla or CUCoreLib-registered tile at the chosen block position.",
                 delegate(string[] args)
                 {
                     CUCoreUtils.ConsoleCheckForWorld(__instance);
@@ -119,20 +119,31 @@ namespace CUCoreLib.Patches
                     if (!ushort.TryParse(args[1], out var tileIndex))
                         throw new Exception($"'{args[1]}' is not a valid tile index.");
 
-                    if (!TileRegistry.TryGetDefinition(tileIndex, out var definition))
-                        throw new Exception($"Tile index '{tileIndex}' is not registered.");
-
                     Vector2 worldPosition = Camera.main.ScreenToWorldPoint(Input.mousePosition);    // maybe null
                     if (args.Length > 2 && TryParsePosition(__instance, args[2], out var parsedPosition))
                         worldPosition = parsedPosition;
 
                     var blockPosition = WorldGeneration.world.WorldToBlockPos(worldPosition);
-                    if (!TileRegistry.SetBlock(WorldGeneration.world, blockPosition, tileIndex))
-                        throw new Exception($"Failed to place tile '{tileIndex}' at block {blockPosition}.");
+                    string tileLabel;
+                    if (tileIndex < TileRegistry.FirstCustomTileIndex)
+                    {
+                        WorldGeneration.world.SetBlock(blockPosition, tileIndex);
+                        tileLabel = "vanilla";
+                    }
+                    else
+                    {
+                        if (!TileRegistry.TryGetDefinition(tileIndex, out var definition))
+                            throw new Exception($"Tile index '{tileIndex}' is not registered.");
+
+                        if (!TileRegistry.SetBlock(WorldGeneration.world, blockPosition, tileIndex))
+                            throw new Exception($"Failed to place tile '{tileIndex}' at block {blockPosition}.");
+
+                        tileLabel = definition.ID;
+                    }
 
                     CUCoreUtils.ConsoleLog(__instance,
-                        $"Placed tile {tileIndex} ({definition.ID}) at {blockPosition.x},{blockPosition.y}.");
-                }, BuildSetTileAutofill(), ("tileIndex", "Registered custom tile index."),
+                        $"Placed tile {tileIndex} ({tileLabel}) at {blockPosition.x},{blockPosition.y}.");
+                }, BuildSetTileAutofill(), ("tileIndex", "Vanilla or registered custom tile index."),
                 ("position", "Tile position.")));
 
             ConsoleCommandRegistry.InjectRegisteredCommands();
@@ -275,7 +286,13 @@ namespace CUCoreLib.Patches
         {
             return new Dictionary<int, List<string>>
             {
-                { 0, TileRegistry.GetRegisteredIndices().Select(index => index.ToString()).ToList() }
+                {
+                    0,
+                    Enumerable.Range(0, TileRegistry.FirstCustomTileIndex)
+                        .Select(index => index.ToString())
+                        .Concat(TileRegistry.GetRegisteredIndices().Select(index => index.ToString()))
+                        .ToList()
+                }
             };
         }
 
@@ -501,6 +518,15 @@ namespace CUCoreLib.Patches
         [HarmonyPatch(typeof(ConsoleScript), "RegisterPlayerDetails")]
         internal static class SpawnCategoryAutofillPatch
         {
+            [HarmonyPrefix]
+            private static void Prefix()
+            {
+                var spawnCategoryCommand = ConsoleScript.SearchExact("spawncategory");
+                if (spawnCategoryCommand?.argAutofill == null) return;
+
+                spawnCategoryCommand.argAutofill.Remove(0);
+            }
+
             [HarmonyPostfix]
             private static void Postfix()
             {

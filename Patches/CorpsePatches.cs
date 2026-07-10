@@ -1,4 +1,6 @@
 using CUCoreLib.Helpers;
+using CUCoreLib.Data;
+using CUCoreLib.Registries;
 using HarmonyLib;
 using UnityEngine;
 
@@ -27,9 +29,7 @@ namespace CUCoreLib.Patches
             for (var i = 0; i < amount; i++)
             {
                 var category = __instance.categories[Random.Range(0, __instance.categories.Length)];
-                if (!ItemLootPool.pool.TryGetValue(category, out var poolList) || poolList.Count == 0) continue;
-
-                var randomId = poolList[Random.Range(0, poolList.Count)];
+                if (!DropPoolRegistry.TryGetRandomItemId(DropPool.Corpse, category, out var randomId)) continue;
                 var spawnPos = __instance.transform.position + new Vector3(Random.Range(-3f, 3f), 3f, 0f);
                 var spawnRot = Quaternion.Euler(0f, 0f, Random.Range(0f, 360f));
 

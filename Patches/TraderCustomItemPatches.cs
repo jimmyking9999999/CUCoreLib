@@ -99,6 +99,31 @@ namespace CUCoreLib.Patches
             return false;
         }
 
+        [HarmonyPatch(typeof(TraderScript), "GenerateSingleItemList")]
+        [HarmonyPrefix]
+        private static bool GenerateSingleItemList(TraderScript __instance, TraderScript.TraderItemPreference pref,
+            ref List<TraderItem> __result)
+        {
+            __result = new List<TraderItem>();
+            if (__instance == null) return false;
+
+            var amount = Mathf.RoundToInt(
+                UnityEngine.Random.Range(2, 9) * WorldGeneration.GetRunSettingFloat("traderitemamount"));
+
+            if (__instance.character == 2) amount = Mathf.RoundToInt(amount * 0.66f);
+
+            var traderPool = ResolveTraderDropPool(__instance);
+            var categories = new[] { "medical", "food", "water", "tool", "drug", "container", "utility", "custom" };
+
+            for (var i = 0; i < amount; i++)
+            {
+                if (!TryCreateTraderItem(pref, traderPool, categories, out var traderItem)) continue;
+                __result.Add(traderItem);
+            }
+
+            return false;
+        }
+
         [HarmonyPatch(typeof(TraderScript), nameof(TraderScript.TryPurchase))]
         [HarmonyPrefix]
         private static bool TryPurchase(TraderScript __instance, TraderItem item)
@@ -440,6 +465,55 @@ namespace CUCoreLib.Patches
             if (waterContainer == null || FillSpriteField == null) return null;
 
             return FillSpriteField.GetValue(waterContainer) as Sprite;
+        }
+
+        private static bool TryCreateTraderItem(TraderScript.TraderItemPreference pref, DropPool traderPool,
+            string[] categories, out TraderItem traderItem)
+        {
+            traderItem = null;
+            if (categories == null || categories.Length == 0) return false;
+
+            for (var attempt = 0; attempt < 24; attempt++)
+            {
+                var category = categories[UnityEngine.Random.Range(0, categories.Length)];
+                if (!DropPoolRegistry.TryGetRandomItemId(traderPool, category, out var itemId)) continue;
+                if (!TryResolveTraderItemInfo(itemId, out var info) || info == null || info.value <= 0) continue;
+
+                traderItem = new TraderItem
+                {
+                    preference = pref,
+                    id = itemId,
+                    bought = false,
+                    value = info.DefaultValue()
+                };
+
+                return true;
+            }
+
+            return false;
+        }
+
+        private static DropPool ResolveTraderDropPool(TraderScript trader)
+        {
+            if (trader != null && !string.IsNullOrWhiteSpace(trader.gameObject.name))
+            {
+                var name = trader.gameObject.name.ToLowerInvariant();
+                if (name.Contains("trader1")) return DropPool.Trader1;
+                if (name.Contains("trader2")) return DropPool.Trader2;
+                if (name.Contains("trader3")) return DropPool.Trader3;
+            }
+
+            switch (trader != null ? trader.character : -1)
+            {
+                case 0:
+                    return DropPool.Trader1;
+                case 1:
+                    return DropPool.Trader2;
+                case 2:
+                    return DropPool.Trader3;
+                default:
+                    return DropPool.AllTraders;
+            }
         }
 
         private static int GetFreeAmount(TraderScript trader)

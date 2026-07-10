@@ -22,6 +22,8 @@ namespace CUCoreLib.Patches
 
             if (ItemLootPool.pool == null || ItemRegistry.RegisteredItems == null) return;
 
+            DropPoolRegistry.Rebuild();
+
             var injectedCount = ItemRegistry.RegisteredItems
                 .Sum(kvp => EnsureItemInLootPool(kvp.Key, kvp.Value));
 
@@ -36,10 +38,12 @@ namespace CUCoreLib.Patches
         {
             if (ItemLootPool.pool == null || string.IsNullOrWhiteSpace(id) || def == null) return 0;
 
+            RemoveExistingEntries(id);
+
+            if (!DropPoolRegistry.UsesVanillaCategoryFallback(def)) return 0;
+
             var category = def.category;
             if (string.IsNullOrEmpty(category) || category == "nospawn") return 0;
-
-            RemoveExistingEntries(id);
 
             if (!ItemLootPool.pool.ContainsKey(category)) ItemLootPool.pool.Add(category, new List<string>());
 

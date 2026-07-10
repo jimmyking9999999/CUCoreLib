@@ -17,6 +17,8 @@ namespace CUCoreLib.Patches
 
                 BuildingEntityRegistry.DistributeInWorld(id, __instance);
             }
+
+            DropPoolRegistry.ScatterWorldSpawns(__instance);
         }
     }
 }

@@ -68,20 +68,23 @@ namespace CUCoreLib.Patches
             if (!_newLoaderPatched)
             {
                 var newObjectSystemType = ResolveLoadedType(NewObjectSystemTypeName);
-                var loadObjectResources = AccessTools.GetDeclaredMethods(newObjectSystemType)
-                    ?.Where(method => string.Equals(method.Name, "LoadObjectResource", StringComparison.Ordinal))
-                    ?.ToArray();
-                if (loadObjectResources != null)
+                if (newObjectSystemType != null)
                 {
-                    foreach (var loadObjectResource in loadObjectResources)
+                    var loadObjectResources = AccessTools.GetDeclaredMethods(newObjectSystemType)
+                        ?.Where(method => string.Equals(method.Name, "LoadObjectResource", StringComparison.Ordinal))
+                        ?.ToArray();
+                    if (loadObjectResources != null)
                     {
-                        harmony.Patch(loadObjectResource,
-                            prefix: new HarmonyMethod(typeof(KrokMpCompatibilityPatches),
-                                nameof(LoadObjectResource_Prefix)));
-                        patchedAnything = true;
-                    }
+                        foreach (var loadObjectResource in loadObjectResources)
+                        {
+                            harmony.Patch(loadObjectResource,
+                                prefix: new HarmonyMethod(typeof(KrokMpCompatibilityPatches),
+                                    nameof(LoadObjectResource_Prefix)));
+                            patchedAnything = true;
+                        }
 
-                    _newLoaderPatched = loadObjectResources.Any();
+                        _newLoaderPatched = loadObjectResources.Any();
+                    }
                 }
             }
 

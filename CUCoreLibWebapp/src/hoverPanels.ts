@@ -418,7 +418,7 @@ export const hoverPanels: Record<string, HoverPanel> = {
       "utility (General equipment and utility items that don't fit other categories, like backpacks or lamps)",
       "water (Liquid containers)",
       "custom (Miscellaneous items, that don't fit other categories. Not in trader stock by default, but can be added with custom loot pools.)",
-      "Iteminfo.category is used for loot pools, trader stock, and trader categories.",
+      "Iteminfo.category is used for vanilla fallback loot pools, trader stock, and other broad game logic when DropPool is not set.",
       " -- ",
       "Recipe categories: Materials, Tools, Medicine, Utilities, Food.",
       "Recipe.category is used for UI purposes in the crafting menu only. It does not decide loot pools or trader stock."
@@ -591,11 +591,23 @@ export const hoverPanels: Record<string, HoverPanel> = {
   },
   SpawnFrequency: {
     title: "SpawnFrequency",
-    body: "CUCoreLib custom item setting. 0 means craft-only, higher values allow loot pool injection. 5 -> 5x more spawns."
+    body: "CUCoreLib custom item setting. 0 means no pooled injection, higher values add more weight to either category fallback pools or fixed DropPool sources. Direct WorldSpawnPerChunk counts ignore this field."
   },
   spawnFrequency: {
     title: "spawnFrequency",
-    body: "CUCoreLib custom item setting. 0 means craft-only, higher values allow loot pool injection. 5 -> 5x more spawns."
+    body: "CUCoreLib custom item setting. 0 means no pooled injection, higher values add more weight to either category fallback pools or fixed DropPool sources. Direct WorldSpawnPerChunk counts ignore this field."
+  },
+  DropPool: {
+    title: "DropPool",
+    body: "Optional CUCoreLib fixed loot-source override flags on CustomItemInfo. Leave it null to keep vanilla category fallback, or set flags such as Corpse, MedicalCrate, Trader1, AllTraders, DropCapsule, or CapsuleContainer when you want the item to target explicit sources instead."
+  },
+  dropPool: {
+    title: "dropPool",
+    body: "Optional CUCoreLib fixed loot-source override flags on CustomItemInfo. Leave it null to keep vanilla category fallback, or set flags such as Corpse, MedicalCrate, Trader1, AllTraders, DropCapsule, or CapsuleContainer when you want the item to target explicit sources instead."
+  },
+  WorldSpawnPerChunk: {
+    title: "WorldSpawnPerChunk",
+    body: "Optional loose worldgen spawn density per chunk. Set it to place the item directly into the world after vanilla loot generation."
   },
   specificId: {
     title: "specificId",
