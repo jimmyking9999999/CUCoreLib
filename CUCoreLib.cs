@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.IO;
 using BepInEx;
 using BepInEx.Bootstrap;
 using BepInEx.Configuration;
@@ -21,6 +22,8 @@ namespace CUCoreLib
         public const string GUID = "net.cucorelib";
         public const string MODNAME = "CUCoreLib";
         public const string VERSION = "1.0.3";
+        private const string BepInExCoreConfigFileName = "BepInEx.cfg";
+        private const string HideManagerGameObjectKey = "HideManagerGameObject";
 
         internal static ManualLogSource Log;
         // Alllright. Let's get this party rolling.
@@ -42,6 +45,7 @@ namespace CUCoreLib
             Instance = this;
             Log = Logger;
             SharedConfig = GetOrCreateSharedConfig();
+            EnsureBepInExManagerIsHidden();
 
             // Logger.LogInfo($"Starting up {MODNAME} v{VERSION}...");
 
@@ -66,6 +70,37 @@ namespace CUCoreLib
             MultiplayerSyncRegistry.ScheduleInitialSnapshot();
 
             Logger.LogInfo("CUCoreLib is ready to sit in the background.");
+        }
+
+        private void EnsureBepInExManagerIsHidden()
+        {
+            var bepinExConfigPath = Path.Combine(Paths.ConfigPath, BepInExCoreConfigFileName);
+            if (!File.Exists(bepinExConfigPath))
+            {
+                Logger.LogWarning($"Could not find BepInEx core config at '{bepinExConfigPath}'. CUCoreLib could not auto-enable {HideManagerGameObjectKey}.");
+                return;
+            }
+
+            try
+            {
+                var bepinExConfig = new ConfigFile(bepinExConfigPath, true);
+                var hideManagerEntry = bepinExConfig.Bind("Chainloader",
+                    HideManagerGameObjectKey,
+                    false,
+                    "If enabled, hides BepInEx Manager GameObject from Unity.");
+
+                if (hideManagerEntry.Value) return;
+
+                hideManagerEntry.Value = true;
+                bepinExConfig.Save();
+
+                Logger.LogWarning(
+                    $"Enabled BepInEx [Chainloader] {HideManagerGameObjectKey} = true in '{bepinExConfigPath}'. Restart the game so Unity stops destroying plugin game objects. If downloaded mods still do not load, confirm they are in BepInEx/plugins and then relaunch once more.");
+            }
+            catch (Exception ex)
+            {
+                Logger.LogWarning($"Failed to auto-enable BepInEx [Chainloader] {HideManagerGameObjectKey}: {ex}");
+            }
         }
 
         private static void RegisterBuiltInCommands() // SetTile also added, but not here

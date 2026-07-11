@@ -449,6 +449,13 @@ namespace CUCoreLib.Patches
             ApplyCustomItemRuntime(item);
         }
 
+        [HarmonyPatch(typeof(Body), "AutoPickUpItem")]
+        [HarmonyPrefix]
+        private static void ApplyCustomRuntimeBeforeAutoPickup(Item item)
+        {
+            ApplyCustomItemRuntime(item);
+        }
+
         [HarmonyPatch(typeof(Body), "DropItem", typeof(Item))]
         [HarmonyPrefix]
         private static void ResetCustomHeldOffsetBeforeDrop(Item item)

@@ -24,6 +24,9 @@ namespace CUCoreLib.Registries
             new Dictionary<string, string>(StringComparer.Ordinal);
 
         private static readonly HashSet<string> WarnedInvalidIconIds = new HashSet<string>(StringComparer.Ordinal);
+        private static readonly HashSet<string> WarnedMissingSpriteMoodles = new HashSet<string>(StringComparer.Ordinal);
+        private static readonly HashSet<string> WarnedMissingAnimatedMoodles =
+            new HashSet<string>(StringComparer.Ordinal);
 
         public static void RegisterBody<TStatus>(Func<Body, TStatus, StatusMoodleDefinition> buildMoodle)
             where TStatus : BodyStatus, new()
@@ -77,6 +80,12 @@ namespace CUCoreLib.Registries
         public static void AddMoodle(int intensity, Sprite icon, string name, string description, bool critical = false,
             bool chippedOnly = false, bool important = true, string key = null, float holdSeconds = DefaultHoldSeconds)
         {
+            if (icon == null)
+            {
+                WarnMissingSpriteMoodle(name, key);
+                return;
+            }
+
             QueueMoodle(
                 key,
                 new StatusMoodleDefinition
@@ -159,7 +168,12 @@ namespace CUCoreLib.Registries
             float holdSeconds = DefaultHoldSeconds)
         {
             var animation = AssetLoader.GetCachedSpriteAnimation(animationId);
-            if (animation == null || animation.Frames == null || animation.Frames.Length == 0) return;
+            if (animation == null || animation.Frames == null || animation.Frames.Length == 0 ||
+                animation.Frames[0] == null)
+            {
+                WarnMissingAnimatedMoodle(name, animationId, key);
+                return;
+            }
 
             QueueMoodle(
                 key,
@@ -391,6 +405,32 @@ namespace CUCoreLib.Registries
             normalizedSprite.name = iconSprite.name;
             UiSpriteCache[instanceId] = normalizedSprite;
             return normalizedSprite;
+        }
+
+        private static void WarnMissingSpriteMoodle(string moodleName, string key)
+        {
+            var warningKey = BuildMissingAssetWarningKey(moodleName, key);
+            if (!WarnedMissingSpriteMoodles.Add(warningKey)) return;
+
+            CUCoreLibPlugin.Log?.LogWarning("CUCoreLib Moodles: Skipping moodle '" +
+                                            (string.IsNullOrWhiteSpace(moodleName) ? "(unnamed moodle)" : moodleName) +
+                                            "' because its sprite was null. This usually means the moodle sprite failed to load or does not exist.");
+        }
+
+        private static void WarnMissingAnimatedMoodle(string moodleName, string animationId, string key)
+        {
+            var warningKey = (animationId ?? string.Empty) + "|" + BuildMissingAssetWarningKey(moodleName, key);
+            if (!WarnedMissingAnimatedMoodles.Add(warningKey)) return;
+
+            CUCoreLibPlugin.Log?.LogWarning("CUCoreLib Moodles: Skipping moodle '" +
+                                            (string.IsNullOrWhiteSpace(moodleName) ? "(unnamed moodle)" : moodleName) +
+                                            "' because animation '" + (animationId ?? string.Empty) +
+                                            "' was missing or had no valid first frame.");
+        }
+
+        private static string BuildMissingAssetWarningKey(string moodleName, string key)
+        {
+            return (key ?? string.Empty) + "|" + (moodleName ?? string.Empty);
         }
 
         private interface IBodyMoodleContributor

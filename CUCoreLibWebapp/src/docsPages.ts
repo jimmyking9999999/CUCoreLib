@@ -1418,6 +1418,20 @@ Instantiate(prefab, position, rotation) -> Clones prefab into the world as a Gam
 function setupPage(): string {
   return `
     <section class="lesson-card">
+      <h2>Decompile the game first</h2>
+      <p>Before you write real Casualties Unknown mod code, decompile the game and keep that reference nearby. Treat this as part of setup, not an optional advanced step.</p>
+      <p>The decompiled game shows you which classes and methods already exist, what values vanilla uses, which fields a system reads or writes, and where a Harmony patch should attach when the game changes those values at runtime.</p>
+      <p>That is how you answer questions like "can I call this function?", "what number does vanilla use here?", and "which method do I patch if the game overwrites my change?" without guessing.</p>
+      <ol>
+        <li>Install <a href="https://github.com/dnSpyEx/dnSpy/releases" target="_blank" rel="noopener">dnSpyEx</a>.</li>
+        <li>Open the game's main managed assembly:</li>
+      </ol>
+      <pre><code>C:\\Program Files (x86)\\Steam\\steamapps\\common\\Casualties Unknown Playtest\\CasualtiesUnknown_Data\\Managed\\Assembly-CSharp.dll</code></pre>
+      <p>Use dnSpyEx to inspect method names, arguments, fields, hardcoded values, and call flow before you decide whether a task should use a normal CUCoreLib registration API, a direct vanilla call, or a Harmony patch.</p>
+      <p>If vanilla sets a value after your code runs, the decompile is also how you find the exact setter/update method to patch so your mod changes survive normal gameplay.</p>
+    </section>
+
+    <section class="lesson-card">
       <h2>Use ScavTemplate as the project shell</h2>
       <p><span class="inline-code">ScavTemplate</span> gives you the BepInEx project shape so you are not starting from an empty C# library. CUCoreLib is added on top as a dependency.</p>
       <ol>
@@ -1457,6 +1471,7 @@ function setupPage(): string {
       <h2>Where the code goes</h2>
       <p>The code panel on the right shows the classic plugin shape CUCoreLib expects</p>
       <p>In <code>plugins.cs</code>, copy-paste the right side code and change the namespace, class name, and BepInPlugin attributes to match your mod. </p>
+      <p>That starter plugin is only the shell. For real gameplay changes, keep the decompiled game open beside it so you can look up the vanilla methods you want to call and the values or fields you may need to patch around.</p>
 
       <p>This line must be present for your mod to use CUCoreLib:</p>
       <pre><code>[BepInDependency("net.cucorelib", BepInDependency.DependencyFlags.HardDependency)]
@@ -1556,7 +1571,8 @@ function harmony0Page(): string {
     <section class="lesson-card">
       <h2>What Harmony does</h2>
       <p><span class="inline-code">Harmony</span> lets a BepInEx mod attach code to methods that already exist in the game. You are not editing <span class="inline-code">Assembly-CSharp.dll</span> on disk. You are telling Harmony: when the game calls this method, also run my method before it, after it, or around it.</p>
-      <p>That is how CUCoreLib and most Casualties Unknown mods add behavior. You find the target method in dnSpyEx or the decompiled reference, then write a small patch class that points at that exact type and method name.</p>
+      <p>That is how CUCoreLib and most Casualties Unknown mods add behavior. You find the target method in dnSpyEx or the decompiled reference, confirm which fields or values vanilla changes there, then write a small patch class that points at that exact type and method name.</p>
+      <p>In practice, the decompile tells you three critical things before you patch: which method is actually responsible, what the original arguments and fields are called, and whether vanilla later overwrites the value you just changed somewhere else.</p>
       <pre><code>[HarmonyPatch(typeof(Body), "Eat")] // Look on the right pane for an example</code></pre>
     </section>
 

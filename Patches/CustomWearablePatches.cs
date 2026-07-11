@@ -68,6 +68,31 @@ namespace CUCoreLib.Patches
             ItemRegistryPatches.ApplyCustomItemRuntime(item);
         }
 
+        [HarmonyPatch(typeof(Body), "PickUpItem")]
+        [HarmonyPrefix]
+        private static void ClearCustomWearableVisualsBeforePickup(Body __instance, Item item)
+        {
+            if (__instance == null || item == null) return;
+            if (!ItemRegistry.TryGetCustomInfo(item, out var def)) return;
+            if (def.WornSprite == null && (def.MultiWornSprites == null || def.MultiWornSprites.Count == 0)) return;
+            if (!IsWorn(item)) return;
+
+            __instance.DropWearable(item);
+        }
+
+        [HarmonyPatch(typeof(Body), "DropItem", typeof(Item))]
+        [HarmonyPrefix]
+        private static bool RedirectWornWearablesToDropWearable(Body __instance, Item item)
+        {
+            if (__instance == null || item == null) return true;
+            if (!ItemRegistry.TryGetCustomInfo(item, out var def)) return true;
+            if (def.WornSprite == null && (def.MultiWornSprites == null || def.MultiWornSprites.Count == 0)) return true;
+            if (!IsWorn(item)) return true;
+
+            __instance.DropWearable(item);
+            return false;
+        }
+
         [HarmonyPatch(typeof(Body), "DropItem", typeof(Item))]
         [HarmonyPrefix]
         private static void ClearCustomWearableVisualsBeforeGenericDrop(Item item, out bool __state)
