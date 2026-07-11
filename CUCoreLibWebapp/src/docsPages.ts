@@ -1372,6 +1372,7 @@ Instantiate(prefab, position, rotation) -> Clones prefab into the world as a Gam
       <p>The file is at:</p>
       <pre><code>C:\\Program Files (x86)\\Steam\\steamapps\\common\\Casualties Unknown Playtest\\CasualtiesUnknown_Data\\Managed\\Assembly-CSharp.dll</code></pre>
       <p>Open <span class="inline-code">Assembly-CSharp.dll</span> in dnSpyEx. That is where all of the game's scripts live.</p>
+      <p>This is extremely important and should be opened in another window whist modding at any non-surface level. We'll talk a bit more in the Setup page.</p>
       <img src="images/dnspy-ex.png" alt="dnSpyEx showing decompiled code for CoilScript.cs" class="screenshot">
       <p>The decompiled code showing <span class="inline-code">CoilScript.cs</span>'s <span class="inline-code">Shock()</span> method. Ouch!</p>
     </section>
@@ -1417,19 +1418,7 @@ Instantiate(prefab, position, rotation) -> Clones prefab into the world as a Gam
 
 function setupPage(): string {
   return `
-    <section class="lesson-card">
-      <h2>Decompile the game first</h2>
-      <p>Before you write real Casualties Unknown mod code, decompile the game and keep that reference nearby. Treat this as part of setup, not an optional advanced step.</p>
-      <p>The decompiled game shows you which classes and methods already exist, what values vanilla uses, which fields a system reads or writes, and where a Harmony patch should attach when the game changes those values at runtime.</p>
-      <p>That is how you answer questions like "can I call this function?", "what number does vanilla use here?", and "which method do I patch if the game overwrites my change?" without guessing.</p>
-      <ol>
-        <li>Install <a href="https://github.com/dnSpyEx/dnSpy/releases" target="_blank" rel="noopener">dnSpyEx</a>.</li>
-        <li>Open the game's main managed assembly:</li>
-      </ol>
-      <pre><code>C:\\Program Files (x86)\\Steam\\steamapps\\common\\Casualties Unknown Playtest\\CasualtiesUnknown_Data\\Managed\\Assembly-CSharp.dll</code></pre>
-      <p>Use dnSpyEx to inspect method names, arguments, fields, hardcoded values, and call flow before you decide whether a task should use a normal CUCoreLib registration API, a direct vanilla call, or a Harmony patch.</p>
-      <p>If vanilla sets a value after your code runs, the decompile is also how you find the exact setter/update method to patch so your mod changes survive normal gameplay.</p>
-    </section>
+   
 
     <section class="lesson-card">
       <h2>Use ScavTemplate as the project shell</h2>
@@ -1494,6 +1483,23 @@ function setupPage(): string {
       <p>If you are getting a 'skipping due to missing net.cucorelib' error, ensure that the CUCoreLib.dll is placed in the correct BepInEx\\plugins folder and that the reference is properly added to your project.</p>
     </section>
 
+     <section class="lesson-card">
+      <h2>Decompile the game first</h2>
+      <p>Before you write real Casualties Unknown mod code, decompile the game and keep that reference nearby. Though optional, this step is highly recommended.</p>
+      <p>The decompiled game shows you which classes and methods already exist, what values vanilla uses, which fields a system reads or writes, and where a Harmony patch should attach when the game changes those values at runtime.</p>
+      <p>That is how you answer questions like "how can I give the player an item via code?" (Utils.Create()), "what number does vanilla use here?", and "which method do I patch if the game overwrites my changes?" without guessing.</p>
+      <ol>
+        <li>Install <a href="https://github.com/dnSpyEx/dnSpy/releases" target="_blank" rel="noopener">dnSpyEx</a>.</li>
+        <li>Open the game's main managed assembly:</li>
+      </ol>
+      <pre><code>C:\\Program Files (x86)\\Steam\\steamapps\\common\\Casualties Unknown Playtest\\CasualtiesUnknown_Data\\Managed\\Assembly-CSharp.dll</code></pre>
+      <p>Use dnSpyEx to inspect method names, arguments, fields, hardcoded values, and call flow.</p>
+      <p>CUCoreLib is designed to have as much compatibility as possible with the decompiled game, meaning copy-pasting for item values, recipes, liquids, etc.. works as expected.</p>
+      <p>If vanilla sets a value after your code runs, the decompile is also how you find the exact setter/update method to patch so your mod changes survive normal gameplay.</p>
+
+      
+    </section>
+
     <section class="lesson-card">
       <h2>Viewing BepInEx logs</h2>
       <p>Logs are how you confirm the mod loaded, spot missing references, and read your own <span class="inline-code">Logger.LogInfo()</span> messages. If the console or log file is disabled, you must enable it in the BepInEx config.</p>
@@ -1501,7 +1507,7 @@ function setupPage(): string {
         <li>Open <span class="inline-code">BepInEx/config/BepInEx.cfg</span> inside the game folder.</li>
         <li>Find <span class="inline-code">[Logging.Console]</span> and set <span class="inline-code">Enabled = true</span> to show the live console window.</li>
         <li>Find <span class="inline-code">[Logging.Disk]</span> and set <span class="inline-code">Enabled = true</span> to write <span class="inline-code">BepInEx/LogOutput.log</span>.</li>
-        <li>Launch the game and look for your plugin's startup line, such as <span class="inline-code">Plugin ModName is loaded!</span>.</li>
+        <li>Launch the game and look for your plugin's startup line, such as <span class="inline-code">Plugin {ModName} is loaded!</span>.</li>
       </ol>
       <pre><code>[Logging.Console]
 
@@ -1518,16 +1524,6 @@ Enabled = true
 WriteUnityLog = false</code></pre>
     </section>
 
-    <section class="lesson-card">
-      <h2>Why is my Start()/Update() not working?</h2>
-      <p>Casualties: Unknown may have destroyed your plugin's game object. There is a BepInEx configuration option that can fix this</p>
-      <p>BepInEx -&gt; Config -&gt; bepinex.cfg -&gt; <span class="inline-code">HideManagerGameObject = true</span></p>
-      <pre><code>[Chainloader]
-      ## If enabled, hides BepInEx Manager GameObject from Unity.
-      # Setting type: Boolean
-      # Default value: false
-      HideManagerGameObject = true</code></pre>
-    </section>
 
     <section class="lesson-card">
       <h2>Why am I missing a using directive or an assembly reference?</h2>
