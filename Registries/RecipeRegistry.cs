@@ -76,7 +76,7 @@ namespace CUCoreLib.Registries
             if (Recipes.recipes == null || recipe?.result == null) return false;
             EnsureCurrentRecipeList();
             NormalizeRecipeIngredients(recipe);
-            ValidateRecipeReferences(recipe, deferVanillaValidation: false);
+            ValidateRecipeReferences(recipe, false);
 
             var recipeKey = BuildRecipeKey(recipe);
             if (InjectedRecipeKeys.Contains(recipeKey)) return false;

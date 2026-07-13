@@ -283,9 +283,7 @@ namespace CUCoreLib.Registries
             foreach (var entry in RegisteredDefinitions
                          .Where(entry => entry.Value != null && !(entry.Value.SpawnAmount <= 0))
                          .Where(entry => CanSpawnInLayer(entry.Value, world.biomeDepth)))
-            {
                 GenerateWorldTile(entry.Value, world, worldBlocks, entry.Key);
-            }
         }
 
         public static bool SetBlock(WorldGeneration world, Vector2Int position, ushort tileIndex)

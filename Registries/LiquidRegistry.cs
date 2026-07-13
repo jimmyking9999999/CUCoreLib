@@ -97,7 +97,8 @@ namespace CUCoreLib.Registries
 
             if (!string.IsNullOrEmpty(info.name)) LocaleRegistry.Register("liquid", id, info.name);
 
-            if (!string.IsNullOrEmpty(info.description)) LocaleRegistry.Register("liquid", id + "dsc", info.description);
+            if (!string.IsNullOrEmpty(info.description))
+                LocaleRegistry.Register("liquid", id + "dsc", info.description);
 
             return !wasPresent;
         }
@@ -145,7 +146,8 @@ namespace CUCoreLib.Registries
             }
 
             if (ids.Length > 0)
-                result?.AddInfo("Cleared " + ids.Length + " liquid registrations owned by '" + normalizedOwnerId + "'.");
+                result?.AddInfo("Cleared " + ids.Length + " liquid registrations owned by '" + normalizedOwnerId +
+                                "'.");
         }
 
         internal static JObject CaptureNetworkSnapshot()

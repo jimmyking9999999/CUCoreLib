@@ -125,7 +125,8 @@ namespace CUCoreLib.Registries
             }
 
             Register(category, normalizedKey, optionalFallbackIfLocaleValueNullOrWhitespace);
-            var value = LocaleLoader.GetLocalizedText(category, normalizedKey, optionalFallbackIfLocaleValueNullOrWhitespace);
+            var value = LocaleLoader.GetLocalizedText(category, normalizedKey,
+                optionalFallbackIfLocaleValueNullOrWhitespace);
             return string.IsNullOrWhiteSpace(value) ? optionalFallbackIfLocaleValueNullOrWhitespace : value;
         }
 
@@ -331,7 +332,8 @@ namespace CUCoreLib.Registries
                     case JObject obj:
                     {
                         var result = new Dictionary<string, object>(StringComparer.Ordinal);
-                        foreach (var property in obj.Properties()) result[property.Name] = ConvertTokenToPlainObject(property.Value);
+                        foreach (var property in obj.Properties())
+                            result[property.Name] = ConvertTokenToPlainObject(property.Value);
 
                         return result;
                     }
@@ -369,7 +371,7 @@ namespace CUCoreLib.Registries
                     var previous = trimmed[i - 1];
                     var hasNext = i + 1 < trimmed.Length;
                     var next = hasNext ? trimmed[i + 1] : '\0';
-                    if ((char.IsLower(previous) || char.IsDigit(previous)) ||
+                    if (char.IsLower(previous) || char.IsDigit(previous) ||
                         (char.IsUpper(previous) && hasNext && char.IsLower(next)))
                         builder.Append(' ');
                 }

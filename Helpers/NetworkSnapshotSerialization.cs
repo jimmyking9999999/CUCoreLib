@@ -89,9 +89,9 @@ namespace CUCoreLib.Helpers
             if (array == null) return stacks;
 
             stacks.AddRange(from obj
-                in array.OfType<JObject>()
+                    in array.OfType<JObject>()
                 let liquidId = obj.Value<string>("liquidId")
-                where !string.IsNullOrWhiteSpace(liquidId) 
+                where !string.IsNullOrWhiteSpace(liquidId)
                 select new LiquidStack(liquidId, obj.Value<float?>("amount") ?? 0f));
 
             return stacks;
@@ -123,9 +123,9 @@ namespace CUCoreLib.Helpers
             if (array == null) return qualities;
 
             qualities.AddRange(from obj
-                in array.OfType<JObject>() 
+                    in array.OfType<JObject>()
                 let id = obj.Value<string>("id")
-                where !string.IsNullOrWhiteSpace(id) 
+                where !string.IsNullOrWhiteSpace(id)
                 select new CraftingQuality(id, obj.Value<float?>("amount") ?? 1f));
 
             return qualities;

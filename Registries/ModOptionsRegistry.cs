@@ -53,9 +53,7 @@ namespace CUCoreLib.Registries
                      let option1 = option
                      where option != null && !settings.Any(setting => setting != null && setting.name == option1.Id)
                      select option)
-            {
                 settings.Add(option.CreateSetting());
-            }
         }
 
         internal static List<ModOptionCategoryEntry> GetCustomCategories()
@@ -84,10 +82,8 @@ namespace CUCoreLib.Registries
             if (option.Kind != ModOptionKind.Dropdown || option.Choices == null) return;
 
             foreach (var choice in option.Choices)
-            {
                 LocaleRegistry.Register(LocaleRegistry.LocaleCategory.Option, option.Id + choice.Key,
                     choice.Label);
-            }
         }
 
         internal static JObject CaptureNetworkSnapshot()

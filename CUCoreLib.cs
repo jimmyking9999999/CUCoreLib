@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using BepInEx;
 using BepInEx.Bootstrap;
@@ -28,14 +29,6 @@ namespace CUCoreLib
 
         public static CUCoreLibPlugin Instance { get; private set; }
         internal static ConfigFile SharedConfig { get; private set; }
-
-        internal static ConfigFile GetOrCreateSharedConfig()
-        {
-            if (SharedConfig != null) return SharedConfig;
-
-            SharedConfig = new ConfigFile(System.IO.Path.Combine(Paths.ConfigPath, "CUCoreLib.cfg"), true);
-            return SharedConfig;
-        }
 
         private void Awake()
         {
@@ -66,6 +59,14 @@ namespace CUCoreLib
             MultiplayerSyncRegistry.ScheduleInitialSnapshot();
 
             Logger.LogInfo("CUCoreLib is ready to sit in the background.");
+        }
+
+        internal static ConfigFile GetOrCreateSharedConfig()
+        {
+            if (SharedConfig != null) return SharedConfig;
+
+            SharedConfig = new ConfigFile(Path.Combine(Paths.ConfigPath, "CUCoreLib.cfg"), true);
+            return SharedConfig;
         }
 
         private static void RegisterBuiltInCommands() // SetTile also added, but not here
@@ -140,10 +141,7 @@ namespace CUCoreLib
 
             ConsoleCommandRegistry.Register("debugwatch",
                 "Manages a live top-right overlay of watched static fields for runtime debugging.",
-                delegate(string[] args)
-                {
-                    DebugWatchConsoleCommands.Run(ConsoleScript.instance, args);
-                }, null,
+                delegate(string[] args) { DebugWatchConsoleCommands.Run(ConsoleScript.instance, args); }, null,
                 ("action", "add, remove, list, clear, show, or hide."),
                 ("Type.member", "Reflected static field to watch, such as Namespace.Plugin.healthRate."));
         }

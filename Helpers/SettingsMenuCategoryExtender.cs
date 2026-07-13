@@ -12,9 +12,9 @@ namespace CUCoreLib.Helpers
         private const float FallbackButtonSpacing = 116f;
         private const float ScrollPixelsPerWheelStep = 48f;
         private readonly Dictionary<Button, int> buttonCategoryIndices = new Dictionary<Button, int>();
+        private readonly List<TMP_Dropdown> cachedDropdowns = new List<TMP_Dropdown>();
 
         private readonly List<Button> customButtons = new List<Button>();
-        private readonly List<TMP_Dropdown> cachedDropdowns = new List<TMP_Dropdown>();
         private int activeCategoryIndex;
         private SettingsMenu menu;
 
@@ -186,8 +186,16 @@ namespace CUCoreLib.Helpers
                 var categoryIndex = category.CategoryIndex;
                 button.onClick.AddListener(delegate { menu.SelectTab(categoryIndex); });
 
-                var label = clone.GetComponentInChildren<TextMeshProUGUI>(true);
-                if (label != null) label.text = category.DisplayName;
+
+                var label = clone.GetComponentInChildren<TextMeshProUGUI>(false)
+                            ?? clone.GetComponentInChildren<TextMeshProUGUI>(true);
+                if (label)
+                {
+                    label.text = category.DisplayName;
+                    foreach (var loc in label.GetComponents<MonoBehaviour>()
+                                 .Where(c => c && c.GetType().Name.Contains("Local")))
+                        Destroy(loc);
+                }
 
                 menu.buttons.Add(button);
                 customButtons.Add(button);
@@ -201,12 +209,11 @@ namespace CUCoreLib.Helpers
                 foreach (var button in customButtons)
                     menu.buttons.Remove(button);
 
-            foreach (var button in customButtons)
-                if (button)
-                {
-                    buttonCategoryIndices.Remove(button);
-                    Destroy(button.gameObject);
-                }
+            foreach (var button in customButtons.Where(button => button))
+            {
+                buttonCategoryIndices.Remove(button);
+                Destroy(button.gameObject);
+            }
 
             customButtons.Clear();
         }
@@ -260,7 +267,7 @@ namespace CUCoreLib.Helpers
 
         private void ClampScrollPosition()
         {
-            if (menu?.content == null) return;
+            if (!menu?.content) return;
 
             var anchoredPosition = menu.content.anchoredPosition;
             anchoredPosition.y = Mathf.Clamp(anchoredPosition.y, 0f, GetMaxScroll());
@@ -269,12 +276,12 @@ namespace CUCoreLib.Helpers
 
         private float GetMaxScroll()
         {
-            if (menu?.content == null) return 0f;
+            if (!menu?.content) return 0f;
 
             var viewport = menu.content.parent as RectTransform;
-            if (viewport == null) return 0f;
-
-            return Mathf.Max(0f, menu.content.sizeDelta.y - viewport.rect.height);
+            return !viewport
+                ? 0f
+                : Mathf.Max(0f, menu.content.sizeDelta.y - viewport.rect.height);
         }
     }
 }

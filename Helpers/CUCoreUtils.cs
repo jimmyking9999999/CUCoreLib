@@ -6,87 +6,25 @@ using System.IO.Compression;
 using System.Linq;
 using System.Reflection;
 using System.Text;
+using CUCoreLib.ContentReload;
 using CUCoreLib.Data;
 using CUCoreLib.Registries;
 using TMPro;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using CompressionLevel = System.IO.Compression.CompressionLevel;
 using Object = UnityEngine.Object;
-using UnityEngine.EventSystems;
 
 namespace CUCoreLib.Helpers
 {
     public static class CUCoreUtils
     {
-        public sealed class FriendlyKeybind
-        {
-            private readonly FriendlyKeybindEntry entry;
-
-            internal FriendlyKeybind(FriendlyKeybindEntry entry)
-            {
-                this.entry = entry;
-            }
-
-            public bool disableInInputFields
-            {
-                get => entry.DisableInInputFields;
-                set => entry.DisableInInputFields = value;
-            }
-
-            public bool disableInMainMenu
-            {
-                get => entry.DisableInMainMenu;
-                set => entry.DisableInMainMenu = value;
-            }
-
-            public bool disableInHealthPanel
-            {
-                get => entry.DisableInHealthPanel;
-                set => entry.DisableInHealthPanel = value;
-            }
-
-            public bool disableInInventory
-            {
-                get => entry.DisableInInventory;
-                set => entry.DisableInInventory = value;
-            }
-
-            public KeyCode KeyCode => ResolveKeyCode(entry);
-
-            public string KeyName => GetFriendlyKeyName(KeyCode);
-
-            public bool IsPressed()
-            {
-                if (!Input.GetKeyDown(KeyCode))
-                    return false;
-                return !ShouldDisableFriendlyKeybind(entry);
-            }
-
-            public static implicit operator KeyCode(FriendlyKeybind keybind)
-            {
-                return keybind != null ? keybind.KeyCode : KeyCode.None;
-            }
-        }
-
-        internal sealed class FriendlyKeybindEntry
-        {
-            public string ActionId;
-            public string FriendlyName;
-            public KeyCode DefaultKey;
-            public KeyCode CurrentKey;
-            public string Description;
-            public bool RebindRegistered;
-            public bool DisableInInputFields;
-            public bool DisableInMainMenu;
-            public bool DisableInHealthPanel;
-            public bool DisableInInventory;
-            public FriendlyKeybind Handle;
-        }
-
         private static readonly Dictionary<string, MethodInfo> MethodCache = new Dictionary<string, MethodInfo>();
         private static readonly Dictionary<KeyCode, Sprite> KeySpriteCache = new Dictionary<KeyCode, Sprite>();
+
         private static readonly Dictionary<string, FriendlyKeybindEntry> FriendlyKeybindsByActionId =
             new Dictionary<string, FriendlyKeybindEntry>(StringComparer.Ordinal);
+
         private static readonly int ItemLayerMask = LayerMask.GetMask("Item");
 
         private static Talker ElectronicTalkerProxy;
@@ -116,8 +54,8 @@ namespace CUCoreLib.Helpers
 
         public static Coroutine StartCoroutine(IEnumerator routine)
         {
-            return routine == null 
-                ? null 
+            return routine == null
+                ? null
                 : CoroutineRunner.Instance.StartCoroutine(routine);
         }
 
@@ -266,8 +204,9 @@ namespace CUCoreLib.Helpers
         }
 
         /// <summary>
-        /// Creates a vanilla <see cref="CraftingQuality"/> and optionally registers a fallback locale label for the quality ID.
-        /// Only one fallbackname is needed per ID, all other fallbacknames for this function are disregarded.
+        ///     Creates a vanilla <see cref="CraftingQuality" /> and optionally registers a fallback locale label for the quality
+        ///     ID.
+        ///     Only one fallbackname is needed per ID, all other fallbacknames for this function are disregarded.
         /// </summary>
         /// <param name="id">Stable crafting-quality id used for recipe matching and locale lookup.</param>
         /// <param name="amount">Minimum quality amount required.</param>
@@ -279,8 +218,9 @@ namespace CUCoreLib.Helpers
         }
 
         /// <summary>
-        /// Creates a vanilla <see cref="CraftingQuality"/> with an amount of <c>1f</c> and optionally registers a fallback locale label for the quality ID.
-        /// Only one fallbackname is needed per ID, all other fallbacknames for this function are disregarded.
+        ///     Creates a vanilla <see cref="CraftingQuality" /> with an amount of <c>1f</c> and optionally registers a fallback
+        ///     locale label for the quality ID.
+        ///     Only one fallbackname is needed per ID, all other fallbacknames for this function are disregarded.
         /// </summary>
         /// <param name="id">Stable crafting-quality id used for recipe matching and locale lookup.</param>
         /// <param name="fallbackName">Optional fallback label used when no locale entry exists for this quality id.</param>
@@ -364,7 +304,7 @@ namespace CUCoreLib.Helpers
 
             // maybe System.NullReferenceException
             var collider = Physics2D.OverlapPoint(
-                Camera.main.ScreenToWorldPoint(Input.mousePosition),    // maybe null
+                Camera.main.ScreenToWorldPoint(Input.mousePosition), // maybe null
                 ItemLayerMask);
 
             if (collider == null) return false;
@@ -463,7 +403,7 @@ namespace CUCoreLib.Helpers
         {
             GiveItem(id, count);
         }
-        
+
         public static void GiveItemSlot(string id, int slot, int count)
         {
             if (!IsInWorld() || string.IsNullOrWhiteSpace(id) || count <= 0) return;
@@ -517,7 +457,8 @@ namespace CUCoreLib.Helpers
         public static void Talk(string dialogue)
         {
             if (string.IsNullOrWhiteSpace(dialogue)) return;
-            if (PlayerCamera.main == null || PlayerCamera.main.body == null || PlayerCamera.main.body.talker == null) return;
+            if (PlayerCamera.main == null || PlayerCamera.main.body == null ||
+                PlayerCamera.main.body.talker == null) return;
 
             PlayerCamera.main.body.talker.Talk(dialogue);
         }
@@ -532,7 +473,7 @@ namespace CUCoreLib.Helpers
             if (string.IsNullOrWhiteSpace(dialogue)) return;
 
             bool createdProxy;
-            Talker talker = GetElectronicTalker(item, out createdProxy);
+            var talker = GetElectronicTalker(item, out createdProxy);
             if (talker == null) return;
 
             if (createdProxy)
@@ -551,10 +492,11 @@ namespace CUCoreLib.Helpers
 
         public static AudioSource PlaySoundAt(AudioClip clip, Vector2? pos = null)
         {
-            return PlaySoundAt(clip, null, null, pos, null);
+            return PlaySoundAt(clip, null, null, pos);
         }
 
-        public static AudioSource PlaySoundAt(AudioClip clip, float? volume = null, float? delay = null, Vector2? position = null, float? pitch = null)
+        public static AudioSource PlaySoundAt(AudioClip clip, float? volume = null, float? delay = null,
+            Vector2? position = null, float? pitch = null)
         {
             if (clip == null) return null;
 
@@ -562,13 +504,15 @@ namespace CUCoreLib.Helpers
                 ? (Vector2)PlayerCamera.main.body.transform.position
                 : Vector2.zero);
 
-            float resolvedVolume = volume ?? 1f;
-            float resolvedPitch = pitch ?? 1f;
-            bool usePitchShift = !pitch.HasValue;
+            var resolvedVolume = volume ?? 1f;
+            var resolvedPitch = pitch ?? 1f;
+            var usePitchShift = !pitch.HasValue;
 
             if (delay.HasValue && delay.Value > 0f)
             {
-                DelayCall(delay.Value, () => Sound.Play(clip, playPos, volume: resolvedVolume, pitch: resolvedPitch, pitchShift: usePitchShift));
+                DelayCall(delay.Value,
+                    () => Sound.Play(clip, playPos, volume: resolvedVolume, pitch: resolvedPitch,
+                        pitchShift: usePitchShift));
                 return null;
             }
 
@@ -580,7 +524,8 @@ namespace CUCoreLib.Helpers
             return PlaySoundAt(clip, pos);
         }
 
-        public static AudioSource playSoundAt(AudioClip clip, float? volume = null, float? delay = null, Vector2? position = null, float? pitch = null)
+        public static AudioSource playSoundAt(AudioClip clip, float? volume = null, float? delay = null,
+            Vector2? position = null, float? pitch = null)
         {
             return PlaySoundAt(clip, volume, delay, position, pitch);
         }
@@ -607,26 +552,20 @@ namespace CUCoreLib.Helpers
 
             if (item != null)
             {
-                Talker attachedTalker = item.GetComponent<Talker>();
-                if (attachedTalker != null)
-                {
-                    return attachedTalker;
-                }
+                var attachedTalker = item.GetComponent<Talker>();
+                if (attachedTalker != null) return attachedTalker;
             }
 
-            Vector3 fallbackPosition = PlayerCamera.main != null && PlayerCamera.main.body != null
+            var fallbackPosition = PlayerCamera.main != null && PlayerCamera.main.body != null
                 ? PlayerCamera.main.body.transform.position
                 : Vector3.zero;
 
-            Talker templateTalker = GetWatchTalkerTemplate();
-            if (templateTalker == null)
-            {
-                return null;
-            }
+            var templateTalker = GetWatchTalkerTemplate();
+            if (templateTalker == null) return null;
 
             if (ElectronicTalkerProxy == null)
             {
-                GameObject target = new GameObject("CUCoreUtils_ElectronicTalker");
+                var target = new GameObject("CUCoreUtils_ElectronicTalker");
                 Object.DontDestroyOnLoad(target);
                 ElectronicTalkerProxy = target.AddComponent<Talker>();
                 InitializeElectronicTalker(ElectronicTalkerProxy, templateTalker);
@@ -638,7 +577,7 @@ namespace CUCoreLib.Helpers
                 return GetElectronicTalker(item, out createdProxy);
             }
 
-            Transform proxyTransform = ElectronicTalkerProxy.transform;
+            var proxyTransform = ElectronicTalkerProxy.transform;
             if (item != null)
             {
                 proxyTransform.SetParent(item.transform, false);
@@ -655,21 +594,15 @@ namespace CUCoreLib.Helpers
 
         private static Talker GetWatchTalkerTemplate()
         {
-            GameObject watchPrefab = Resources.Load<GameObject>("watch");
-            if (watchPrefab == null)
-            {
-                return null;
-            }
+            var watchPrefab = Resources.Load<GameObject>("watch");
+            if (watchPrefab == null) return null;
 
             return watchPrefab.GetComponent<Talker>();
         }
 
         private static void InitializeElectronicTalker(Talker talker, Talker templateTalker)
         {
-            if (talker == null || templateTalker == null)
-            {
-                return;
-            }
+            if (talker == null || templateTalker == null) return;
 
             talker.textPrefab = templateTalker.textPrefab;
             talker.talkSoundCustom = templateTalker.talkSoundCustom;
@@ -679,7 +612,7 @@ namespace CUCoreLib.Helpers
 
             if (talker.text == null && talker.textPrefab != null)
             {
-                GameObject textObject = Object.Instantiate(talker.textPrefab, talker.transform.position, Quaternion.identity);
+                var textObject = Object.Instantiate(talker.textPrefab, talker.transform.position, Quaternion.identity);
                 talker.text = textObject.GetComponent<TextMeshPro>();
             }
         }
@@ -709,7 +642,7 @@ namespace CUCoreLib.Helpers
         {
             InvokeMethod(instance, "LogToConsole", message);
         }
-        
+
         // try this?
         // _consoleScript are ConsoleScript Instance
         // public static void LogToConsole(string text)
@@ -996,7 +929,7 @@ namespace CUCoreLib.Helpers
 
         private static string BuildFriendlyKeybindActionId(string friendlyKeybindName)
         {
-            var sourceAssembly = ContentReload.ContentReloadSession.GetSourceAssemblyOverride() ?? Assembly.GetCallingAssembly();
+            var sourceAssembly = ContentReloadSession.GetSourceAssemblyOverride() ?? Assembly.GetCallingAssembly();
             var assemblyName = sourceAssembly?.GetName().Name;
             var normalizedAssembly = NormalizeFriendlyKeybindToken(assemblyName);
             var normalizedKeybind = NormalizeFriendlyKeybindToken(friendlyKeybindName);
@@ -1119,6 +1052,71 @@ namespace CUCoreLib.Helpers
                 deflate.CopyTo(output);
                 return output.ToArray();
             }
+        }
+
+        public sealed class FriendlyKeybind
+        {
+            private readonly FriendlyKeybindEntry entry;
+
+            internal FriendlyKeybind(FriendlyKeybindEntry entry)
+            {
+                this.entry = entry;
+            }
+
+            public bool disableInInputFields
+            {
+                get => entry.DisableInInputFields;
+                set => entry.DisableInInputFields = value;
+            }
+
+            public bool disableInMainMenu
+            {
+                get => entry.DisableInMainMenu;
+                set => entry.DisableInMainMenu = value;
+            }
+
+            public bool disableInHealthPanel
+            {
+                get => entry.DisableInHealthPanel;
+                set => entry.DisableInHealthPanel = value;
+            }
+
+            public bool disableInInventory
+            {
+                get => entry.DisableInInventory;
+                set => entry.DisableInInventory = value;
+            }
+
+            public KeyCode KeyCode => ResolveKeyCode(entry);
+
+            public string KeyName => GetFriendlyKeyName(KeyCode);
+
+            public bool IsPressed()
+            {
+                if (!Input.GetKeyDown(KeyCode))
+                    return false;
+                return !ShouldDisableFriendlyKeybind(entry);
+            }
+
+            public static implicit operator KeyCode(FriendlyKeybind keybind)
+            {
+                return keybind != null ? keybind.KeyCode : KeyCode.None;
+            }
+        }
+
+        internal sealed class FriendlyKeybindEntry
+        {
+            public string ActionId;
+            public KeyCode CurrentKey;
+            public KeyCode DefaultKey;
+            public string Description;
+            public bool DisableInHealthPanel;
+            public bool DisableInInputFields;
+            public bool DisableInInventory;
+            public bool DisableInMainMenu;
+            public string FriendlyName;
+            public FriendlyKeybind Handle;
+            public bool RebindRegistered;
         }
 
         private sealed class CoroutineRunner : MonoBehaviour

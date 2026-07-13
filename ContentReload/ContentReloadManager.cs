@@ -1,9 +1,11 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using BepInEx;
 using BepInEx.Bootstrap;
+using BepInEx.Configuration;
 using CUCoreLib.Helpers;
 using CUCoreLib.Networking;
 using UnityEngine;
@@ -14,16 +16,19 @@ namespace CUCoreLib.ContentReload
     {
         private const string AutoHotReloadEnabledKeyPrefix = "CUCoreLib.AutoHotReload.Enabled.";
         private const string ConfigSectionName = "Hot Reload";
+
         private static readonly Dictionary<string, ContentReloadState> StateByModGuid =
             new Dictionary<string, ContentReloadState>(StringComparer.OrdinalIgnoreCase);
+
         private static readonly HashSet<string> EnabledModGuids =
             new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        private static readonly Dictionary<string, BepInEx.Configuration.ConfigEntry<string>> OverridePathEntriesByModGuid =
-            new Dictionary<string, BepInEx.Configuration.ConfigEntry<string>>(StringComparer.OrdinalIgnoreCase);
+
+        private static readonly Dictionary<string, ConfigEntry<string>> OverridePathEntriesByModGuid =
+            new Dictionary<string, ConfigEntry<string>>(StringComparer.OrdinalIgnoreCase);
 
         private static bool initialized;
         private static readonly ContentReloadConfig config = new ContentReloadConfig();
-        private static BepInEx.Configuration.ConfigFile configFile;
+        private static ConfigFile configFile;
 
         internal static void Initialize()
         {
@@ -276,10 +281,7 @@ namespace CUCoreLib.ContentReload
 
         private static void BindLoadedModConfigEntries()
         {
-            foreach (var modGuid in GetLoadedModGuids())
-            {
-                EnsureModConfigBound(modGuid);
-            }
+            foreach (var modGuid in GetLoadedModGuids()) EnsureModConfigBound(modGuid);
 
             configFile?.Save();
         }
@@ -295,7 +297,8 @@ namespace CUCoreLib.ContentReload
                 config.Mods[normalizedModGuid] = modConfig;
             }
 
-            if (!OverridePathEntriesByModGuid.TryGetValue(normalizedModGuid, out var overrideEntry) || overrideEntry == null)
+            if (!OverridePathEntriesByModGuid.TryGetValue(normalizedModGuid, out var overrideEntry) ||
+                overrideEntry == null)
             {
                 overrideEntry = configFile.Bind(
                     ConfigSectionName,
@@ -340,7 +343,7 @@ namespace CUCoreLib.ContentReload
             pluginType = null;
             reason = "ContentReloadManager.EnableHotReload() must be called from the owning plugin Awake().";
 
-            var frames = new System.Diagnostics.StackTrace().GetFrames();
+            var frames = new StackTrace().GetFrames();
             if (frames == null || frames.Length == 0) return false;
 
             foreach (var frame in frames)

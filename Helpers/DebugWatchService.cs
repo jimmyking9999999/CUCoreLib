@@ -5,6 +5,7 @@ using System.Linq;
 using System.Reflection;
 using BepInEx.Bootstrap;
 using UnityEngine;
+using Object = UnityEngine.Object;
 
 namespace CUCoreLib.Helpers
 {
@@ -15,6 +16,7 @@ namespace CUCoreLib.Helpers
 
         private static readonly List<WatchDescriptor> AllDescriptors = new List<WatchDescriptor>();
         private static readonly List<WatchDescriptor> ActiveWatches = new List<WatchDescriptor>();
+
         private static readonly List<string> RootAutofill = new List<string>
         {
             "add",
@@ -38,7 +40,7 @@ namespace CUCoreLib.Helpers
             RebuildDescriptorCache();
 
             _overlayRoot = new GameObject("CUCoreLib.DebugWatchOverlay");
-            UnityEngine.Object.DontDestroyOnLoad(_overlayRoot);
+            Object.DontDestroyOnLoad(_overlayRoot);
             _overlayRoot.hideFlags = HideFlags.HideAndDontSave;
             _overlayRoot.AddComponent<DebugWatchOverlayBehaviour>();
         }
@@ -253,7 +255,7 @@ namespace CUCoreLib.Helpers
 
             var underlying = Nullable.GetUnderlyingType(declaredType) ?? declaredType;
             if (underlying == typeof(string)) return (string)value;
-            if (underlying == typeof(bool)) return ((bool)value) ? "true" : "false";
+            if (underlying == typeof(bool)) return (bool)value ? "true" : "false";
             if (underlying.IsEnum) return value.ToString();
 
             if (underlying == typeof(float))

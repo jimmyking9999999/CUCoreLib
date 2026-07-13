@@ -1,18 +1,20 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using CUCoreLib.ContentReload;
 using CUCoreLib.Helpers;
 using CUCoreLib.Registries;
 using HarmonyLib;
 using UnityEngine;
+using Random = UnityEngine.Random;
 
 namespace CUCoreLib.Patches
 {
     [HarmonyPatch(typeof(ConsoleScript), "RegisterAllCommands")]
     internal static class ConsolePatch
     {
-        private static readonly System.Reflection.FieldInfo RegisteredSpawnEntitiesField =
+        private static readonly FieldInfo RegisteredSpawnEntitiesField =
             AccessTools.Field(typeof(ConsoleScript), "registeredSpawnEntities");
 
         internal static void RefreshRuntimeAutofill()
@@ -59,7 +61,7 @@ namespace CUCoreLib.Patches
                     foreach (var itemId in items)
                     {
                         var obj = Utils.Create(itemId,
-                            position + UnityEngine.Random.insideUnitCircle * 3f, 0f);
+                            position + Random.insideUnitCircle * 3f, 0f);
                         var body = obj != null ? obj.GetComponent<Rigidbody2D>() : null;
                         if (body != null) body.gravityScale = 0f;
                     }
@@ -76,7 +78,7 @@ namespace CUCoreLib.Patches
                     if (args.Length < 2) throw new Exception("Usage: cuspawn [id]");
 
                     var query = args[1];
-                    Vector2 pos = Camera.main.ScreenToWorldPoint(Input.mousePosition);  // maybe null
+                    Vector2 pos = Camera.main.ScreenToWorldPoint(Input.mousePosition); // maybe null
                     if (args.Length > 2 && TryParsePosition(__instance, args[2], out var parsedPosition))
                         pos = parsedPosition;
 
@@ -116,7 +118,7 @@ namespace CUCoreLib.Patches
                     if (!TileRegistry.TryGetDefinition(tileIndex, out var definition))
                         throw new Exception($"Tile index '{tileIndex}' is not registered.");
 
-                    Vector2 worldPosition = Camera.main.ScreenToWorldPoint(Input.mousePosition);    // maybe null
+                    Vector2 worldPosition = Camera.main.ScreenToWorldPoint(Input.mousePosition); // maybe null
                     if (args.Length > 2 && TryParsePosition(__instance, args[2], out var parsedPosition))
                         worldPosition = parsedPosition;
 
@@ -205,7 +207,8 @@ namespace CUCoreLib.Patches
                 spawnCommand.argAutofill[0] = spawnIds;
             }
 
-            foreach (var id in BuildSpawnAutofill()[0].Where(id => !spawnIds.Contains(id, StringComparer.OrdinalIgnoreCase)))
+            foreach (var id in BuildSpawnAutofill()[0]
+                         .Where(id => !spawnIds.Contains(id, StringComparer.OrdinalIgnoreCase)))
                 spawnIds.Add(id);
         }
 
@@ -248,7 +251,8 @@ namespace CUCoreLib.Patches
         {
             if (console == null) return false;
 
-            return RegisteredSpawnEntitiesField != null && RegisteredSpawnEntitiesField.GetValue(console) is bool registered &&
+            return RegisteredSpawnEntitiesField != null &&
+                   RegisteredSpawnEntitiesField.GetValue(console) is bool registered &&
                    registered;
         }
 

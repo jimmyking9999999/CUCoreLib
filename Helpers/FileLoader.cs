@@ -67,7 +67,6 @@ namespace CUCoreLib.Helpers
                 new Vector2(0.5f, 0.5f),
                 ppu
             );
-
         }
 
 

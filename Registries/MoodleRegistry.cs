@@ -56,8 +56,8 @@ namespace CUCoreLib.Registries
         }
 
         /// <summary>
-        /// Queues a custom moodle using a direct sprite icon.
-        /// Call this during your normal update logic while the condition is active.
+        ///     Queues a custom moodle using a direct sprite icon.
+        ///     Call this during your normal update logic while the condition is active.
         /// </summary>
         /// <param name="intensity">The vanilla moodle background tier to use.</param>
         /// <param name="icon">The sprite icon to show for the moodle.</param>
@@ -67,12 +67,12 @@ namespace CUCoreLib.Registries
         /// <param name="chippedOnly">Whether to use the vanilla chipped-only display behavior.</param>
         /// <param name="important">Whether the moodle belongs in the main row instead of the side row.</param>
         /// <param name="key">
-        /// Optional stable queue key.
-        /// Supply this when one logical moodle changes severity over time and should replace its previous queued entry.
+        ///     Optional stable queue key.
+        ///     Supply this when one logical moodle changes severity over time and should replace its previous queued entry.
         /// </param>
         /// <param name="holdSeconds">
-        /// How long the queued moodle remains active without being refreshed.
-        /// Defaults to <c>0.75f</c>.
+        ///     How long the queued moodle remains active without being refreshed.
+        ///     Defaults to <c>0.75f</c>.
         /// </param>
         public static void AddMoodle(int intensity, Sprite icon, string name, string description, bool critical = false,
             bool chippedOnly = false, bool important = true, string key = null, float holdSeconds = DefaultHoldSeconds)
@@ -95,8 +95,8 @@ namespace CUCoreLib.Registries
         }
 
         /// <summary>
-        /// Queues a custom moodle using an existing icon ID already recognized by the vanilla moodle system.
-        /// Call this during your normal update logic while the condition is active.
+        ///     Queues a custom moodle using an existing icon ID already recognized by the vanilla moodle system.
+        ///     Call this during your normal update logic while the condition is active.
         /// </summary>
         /// <param name="intensity">The vanilla moodle background tier to use.</param>
         /// <param name="iconId">The icon ID that should be resolved from <c>MoodleManager.icons</c>.</param>
@@ -106,12 +106,12 @@ namespace CUCoreLib.Registries
         /// <param name="chippedOnly">Whether to use the vanilla chipped-only display behavior.</param>
         /// <param name="important">Whether the moodle belongs in the main row instead of the side row.</param>
         /// <param name="key">
-        /// Optional stable queue key.
-        /// Supply this when one logical moodle changes severity over time and should replace its previous queued entry.
+        ///     Optional stable queue key.
+        ///     Supply this when one logical moodle changes severity over time and should replace its previous queued entry.
         /// </param>
         /// <param name="holdSeconds">
-        /// How long the queued moodle remains active without being refreshed.
-        /// Defaults to <c>0.75f</c>.
+        ///     How long the queued moodle remains active without being refreshed.
+        ///     Defaults to <c>0.75f</c>.
         /// </param>
         public static void AddMoodle(int intensity, string iconId, string name, string description,
             bool critical = false, bool chippedOnly = false, bool important = true, string key = null,
@@ -136,23 +136,23 @@ namespace CUCoreLib.Registries
         }
 
         /// <summary>
-        /// Queues a custom moodle whose icon is driven by a cached sprite animation.
-        /// The first animation frame is used as the initial icon, then the moodle patch applies the animation at runtime.
+        ///     Queues a custom moodle whose icon is driven by a cached sprite animation.
+        ///     The first animation frame is used as the initial icon, then the moodle patch applies the animation at runtime.
         /// </summary>
         /// <param name="intensity">The vanilla moodle background tier to use.</param>
-        /// <param name="animationId">The cached animation ID previously registered with <see cref="AssetLoader"/>.</param>
+        /// <param name="animationId">The cached animation ID previously registered with <see cref="AssetLoader" />.</param>
         /// <param name="name">The player-facing moodle title.</param>
         /// <param name="description">The player-facing moodle description.</param>
         /// <param name="critical">Whether to show the vanilla critical glow overlay.</param>
         /// <param name="chippedOnly">Whether to use the vanilla chipped-only display behavior.</param>
         /// <param name="important">Whether the moodle belongs in the main row instead of the side row.</param>
         /// <param name="key">
-        /// Optional stable queue key.
-        /// Supply this when one logical moodle changes severity over time and should replace its previous queued entry.
+        ///     Optional stable queue key.
+        ///     Supply this when one logical moodle changes severity over time and should replace its previous queued entry.
         /// </param>
         /// <param name="holdSeconds">
-        /// How long the queued moodle remains active without being refreshed.
-        /// Defaults to <c>0.75f</c>.
+        ///     How long the queued moodle remains active without being refreshed.
+        ///     Defaults to <c>0.75f</c>.
         /// </param>
         public static void AddAnimatedMoodle(int intensity, string animationId, string name, string description,
             bool critical = false, bool chippedOnly = false, bool important = true, string key = null,

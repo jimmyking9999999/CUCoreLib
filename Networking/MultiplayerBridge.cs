@@ -382,7 +382,6 @@ namespace CUCoreLib.Networking
             if (getString == null) return null;
             var value = getString.Invoke(reader, null);
             return value as string;
-
         }
 
         private static void InstallReceivers()
@@ -522,7 +521,8 @@ namespace CUCoreLib.Networking
         {
             if (_krokAssembly != null) return true;
 
-            return Chainloader.PluginInfos.ContainsKey(PluginGuid) || AppDomain.CurrentDomain.GetAssemblies().Any(assembly => assembly.GetType(MpTypeName, false) != null);
+            return Chainloader.PluginInfos.ContainsKey(PluginGuid) || AppDomain.CurrentDomain.GetAssemblies()
+                .Any(assembly => assembly.GetType(MpTypeName, false) != null);
         }
 
         private static MethodInfo ResolveMethod(Type type, string[] methodNames, Type[] parameterTypes)
@@ -559,7 +559,7 @@ namespace CUCoreLib.Networking
         private static MethodInfo ResolveStringPutMethod()
         {
             var extensions = _krokAssembly.GetType("KrokoshaCasualtiesMP.MyLiteNetLibExtensions", false);
-            if (extensions == null) return null;    // Use null propagation
+            if (extensions == null) return null; // Use null propagation
 
             return extensions.GetMethods(BindingFlags.Public | BindingFlags.Static)
                 .FirstOrDefault(method =>
@@ -596,7 +596,7 @@ namespace CUCoreLib.Networking
             if (_serverMainType == null) return null;
 
             var property = _serverMainType.GetProperty(memberName, BindingFlags.Public | BindingFlags.Static);
-            return property != null 
+            return property != null
                 ? property.GetValue(null, null)
                 : null;
         }
@@ -636,8 +636,8 @@ namespace CUCoreLib.Networking
             var normalizedType = targetType.IsByRef ? targetType.GetElementType() : targetType;
             if (normalizedType == null || normalizedType == typeof(uint)) return clientId;
 
-            return normalizedType.IsEnum 
-                ? Enum.ToObject(normalizedType, clientId) 
+            return normalizedType.IsEnum
+                ? Enum.ToObject(normalizedType, clientId)
                 : Convert.ChangeType(clientId, normalizedType);
         }
 
@@ -654,7 +654,7 @@ namespace CUCoreLib.Networking
             {
                 var targetAddress = string.IsNullOrWhiteSpace(address) ? "localhost:7790" : address.Trim();
                 var mode = Enum.Parse(_netModeType, modeName);
-                var result = _liteNetConnectMethod.Invoke(null, new object[] { targetAddress, mode });
+                var result = _liteNetConnectMethod.Invoke(null, new[] { targetAddress, mode });
                 return result is bool connected && connected;
             }
             catch (Exception ex)

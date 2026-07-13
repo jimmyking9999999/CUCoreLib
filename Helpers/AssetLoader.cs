@@ -13,6 +13,7 @@ using CUCoreLib.Data;
 using NAudio.Wave;
 using UnityEngine;
 using UnityEngine.UI;
+using Object = UnityEngine.Object;
 
 namespace CUCoreLib.Helpers
 {
@@ -266,7 +267,7 @@ namespace CUCoreLib.Helpers
                     if (!EmbeddedSpriteVariantCache.TryGetValue(spriteKey, out var sprite) || sprite == null) continue;
 
                     EmbeddedSpriteVariantCache.Remove(spriteKey);
-                    UnityEngine.Object.Destroy(sprite);
+                    Object.Destroy(sprite);
                 }
 
                 AssemblySpriteVariantKeys.Remove(assemblyKey);
@@ -279,14 +280,15 @@ namespace CUCoreLib.Helpers
                     if (!EmbeddedTextureCache.TryGetValue(textureKey, out var texture) || texture == null) continue;
 
                     EmbeddedTextureCache.Remove(textureKey);
-                    UnityEngine.Object.Destroy(texture);
+                    Object.Destroy(texture);
                 }
 
                 AssemblyTextureKeys.Remove(assemblyKey);
             }
 
             ResourceNameCache.Remove(assemblyKey);
-            LoggedMissingResources.RemoveWhere(key => key.IndexOf(assemblyKey, StringComparison.OrdinalIgnoreCase) >= 0);
+            LoggedMissingResources.RemoveWhere(key =>
+                key.IndexOf(assemblyKey, StringComparison.OrdinalIgnoreCase) >= 0);
         }
 
         public static RegisteredSpriteAnimation RegisterFrameAnimation(string id, IEnumerable<Sprite> frames,
@@ -603,7 +605,7 @@ namespace CUCoreLib.Helpers
                          .ToArray())
             {
                 SpriteVariantCache.Remove(entry.Key);
-                if (entry.Value != null) UnityEngine.Object.Destroy(entry.Value);
+                if (entry.Value != null) Object.Destroy(entry.Value);
             }
         }
 
@@ -623,9 +625,7 @@ namespace CUCoreLib.Helpers
             }
 
             if (widthMultiplier > 1 || heightMultiplier > 1)
-            {
                 finalTexture = ModifyTextures.ResizeTexture(finalTexture, widthMultiplier, heightMultiplier);
-            }
 
             finalTexture.filterMode = filterMode;
             finalTexture.wrapMode = TextureWrapMode.Clamp;

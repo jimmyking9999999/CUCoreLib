@@ -26,8 +26,8 @@ namespace CUCoreLib.Helpers
             id = SpawnIdHelpers.NormalizeSpawnId(id);
 
             var prefab = ResolvePrefab(id);
-            return prefab == null 
-                ? null 
+            return prefab == null
+                ? null
                 : PrepareInstantiatedObject(Object.Instantiate(prefab, position, rotation), condition);
         }
 
@@ -101,10 +101,7 @@ namespace CUCoreLib.Helpers
                 }
                 default:
                 {
-                    if (info.Light != null)
-                    {
-                        EnsureLightItemHasLight(obj, info.Light);
-                    }
+                    if (info.Light != null) EnsureLightItemHasLight(obj, info.Light);
 
                     break;
                 }
@@ -113,10 +110,7 @@ namespace CUCoreLib.Helpers
             var item = obj.GetComponent<Item>();
             if (item) item.id = id;
 
-            if (item != null && info.wearable && obj.GetComponent<Wearable>() == null)
-            {
-                obj.AddComponent<Wearable>();
-            }
+            if (item != null && info.wearable && obj.GetComponent<Wearable>() == null) obj.AddComponent<Wearable>();
 
             var waterContainer = obj.GetComponent<WaterContainerItem>();
             if (waterContainer != null) waterContainer.fillSprite = info.LiquidMask;
@@ -132,7 +126,7 @@ namespace CUCoreLib.Helpers
             if (info.Battery != null)
             {
                 var batteryItem = obj.GetComponent<BatteryItem>();
-                var createdBattery = batteryItem == null;   // not use
+                var createdBattery = batteryItem == null; // not use
                 if (batteryItem == null) batteryItem = obj.AddComponent<BatteryItem>();
 
                 ItemRegistryPatches.ApplyBatteryProperties(item, batteryItem, info, true);
@@ -148,9 +142,7 @@ namespace CUCoreLib.Helpers
             if (obj == null || sprite == null) return;
 
             if (!TryGetTrimmedColliderData(sprite, out var trimmedCollider))
-            {
                 trimmedCollider = CreateFullSpriteColliderData(sprite);
-            }
 
             // Preserve current collider settings
             var existingCollider = obj.GetComponent<Collider2D>();
@@ -176,9 +168,8 @@ namespace CUCoreLib.Helpers
                 SharedPhysicsShapeBuffer.Clear();
                 sprite.GetPhysicsShape(i, SharedPhysicsShapeBuffer);
                 for (var j = 0; j < SharedPhysicsShapeBuffer.Count; j++)
-                {
-                    SharedPhysicsShapeBuffer[j] = ClampPointToTrimmedBounds(SharedPhysicsShapeBuffer[j], trimmedCollider);
-                }
+                    SharedPhysicsShapeBuffer[j] =
+                        ClampPointToTrimmedBounds(SharedPhysicsShapeBuffer[j], trimmedCollider);
 
                 polygon.SetPath(i, SharedPhysicsShapeBuffer);
             }
@@ -188,7 +179,8 @@ namespace CUCoreLib.Helpers
             return true;
         }
 
-        private static void ApplyBoxCollider(GameObject obj, Collider2D existingCollider, TrimmedColliderData trimmedCollider)
+        private static void ApplyBoxCollider(GameObject obj, Collider2D existingCollider,
+            TrimmedColliderData trimmedCollider)
         {
             var box = obj.GetComponent<BoxCollider2D>();
             if (box == null) box = obj.AddComponent<BoxCollider2D>();

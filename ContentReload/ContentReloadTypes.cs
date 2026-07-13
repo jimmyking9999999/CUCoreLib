@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using CUCoreLib.Data;
 
 namespace CUCoreLib.ContentReload
 {
@@ -42,8 +41,8 @@ namespace CUCoreLib.ContentReload
     {
         private readonly List<string> errors = new List<string>();
         private readonly List<string> info = new List<string>();
-        private readonly List<string> recognizedMethods = new List<string>();
         private readonly List<string> ranMethods = new List<string>();
+        private readonly List<string> recognizedMethods = new List<string>();
         private readonly List<string> skipped = new List<string>();
 
         public string ModGuid { get; internal set; }

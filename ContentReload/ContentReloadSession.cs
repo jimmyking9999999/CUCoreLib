@@ -16,6 +16,8 @@ namespace CUCoreLib.ContentReload
 
         internal static bool IsActive => current != null;
 
+        internal static HotReloadMode CurrentMode => current?.Mode ?? HotReloadMode.Strict;
+
         internal static Assembly GetSourceAssemblyOverride()
         {
             return current?.SourceAssembly;
@@ -49,10 +51,9 @@ namespace CUCoreLib.ContentReload
 
                     foreach (var pluginInfo in Chainloader.PluginInfos.Values
                                  .Where(pluginInfo => pluginInfo?.Metadata != null)
-                                 .Where(pluginInfo => string.Equals(pluginInfo.Location, location, StringComparison.OrdinalIgnoreCase)))
-                    {
+                                 .Where(pluginInfo => string.Equals(pluginInfo.Location, location,
+                                     StringComparison.OrdinalIgnoreCase)))
                         return pluginInfo.Metadata.GUID;
-                    }
                 }
             }
             catch
@@ -69,8 +70,6 @@ namespace CUCoreLib.ContentReload
 
             return Path.GetDirectoryName(current.SourceDllPath);
         }
-
-        internal static HotReloadMode CurrentMode => current?.Mode ?? HotReloadMode.Strict;
 
         internal static IDisposable Begin(string modGuid, Assembly sourceAssembly, string sourceDllPath,
             ContentReloadSurface allowedSurfaces, HotReloadMode mode)
@@ -158,8 +157,8 @@ namespace CUCoreLib.ContentReload
         private sealed class SessionState
         {
             public ContentReloadSurface AllowedSurfaces;
-            public string ModGuid;
             public HotReloadMode Mode;
+            public string ModGuid;
             public Assembly SourceAssembly;
             public string SourceDllPath;
         }

@@ -2,7 +2,6 @@ using System;
 using System.Linq;
 using System.Reflection;
 using System.Reflection.Emit;
-using System.Collections.Generic;
 using BepInEx.Bootstrap;
 using CUCoreLib.Helpers;
 using CUCoreLib.Registries;
@@ -76,7 +75,7 @@ namespace CUCoreLib.Patches
                     foreach (var loadObjectResource in loadObjectResources)
                     {
                         harmony.Patch(loadObjectResource,
-                            prefix: new HarmonyMethod(typeof(KrokMpCompatibilityPatches),
+                            new HarmonyMethod(typeof(KrokMpCompatibilityPatches),
                                 nameof(LoadObjectResource_Prefix)));
                         patchedAnything = true;
                     }
@@ -315,10 +314,7 @@ namespace CUCoreLib.Patches
         private static bool LoadObjectResource_Prefix(string resourceid, object[] __args, ref GameObject __result)
         {
             var pos = default(Vector2);
-            if (__args != null && __args.Length > 1 && __args[1] is Vector2 vector)
-            {
-                pos = vector;
-            }
+            if (__args != null && __args.Length > 1 && __args[1] is Vector2 vector) pos = vector;
 
             if (!TryResolveResourcePrefab(resourceid, out var prefab, out var parentToWorldGrid) ||
                 prefab == null) return true;

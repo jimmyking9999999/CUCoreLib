@@ -95,7 +95,9 @@ namespace CUCoreLib.Patches
 
                 if (preferWornSprite && item.TryGetComponent<Wearable>(out var wearable))
                 {
-                    var body = item.transform.parent != null ? item.transform.parent.GetComponentInParent<Body>() : null;
+                    var body = item.transform.parent != null
+                        ? item.transform.parent.GetComponentInParent<Body>()
+                        : null;
                     if (body != null)
                     {
                         wearable.ClearSprites();
@@ -224,7 +226,8 @@ namespace CUCoreLib.Patches
         private static bool IsCurrentlyWornWearable(Item item, CustomItemInfo def)
         {
             if (item == null || def == null) return false;
-            if (def.WornSprite == null && (def.MultiWornSprites == null || def.MultiWornSprites.Count == 0)) return false;
+            if (def.WornSprite == null && (def.MultiWornSprites == null || def.MultiWornSprites.Count == 0))
+                return false;
             if (!item.TryGetComponent<Wearable>(out _)) return false;
 
             var parent = item.transform.parent;
@@ -427,11 +430,9 @@ namespace CUCoreLib.Patches
 
             var startCharge = maxCharge;
             if (def.Battery.StartCharge >= 0f)
-            {
                 startCharge = def.Battery.StartCharge <= 1f
                     ? maxCharge * def.Battery.StartCharge
                     : Mathf.Min(def.Battery.StartCharge, maxCharge);
-            }
 
             item.condition = Mathf.Clamp01(startCharge / Mathf.Max(1f, maxCharge));
         }
@@ -507,7 +508,8 @@ namespace CUCoreLib.Patches
         private static void SyncCustomBatteryLightState(LightItem __instance)
         {
             if (__instance == null) return;
-            if (!ItemRegistry.TryGetCustomInfo(__instance.GetComponent<Item>(), out var def) || def?.Light == null) return;
+            if (!ItemRegistry.TryGetCustomInfo(__instance.GetComponent<Item>(), out var def) ||
+                def?.Light == null) return;
 
             var battery = __instance.GetComponent<BatteryItem>();
             if (battery != null)
@@ -592,7 +594,6 @@ namespace CUCoreLib.Patches
             WarnInvalidDecayConfiguration(__instance,
                 "uses BatteryDecay but has no BatteryItem component; skipping decay update");
             return false;
-
         }
 
         private static void WarnInvalidDecayConfiguration(Item item, string issue)
@@ -642,7 +643,6 @@ namespace CUCoreLib.Patches
             if (!Item.GlobalItems.TryGetValue(id, out var info)) return true;
             __result = info;
             return false;
-
         }
 
         private sealed class PendingBatteryInitializationMarker : MonoBehaviour
@@ -668,7 +668,6 @@ namespace CUCoreLib.Patches
                 if (!Item.GlobalItems.TryGetValue(__instance.id, out var info)) return true;
                 __result = info;
                 return false;
-
             }
         }
     }
