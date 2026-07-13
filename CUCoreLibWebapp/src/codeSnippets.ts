@@ -577,6 +577,7 @@ export function currentCode(nextPage: PageId, nextItemState: ItemState, nextReci
   if (currentPage === "welcome") return welcomeCode();
   if (currentPage === "unity-csharp") return unityCsharpCode();
   if (currentPage === "setup") return setupCode();
+  if (currentPage === "using-unity") return usingUnityCode();
   if (currentPage === "harmony0") return harmony0Code();
   if (currentPage === "tutorial-first-mod") return tutorialFirstModCode();
   if (currentPage === "recipe") return recipeCode();
@@ -610,6 +611,7 @@ export function codeTitle(currentPage: PageId): string {
   if (currentPage === "welcome") return "Plugin.cs";
   if (currentPage === "unity-csharp") return "MyFirstPlugin.cs";
   if (currentPage === "setup") return "Plugin.cs";
+  if (currentPage === "using-unity") return "WireSpliceBundleUsage.cs";
   if (currentPage === "harmony0") return "HarmonyPatches.cs";
   if (currentPage === "tutorial-first-mod") return "AcidShroomTutorial.cs";
   if (currentPage === "recipe") return "RegisterRecipes.cs";
@@ -848,6 +850,33 @@ public static class WireSpliceStarter
     {
         return CUCoreMinigames.TryStartDefinition(() => new WireSpliceMinigame());
     }
+}`;
+}
+
+function usingUnityCode(): string {
+  return `using CUCoreLib.Data;
+using CUCoreLib.Helpers;
+using UnityEngine;
+
+// Unity authoring summary:
+// 1. Open Tools > CU Modding > Authoring Hub in the CU Mod Project.
+// 2. Create a starter pack such as "WireSplice".
+// 3. Export the bundle to CUCoreExports/Bundles/wiresplice-minigames.
+// 4. Copy the exported bundle into BepInEx/plugins/YourMod/Bundles/.
+
+private void Awake()
+{
+    AssetLoader.RegisterBundleFromPluginFolder(this, "wiresplice.minigames", "Bundles/wiresplice-minigames");
+}
+
+public override void Start(CUCoreMinigameSession session)
+{
+    session.TryCreateBundledScreen("wiresplice.minigames", "WireSpliceScreen");
+}
+
+private void ApplyBodyCurves(Body body)
+{
+    BodyAnimationCurves.TryApplyBundledProfile(body, "wiresplice.minigames", "WireSpliceProfile");
 }`;
 }
 

@@ -46,6 +46,8 @@
         <WarningLevel>4</WarningLevel>
     </PropertyGroup>
     <ItemGroup>
+        <Compile Include="Bootstrap\BepInExConfigurationGuard.cs"/>
+        <Compile Include="Bootstrap\BuiltInCommandRegistrar.cs"/>
         <Reference Include="0Harmony, Version=2.7.0.0, Culture=neutral, processorArchitecture=MSIL">
             <HintPath>packages\HarmonyX.2.7.0\lib\net45\0Harmony.dll</HintPath>
         </Reference>
@@ -284,6 +286,8 @@
         <Compile Include="Registries\MoodleRegistry.cs"/>
         <Compile Include="Registries\LocaleRegistry.cs"/>
         <Compile Include="Registries\RecipeRegistry.cs"/>
+        <Compile Include="Registries\Infrastructure\RegistrationOwnershipIndex.cs"/>
+        <Compile Include="Registries\Infrastructure\SpawnLayerMask.cs"/>
         <Compile Include="Registries\SaveRegistry.cs"/>
         <Compile Include="Registries\StatusRegistry.cs"/>
         <Compile Include="Registries\StructureRegistry.cs"/>

@@ -5,6 +5,7 @@ using System.Reflection;
 using CUCoreLib.ContentReload;
 using CUCoreLib.Data;
 using CUCoreLib.Helpers;
+using CUCoreLib.Registries.Infrastructure;
 using HarmonyLib;
 using Newtonsoft.Json.Linq;
 using UnityEngine;
@@ -54,7 +55,7 @@ namespace CUCoreLib.Registries
             // Custom Structures layer update when? ;)
         };
 
-        public static int AllSpawnLayersMask => -1;
+        public static int AllSpawnLayersMask => SpawnLayerMask.All;
 
         public static bool Register(ushort tileIndex, CustomTileDefinition definition)
         {
@@ -122,25 +123,17 @@ namespace CUCoreLib.Registries
 
         public static int LayerToMask(int layerNumber)
         {
-            if (layerNumber <= 0 || layerNumber > 31) return 0;
-
-            return 1 << (layerNumber - 1);
+            return SpawnLayerMask.FromLayerNumber(layerNumber);
         }
 
         public static int LayersToMask(params int[] layerNumbers)
         {
-            if (layerNumbers == null || layerNumbers.Length == 0) return 0;
-
-            return layerNumbers.Aggregate(0, (current, layerNumber) => current | LayerToMask(layerNumber));
+            return SpawnLayerMask.Combine(layerNumbers);
         }
 
         public static int AllLayersExcept(params int[] excludedLayerNumbers)
         {
-            var mask = AllSpawnLayersMask;
-            if (excludedLayerNumbers == null || excludedLayerNumbers.Length == 0) return mask;
-
-            return excludedLayerNumbers.Select(LayerToMask).Where(layerMask => layerMask != 0)
-                .Aggregate(mask, (current, layerMask) => current & ~layerMask);
+            return SpawnLayerMask.Excluding(excludedLayerNumbers);
         }
 
         internal static JObject CaptureNetworkSnapshot()

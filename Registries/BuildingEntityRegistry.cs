@@ -6,6 +6,7 @@ using CUCoreLib.ContentReload;
 using CUCoreLib.Data;
 using CUCoreLib.Helpers;
 using CUCoreLib.Networking;
+using CUCoreLib.Registries.Infrastructure;
 using Newtonsoft.Json.Linq;
 using UnityEngine;
 using Object = UnityEngine.Object;
@@ -16,7 +17,7 @@ namespace CUCoreLib.Registries
     public static class BuildingEntityRegistry
     {
         private const string DefaultHitSoundReferenceId = "glowplant";
-        public const int AllSpawnLayersMask = -1;
+        public const int AllSpawnLayersMask = SpawnLayerMask.All;
 
         private static readonly Dictionary<string, CustomBuildingEntityDefinition> RegisteredDefinitions =
             new Dictionary<string, CustomBuildingEntityDefinition>(StringComparer.OrdinalIgnoreCase);
@@ -24,8 +25,8 @@ namespace CUCoreLib.Registries
         private static readonly Dictionary<string, GameObject> PrefabCache =
             new Dictionary<string, GameObject>(StringComparer.OrdinalIgnoreCase);
 
-        private static readonly Dictionary<string, string> DefinitionOwners =
-            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        private static readonly RegistrationOwnershipIndex<string> DefinitionOwners =
+            new RegistrationOwnershipIndex<string>(StringComparer.OrdinalIgnoreCase);
 
         private static readonly HashSet<CustomBuildingRuntime> ActiveRuntimes =
             new HashSet<CustomBuildingRuntime>();
@@ -35,10 +36,12 @@ namespace CUCoreLib.Registries
         private static readonly int GroundMask = LayerMask.GetMask("Ground");
         private static readonly int GroundLayer = LayerMask.NameToLayer("Ground");
         private static bool NetworkSpawnComponentsWarningLogged;
-        private static string ActiveOwnerId;
+
+        private static readonly IReadOnlyDictionary<string, CustomBuildingEntityDefinition> ReadOnlyDefinitions =
+            new ReadOnlyDictionary<string, CustomBuildingEntityDefinition>(RegisteredDefinitions);
 
         public static IReadOnlyDictionary<string, CustomBuildingEntityDefinition> RegisteredDefinitionsView
-            => new ReadOnlyDictionary<string, CustomBuildingEntityDefinition>(RegisteredDefinitions);
+            => ReadOnlyDefinitions;
 
         public static event Action<string, CustomBuildingEntityDefinition, bool> Registered;
 
@@ -68,10 +71,7 @@ namespace CUCoreLib.Registries
             definition.ID = id;
             var replacingExisting = RegisteredDefinitions.ContainsKey(id);
             RegisteredDefinitions[id] = definition;
-            var ownerId = !string.IsNullOrWhiteSpace(ActiveOwnerId)
-                ? ActiveOwnerId
-                : ContentReloadSession.ResolveAmbientOwnerId();
-            if (!string.IsNullOrWhiteSpace(ownerId)) DefinitionOwners[id] = ownerId;
+            DefinitionOwners.Assign(id, ContentReloadSession.ResolveAmbientOwnerId());
             PrefabCache.Remove(id);
             Registered?.Invoke(id, definition, replacingExisting);
 
@@ -85,7 +85,7 @@ namespace CUCoreLib.Registries
 
         public static IDisposable BeginOwnerRegistration(string ownerId)
         {
-            return new OwnerScope(ownerId);
+            return DefinitionOwners.BeginScope(ownerId);
         }
 
         public static bool TryGetDefinition(string id, out CustomBuildingEntityDefinition definition)
@@ -119,25 +119,17 @@ namespace CUCoreLib.Registries
 
         public static int LayerToMask(int layerNumber)
         {
-            if (layerNumber <= 0 || layerNumber > 31) return 0;
-
-            return 1 << (layerNumber - 1);
+            return SpawnLayerMask.FromLayerNumber(layerNumber);
         }
 
         public static int LayersToMask(params int[] layerNumbers)
         {
-            if (layerNumbers == null || layerNumbers.Length == 0) return 0;
-
-            return layerNumbers.Aggregate(0, (current, layerNumber) => current | LayerToMask(layerNumber));
+            return SpawnLayerMask.Combine(layerNumbers);
         }
 
         public static int AllLayersExcept(params int[] excludedLayerNumbers)
         {
-            var mask = AllSpawnLayersMask;
-            if (excludedLayerNumbers == null || excludedLayerNumbers.Length == 0) return mask;
-
-            return excludedLayerNumbers.Select(LayerToMask).Where(layerMask => layerMask != 0)
-                .Aggregate(mask, (current, layerMask) => current & ~layerMask);
+            return SpawnLayerMask.Excluding(excludedLayerNumbers);
         }
 
         internal static void RegisterRuntime(CustomBuildingRuntime runtime)
@@ -160,10 +152,7 @@ namespace CUCoreLib.Registries
             if (string.IsNullOrWhiteSpace(ownerId))
                 return new Dictionary<string, CustomBuildingEntityDefinition>(StringComparer.OrdinalIgnoreCase);
 
-            var normalizedOwnerId = ownerId.Trim();
-            return DefinitionOwners
-                .Where(entry => string.Equals(entry.Value, normalizedOwnerId, StringComparison.OrdinalIgnoreCase))
-                .Select(entry => entry.Key)
+            return DefinitionOwners.GetKeys(ownerId)
                 .Where(id => RegisteredDefinitions.TryGetValue(id, out _))
                 .ToDictionary(id => id, id => RegisteredDefinitions[id], StringComparer.OrdinalIgnoreCase);
         }
@@ -181,10 +170,7 @@ namespace CUCoreLib.Registries
             if (string.IsNullOrWhiteSpace(ownerId)) return;
 
             var normalizedOwnerId = ownerId.Trim();
-            var ids = DefinitionOwners
-                .Where(entry => string.Equals(entry.Value, normalizedOwnerId, StringComparison.OrdinalIgnoreCase))
-                .Select(entry => entry.Key)
-                .ToArray();
+            var ids = DefinitionOwners.GetKeys(normalizedOwnerId);
 
             for (var i = 0; i < ids.Length; i++)
             {
@@ -904,20 +890,5 @@ namespace CUCoreLib.Registries
                 obj.AddComponent<FreshItemDrop>();
         }
 
-        private sealed class OwnerScope : IDisposable
-        {
-            private readonly string previousOwnerId;
-
-            public OwnerScope(string ownerId)
-            {
-                previousOwnerId = ActiveOwnerId;
-                ActiveOwnerId = string.IsNullOrWhiteSpace(ownerId) ? null : ownerId.Trim();
-            }
-
-            public void Dispose()
-            {
-                ActiveOwnerId = previousOwnerId;
-            }
-        }
     }
 }

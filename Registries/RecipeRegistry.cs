@@ -4,6 +4,7 @@ using System.Globalization;
 using System.Linq;
 using System.Text;
 using CUCoreLib.ContentReload;
+using CUCoreLib.Registries.Infrastructure;
 using UnityEngine;
 
 namespace CUCoreLib.Registries
@@ -15,8 +16,8 @@ namespace CUCoreLib.Registries
         private static readonly HashSet<string> RegisteredRecipeKeys =
             new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        private static readonly Dictionary<string, string> RecipeOwners =
-            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        private static readonly RegistrationOwnershipIndex<string> RecipeOwners =
+            new RegistrationOwnershipIndex<string>(StringComparer.OrdinalIgnoreCase);
 
         private static List<Recipe> LastRecipeList;
 
@@ -26,7 +27,6 @@ namespace CUCoreLib.Registries
         private static readonly HashSet<string> WarnedInvalidRecipeIngredientKeys =
             new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        private static string ActiveOwnerId;
         private static int PendingHotReloadInjectedRecipeCount;
 
         public static void Register(Recipe recipe)
@@ -49,17 +49,14 @@ namespace CUCoreLib.Registries
             }
 
             RegisteredRecipes.Add(recipe);
-            var ownerId = !string.IsNullOrWhiteSpace(ActiveOwnerId)
-                ? ActiveOwnerId
-                : ContentReloadSession.ResolveAmbientOwnerId();
-            if (!string.IsNullOrWhiteSpace(ownerId)) RecipeOwners[key] = ownerId;
+            RecipeOwners.Assign(key, ContentReloadSession.ResolveAmbientOwnerId());
 
             if (Recipes.recipes != null) InjectRegisteredRecipes();
         }
 
         public static IDisposable BeginOwnerRegistration(string ownerId)
         {
-            return new OwnerScope(ownerId);
+            return RecipeOwners.BeginScope(ownerId);
         }
 
         internal static string BuildRecipeKey(Recipe recipe)
@@ -149,8 +146,7 @@ namespace CUCoreLib.Registries
                 .Where(recipe =>
                 {
                     var key = BuildRecipeKey(recipe);
-                    return RecipeOwners.TryGetValue(key, out var owner) &&
-                           string.Equals(owner, normalizedOwnerId, StringComparison.OrdinalIgnoreCase);
+                    return RecipeOwners.IsOwnedBy(key, normalizedOwnerId);
                 })
                 .ToList();
         }
@@ -167,19 +163,14 @@ namespace CUCoreLib.Registries
             if (string.IsNullOrWhiteSpace(ownerId)) return;
 
             var normalizedOwnerId = ownerId.Trim();
-            var ownedKeys = RecipeOwners
-                .Where(entry => string.Equals(entry.Value, normalizedOwnerId, StringComparison.OrdinalIgnoreCase))
-                .Select(entry => entry.Key)
-                .ToArray();
+            var ownedKeys = RecipeOwners.GetKeys(normalizedOwnerId);
 
             if (ownedKeys.Length == 0) return;
 
-            RegisteredRecipes.RemoveAll(recipe =>
-            {
-                var key = BuildRecipeKey(recipe);
-                return RecipeOwners.TryGetValue(key, out var owner) &&
-                       string.Equals(owner, normalizedOwnerId, StringComparison.OrdinalIgnoreCase);
-            });
+            var ownedKeySet = new HashSet<string>(ownedKeys, StringComparer.OrdinalIgnoreCase);
+
+            RegisteredRecipes.RemoveAll(recipe => ownedKeySet.Contains(BuildRecipeKey(recipe)));
+            Recipes.recipes?.RemoveAll(recipe => ownedKeySet.Contains(BuildRecipeKey(recipe)));
 
             foreach (var key in ownedKeys)
             {
@@ -187,9 +178,6 @@ namespace CUCoreLib.Registries
                 RecipeOwners.Remove(key);
                 InjectedRecipeKeys.Remove(key);
                 WarnedInvalidRecipeIngredientKeys.Remove(key);
-                var key1 = key;
-                Recipes.recipes?.RemoveAll(recipe =>
-                    string.Equals(BuildRecipeKey(recipe), key1, StringComparison.OrdinalIgnoreCase));
             }
 
             result?.AddInfo("Cleared " + ownedKeys.Length + " recipes owned by '" + normalizedOwnerId + "'.");
@@ -313,20 +301,5 @@ namespace CUCoreLib.Registries
             return builder.ToString();
         }
 
-        private sealed class OwnerScope : IDisposable
-        {
-            private readonly string previousOwnerId;
-
-            public OwnerScope(string ownerId)
-            {
-                previousOwnerId = ActiveOwnerId;
-                ActiveOwnerId = string.IsNullOrWhiteSpace(ownerId) ? null : ownerId.Trim();
-            }
-
-            public void Dispose()
-            {
-                ActiveOwnerId = previousOwnerId;
-            }
-        }
     }
 }

@@ -2,7 +2,7 @@
   "version": "1.0",
   "library": "CUCoreLib",
   "description": "Machine-readable CUCoreLib web docs generated from the interactive docs sources.",
-  "generatedAt": "2026-07-11T20:13:40.323Z",
+  "generatedAt": "2026-07-12T06:06:43.958Z",
   "baseUrl": "/",
   "topics": [
     {
@@ -31,6 +31,15 @@
       "lead": "Create a template mod, point it at your local game install, and add CUCoreLib as a hard dependency.",
       "appUrl": "/docs/setup/",
       "machineUrl": "/api/topics/setup.json"
+    },
+    {
+      "id": "using-unity",
+      "label": "Using Unity for modding",
+      "crumb": "Getting Started",
+      "title": "Using Unity for modding",
+      "lead": "Use the guided CU authoring lane for bundled minigame screens and body animation curves without living inside the whole ripped project.",
+      "appUrl": "/docs/using-unity/",
+      "machineUrl": "/api/topics/using-unity.json"
     },
     {
       "id": "harmony0",

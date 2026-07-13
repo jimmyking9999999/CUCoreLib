@@ -4,6 +4,7 @@
   <url><loc>https://cucorelib.jimmyking.dev/docs/welcome/</loc></url>
   <url><loc>https://cucorelib.jimmyking.dev/docs/unity-csharp/</loc></url>
   <url><loc>https://cucorelib.jimmyking.dev/docs/setup/</loc></url>
+  <url><loc>https://cucorelib.jimmyking.dev/docs/using-unity/</loc></url>
   <url><loc>https://cucorelib.jimmyking.dev/docs/harmony0/</loc></url>
   <url><loc>https://cucorelib.jimmyking.dev/docs/tutorial-first-mod/</loc></url>
   <url><loc>https://cucorelib.jimmyking.dev/docs/assets/</loc></url>
@@ -33,6 +34,7 @@
   <url><loc>https://cucorelib.jimmyking.dev/api/topics/welcome.json</loc></url>
   <url><loc>https://cucorelib.jimmyking.dev/api/topics/unity-csharp.json</loc></url>
   <url><loc>https://cucorelib.jimmyking.dev/api/topics/setup.json</loc></url>
+  <url><loc>https://cucorelib.jimmyking.dev/api/topics/using-unity.json</loc></url>
   <url><loc>https://cucorelib.jimmyking.dev/api/topics/harmony0.json</loc></url>
   <url><loc>https://cucorelib.jimmyking.dev/api/topics/tutorial-first-mod.json</loc></url>
   <url><loc>https://cucorelib.jimmyking.dev/api/topics/assets.json</loc></url>

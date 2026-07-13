@@ -9,6 +9,7 @@ using CUCoreLib.Data;
 using CUCoreLib.Helpers;
 using CUCoreLib.Networking;
 using CUCoreLib.Patches;
+using CUCoreLib.Registries.Infrastructure;
 using Newtonsoft.Json.Linq;
 using UnityEngine;
 
@@ -19,10 +20,8 @@ namespace CUCoreLib.Registries
         internal static Dictionary<string, CustomItemInfo> RegisteredItems =
             new Dictionary<string, CustomItemInfo>(StringComparer.OrdinalIgnoreCase);
 
-        private static readonly Dictionary<string, string> ItemOwners =
-            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-
-        private static string ActiveOwnerId;
+        private static readonly RegistrationOwnershipIndex<string> ItemOwners =
+            new RegistrationOwnershipIndex<string>(StringComparer.OrdinalIgnoreCase);
 
         // In-game decals are manually blacklisted. Which is probably really bad to do, but it's not too dangerous if it fails after an update
         private static readonly HashSet<string> IgnoredMissingIconIds =
@@ -105,10 +104,7 @@ namespace CUCoreLib.Registries
             // Store or replace the registry entry, apply defaults and inject into runtime tables.
             var replacingExisting = RegisteredItems.ContainsKey(id);
             RegisteredItems[id] = info;
-            var ownerId = !string.IsNullOrWhiteSpace(ActiveOwnerId)
-                ? ActiveOwnerId
-                : ContentReloadSession.ResolveAmbientOwnerId();
-            if (!string.IsNullOrWhiteSpace(ownerId)) ItemOwners[id] = ownerId;
+            ItemOwners.Assign(id, ContentReloadSession.ResolveAmbientOwnerId());
 
             DropPoolRegistry.RegisterItem(id, info);
 
@@ -121,7 +117,7 @@ namespace CUCoreLib.Registries
 
         public static IDisposable BeginOwnerRegistration(string ownerId)
         {
-            return new OwnerScope(ownerId);
+            return ItemOwners.BeginScope(ownerId);
         }
 
         public static IEnumerable<string> GetRegisteredItemIds()
@@ -133,11 +129,7 @@ namespace CUCoreLib.Registries
         {
             if (string.IsNullOrWhiteSpace(ownerId)) return Array.Empty<string>();
 
-            var normalizedOwnerId = ownerId.Trim();
-            return ItemOwners
-                .Where(entry => string.Equals(entry.Value, normalizedOwnerId, StringComparison.OrdinalIgnoreCase))
-                .Select(entry => entry.Key)
-                .ToArray();
+            return ItemOwners.GetKeys(ownerId);
         }
 
         internal static Dictionary<string, CustomItemInfo> CaptureOwnerEntries(string ownerId)
@@ -145,10 +137,7 @@ namespace CUCoreLib.Registries
             if (string.IsNullOrWhiteSpace(ownerId))
                 return new Dictionary<string, CustomItemInfo>(StringComparer.OrdinalIgnoreCase);
 
-            var normalizedOwnerId = ownerId.Trim();
-            return ItemOwners
-                .Where(entry => string.Equals(entry.Value, normalizedOwnerId, StringComparison.OrdinalIgnoreCase))
-                .Select(entry => entry.Key)
+            return ItemOwners.GetKeys(ownerId)
                 .Where(id => RegisteredItems.TryGetValue(id, out _))
                 .ToDictionary(id => id, id => RegisteredItems[id], StringComparer.OrdinalIgnoreCase);
         }
@@ -165,10 +154,7 @@ namespace CUCoreLib.Registries
             if (string.IsNullOrWhiteSpace(ownerId)) return;
 
             var normalizedOwnerId = ownerId.Trim();
-            var ids = ItemOwners
-                .Where(entry => string.Equals(entry.Value, normalizedOwnerId, StringComparison.OrdinalIgnoreCase))
-                .Select(entry => entry.Key)
-                .ToArray();
+            var ids = ItemOwners.GetKeys(normalizedOwnerId);
 
             for (var i = 0; i < ids.Length; i++)
             {
@@ -1035,20 +1021,5 @@ namespace CUCoreLib.Registries
             DropPoolRegistry.RemoveItem(id);
         }
 
-        private sealed class OwnerScope : IDisposable
-        {
-            private readonly string previousOwnerId;
-
-            public OwnerScope(string ownerId)
-            {
-                previousOwnerId = ActiveOwnerId;
-                ActiveOwnerId = string.IsNullOrWhiteSpace(ownerId) ? null : ownerId.Trim();
-            }
-
-            public void Dispose()
-            {
-                ActiveOwnerId = previousOwnerId;
-            }
-        }
     }
 }

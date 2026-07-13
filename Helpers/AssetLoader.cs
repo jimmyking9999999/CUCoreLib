@@ -39,6 +39,11 @@ namespace CUCoreLib.Helpers
         private static readonly Dictionary<string, string[]> ResourceNameCache =
             new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase);
 
+        private static readonly Dictionary<string, string> ResolvedResourceNameCache =
+            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+        private const string MissingResourceName = "\0";
+
         private static readonly Dictionary<string, Texture2D> EmbeddedTextureCache =
             new Dictionary<string, Texture2D>(StringComparer.OrdinalIgnoreCase);
 
@@ -325,6 +330,10 @@ namespace CUCoreLib.Helpers
             }
 
             ResourceNameCache.Remove(assemblyKey);
+            var resolutionPrefix = assemblyKey + "|";
+            foreach (var cacheKey in ResolvedResourceNameCache.Keys
+                         .Where(key => key.StartsWith(resolutionPrefix, StringComparison.OrdinalIgnoreCase)).ToArray())
+                ResolvedResourceNameCache.Remove(cacheKey);
             LoggedMissingResources.RemoveWhere(key => key.IndexOf(assemblyKey, StringComparison.OrdinalIgnoreCase) >= 0);
         }
 
@@ -1025,21 +1034,30 @@ namespace CUCoreLib.Helpers
             var searchPattern = NormalizeResourcePath(resourcePath);
             if (string.IsNullOrEmpty(searchPattern)) return null;
 
+            var assemblyKey = GetAssemblyCacheKey(sourceAssembly);
+            var resolutionCacheKey = string.IsNullOrWhiteSpace(assemblyKey)
+                ? null
+                : assemblyKey + "|" + resourcePath.Trim();
+            if (resolutionCacheKey != null &&
+                ResolvedResourceNameCache.TryGetValue(resolutionCacheKey, out var cachedResourceName))
+                return cachedResourceName == MissingResourceName ? null : cachedResourceName;
+
             var searchPatternWithoutExtension = NormalizeResourceStem(resourcePath);
             var resourceNames = GetManifestResourceNames(sourceAssembly);
-            if (resourceNames.Length == 0) return null;
+            if (resourceNames.Length == 0) return CacheResolvedResourceName(resolutionCacheKey, null);
 
             var exactMatch =
                 resourceNames.FirstOrDefault(r => string.Equals(r, resourcePath, StringComparison.OrdinalIgnoreCase));
-            if (!string.IsNullOrEmpty(exactMatch)) return exactMatch;
+            if (!string.IsNullOrEmpty(exactMatch)) return CacheResolvedResourceName(resolutionCacheKey, exactMatch);
 
             var normalizedMatch = resourceNames.FirstOrDefault(r =>
                 string.Equals(NormalizeResourcePath(r), searchPattern, StringComparison.OrdinalIgnoreCase));
-            if (!string.IsNullOrEmpty(normalizedMatch)) return normalizedMatch;
+            if (!string.IsNullOrEmpty(normalizedMatch))
+                return CacheResolvedResourceName(resolutionCacheKey, normalizedMatch);
 
             var suffixMatch =
                 resourceNames.FirstOrDefault(r => r.EndsWith(searchPattern, StringComparison.OrdinalIgnoreCase));
-            if (!string.IsNullOrEmpty(suffixMatch)) return suffixMatch;
+            if (!string.IsNullOrEmpty(suffixMatch)) return CacheResolvedResourceName(resolutionCacheKey, suffixMatch);
 
             var filenamePattern = NormalizeResourcePath(Path.GetFileName(resourcePath));
             if (!string.IsNullOrEmpty(filenamePattern))
@@ -1048,10 +1066,12 @@ namespace CUCoreLib.Helpers
                     r.EndsWith(filenamePattern, StringComparison.OrdinalIgnoreCase) ||
                     NormalizeResourcePath(r).EndsWith(filenamePattern, StringComparison.OrdinalIgnoreCase));
 
-                if (!string.IsNullOrEmpty(filenameMatch)) return filenameMatch;
+                if (!string.IsNullOrEmpty(filenameMatch))
+                    return CacheResolvedResourceName(resolutionCacheKey, filenameMatch);
             }
 
-            if (string.IsNullOrEmpty(searchPatternWithoutExtension)) return null;
+            if (string.IsNullOrEmpty(searchPatternWithoutExtension))
+                return CacheResolvedResourceName(resolutionCacheKey, null);
 
             var stemMatch = resourceNames.FirstOrDefault(r =>
             {
@@ -1061,7 +1081,17 @@ namespace CUCoreLib.Helpers
                            StringComparison.OrdinalIgnoreCase);
             });
 
-            return string.IsNullOrEmpty(stemMatch) ? null : stemMatch;
+            return CacheResolvedResourceName(resolutionCacheKey, stemMatch);
+        }
+
+        private static string CacheResolvedResourceName(string cacheKey, string resourceName)
+        {
+            if (cacheKey != null)
+                ResolvedResourceNameCache[cacheKey] = string.IsNullOrEmpty(resourceName)
+                    ? MissingResourceName
+                    : resourceName;
+
+            return string.IsNullOrEmpty(resourceName) ? null : resourceName;
         }
 
         private static string[] GetManifestResourceNames(Assembly sourceAssembly)

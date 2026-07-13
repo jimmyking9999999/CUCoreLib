@@ -23,6 +23,13 @@ export const pages: Page[] = [
     lead: "Create a template mod, point it at your local game install, and add CUCoreLib as a hard dependency."
   },
   {
+    id: "using-unity",
+    label: "Using Unity for modding",
+    crumb: "Getting Started",
+    title: "Using Unity for modding",
+    lead: "Use the guided CU authoring lane for bundled minigame screens and body animation curves without living inside the whole ripped project."
+  },
+  {
     id: "harmony0",
     label: "Harmony0",
     crumb: "Getting Started",
@@ -265,6 +272,7 @@ export function pageBody(page: PageId, nextItemState: ItemState, nextRecipeState
   if (page === "welcome") content = welcomePage();
   else if (page === "unity-csharp") content = unityCsharpPage();
   else if (page === "setup") content = setupPage();
+  else if (page === "using-unity") content = usingUnityPage();
   else if (page === "harmony0") content = harmony0Page();
   else if (page === "tutorial-first-mod") content = tutorialFirstModPage();
   else if (page === "recipe") content = recipePage();
@@ -1562,6 +1570,99 @@ using CUCoreLib.Saving;</code></pre>
   `;
 }
 
+function usingUnityPage(): string {
+  return `
+    <section class="lesson-card">
+      <h2>What this workflow is for</h2>
+      <p>This page is for the narrow Unity jobs that are still worth opening the editor for: bundled minigame screen prefabs and bundled body <span class="inline-code">AnimationCurve</span> assets for CUCoreLib.</p>
+      <p>The goal is not to make you work inside the whole ripped game project every day. The goal is to give you one controlled lane so you can author the asset, export the bundle, copy the snippet, and get back to normal mod code.</p>
+    </section>
+
+    <section class="lesson-card">
+      <h2>Project and editor version</h2>
+      <p>Open <span class="inline-code">CU Mod Project/CU Mod Project</span> in Unity <span class="inline-code">2022.3.62f3</span>. That project already contains the ripped game content plus the new <span class="inline-code">Assets/CU Authoring</span> workspace.</p>
+      <p>From there, use <span class="inline-code">Tools &gt; CU Modding &gt; Authoring Hub</span>. That is the supported entry point for this workflow. Ignore ThunderKit here.</p>
+      <p class="muted-note">Video slot: opening the Unity project and the Authoring Hub.</p>
+    </section>
+
+    <section class="lesson-card">
+      <h2>The golden path</h2>
+      <ol>
+        <li>Open <span class="inline-code">Tools &gt; CU Modding &gt; Authoring Hub</span>.</li>
+        <li>Enter a pack name such as <span class="inline-code">WireSplice</span>.</li>
+        <li>Click <span class="inline-code">Create Starter Pack</span>.</li>
+        <li>Edit the generated assets under <span class="inline-code">Assets/CU Authoring/User Assets/&lt;PackName&gt;</span>.</li>
+        <li>Click <span class="inline-code">Validate</span> until the bundle is clean.</li>
+        <li>Click <span class="inline-code">Export</span>.</li>
+        <li>Click <span class="inline-code">Copy Snippet</span> and paste the result into your mod.</li>
+      </ol>
+      <p>The starter pack creates a bundle profile, a blank minigame screen prefab, one <span class="inline-code">AnimationCurveAsset</span>, and one <span class="inline-code">BodyAnimationCurveProfileAsset</span>.</p>
+      <p class="muted-note">Video slot: full create -> validate -> export -> copy snippet flow.</p>
+    </section>
+
+    <section class="lesson-card">
+      <h2>Authoring minigame screens</h2>
+      <p>Use <span class="inline-code">New Blank Minigame Screen</span> when you want a clean screen prefab that CUCoreLib can mount under the live minigame UI. The root should stay a <span class="inline-code">RectTransform</span>, and the prefab should not contain its own <span class="inline-code">Canvas</span> or <span class="inline-code">EventSystem</span>.</p>
+      <p>Use <span class="inline-code">Clone Vanilla Screen</span> when you want reference material from vanilla screens like <span class="inline-code">BandageMinigame</span> or <span class="inline-code">SyringeMinigame</span>. Treat those clones as study aids first. They usually need cleanup before export because the validator blocks ripped-game sprite, audio, and prefab dependencies.</p>
+      <pre><code>public override void Start(CUCoreMinigameSession session)
+{
+    session.TryCreateBundledScreen("wiresplice.minigames", "WireSpliceScreen");
+}</code></pre>
+      <p class="muted-note">Video slot: making a blank screen and cleaning a cloned vanilla screen.</p>
+    </section>
+
+    <section class="lesson-card">
+      <h2>Authoring body curves</h2>
+      <p>Create an <span class="inline-code">AnimationCurveAsset</span> when you want one reusable curve. Create a <span class="inline-code">BodyAnimationCurveProfileAsset</span> when you want one asset that points at several named curves for several body fields.</p>
+      <p>The custom profile inspector lets you pick real curve assets instead of typing asset names by hand. That matters because CUCoreLib resolves bundled curves by asset name.</p>
+      <pre><code>BodyAnimationCurves.TryApplyBundledProfile(body, "wiresplice.minigames", "WireSpliceProfile");</code></pre>
+      <p class="muted-note">Video slot: editing a curve and filling out a profile asset.</p>
+    </section>
+
+    <section class="lesson-card">
+      <h2>What validation checks</h2>
+      <p>The validator keeps this workflow narrow on purpose. If it stops you, it is usually protecting you from a bundle that only worked because it was still leaning on the ripped project.</p>
+      <div class="table-wrap">
+        <table class="field-table">
+          <thead>
+            <tr><th>Check</th><th>Why it matters</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Root must be a <span class="inline-code">RectTransform</span></td><td>Bundled minigame screens are mounted into the live minigame canvas.</td></tr>
+            <tr><td>No <span class="inline-code">Canvas</span> or <span class="inline-code">EventSystem</span> in the screen prefab</td><td>The game already owns those UI systems.</td></tr>
+            <tr><td>Assets must live under <span class="inline-code">Assets/CU Authoring</span></td><td>This keeps the supported workspace separate from the rest of the ripped project.</td></tr>
+            <tr><td>No ripped-game dependencies in authored exports</td><td>Reference-only clones are convenient, but they are not a safe final export target.</td></tr>
+            <tr><td>No blank or stale profile <span class="inline-code">AssetName</span> entries</td><td>Curve bundles resolve by exported asset name.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="lesson-card">
+      <h2>Where export goes</h2>
+      <p>Export writes bundles to <span class="inline-code">CUCoreExports/Bundles/&lt;BundleFileName&gt;</span> at the Unity project root. The Unity tool does not auto-copy into BepInEx for you in v1.</p>
+      <p>After export, copy the bundle into your mod's <span class="inline-code">Bundles/</span> folder beside the plugin DLL, then register it in your plugin code.</p>
+      <pre><code>private void Awake()
+{
+    AssetLoader.RegisterBundleFromPluginFolder(this, "wiresplice.minigames", "Bundles/wiresplice-minigames");
+}</code></pre>
+      <p class="muted-note">Video slot: showing the export output folder and moving the bundle into a mod.</p>
+    </section>
+
+    <section class="lesson-card">
+      <h2>Keep the scope narrow</h2>
+      <p>Use this Unity workflow for bundled minigame screen prefabs and bundled body curve data. Do not treat it as the main path for items, buildings, locale, recipes, or other normal CUCoreLib registration work.</p>
+      <p>If all you need is the runtime minigame class, stay in C# and use the Minigames page. Reach for Unity only when the visual screen or bundled curve asset is the thing you actually need to author.</p>
+    </section>
+
+    <section class="lesson-card">
+      <h2>Next pages</h2>
+      <p>Once your bundle exists, jump to <a href="/docs/minigames">Minigames</a> for the runtime screen-loading side and <a href="/docs/assets">Loading assets</a> for the current AssetBundle scope and runtime caveats.</p>
+      <p>If your mod project is not building yet, go back to <a href="/docs/setup">Setup</a> first and make sure your BepInEx DLL is healthy before you spend time in Unity.</p>
+    </section>
+  `;
+}
+
 function harmony0Page(): string {
   return `
     <section class="lesson-card">
@@ -2224,7 +2325,7 @@ function multiplayerPage(): string {
       <p>CUCoreLib has a soft compatibility layer for <span class="inline-code">KrokoshaCasualtiesMP</span>. That is, if KrokMP is not installed, nothing extra is loaded.</p>
       <p>Custom items or buildings registered through CUCoreLib can be spawned by KrokMP using the same string ID it already sends over the network.</p>
       <h3>This is experimental and subject to change!</h3><br>
-      <p>Due to the proposed overhaul of MP in its next major version (4.0.0), sync methods will be vastly different. As such, CUCoreLib's MP support is focused on backfill rather then being feature-complete.</p>
+      <p>Due to the proposed overhaul of MP in its next major version (5.0.0), sync methods will be vastly different. As such, CUCoreLib's MP support is focused on backfill rather then being feature-complete.</p>
       <p>In other words, it is more focused on making sure that your code will work after the update. </p>
       </section>
 

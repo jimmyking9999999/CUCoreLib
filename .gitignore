@@ -371,3 +371,6 @@ Temp.rar
 
 # Local inspection tools
 tools/*
+!tools/notes/
+tools/notes/*
+!tools/notes/architecture-guidelines.md
