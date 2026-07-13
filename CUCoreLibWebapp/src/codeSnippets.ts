@@ -373,7 +373,7 @@ function ingredientCode(ingredient: Ingredient): string {
     props.push("specific = true");
     props.push(`specificId = "${escapeCsharp(ingredient.id)}"`);
   } else {
-    props.push(`quality = CUCoreUtils.CreateCraftingQuality("${escapeCsharp(ingredient.id)}", ${amount})`);
+    props.push(`quality = new CraftingQuality("${escapeCsharp(ingredient.id)}", ${amount})`);
   }
 
   if (ingredient.isLiquid) props.push("isLiquid = true");
