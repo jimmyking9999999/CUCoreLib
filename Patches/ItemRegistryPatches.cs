@@ -113,6 +113,9 @@ namespace CUCoreLib.Patches
 
         internal static Sprite GetInventorySprite(Item item, CustomItemInfo def)
         {
+            if (TryGetRuntimeIconOverride(item, out var runtimeOverride) && runtimeOverride != null)
+                return runtimeOverride;
+
             if (def != null && !string.IsNullOrWhiteSpace(def.IconAnimationId))
             {
                 var animation = AssetLoader.GetCachedSpriteAnimation(def.IconAnimationId);
@@ -128,7 +131,9 @@ namespace CUCoreLib.Patches
 
         private static void ApplyCustomItemVisuals(Item item, CustomItemInfo def, bool preferWornSprite)
         {
-            var sprite = preferWornSprite && def.WornSprite != null ? def.WornSprite : def.Icon;
+            var sprite = preferWornSprite && def.WornSprite != null
+                ? def.WornSprite
+                : GetInventorySprite(item, def);
             var sr = item.GetComponent<SpriteRenderer>();
             if (sr != null && sprite != null)
             {
@@ -235,6 +240,39 @@ namespace CUCoreLib.Patches
 
             var parent = item.transform.parent;
             return parent != null && parent.GetComponent<Limb>() != null;
+        }
+
+        internal static bool TryGetRuntimeIconOverride(Item item, out Sprite sprite)
+        {
+            sprite = null;
+            if (item == null) return false;
+
+            var overrideState = item.GetComponent<RuntimeItemIconOverride>();
+            if (overrideState == null || overrideState.Sprite == null) return false;
+
+            sprite = overrideState.Sprite;
+            return true;
+        }
+
+        internal static void SetRuntimeIconOverride(Item item, Sprite sprite)
+        {
+            if (item == null) return;
+
+            var overrideState = item.GetComponent<RuntimeItemIconOverride>();
+            if (sprite == null)
+            {
+                if (overrideState != null)
+                    Object.Destroy(overrideState);
+
+                ApplyCustomItemRuntime(item);
+                return;
+            }
+
+            if (overrideState == null)
+                overrideState = item.gameObject.AddComponent<RuntimeItemIconOverride>();
+
+            overrideState.Sprite = sprite;
+            ApplyCustomItemRuntime(item);
         }
 
         private static void ApplyCustomItemComponents(Item item, CustomItemInfo def)
@@ -660,6 +698,11 @@ namespace CUCoreLib.Patches
 
         private sealed class PendingBatteryInitializationMarker : MonoBehaviour
         {
+        }
+
+        private sealed class RuntimeItemIconOverride : MonoBehaviour
+        {
+            public Sprite Sprite;
         }
 
         [HarmonyPatch]

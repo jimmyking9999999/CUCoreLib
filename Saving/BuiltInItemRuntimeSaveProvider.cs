@@ -1,5 +1,6 @@
 using CUCoreLib.Patches;
 using CUCoreLib.Registries;
+using CUCoreLib.Helpers;
 using Newtonsoft.Json.Linq;
 using UnityEngine.Rendering.Universal;
 
@@ -9,7 +10,7 @@ namespace CUCoreLib.Saving
     {
         public int GetVersion()
         {
-            return 1;
+            return 2;
         }
 
         public JToken Capture(Item item, string itemKey)
@@ -19,6 +20,9 @@ namespace CUCoreLib.Saving
             var result = new JObject();
             var customData = ItemRegistry.CaptureRuntimeCustomData(item);
             if (customData != null) result["customData"] = customData;
+
+            if (ItemRegistryPatches.TryGetRuntimeIconOverride(item, out var iconOverride) && iconOverride != null)
+                result["iconOverride"] = NetworkSnapshotSerialization.WriteSprite(iconOverride);
 
             var lightItem = item.GetComponent<LightItem>();
             if (lightItem != null) result["lightEnabled"] = lightItem.shouldEnable;
@@ -32,6 +36,11 @@ namespace CUCoreLib.Saving
 
             if (obj["customData"] is JObject customData)
                 ItemRegistry.RestoreRuntimeCustomData(item, customData);
+
+            if (obj["iconOverride"] is JObject iconOverride)
+                ItemRegistryPatches.SetRuntimeIconOverride(item, NetworkSnapshotSerialization.ReadSprite(iconOverride));
+            else
+                ItemRegistryPatches.SetRuntimeIconOverride(item, null);
 
             var enabledToken = obj["lightEnabled"];
             if (enabledToken == null || enabledToken.Type == JTokenType.Null) return;

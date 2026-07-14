@@ -2,7 +2,7 @@ import * as monaco from "monaco-editor/esm/vs/editor/editor.api";
 import "monaco-editor/esm/vs/basic-languages/csharp/csharp.contribution";
 import editorWorker from "monaco-editor/esm/vs/editor/editor.worker?worker";
 import "./styles.css";
-import { currentCode, codeTitle } from "./codeSnippets.ts";
+import { clearCodeSourceOverride, currentCode, codeTitle, setCodeSourceOverride, setItemSetupSource } from "./codeSnippets.ts";
 import { hoverPanels } from "./hoverPanels.ts";
 import { machineExportDefaultIngredients, machineExportDefaultItemState, machineExportDefaultRecipeState, machineExportEnabledPageIds } from "./machineExport.ts";
 import { pageBody, pages } from "./docsPages.ts";
@@ -464,6 +464,21 @@ function pagerHtml(): string {
 function bindGlobalNav(): void {
   document.addEventListener("click", (event) => {
     const target = event.target as HTMLElement;
+    const codeSource = target.closest<HTMLElement>("[data-code-source]")?.dataset.codeSource;
+    if (codeSource) {
+      event.preventDefault();
+      if (codeSource === "item-setup") {
+        setCodeSourceOverride("item-setup");
+      } else {
+        clearCodeSourceOverride();
+      }
+
+      updateEditor();
+      closeApiMenu();
+      hideSearchResults(true);
+      return;
+    }
+
     const page = target.closest<HTMLElement>("[data-page]")?.dataset.page as PageId | undefined;
     if (!page) {
       if (!target.closest("#api-menu")) closeApiMenu();
@@ -745,12 +760,14 @@ function syncRangeLabels(): void {
 function setPage(page: PageId): void {
   if (!enabledPageIds.has(page)) return;
   if (currentPage === page) {
+    clearCodeSourceOverride();
     renderPage(false);
     return;
   }
 
   storeCurrentScroll();
   currentPage = page;
+  clearCodeSourceOverride();
   syncPathForPage(page);
   storeCurrentPage();
   renderPage();
@@ -775,6 +792,7 @@ function syncPageFromLocation(): void {
   if (nextPage === currentPage) return;
 
   storeCurrentScroll();
+  clearCodeSourceOverride();
   currentPage = nextPage;
   storeCurrentPage();
   renderPage();
@@ -939,6 +957,20 @@ function normalizedIndexToOriginalRange(value: string, normalizedIndex: number, 
 function movePage(delta: number): void {
   const next = navOrder[pageIndex(currentPage) + delta];
   if (next) setPage(next);
+}
+
+async function loadItemSetupSource(): Promise<void> {
+  try {
+    const response = await fetch("/item-setup.cs");
+    if (!response.ok) {
+      return;
+    }
+
+    const source = await response.text();
+    setItemSetupSource(source);
+  } catch {
+    // Fallback keeps docs readable even if the source file is unavailable.
+  }
 }
 
 function syncHeadMetadata(page: Page): void {
@@ -1507,11 +1539,15 @@ lessonScroller.addEventListener("scroll", storeCurrentScroll, { passive: true })
 window.addEventListener("beforeunload", storeCurrentScroll);
 window.addEventListener("popstate", syncPageFromLocation);
 window.addEventListener("hashchange", syncPageFromLocation);
-replacePathForPage(currentPage);
-bindGlobalNav();
-bindSearch();
-bindCopy();
-bindResize();
-bindLessonHoverPopover();
-bindImageViewer();
-renderPage();
+
+void (async (): Promise<void> => {
+  await loadItemSetupSource();
+  replacePathForPage(currentPage);
+  bindGlobalNav();
+  bindSearch();
+  bindCopy();
+  bindResize();
+  bindLessonHoverPopover();
+  bindImageViewer();
+  renderPage();
+})();

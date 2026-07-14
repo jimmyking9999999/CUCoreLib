@@ -1574,13 +1574,15 @@ function usingUnityPage(): string {
   return `
     <section class="lesson-card">
       <h2>What this workflow is for</h2>
-      <p>This page is for the narrow Unity jobs that are still worth opening the editor for: bundled minigame screen prefabs and bundled body <span class="inline-code">AnimationCurve</span> assets for CUCoreLib.</p>
-      <p>The goal is not to make you work inside the whole ripped game project every day. The goal is to give you one controlled lane so you can author the asset, export the bundle, copy the snippet, and get back to normal mod code.</p>
+      <p>This lane is intentionally narrow for CUCoreLib v1: bundled minigame screen prefabs and bundled body curve assets only.</p>
+      <p>Do not use this path for generic scene export, items, buildings, locale, recipes, or other systems. Export only the minimum surface needed for one bundle registration path.</p>
+      <p>The goal is to give you one controlled lane so you can author the asset, export the bundle, copy a matching runtime snippet, and return to normal C# mod code.</p>
     </section>
 
     <section class="lesson-card">
       <h2>Project and editor version</h2>
       <p>Open <span class="inline-code">CU Mod Project/CU Mod Project</span> in Unity <span class="inline-code">2022.3.62f3</span>. That project already contains the ripped game content plus the new <span class="inline-code">Assets/CU Authoring</span> workspace.</p>
+      <p>This lane is intentionally narrow: bundle screens and body curve assets only. Everything else should stay in normal C# modding workflows.</p>
       <p>From there, use <span class="inline-code">Tools &gt; CU Modding &gt; Authoring Hub</span>. That is the supported entry point for this workflow. Ignore ThunderKit here.</p>
       <p class="muted-note">Video slot: opening the Unity project and the Authoring Hub.</p>
     </section>
@@ -1589,14 +1591,17 @@ function usingUnityPage(): string {
       <h2>The golden path</h2>
       <ol>
         <li>Open <span class="inline-code">Tools &gt; CU Modding &gt; Authoring Hub</span>.</li>
-        <li>Enter a pack name such as <span class="inline-code">WireSplice</span>.</li>
-        <li>Click <span class="inline-code">Create Starter Pack</span>.</li>
-        <li>Edit the generated assets under <span class="inline-code">Assets/CU Authoring/User Assets/&lt;PackName&gt;</span>.</li>
-        <li>Click <span class="inline-code">Validate</span> until the bundle is clean.</li>
-        <li>Click <span class="inline-code">Export</span>.</li>
-        <li>Click <span class="inline-code">Copy Snippet</span> and paste the result into your mod.</li>
-      </ol>
+      <li>Enter a pack name such as <span class="inline-code">WireSplice</span>.</li>
+      <li>Click <span class="inline-code">Create Starter Pack</span>.</li>
+      <li>Edit the generated assets under <span class="inline-code">Assets/CU Authoring/User Assets/&lt;PackName&gt;</span>.</li>
+      <li>Click <span class="inline-code">Validate</span> until the bundle is clean.</li>
+      <li>Click <span class="inline-code">Export</span>.</li>
+      <li>Optional: set <span class="inline-code">Target plugin folder</span> and click <span class="inline-code">Install Exported Bundle into Target</span>.</li>
+      <li>Click <span class="inline-code">Copy Snippet</span> and paste the result into your mod.</li>
+      <li>Call your registered path in runtime code and confirm it resolves without null refs.</li>
+    </ol>
       <p>The starter pack creates a bundle profile, a blank minigame screen prefab, one <span class="inline-code">AnimationCurveAsset</span>, and one <span class="inline-code">BodyAnimationCurveProfileAsset</span>.</p>
+      <p>That is the only required end-to-end output contract for CUCoreLib v1 authoring.</p>
       <p class="muted-note">Video slot: full create -> validate -> export -> copy snippet flow.</p>
     </section>
 
@@ -1640,13 +1645,36 @@ function usingUnityPage(): string {
 
     <section class="lesson-card">
       <h2>Where export goes</h2>
-      <p>Export writes bundles to <span class="inline-code">CUCoreExports/Bundles/&lt;BundleFileName&gt;</span> at the Unity project root. The Unity tool does not auto-copy into BepInEx for you in v1.</p>
-      <p>After export, copy the bundle into your mod's <span class="inline-code">Bundles/</span> folder beside the plugin DLL, then register it in your plugin code.</p>
+      <p>Export writes bundles to <span class="inline-code">CUCoreExports/Bundles/&lt;BundleFileName&gt;</span> at the Unity project root.</p>
+      <p>Use <span class="inline-code">Install Exported Bundle into Target</span> to copy the bundle (and manifest) into your plugin's <span class="inline-code">Bundles/</span> folder, then register it in code.</p>
       <pre><code>private void Awake()
 {
     AssetLoader.RegisterBundleFromPluginFolder(this, "wiresplice.minigames", "Bundles/wiresplice-minigames");
 }</code></pre>
+      <pre><code>// Runtime options:
+session.TryCreateBundledScreen("wiresplice.minigames", "WireSpliceScreen");
+session.TryCreateScreen("cclbundle://wiresplice.minigames/WireSpliceScreen");
+</code></pre>
+      <p>Use whichever screen path is clearer for your codebase; both resolve through the same CUCoreLib bundle path registration.</p>
       <p class="muted-note">Video slot: showing the export output folder and moving the bundle into a mod.</p>
+    </section>
+
+    <section class="lesson-card">
+      <h2>Migration / recovery path</h2>
+      <ol>
+        <li>Restore the expected folder layout under <span class="inline-code">Assets/CU Authoring</span>.</li>
+        <li>Close Unity, delete <span class="inline-code">Library/</span> and <span class="inline-code">Temp/</span>.</li>
+        <li>Reopen Unity and let it reimport.</li>
+        <li>Re-export one sample bundle before moving on to broader changes.</li>
+      </ol>
+    </section>
+
+    <section class="lesson-card">
+      <h2>One-command smoke check</h2>
+      <p>From a clean authoring session: create a starter pack, build and validate it, export, install into a test mod plugin folder, and call:</p>
+      <pre><code>session.TryCreateScreen("cclbundle://wiresplice.minigames/WireSpliceScreen");
+BodyAnimationCurves.TryApplyBundledProfile(body, "wiresplice.minigames", "WireSpliceProfile");</code></pre>
+      <p>If the call succeeds and the screen appears, your bundle contract matches the CUCoreLib runtime boundary.</p>
     </section>
 
     <section class="lesson-card">
@@ -1820,6 +1848,7 @@ ItemRegistry.Register(
     <section class="lesson-card">
       <h2>Finding values from game code</h2>
       <p>To find values for vanilla game items, open the decompiled <span class="inline-code">Item.cs</span> file and look inside <span class="inline-code">SetupItems()</span>. The game creates its normal <span class="inline-code">ItemInfo</span> entries there.</p>
+      <p>For a larger, real game-style sample of <span class="inline-code">ItemInfo</span> and <span class="inline-code">CustomItemInfo</span> usage, view the raw file: <a href="#" data-code-source="item-setup">item-setup.cs</a>.</p>
       <p>You can usually copy the <span class="inline-code">new ItemInfo { ... }</span> block from <span class="inline-code">SetupItems()</span> into your own <span class="inline-code">ItemRegistry.Register(...)</span> call 1:1, and it will work. After that, adjust the fields you want to change for your modded item.</p>
       <img src="images/decompiled-item-cs.png" alt="Decompiled Item.cs SetupItems method showing vanilla ItemInfo values." class="screenshot">
     </section>
@@ -3553,6 +3582,7 @@ function utilsPage(): string {
             <tr><td><span class="inline-code">GiveItem</span> / <span class="inline-code">giveItem</span></td><td><span class="inline-code">string id, int count</span></td><td>Spawns item instances near the player and auto-picks them up.</td></tr>
             <tr><td><span class="inline-code">GiveItemSlot</span> / <span class="inline-code">giveItemSlot</span></td><td><span class="inline-code">string id, int slot, int count</span></td><td>Spawns item instances near the player and tries to put them into a specific slot.</td></tr>
             <tr><td><span class="inline-code">TryGetCustomItemInfo</span> / <span class="inline-code">tryGetCustomItemInfo</span></td><td><span class="inline-code">string id, out CustomItemInfo info</span></td><td>Looks up registered custom item metadata by ID.</td></tr>
+            <tr><td><span class="inline-code">SetItemSprite</span> / <span class="inline-code">setItemSprite</span></td><td><span class="inline-code">Item item, Sprite iconSprite</span></td><td>Overrides the normal icon/world sprite for one live custom-item instance without changing its worn sprite or the shared item registration. Pass <span class="inline-code">null</span> to clear the override.</td></tr>
             <tr><td><span class="inline-code">SetWornSprite</span> / <span class="inline-code">setWornSprite</span></td><td><span class="inline-code">string itemId, Sprite wornSprite</span></td><td>Updates a registered custom item's primary worn sprite and refreshes all live instances with that item ID.</td></tr>
             <tr><td><span class="inline-code">SetWornSprite</span> / <span class="inline-code">setWornSprite</span></td><td><span class="inline-code">Item item, Sprite wornSprite</span></td><td>Convenience overload that updates the registered custom item backing that live item instance, then refreshes matching live instances.</td></tr>
             <tr><td><span class="inline-code">IsModdedItem</span> / <span class="inline-code">isModdedItem</span></td><td><span class="inline-code">string itemId</span></td><td>Returns whether an item ID belongs to a recognized modded item path.</td></tr>

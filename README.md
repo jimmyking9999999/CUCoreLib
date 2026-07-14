@@ -111,6 +111,23 @@ When changing public behavior:
 - Validate the impact quickly with existing mods if possible
 - Mention any required migration notes clearly in your PR or commit message
 
+### Contributor-facing authoring scope
+
+`CUCoreLibAuthoring` is intentionally scoped to CUCoreLib v1 bundle assets only:
+
+- Minigame UI screen prefabs
+- Body curve assets (`AnimationCurveAsset`, `BodyAnimationCurveProfileAsset`)
+
+For Unity authoring, use `CUCoreLibAuthoring` and register those bundles through
+
+`AssetLoader.RegisterBundleFromPluginFolder(this, bundleId, "Bundles/<bundleFileName>")`
+
+and
+
+`session.TryCreateBundledScreen` or `session.TryCreateScreen("cclbundle://...")`.
+
+Everything else (items, locale, recipes, structures, etc.) stays on the normal C# modding path.
+
 ## Repo Format
 
 - `Patches/`, `Registries/`, `Helpers/`, `Data/`, and `Saving/` contain the main runtime source.

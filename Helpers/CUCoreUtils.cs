@@ -543,6 +543,27 @@ namespace CUCoreLib.Helpers
             return SetWornSprite(item, wornSprite);
         }
 
+        /// <summary>
+        /// Updates the inventory/world icon sprite for one live item instance without touching its worn sprite or the shared item registration.
+        /// Pass <c>null</c> to clear the override and fall back to the registered item icon.
+        /// This is useful for per-instance state visuals such as battery-inserted versus battery-empty variants.
+        /// </summary>
+        /// <param name="item">Live item instance to update.</param>
+        /// <param name="iconSprite">Sprite to use for the item's normal icon/world sprite.</param>
+        public static bool SetItemSprite(Item item, Sprite iconSprite)
+        {
+            if (item == null) return false;
+            if (!ItemRegistry.TryGetCustomInfo(item, out _)) return false;
+
+            ItemRegistryPatches.SetRuntimeIconOverride(item, iconSprite);
+            return true;
+        }
+
+        public static bool setItemSprite(Item item, Sprite iconSprite)
+        {
+            return SetItemSprite(item, iconSprite);
+        }
+
         public static void DoAmputate(Item item, Limb limb)
         {
             if (item == null || limb == null) return;

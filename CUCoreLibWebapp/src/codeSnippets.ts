@@ -5,6 +5,20 @@ let currentPage: PageId;
 let itemState: ItemState;
 let recipeState: RecipeState;
 let ingredients: Ingredient[];
+let codeSourceOverride: "item-setup" | null = null;
+let itemSetupSource: string | null = null;
+
+export function setItemSetupSource(source: string): void {
+  itemSetupSource = source;
+}
+
+export function setCodeSourceOverride(source: "item-setup"): void {
+  codeSourceOverride = source;
+}
+
+export function clearCodeSourceOverride(): void {
+  codeSourceOverride = null;
+}
 
 function escapeCsharp(value: string): string {
   return value.replace(/\\/g, "\\\\").replace(/"/g, "\\\"");
@@ -574,6 +588,10 @@ export function currentCode(nextPage: PageId, nextItemState: ItemState, nextReci
   recipeState = nextRecipeState;
   ingredients = nextIngredients;
 
+  if (codeSourceOverride === "item-setup") {
+    return itemSetupCode();
+  }
+
   if (currentPage === "welcome") return welcomeCode();
   if (currentPage === "unity-csharp") return unityCsharpCode();
   if (currentPage === "setup") return setupCode();
@@ -608,6 +626,8 @@ export function currentCode(nextPage: PageId, nextItemState: ItemState, nextReci
 }
 
 export function codeTitle(currentPage: PageId): string {
+  if (codeSourceOverride === "item-setup") return "item-setup.cs";
+
   if (currentPage === "welcome") return "Plugin.cs";
   if (currentPage === "unity-csharp") return "MyFirstPlugin.cs";
   if (currentPage === "setup") return "Plugin.cs";
@@ -853,6 +873,15 @@ public static class WireSpliceStarter
 }`;
 }
 
+function itemSetupCode(): string {
+  if (itemSetupSource && itemSetupSource.trim().length > 0) {
+    return itemSetupSource;
+  }
+
+  return `// Loading additional item setup examples from /item-setup.cs...
+// If this page remains here for too long, check that the public file is present in CUCoreLibWebapp/public/item-setup.cs and run the webapp again.`;
+}
+
 function usingUnityCode(): string {
   return `using CUCoreLib.Data;
 using CUCoreLib.Helpers;
@@ -872,6 +901,8 @@ private void Awake()
 public override void Start(CUCoreMinigameSession session)
 {
     session.TryCreateBundledScreen("wiresplice.minigames", "WireSpliceScreen");
+    // Optional equivalent path:
+    // session.TryCreateScreen("cclbundle://wiresplice.minigames/WireSpliceScreen");
 }
 
 private void ApplyBodyCurves(Body body)
