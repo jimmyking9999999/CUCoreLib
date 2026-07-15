@@ -533,6 +533,51 @@ namespace CUCoreLib.Helpers
             return item != null && !string.IsNullOrWhiteSpace(item.id) && SetWornSprite(item.id, wornSprite);
         }
 
+        /// <summary>
+        /// Updates or clears one registered multi-worn sprite entry for a custom item, then refreshes every live instance with the same item ID.
+        /// Pass <c>null</c> for <paramref name="wornSprite"/> to remove the multi-worn sprite for that limb.
+        /// </summary>
+        /// <param name="itemId">Registered custom item id to update.</param>
+        /// <param name="limbName">Vanilla limb name used by <see cref="CustomItemInfo.MultiWornSprites"/>.</param>
+        /// <param name="wornSprite">Sprite to use for that secondary worn limb, or <c>null</c> to remove it.</param>
+        public static bool SetMultiWornSprite(string itemId, string limbName, Sprite wornSprite)
+        {
+            if (string.IsNullOrWhiteSpace(itemId) || string.IsNullOrWhiteSpace(limbName)) return false;
+
+            var normalizedId = itemId.Trim();
+            var normalizedLimbName = limbName.Trim();
+            if (!ItemRegistry.TryGetCustomInfo(normalizedId, out var info) || info == null) return false;
+
+            if (info.MultiWornSprites == null)
+                info.MultiWornSprites = new Dictionary<string, Sprite>(StringComparer.OrdinalIgnoreCase);
+
+            if (wornSprite == null)
+            {
+                info.MultiWornSprites.Remove(normalizedLimbName);
+                info.MultiWornSpriteOffsets?.Remove(normalizedLimbName);
+            }
+            else
+                info.MultiWornSprites[normalizedLimbName] = wornSprite;
+
+            ItemRegistry.Register(normalizedId, info);
+            ItemRegistryPatches.RefreshLiveInstances(new[] { normalizedId });
+            return true;
+        }
+
+        /// <summary>
+        /// Updates or clears one registered multi-worn sprite entry for the item's ID, then refreshes matching live instances.
+        /// Pass <c>null</c> for <paramref name="wornSprite"/> to remove the multi-worn sprite for that limb.
+        /// </summary>
+        /// <param name="item">Any live item instance whose registered custom item should be updated.</param>
+        /// <param name="limbName">Vanilla limb name used by <see cref="CustomItemInfo.MultiWornSprites"/>.</param>
+        /// <param name="wornSprite">Sprite to use for that secondary worn limb, or <c>null</c> to remove it.</param>
+        public static bool SetMultiWornSprite(Item item, string limbName, Sprite wornSprite)
+        {
+            return item != null &&
+                   !string.IsNullOrWhiteSpace(item.id) &&
+                   SetMultiWornSprite(item.id, limbName, wornSprite);
+        }
+
         public static bool setWornSprite(string itemId, Sprite wornSprite)
         {
             return SetWornSprite(itemId, wornSprite);
@@ -541,6 +586,16 @@ namespace CUCoreLib.Helpers
         public static bool setWornSprite(Item item, Sprite wornSprite)
         {
             return SetWornSprite(item, wornSprite);
+        }
+
+        public static bool setMultiWornSprite(string itemId, string limbName, Sprite wornSprite)
+        {
+            return SetMultiWornSprite(itemId, limbName, wornSprite);
+        }
+
+        public static bool setMultiWornSprite(Item item, string limbName, Sprite wornSprite)
+        {
+            return SetMultiWornSprite(item, limbName, wornSprite);
         }
 
         /// <summary>

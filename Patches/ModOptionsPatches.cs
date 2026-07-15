@@ -6,14 +6,6 @@ using UnityEngine;
 
 namespace CUCoreLib.Patches
 {
-    /// <summary>
-    ///     The game's SettingsMenu hardcodes "gameset" prefix when looking up
-    ///     setting locale strings (e.g. Locale.GetOther("gameset" + setting.name)).
-    ///     This patch intercepts Locale.GetOther so that keys starting with
-    ///     "gameset" first try the clean (unprefixed) key in Language.other.
-    ///     If found there, it returns immediately; otherwise the original
-    ///     method runs, preserving built-in game settings.
-    /// </summary>
     [HarmonyPatch(typeof(Locale), nameof(Locale.GetOther), typeof(string))]
     internal static class LocalePatch
     {

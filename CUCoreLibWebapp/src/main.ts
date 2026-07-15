@@ -32,7 +32,7 @@ const itemState: ItemState = machineExportDefaultItemState;
 const recipeState: RecipeState = machineExportDefaultRecipeState;
 
 const navGroups: Array<{ label: string; pages: PageId[] }> = [
-  { label: "Introduction", pages: ["welcome", "unity-csharp", "setup", "using-unity", "harmony0"] },
+  { label: "Introduction", pages: ["welcome", "unity-csharp", "setup", "harmony0"] },
   { label: "Tutorial", pages: ["tutorial-first-mod"] },
   {
     label: "Items / Liquids",
@@ -727,6 +727,10 @@ function bindIngredientEvents(): void {
       ingredients[index][field] = target.value as never;
     }
 
+    if (field === "amount") {
+      ingredients[index].amountWasEdited = true;
+    }
+
     updateEditor();
   });
 
@@ -740,7 +744,7 @@ function bindIngredientEvents(): void {
   });
 
   document.querySelector("#add-ingredient")?.addEventListener("click", () => {
-    ingredients.push({ mode: "specific", id: "woodscraps", amount: "1", isLiquid: false, destroyItem: true });
+    ingredients.push({ mode: "specific", id: "woodscraps", amount: "1", amountWasEdited: false, isLiquid: false, destroyItem: true });
     renderPage();
   });
 

@@ -157,6 +157,10 @@
             <HintPath>$(GameManagedDir)\UnityEngine.CoreModule.dll</HintPath>
             <Private>False</Private>
         </Reference>
+        <Reference Include="UnityEngine.DirectorModule">
+            <HintPath>$(GameManagedDir)\UnityEngine.DirectorModule.dll</HintPath>
+            <Private>False</Private>
+        </Reference>
         <Reference Include="UnityEngine.GridModule">
             <HintPath>$(GameManagedDir)\UnityEngine.GridModule.dll</HintPath>
             <Private>False</Private>
@@ -167,6 +171,10 @@
         </Reference>
         <Reference Include="UnityEngine.InputLegacyModule">
             <HintPath>$(GameManagedDir)\UnityEngine.InputLegacyModule.dll</HintPath>
+            <Private>False</Private>
+        </Reference>
+        <Reference Include="UnityEngine.PlayablesModule">
+            <HintPath>$(GameManagedDir)\UnityEngine.PlayablesModule.dll</HintPath>
             <Private>False</Private>
         </Reference>
         <Reference Include="UnityEngine.InputModule">
@@ -220,6 +228,7 @@
         <Compile Include="Data\CustomItemInfo.cs"/>
         <Compile Include="Data\CustomLiquidInfo.cs"/>
         <Compile Include="Data\AnimationCurveAsset.cs"/>
+        <Compile Include="Data\BodyAnimationPackManifest.cs"/>
         <Compile Include="Data\BodyAnimationCurveProfileAsset.cs"/>
         <Compile Include="Data\ModOptionDefinition.cs"/>
         <Compile Include="Data\RegisteredSpriteAnimation.cs"/>
@@ -241,6 +250,7 @@
         <Compile Include="Helpers\AnimatedImage.cs"/>
         <Compile Include="Helpers\AnimatedSpriteRenderer.cs"/>
         <Compile Include="Helpers\BodyAnimationCurves.cs"/>
+        <Compile Include="Helpers\BodyAnimationPlayer.cs"/>
         <Compile Include="Helpers\CCLBase.cs"/>
         <Compile Include="Helpers\CUCoreUtils.cs"/>
         <Compile Include="Helpers\CustomBuildingRuntime.cs"/>

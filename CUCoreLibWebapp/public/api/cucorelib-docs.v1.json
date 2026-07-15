@@ -2,7 +2,7 @@
   "version": "1.0",
   "library": "CUCoreLib",
   "description": "Machine-readable CUCoreLib web docs generated from the interactive docs sources.",
-  "generatedAt": "2026-07-14T04:11:50.740Z",
+  "generatedAt": "2026-07-15T08:41:23.054Z",
   "baseUrl": "/",
   "topics": [
     {
@@ -10,7 +10,7 @@
       "label": "Welcome",
       "crumb": "CUCoreLib",
       "title": "Welcome to CUCoreLib",
-      "lead": "A Casualties Unknown modding library for content registration, runtime helpers, and patch-safe integration points.",
+      "lead": "Welcome! This is the documentation website for the CUCoreLib modding library.",
       "appUrl": "/docs/welcome/",
       "machineUrl": "/api/topics/welcome.json"
     },
@@ -31,15 +31,6 @@
       "lead": "Create a template mod, point it at your local game install, and add CUCoreLib as a hard dependency.",
       "appUrl": "/docs/setup/",
       "machineUrl": "/api/topics/setup.json"
-    },
-    {
-      "id": "using-unity",
-      "label": "Using Unity for modding",
-      "crumb": "Getting Started",
-      "title": "Using Unity for modding",
-      "lead": "Use the guided CU authoring lane for bundled minigame screens and body animation curves without living inside the whole ripped project.",
-      "appUrl": "/docs/using-unity/",
-      "machineUrl": "/api/topics/using-unity.json"
     },
     {
       "id": "harmony0",
@@ -265,6 +256,15 @@
       "lead": "Extend the vanilla save.sv flow with versioned CUCoreLib save providers.",
       "appUrl": "/docs/saving/",
       "machineUrl": "/api/topics/saving.json"
+    },
+    {
+      "id": "animations",
+      "label": "Animations",
+      "crumb": "Misc / API",
+      "title": "Animations",
+      "lead": "Lights, camera, animation!",
+      "appUrl": "/docs/animations/",
+      "machineUrl": "/api/topics/animations.json"
     },
     {
       "id": "multi-mod-compatibility",

@@ -19,6 +19,7 @@ I figured that this would be nice to have, as to easily take a look at everythin
 - The specific fields are `Corpse, MedicalCrate, FoodCrate, ContainerCrate, Trader1, Trader2, Trader3, (or, for all three trader species) AllTraders, DropCapsule, CapsuleContainer`
 - Added itemregistry field `WorldSpawnPerChunk` for randomly spawning raw items into the world per chunk
 - Added `SetWornSprite` / `setWornSprite` helpers for refreshing live worn sprites
+- Animation support
 
 ### Changes
 - Locale recursive directory search was accidentally removed and now re-added
@@ -45,6 +46,7 @@ I figured that this would be nice to have, as to easily take a look at everythin
 - More docs work, once again :)
 - Added more warning code (i.e. for missing moodle sprites)
 - Fix wearable sprite defaults
+- Settings menu changes (Thanks, @Black_Moss)!
 
 ## v1.0.2
 

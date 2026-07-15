@@ -4,7 +4,6 @@ export const machineExportEnabledPageIds = [
   "welcome",
   "unity-csharp",
   "setup",
-  "using-unity",
   "harmony0",
   "tutorial-first-mod",
   "assets",
@@ -30,15 +29,16 @@ export const machineExportEnabledPageIds = [
   "settings",
   "locale",
   "saving",
+  "animations",
   "multi-mod-compatibility"
 ] as const satisfies readonly PageId[];
 
 export const machineExportDefaultIngredients: Ingredient[] = [
-  { mode: "specific", id: "glass", amount: "1", isLiquid: false, destroyItem: true },
-  { mode: "specific", id: "glass", amount: "1", isLiquid: false, destroyItem: true },
-  { mode: "specific", id: "glass", amount: "1", isLiquid: false, destroyItem: true },
-  { mode: "quality", id: "heatsource", amount: "10", isLiquid: false, destroyItem: false },
-  { mode: "quality", id: "water", amount: "50", isLiquid: true, destroyItem: true }
+  { mode: "specific", id: "glass", amount: "1", amountWasEdited: false, isLiquid: false, destroyItem: true },
+  { mode: "specific", id: "glass", amount: "1", amountWasEdited: false, isLiquid: false, destroyItem: true },
+  { mode: "specific", id: "glass", amount: "1", amountWasEdited: false, isLiquid: false, destroyItem: true },
+  { mode: "quality", id: "heatsource", amount: "10", amountWasEdited: false, isLiquid: false, destroyItem: false },
+  { mode: "quality", id: "water", amount: "50", amountWasEdited: false, isLiquid: true, destroyItem: true }
 ];
 
 export const machineExportDefaultItemState: ItemState = {

@@ -3,10 +3,6 @@ using System.Collections.Generic;
 
 namespace CUCoreLib.Registries.Infrastructure
 {
-    /// <summary>
-    /// Tracks registry entry ownership in both directions so content reload work is
-    /// proportional to the entries owned by one mod instead of the whole registry.
-    /// </summary>
     internal sealed class RegistrationOwnershipIndex<TKey>
     {
         private readonly Dictionary<TKey, string> ownerByKey;

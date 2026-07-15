@@ -6,7 +6,7 @@ export const pages: Page[] = [
     label: "Welcome",
     crumb: "CUCoreLib",
     title: "Welcome to CUCoreLib",
-    lead: "A Casualties Unknown modding library for content registration, runtime helpers, and patch-safe integration points."
+    lead: "Welcome! This is the documentation website for the CUCoreLib modding library."
   },
   {
     id: "unity-csharp",
@@ -21,13 +21,6 @@ export const pages: Page[] = [
     crumb: "Getting Started",
     title: "Install ScavTemplate",
     lead: "Create a template mod, point it at your local game install, and add CUCoreLib as a hard dependency."
-  },
-  {
-    id: "using-unity",
-    label: "Using Unity for modding",
-    crumb: "Getting Started",
-    title: "Using Unity for modding",
-    lead: "Use the guided CU authoring lane for bundled minigame screens and body animation curves without living inside the whole ripped project."
   },
   {
     id: "harmony0",
@@ -83,7 +76,7 @@ export const pages: Page[] = [
     label: "Recipe API",
     crumb: "Content APIs",
     title: "Creating recipes",
-    lead: "Wanna make a super secret item? Have it require 500 INT to craft, so that only blueprints can reveal it."
+    lead: "Creating custom recipes for all sorts of items!"
   },
   {
     id: "liquids",
@@ -216,7 +209,7 @@ export const pages: Page[] = [
     label: "Animations",
     crumb: "Misc / API",
     title: "Animations",
-    lead: "Planned documentation for animation helpers and animation asset usage."
+    lead: "Lights, camera, animation!"
   },
   {
     id: "multi-mod-compatibility",
@@ -272,7 +265,6 @@ export function pageBody(page: PageId, nextItemState: ItemState, nextRecipeState
   if (page === "welcome") content = welcomePage();
   else if (page === "unity-csharp") content = unityCsharpPage();
   else if (page === "setup") content = setupPage();
-  else if (page === "using-unity") content = usingUnityPage();
   else if (page === "harmony0") content = harmony0Page();
   else if (page === "tutorial-first-mod") content = tutorialFirstModPage();
   else if (page === "recipe") content = recipePage();
@@ -287,6 +279,7 @@ export function pageBody(page: PageId, nextItemState: ItemState, nextRecipeState
   else if (page === "custom-item-scripts") content = customItemScriptsPage();
   else if (page === "liquids") content = liquidsPage();
   else if (page === "player") content = playerPage();
+  else if (page === "animations") content = animationsPage();
   else if (page === "statuses") content = statusesPage();
   else if (page === "moodles") content = moodlesPage();
   else if (page === "building-entities") content = buildingEntitiesPage();
@@ -426,7 +419,6 @@ function buildingEntitiesPage(): string {
           </tbody>
         </table>
       </div>
-      <p><span class="inline-code">SpawnLayers</span> uses the same 1-based layer numbering as the tile registry helpers. Layer <span class="inline-code">1</span> means the first playable depth, layer <span class="inline-code">4</span> means biome depth <span class="inline-code">3</span>, and leaving the field alone keeps the building eligible everywhere.</p>
     </section>
   `;
 }
@@ -849,69 +841,9 @@ function playerPage(): string {
       <pre><code>Body body = PlayerCamera.main.body;
 float hunger = body.hunger;
 Vector3 position = body.transform.position;</code></pre>
-      <p>This page is intentionally a reference page. Field names come from the decompiled vanilla <span class="inline-code">Body.cs</span>, so these are the names to search for in dnSpyEx or patch against in your own code.</p>
-    </section>
-    <section class="lesson-card">
-      <h2>Typed body-curve helpers</h2>
-      <p>CUCoreLib now exposes a lightweight typed layer for the repetitive <span class="inline-code">Body.AnimationCurve</span> fields. The goal is ergonomics, not abstraction for its own sake: generic bundle asset loading still exists, but common body curve assignments no longer need every mod to repeat the same switch statement.</p>
-      <div class="table-wrap">
-        <table class="field-table">
-          <thead>
-            <tr><th>Helper</th><th>Args</th><th>Description</th></tr>
-          </thead>
-          <tbody>
-            <tr><td><span class="inline-code">BodyAnimationCurveField</span></td><td>Named enum values</td><td>Lists the supported vanilla body curve fields such as <span class="inline-code">StaminaStrength</span>, <span class="inline-code">WeightMovementCurve</span>, and <span class="inline-code">HeartCurveNormal</span>.</td></tr>
-            <tr><td><span class="inline-code">BodyAnimationCurves.TryApplyCurve</span></td><td><span class="inline-code">Body body, BodyAnimationCurveField field, AnimationCurve curve</span></td><td>Applies one already-resolved curve to one supported body field.</td></tr>
-            <tr><td><span class="inline-code">BodyAnimationCurves.TryApplyBundledCurve</span></td><td><span class="inline-code">Body body, BodyAnimationCurveField field, string bundleId, string assetName</span></td><td>Loads one bundled <span class="inline-code">AnimationCurveAsset</span> and applies it to the chosen body field.</td></tr>
-            <tr><td><span class="inline-code">BodyAnimationCurves.TryApplyBundledCurves</span></td><td><span class="inline-code">Body body, string bundleId, params BodyAnimationCurveOverride[] overrides</span></td><td>Resolves a small batch first, then applies the whole set only if every referenced curve asset loads successfully.</td></tr>
-            <tr><td><span class="inline-code">BodyAnimationCurves.TryApplyBundledProfile</span></td><td><span class="inline-code">Body body, string bundleId, string assetName</span></td><td>Loads a bundled <span class="inline-code">BodyAnimationCurveProfileAsset</span> and applies its named overrides.</td></tr>
-            <tr><td><span class="inline-code">AssetLoader.TryLoadBundleAnimationCurve</span></td><td><span class="inline-code">string bundleId, string assetName, out AnimationCurve curve</span></td><td>Keeps raw generic curve resolution available for advanced mods that want to evaluate or clone the curve themselves before assignment.</td></tr>
-          </tbody>
-        </table>
-      </div>
-    </section>
-    <section class="lesson-card">
-      <h2>Bundle authoring for curves</h2>
-      <p>Bundle curve assets through CUCoreLib's ScriptableObject wrappers. Unity does not hand CUCoreLib a bare <span class="inline-code">AnimationCurve</span> as a normal bundle asset, so the supported pattern is: create an <span class="inline-code">AnimationCurveAsset</span>, assign its <span class="inline-code">Curve</span>, then optionally reference multiple named curve assets from a <span class="inline-code">BodyAnimationCurveProfileAsset</span>.</p>
-      <pre><code>// Single curve asset name inside the bundle:
-//   SprintStaminaCurve (AnimationCurveAsset)
-//
-// Optional batch profile asset:
-//   WinterProfile (BodyAnimationCurveProfileAsset)
-//   Overrides:
-//     - Field = TemperatureMovementCurve, AssetName = "ColdMovementCurve"
-//     - Field = ThirstBloodPressureCurve, AssetName = "DryBloodPressureCurve"</code></pre>
-    </section>
-    <section class="lesson-card">
-      <h2>Curve helper examples</h2>
-      <pre><code>Body body = PlayerCamera.main.body;
-
-BodyAnimationCurves.TryApplyBundledCurve(
-    body,
-    BodyAnimationCurveField.StaminaStrength,
-    "glassworks.curves",
-    "SprintStaminaCurve");</code></pre>
-      <pre><code>BodyAnimationCurves.TryApplyBundledCurves(
-    body,
-    "glassworks.curves",
-    new BodyAnimationCurveOverride
-    {
-        Field = BodyAnimationCurveField.WeightMovementCurve,
-        AssetName = "HeavyPackCurve"
-    },
-    new BodyAnimationCurveOverride
-    {
-        Field = BodyAnimationCurveField.FoodMovementCurve,
-        AssetName = "StarvingMovementCurve"
-    });</code></pre>
-      <pre><code>BodyAnimationCurves.TryApplyBundledProfile(
-    body,
-    "glassworks.curves",
-    "WinterProfile");</code></pre>
-      <p>If any referenced bundled curve asset is missing, the batch/profile helpers return <span class="inline-code">false</span> and leave unrelated body fields untouched.</p>
+      <p>This page is a reference page. Most fields thus come from the decompiled vanilla <span class="inline-code">Body.cs</span>.</p>
     </section>
 
-   
 
     <section class="lesson-card">
       <h2>Player field reference</h2>
@@ -1570,127 +1502,6 @@ using CUCoreLib.Saving;</code></pre>
   `;
 }
 
-function usingUnityPage(): string {
-  return `
-    <section class="lesson-card">
-      <h2>What this workflow is for</h2>
-      <p>This lane is intentionally narrow for CUCoreLib v1: bundled minigame screen prefabs and bundled body curve assets only.</p>
-      <p>Do not use this path for generic scene export, items, buildings, locale, recipes, or other systems. Export only the minimum surface needed for one bundle registration path.</p>
-      <p>The goal is to give you one controlled lane so you can author the asset, export the bundle, copy a matching runtime snippet, and return to normal C# mod code.</p>
-    </section>
-
-    <section class="lesson-card">
-      <h2>Project and editor version</h2>
-      <p>Open <span class="inline-code">CU Mod Project/CU Mod Project</span> in Unity <span class="inline-code">2022.3.62f3</span>. That project already contains the ripped game content plus the new <span class="inline-code">Assets/CU Authoring</span> workspace.</p>
-      <p>This lane is intentionally narrow: bundle screens and body curve assets only. Everything else should stay in normal C# modding workflows.</p>
-      <p>From there, use <span class="inline-code">Tools &gt; CU Modding &gt; Authoring Hub</span>. That is the supported entry point for this workflow. Ignore ThunderKit here.</p>
-      <p class="muted-note">Video slot: opening the Unity project and the Authoring Hub.</p>
-    </section>
-
-    <section class="lesson-card">
-      <h2>The golden path</h2>
-      <ol>
-        <li>Open <span class="inline-code">Tools &gt; CU Modding &gt; Authoring Hub</span>.</li>
-      <li>Enter a pack name such as <span class="inline-code">WireSplice</span>.</li>
-      <li>Click <span class="inline-code">Create Starter Pack</span>.</li>
-      <li>Edit the generated assets under <span class="inline-code">Assets/CU Authoring/User Assets/&lt;PackName&gt;</span>.</li>
-      <li>Click <span class="inline-code">Validate</span> until the bundle is clean.</li>
-      <li>Click <span class="inline-code">Export</span>.</li>
-      <li>Optional: set <span class="inline-code">Target plugin folder</span> and click <span class="inline-code">Install Exported Bundle into Target</span>.</li>
-      <li>Click <span class="inline-code">Copy Snippet</span> and paste the result into your mod.</li>
-      <li>Call your registered path in runtime code and confirm it resolves without null refs.</li>
-    </ol>
-      <p>The starter pack creates a bundle profile, a blank minigame screen prefab, one <span class="inline-code">AnimationCurveAsset</span>, and one <span class="inline-code">BodyAnimationCurveProfileAsset</span>.</p>
-      <p>That is the only required end-to-end output contract for CUCoreLib v1 authoring.</p>
-      <p class="muted-note">Video slot: full create -> validate -> export -> copy snippet flow.</p>
-    </section>
-
-    <section class="lesson-card">
-      <h2>Authoring minigame screens</h2>
-      <p>Use <span class="inline-code">New Blank Minigame Screen</span> when you want a clean screen prefab that CUCoreLib can mount under the live minigame UI. The root should stay a <span class="inline-code">RectTransform</span>, and the prefab should not contain its own <span class="inline-code">Canvas</span> or <span class="inline-code">EventSystem</span>.</p>
-      <p>Use <span class="inline-code">Clone Vanilla Screen</span> when you want reference material from vanilla screens like <span class="inline-code">BandageMinigame</span> or <span class="inline-code">SyringeMinigame</span>. Treat those clones as study aids first. They usually need cleanup before export because the validator blocks ripped-game sprite, audio, and prefab dependencies.</p>
-      <pre><code>public override void Start(CUCoreMinigameSession session)
-{
-    session.TryCreateBundledScreen("wiresplice.minigames", "WireSpliceScreen");
-}</code></pre>
-      <p class="muted-note">Video slot: making a blank screen and cleaning a cloned vanilla screen.</p>
-    </section>
-
-    <section class="lesson-card">
-      <h2>Authoring body curves</h2>
-      <p>Create an <span class="inline-code">AnimationCurveAsset</span> when you want one reusable curve. Create a <span class="inline-code">BodyAnimationCurveProfileAsset</span> when you want one asset that points at several named curves for several body fields.</p>
-      <p>The custom profile inspector lets you pick real curve assets instead of typing asset names by hand. That matters because CUCoreLib resolves bundled curves by asset name.</p>
-      <pre><code>BodyAnimationCurves.TryApplyBundledProfile(body, "wiresplice.minigames", "WireSpliceProfile");</code></pre>
-      <p class="muted-note">Video slot: editing a curve and filling out a profile asset.</p>
-    </section>
-
-    <section class="lesson-card">
-      <h2>What validation checks</h2>
-      <p>The validator keeps this workflow narrow on purpose. If it stops you, it is usually protecting you from a bundle that only worked because it was still leaning on the ripped project.</p>
-      <div class="table-wrap">
-        <table class="field-table">
-          <thead>
-            <tr><th>Check</th><th>Why it matters</th></tr>
-          </thead>
-          <tbody>
-            <tr><td>Root must be a <span class="inline-code">RectTransform</span></td><td>Bundled minigame screens are mounted into the live minigame canvas.</td></tr>
-            <tr><td>No <span class="inline-code">Canvas</span> or <span class="inline-code">EventSystem</span> in the screen prefab</td><td>The game already owns those UI systems.</td></tr>
-            <tr><td>Assets must live under <span class="inline-code">Assets/CU Authoring</span></td><td>This keeps the supported workspace separate from the rest of the ripped project.</td></tr>
-            <tr><td>No ripped-game dependencies in authored exports</td><td>Reference-only clones are convenient, but they are not a safe final export target.</td></tr>
-            <tr><td>No blank or stale profile <span class="inline-code">AssetName</span> entries</td><td>Curve bundles resolve by exported asset name.</td></tr>
-          </tbody>
-        </table>
-      </div>
-    </section>
-
-    <section class="lesson-card">
-      <h2>Where export goes</h2>
-      <p>Export writes bundles to <span class="inline-code">CUCoreExports/Bundles/&lt;BundleFileName&gt;</span> at the Unity project root.</p>
-      <p>Use <span class="inline-code">Install Exported Bundle into Target</span> to copy the bundle (and manifest) into your plugin's <span class="inline-code">Bundles/</span> folder, then register it in code.</p>
-      <pre><code>private void Awake()
-{
-    AssetLoader.RegisterBundleFromPluginFolder(this, "wiresplice.minigames", "Bundles/wiresplice-minigames");
-}</code></pre>
-      <pre><code>// Runtime options:
-session.TryCreateBundledScreen("wiresplice.minigames", "WireSpliceScreen");
-session.TryCreateScreen("cclbundle://wiresplice.minigames/WireSpliceScreen");
-</code></pre>
-      <p>Use whichever screen path is clearer for your codebase; both resolve through the same CUCoreLib bundle path registration.</p>
-      <p class="muted-note">Video slot: showing the export output folder and moving the bundle into a mod.</p>
-    </section>
-
-    <section class="lesson-card">
-      <h2>Migration / recovery path</h2>
-      <ol>
-        <li>Restore the expected folder layout under <span class="inline-code">Assets/CU Authoring</span>.</li>
-        <li>Close Unity, delete <span class="inline-code">Library/</span> and <span class="inline-code">Temp/</span>.</li>
-        <li>Reopen Unity and let it reimport.</li>
-        <li>Re-export one sample bundle before moving on to broader changes.</li>
-      </ol>
-    </section>
-
-    <section class="lesson-card">
-      <h2>One-command smoke check</h2>
-      <p>From a clean authoring session: create a starter pack, build and validate it, export, install into a test mod plugin folder, and call:</p>
-      <pre><code>session.TryCreateScreen("cclbundle://wiresplice.minigames/WireSpliceScreen");
-BodyAnimationCurves.TryApplyBundledProfile(body, "wiresplice.minigames", "WireSpliceProfile");</code></pre>
-      <p>If the call succeeds and the screen appears, your bundle contract matches the CUCoreLib runtime boundary.</p>
-    </section>
-
-    <section class="lesson-card">
-      <h2>Keep the scope narrow</h2>
-      <p>Use this Unity workflow for bundled minigame screen prefabs and bundled body curve data. Do not treat it as the main path for items, buildings, locale, recipes, or other normal CUCoreLib registration work.</p>
-      <p>If all you need is the runtime minigame class, stay in C# and use the Minigames page. Reach for Unity only when the visual screen or bundled curve asset is the thing you actually need to author.</p>
-    </section>
-
-    <section class="lesson-card">
-      <h2>Next pages</h2>
-      <p>Once your bundle exists, jump to <a href="/docs/minigames">Minigames</a> for the runtime screen-loading side and <a href="/docs/assets">Loading assets</a> for the current AssetBundle scope and runtime caveats.</p>
-      <p>If your mod project is not building yet, go back to <a href="/docs/setup">Setup</a> first and make sure your BepInEx DLL is healthy before you spend time in Unity.</p>
-    </section>
-  `;
-}
-
 function harmony0Page(): string {
   return `
     <section class="lesson-card">
@@ -2226,6 +2037,58 @@ function liquidsPage(): string {
     </section>
 
    
+
+  `;
+}
+
+function animationsPage(): string {
+  return `
+    <section class="lesson-card">
+      <h2>Animations</h2>
+      <p>CUCoreLib adds support for animations. However, due to complexity of editing and viewing animations outside of the Unity editor, Unity is currently a hard requirement to make animations.</p>
+      <p>To make this easier on you, a slimmed-down unity package as well as documentation and a unity toolkit is provided.</p>
+    </section>
+
+    <section class="lesson-card">
+      <h2>Steps:</h2>
+      <ol>
+        <li>Download the Unity package from -- </li>
+        <li>Open <span class="inline-code">CU Modded Toolkit &gt; Animation Workshop</span> in the exported Unity project on the menu bar.</li>
+        <li>Create a workspace pack name.</li>
+        <li>Add one or more animation entries.</li>
+        <li>Use <span class="inline-code">Add From Template</span> if you want a vanilla motion as a starting point, or <span class="inline-code">Load Existing</span> if you already authored custom clips elsewhere in the same Unity project.</li>
+        <li>Give each entry a unique <span class="inline-code">Animation Id</span>.</li>
+        <li>Assign one body clip and one arms clip to that entry.</li>
+        <li>Preview the selected entry on the animated sample body in <span class="inline-code">SampleScene</span>.</li>
+        <li>Create the animation using Unity's animation window.</li>
+        <li>To learn how to create basic animationcurves with unity, see <a href="https://youtu.be/NHUP7CmYny8?si=ruiOLAoZ0M7PypRZ&t=33" target="_blank">this video</a>.</li>
+        <li>Click <span class="inline-code">Export Animation Pack Bundle</span>.</li>
+      </ol>
+      <p>The exported files land in <span class="inline-code">CUCoreExports/AnimationPacks/</span>. Copy the bundle file into your mod's <span class="inline-code">Bundles/</span> folder.</p>
+      <img src="images/animation-guide.png" alt="Animation Unity window screenshot" class="screenshot">
+      </section>
+
+    <section class="lesson-card">
+      <h2>How runtime playback works</h2>
+      <p>Register the bundle once, then play a custom entry by id.</p>
+      <pre><code>AssetLoader.RegisterBundleFromPluginFolder(this, "handwave.animations", "Bundles/handwave-animations");
+BodyAnimationPlayer.PlayBundled(PlayerCamera.main.body, "handwave.animations", "swing_custom");</code></pre>
+      <p>To stop custom playback forcefully via code:</p>
+      <pre><code>BodyAnimationPlayer.ResetToVanilla(PlayerCamera.main.body);</code></pre>
+    </section>
+
+  
+    <section class="lesson-card">
+      <h2>Why is the animation's play button disabled?</h2>
+      <p>If Unity's normal play button looks disabled on a raw clip, click on <span class="inline-code">Animation Window</span>.</p>
+    </section>
+
+    <section class="lesson-card">
+      <h2>How come there's seperate animations needed for the body and arms?</h2>
+      <p>Currently, the game also has separate animation systems for the body and arms, which require distinct animation clips for each.</p>
+      <p>In order to preview both at the same time, the animation workshop provides previews for both animations together.</p>
+    </section>
+    
 
   `;
 }
@@ -3161,6 +3024,74 @@ function recipePage(): string {
       <h2>Ingredients</h2>
       <p>A <span class="inline-code">RecipeItem</span> can require a specific ID or a crafting quality. Specific IDs are best when you need exactly <span class="inline-code">water</span>, <span class="inline-code">rope</span>, or one of your custom item IDs. Qualities are best for reusable tools or broad food/material groups.</p>
       <p>For liquids, the constructor value is mL. For normal items, it is minimum condition.</p>
+    </section>
+    <section class="lesson-card">
+      <h2>RecipeItems</h2>
+      <p><span class="inline-code">Recipe.items</span> is a <span class="inline-code">List&lt;RecipeItem&gt;</span>. Each <span class="inline-code">RecipeItem</span> describes one ingredient slot, and you can build those slots in three common ways.</p>
+
+      <h3>Specific item</h3>
+      <p>Use <span class="inline-code">specificId</span> when the recipe should require one exact item ID.</p>
+      <pre><code>new RecipeItem { specificId = "stick" },</code></pre>
+      <p>If you need a condition requirement, you can set it either in the constructor or on the field itself.</p>
+      <pre><code>new RecipeItem(0.7f) { specificId = "ironore" },
+new RecipeItem { specificId = "ironore", minimumCondition = 0.7f },</code></pre>
+
+      <h3>Specific liquid</h3>
+      <p>Use <span class="inline-code">specificId</span> plus <span class="inline-code">isLiquid = true</span> when the recipe must consume one exact liquid type from a container.</p>
+      <pre><code>new RecipeItem(10f)
+{
+    specificId = "biochem",
+    isLiquid = true,
+},</code></pre>
+      <p>Liquid amounts use mL directly, so <span class="inline-code">1mL = 1f</span> and <span class="inline-code">100mL = 100f</span>.</p>
+
+      <h3>Specific crafting quality</h3>
+      <p>Use <span class="inline-code">quality = new CraftingQuality(...)</span> when any valid item or liquid with that quality should satisfy the ingredient slot.</p>
+      <pre><code>new RecipeItem(0f)
+{
+    quality = new CraftingQuality("cutting", 20f),
+    destroyItem = false
+},</code></pre>
+      <p>Common vanilla qualities include <span class="inline-code">cutting</span>, <span class="inline-code">hammering</span>, and <span class="inline-code">heatsource</span>. Custom crafting qualities work too, as long as your item or liquid registrations provide them.</p>
+
+      <h3>Quality amount vs minimum condition</h3>
+      <p>The constructor value means different things depending on the ingredient type. For normal specific items it is minimum condition, for specific liquids it is mL, and for quality-based ingredients it works with the quality requirement you set.</p>
+      <p>Use <span class="inline-code">destroyItem = false</span> for reusable tools so the recipe uses condition instead of deleting the whole item.</p>
+    </section>
+    <section class="lesson-card">
+      <h2>Fields</h2>
+      <p>A recipe is made from three vanilla game objects: <span class="inline-code">Recipe</span>, <span class="inline-code">RecipeResult</span>, and <span class="inline-code">RecipeItem</span>. CUCoreLib registers those normal objects directly, so the fields below are the ones the game actually uses while matching ingredients, showing the crafting UI, and spawning the result.</p>
+      <div class="table-wrap">
+        <table class="field-table">
+          <thead>
+            <tr>
+              <th>Field</th>
+              <th>Type</th>
+              <th>What it controls</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td><span class="inline-code">Recipe.specialKnown</span></td><td><span class="inline-code">bool</span></td><td>If <span class="inline-code">true</span>, the recipe is always visible. If <span class="inline-code">false</span>, vanilla only shows it when the player's INT is at least <span class="inline-code">INT - 3</span>.</td></tr>
+            <tr><td><span class="inline-code">Recipe.INT</span></td><td><span class="inline-code">int</span></td><td>Intelligence requirement for crafting. Vanilla can reduce output quality or fail the craft when the player is below this value.</td></tr>
+            <tr><td><span class="inline-code">Recipe.items</span></td><td><span class="inline-code">List&lt;RecipeItem&gt;</span></td><td>The ingredient list. Each entry describes one required item, tool, or liquid input.</td></tr>
+            <tr><td><span class="inline-code">Recipe.result</span></td><td><span class="inline-code">RecipeResult</span></td><td>The output object the recipe produces. This contains the result ID, amount, liquid flag, and starting condition/volume.</td></tr>
+            <tr><td><span class="inline-code">Recipe.category</span></td><td><span class="inline-code">Recipes.RecipeCategory</span></td><td>Crafting-menu category only. Use one of <span class="inline-code">Materials</span>, <span class="inline-code">Tools</span>, <span class="inline-code">Medicine</span>, <span class="inline-code">Utilities</span>, or <span class="inline-code">Food</span>.</td></tr>
+            <tr><td><span class="inline-code">Recipe.isRepair</span></td><td><span class="inline-code">bool</span></td><td>Marks the recipe as a repair recipe. CUCoreLib uses this to avoid the normal self-ignore behavior for result IDs when matching ingredients.</td></tr>
+            <tr><td><span class="inline-code">RecipeResult.id</span></td><td><span class="inline-code">string</span></td><td>The item ID or liquid ID produced by the recipe. This is required.</td></tr>
+            <tr><td><span class="inline-code">RecipeResult.isLiquid</span></td><td><span class="inline-code">bool</span></td><td>Whether <span class="inline-code">id</span> points to a liquid registration instead of an item prefab. Liquid results spawn into a container and treat <span class="inline-code">resultCondition</span> as mL.</td></tr>
+            <tr><td><span class="inline-code">RecipeResult.amount</span></td><td><span class="inline-code">int</span></td><td>How many results the craft produces. For non-liquid items, values above <span class="inline-code">1</span> spawn multiple items.</td></tr>
+            <tr><td><span class="inline-code">RecipeResult.resultCondition</span></td><td><span class="inline-code">float</span></td><td>Starting condition for item results, usually from <span class="inline-code">0</span> to <span class="inline-code">1</span>. For liquid results, this is the output volume in mL.</td></tr>
+            <tr><td><span class="inline-code">RecipeResult.dontDrainResultLiquid</span></td><td><span class="inline-code">bool</span></td><td>Only matters when the crafted item is a liquid container. If <span class="inline-code">false</span>, vanilla clears the container contents after spawning it. Set it to <span class="inline-code">true</span> when your crafted item should keep its starting liquid.</td></tr>
+            <tr><td><span class="inline-code">RecipeItem.specific</span></td><td><span class="inline-code">bool</span></td><td>Whether this ingredient requires one exact ID instead of matching by crafting quality. CUCoreLib sets this automatically when <span class="inline-code">specificId</span> is filled.</td></tr>
+            <tr><td><span class="inline-code">RecipeItem.specificId</span></td><td><span class="inline-code">string</span></td><td>The exact item ID or liquid ID required when <span class="inline-code">specific</span> is enabled.</td></tr>
+            <tr><td><span class="inline-code">RecipeItem.isLiquid</span></td><td><span class="inline-code">bool</span></td><td>Whether this ingredient consumes liquid from a container instead of using a normal item instance.</td></tr>
+            <tr><td><span class="inline-code">RecipeItem.quality</span></td><td><span class="inline-code">CraftingQuality</span></td><td>Quality-based ingredient requirement. Use this when any item or liquid with the right crafting quality should satisfy the slot.</td></tr>
+            <tr><td><span class="inline-code">RecipeItem.minimumCondition</span></td><td><span class="inline-code">float</span></td><td>For specific items, the minimum condition required. For quality-based items, the amount of condition/tool-use consumed. For liquids, this is the required or consumed volume in mL.</td></tr>
+            <tr><td><span class="inline-code">RecipeItem.destroyItem</span></td><td><span class="inline-code">bool</span></td><td>Whether crafting destroys the matched item after use. Set it to <span class="inline-code">false</span> for reusable tools such as knives, hammers, or other quality providers that should only lose condition.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Use <span class="inline-code">specificId</span> for exact ingredients, and <span class="inline-code">quality</span> plus <span class="inline-code">destroyItem = false</span> for reusable tools.</p>
     </section>
     <details open>
       <summary>Result</summary>

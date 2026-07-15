@@ -380,7 +380,12 @@ ItemRegistry.Register("${escapeCsharp(id)}", new ItemInfo
 }
 
 function ingredientCode(ingredient: Ingredient): string {
-  const amount = floatLiteral(ingredient.amount);
+  const normalizedSpecificDefault =
+    ingredient.mode === "specific" &&
+    !ingredient.isLiquid &&
+    !ingredient.amountWasEdited &&
+    ingredient.amount.trim() === "0.9";
+  const amount = normalizedSpecificDefault ? "0f" : floatLiteral(ingredient.amount);
   const props: string[] = [];
 
   if (ingredient.mode === "specific") {
@@ -595,7 +600,6 @@ export function currentCode(nextPage: PageId, nextItemState: ItemState, nextReci
   if (currentPage === "welcome") return welcomeCode();
   if (currentPage === "unity-csharp") return unityCsharpCode();
   if (currentPage === "setup") return setupCode();
-  if (currentPage === "using-unity") return usingUnityCode();
   if (currentPage === "harmony0") return harmony0Code();
   if (currentPage === "tutorial-first-mod") return tutorialFirstModCode();
   if (currentPage === "recipe") return recipeCode();
@@ -610,6 +614,7 @@ export function currentCode(nextPage: PageId, nextItemState: ItemState, nextReci
   if (currentPage === "custom-item-scripts") return customItemScriptsCode();
   if (currentPage === "liquids") return liquidCode();
   if (currentPage === "player") return playerCode();
+  if (currentPage === "animations") return animationsCode();
   if (currentPage === "statuses") return statusesCode();
   if (currentPage === "moodles") return moodlesCode();
   if (currentPage === "building-entities") return buildingEntityCode();
@@ -631,7 +636,6 @@ export function codeTitle(currentPage: PageId): string {
   if (currentPage === "welcome") return "Plugin.cs";
   if (currentPage === "unity-csharp") return "MyFirstPlugin.cs";
   if (currentPage === "setup") return "Plugin.cs";
-  if (currentPage === "using-unity") return "WireSpliceBundleUsage.cs";
   if (currentPage === "harmony0") return "HarmonyPatches.cs";
   if (currentPage === "tutorial-first-mod") return "AcidShroomTutorial.cs";
   if (currentPage === "recipe") return "RegisterRecipes.cs";
@@ -647,6 +651,7 @@ export function codeTitle(currentPage: PageId): string {
   if (currentPage === "custom-item-scripts") return "StormMantleScript.cs";
   if (currentPage === "liquids") return "RegisterLiquids.cs";
   if (currentPage === "player") return "PlayerHelpers.cs";
+  if (currentPage === "animations") return "RegisterAnimationPack.cs";
   if (currentPage === "statuses") return "StatusesExample.cs";
   if (currentPage === "moodles") return "LeadPoisoningMoodles.cs";
   if (currentPage === "building-entities") return "RegisterBuildings.cs";
@@ -882,32 +887,31 @@ function itemSetupCode(): string {
 // If this page remains here for too long, check that the public file is present in CUCoreLibWebapp/public/item-setup.cs and run the webapp again.`;
 }
 
-function usingUnityCode(): string {
-  return `using CUCoreLib.Data;
+function animationsCode(): string {
+  return `using BepInEx;
 using CUCoreLib.Helpers;
 using UnityEngine;
 
-// Unity authoring summary:
-// 1. Open Tools > CU Modding > Authoring Hub in the CU Mod Project.
-// 2. Create a starter pack such as "WireSplice".
-// 3. Export the bundle to CUCoreExports/Bundles/wiresplice-minigames.
-// 4. Copy the exported bundle into BepInEx/plugins/YourMod/Bundles/.
-
-private void Awake()
+[BepInPlugin("com.example.handwave", "Handwave Example", "1.0.0")]
+[BepInDependency("net.cucorelib", BepInDependency.DependencyFlags.HardDependency)]
+public sealed class Plugin : BaseUnityPlugin
 {
-    AssetLoader.RegisterBundleFromPluginFolder(this, "wiresplice.minigames", "Bundles/wiresplice-minigames");
-}
+    private void Awake()
+    {
+        // Export your bundle from CU Modded Toolkit > Animation Workshop,
+        // then copy it into BepInEx/plugins/YourMod/Bundles/.
+        AssetLoader.RegisterBundleFromPluginFolder(this, "handwave.animations", "Bundles/handwave-animations");
+    }
 
-public override void Start(CUCoreMinigameSession session)
-{
-    session.TryCreateBundledScreen("wiresplice.minigames", "WireSpliceScreen");
-    // Optional equivalent path:
-    // session.TryCreateScreen("cclbundle://wiresplice.minigames/WireSpliceScreen");
-}
+    private void PlayHandwave()
+    {
+        BodyAnimationPlayer.PlayBundled(PlayerCamera.main.body, "handwave.animations", "swing_custom");
+    }
 
-private void ApplyBodyCurves(Body body)
-{
-    BodyAnimationCurves.TryApplyBundledProfile(body, "wiresplice.minigames", "WireSpliceProfile");
+    private void StopHandwave()
+    {
+        BodyAnimationPlayer.ResetToVanilla(PlayerCamera.main.body);
+    }
 }`;
 }
 

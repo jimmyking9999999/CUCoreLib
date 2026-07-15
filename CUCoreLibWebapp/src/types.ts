@@ -13,6 +13,7 @@ export interface Ingredient {
   mode: IngredientMode;
   id: string;
   amount: string;
+  amountWasEdited?: boolean;
   isLiquid: boolean;
   destroyItem: boolean;
 }
