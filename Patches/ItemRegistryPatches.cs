@@ -15,6 +15,10 @@ namespace CUCoreLib.Patches
     [HarmonyPatch(typeof(Item))]
     internal static class ItemRegistryPatches
     {
+        private static readonly MethodInfo WearableCreateSpritesMethod =
+            AccessTools.Method(typeof(Wearable), "CreateSprites", new[] { typeof(Body) }) ??
+            AccessTools.Method(typeof(Wearable), "CreateSprites");
+
         private static readonly FieldInfo NotSpawnWithBatteryField =
             AccessTools.Field(typeof(BatteryItem), "notSpawnWithBattery");
 
@@ -102,13 +106,28 @@ namespace CUCoreLib.Patches
                     if (body != null)
                     {
                         wearable.ClearSprites();
-                        wearable.CreateSprites(body);
+                        InvokeWearableCreateSprites(wearable, body);
                     }
                 }
 
                 if (preferWornSprite)
                     CustomWearablePatches.ApplyPrimaryWornVisualState(item, def);
             }
+        }
+
+        private static void InvokeWearableCreateSprites(Wearable wearable, Body body)
+        {
+            if (wearable == null || body == null || WearableCreateSpritesMethod == null)
+                return;
+
+            var parameters = WearableCreateSpritesMethod.GetParameters();
+            if (parameters.Length == 0)
+            {
+                WearableCreateSpritesMethod.Invoke(wearable, null);
+                return;
+            }
+
+            WearableCreateSpritesMethod.Invoke(wearable, new object[] { body });
         }
 
         internal static Sprite GetInventorySprite(Item item, CustomItemInfo def)

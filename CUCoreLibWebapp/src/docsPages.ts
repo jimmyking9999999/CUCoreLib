@@ -223,7 +223,7 @@ export const pages: Page[] = [
     label: "Console and You",
     crumb: "Debug APIs",
     title: "The Console and You",
-    lead: "...and the many commands for the few~. Register development commands that can be ran via the game's console."
+    lead: "...and the many comcurmands for the few~. Register development commands that can be ran via the game's console."
   },
   {
     id: "debug-testing",
