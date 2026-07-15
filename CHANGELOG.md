@@ -1,7 +1,10 @@
 # Changelog
 I figured that this would be nice to have, as to easily take a look at everything that's been done and why your mod might not work with the new update (sorry!)
+
 **New stuff** documents new stuff introduced in the latest version
-**Changes** refers to potential mod-breaking changes, which may need manual work to update
+
+**Changes** refer to potential mod-breaking changes, which may need manual work to update
+
 **Fixes** refers to bugfixes that are very unlikely or will not break your mod
 
 ## v1.0.3
