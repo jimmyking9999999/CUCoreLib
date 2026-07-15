@@ -116,7 +116,6 @@ When changing public behavior:
 `CUCoreLibAuthoring` is intentionally scoped to CUCoreLib v1 bundle assets only:
 
 - Minigame UI screen prefabs
-- Body curve assets (`AnimationCurveAsset`, `BodyAnimationCurveProfileAsset`)
 
 For Unity authoring, use `CUCoreLibAuthoring` and register those bundles through
 

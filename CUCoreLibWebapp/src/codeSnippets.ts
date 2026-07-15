@@ -2036,31 +2036,6 @@ private void RegisterPlayerDebugCommands()
     );
 }
 
-private void ApplyBundledBodyCurves()
-{
-    Body body = PlayerCamera.main.body;
-
-    BodyAnimationCurves.TryApplyBundledCurve(
-        body,
-        BodyAnimationCurveField.StaminaStrength,
-        "glassworks.curves",
-        "SprintStaminaCurve");
-
-    BodyAnimationCurves.TryApplyBundledCurves(
-        body,
-        "glassworks.curves",
-        new BodyAnimationCurveOverride
-        {
-            Field = BodyAnimationCurveField.WeightMovementCurve,
-            AssetName = "HeavyPackCurve"
-        },
-        new BodyAnimationCurveOverride
-        {
-            Field = BodyAnimationCurveField.FoodMovementCurve,
-            AssetName = "StarvingMovementCurve"
-        });
-
-    BodyAnimationCurves.TryApplyBundledProfile(body, "glassworks.curves", "WinterProfile");
 }`;
 }
 

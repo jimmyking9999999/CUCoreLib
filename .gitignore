@@ -369,8 +369,5 @@ FodyWeavers.xsd
 # Local scratch archives
 Temp.rar
 
-# Local inspection tools
+# Local tools
 tools/*
-!tools/notes/
-tools/notes/*
-!tools/notes/architecture-guidelines.md

@@ -85,13 +85,7 @@ namespace CUCoreLib.Helpers
         private static readonly Dictionary<string, UnityEngine.Object> BundleAssetCache =
             new Dictionary<string, UnityEngine.Object>(StringComparer.OrdinalIgnoreCase);
 
-        private static readonly Dictionary<string, AnimationCurve> BundleAnimationCurveCache =
-            new Dictionary<string, AnimationCurve>(StringComparer.OrdinalIgnoreCase);
-
         private static readonly Dictionary<string, HashSet<string>> BundleAssetCacheKeysByBundleId =
-            new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
-
-        private static readonly Dictionary<string, HashSet<string>> BundleCurveCacheKeysByBundleId =
             new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
 
         private static readonly Dictionary<string, HashSet<string>> AssemblyBundleIds =
@@ -522,36 +516,6 @@ namespace CUCoreLib.Helpers
         public static bool TryLoadBundleGameObject(string bundleId, string assetName, out GameObject prefab)
         {
             return TryLoadBundleAsset(bundleId, assetName, out prefab);
-        }
-
-        public static bool TryLoadBundleAnimationCurve(string bundleId, string assetName, out AnimationCurve curve)
-        {
-            curve = null;
-
-            var normalizedBundleId = NormalizeCacheKey(bundleId);
-            var normalizedAssetName = NormalizeCacheKey(assetName);
-            if (string.IsNullOrEmpty(normalizedBundleId) || string.IsNullOrEmpty(normalizedAssetName)) return false;
-
-            var cacheKey = BuildBundleCurveCacheKey(normalizedBundleId, normalizedAssetName);
-            if (BundleAnimationCurveCache.TryGetValue(cacheKey, out var cachedCurve) && cachedCurve != null)
-            {
-                curve = cachedCurve;
-                return true;
-            }
-
-            if (!TryLoadBundleAsset(normalizedBundleId, normalizedAssetName, out AnimationCurveAsset curveAsset) ||
-                curveAsset == null || curveAsset.Curve == null)
-            {
-                LogMissingBundleCurve(normalizedBundleId, normalizedAssetName);
-                return false;
-            }
-
-            curve = CloneAnimationCurve(curveAsset.Curve);
-            if (curve == null) return false;
-
-            BundleAnimationCurveCache[cacheKey] = curve;
-            AddBundleCacheKey(BundleCurveCacheKeysByBundleId, normalizedBundleId, cacheKey);
-            return true;
         }
 
         public static RegisteredSpriteAnimation RegisterFrameAnimation(string id, IEnumerable<Sprite> frames,
@@ -1190,16 +1154,6 @@ namespace CUCoreLib.Helpers
                 BundleAssetCacheKeysByBundleId.Remove(bundleId);
             }
 
-            if (BundleCurveCacheKeysByBundleId.TryGetValue(bundleId, out var curveCacheKeys) && curveCacheKeys != null)
-            {
-                foreach (var cacheKey in curveCacheKeys.ToArray())
-                {
-                    clearedAny |= BundleAnimationCurveCache.Remove(cacheKey);
-                }
-
-                BundleCurveCacheKeysByBundleId.Remove(bundleId);
-            }
-
             return clearedAny;
         }
 
@@ -1311,11 +1265,6 @@ namespace CUCoreLib.Helpers
             return bundleId + "|" + (assetType?.FullName ?? typeof(UnityEngine.Object).FullName) + "|" + assetName;
         }
 
-        private static string BuildBundleCurveCacheKey(string bundleId, string assetName)
-        {
-            return bundleId + "|curve|" + assetName;
-        }
-
         private static void AddAssemblyKey(Dictionary<string, HashSet<string>> index, string assemblyKey, string key)
         {
             if (string.IsNullOrWhiteSpace(assemblyKey) || string.IsNullOrWhiteSpace(key)) return;
@@ -1338,19 +1287,6 @@ namespace CUCoreLib.Helpers
                 stream.CopyTo(memory);
                 return memory.ToArray();
             }
-        }
-
-        private static AnimationCurve CloneAnimationCurve(AnimationCurve source)
-        {
-            if (source == null) return null;
-
-            var clone = new AnimationCurve(source.keys)
-            {
-                preWrapMode = source.preWrapMode,
-                postWrapMode = source.postWrapMode
-            };
-
-            return clone;
         }
 
         private static void LogMissingEmbeddedResource(string resourcePath, Assembly sourceAssembly,
@@ -1388,18 +1324,6 @@ namespace CUCoreLib.Helpers
 
             Logger?.LogWarning(
                 $"Could not load asset '{assetName}' of type '{assetType?.Name ?? "Object"}' from asset bundle '{bundleId}'.");
-        }
-
-        private static void LogMissingBundleCurve(string bundleId, string assetName)
-        {
-            if (string.IsNullOrWhiteSpace(bundleId) || string.IsNullOrWhiteSpace(assetName)) return;
-
-            var key = "bundle-curve:" + bundleId + ":" + assetName;
-            if (!LoggedMissingResources.Add(key)) return;
-
-            Logger?.LogWarning(
-                $"Could not resolve AnimationCurve asset '{assetName}' from asset bundle '{bundleId}'. " +
-                "Wrap the curve in a CUCoreLib AnimationCurveAsset when authoring the bundle.");
         }
 
         private static AudioClip LoadAudioFromStream(Stream stream, string resourceName)

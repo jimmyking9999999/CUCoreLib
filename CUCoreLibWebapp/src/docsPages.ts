@@ -3185,7 +3185,7 @@ if (AssetLoader.TryLoadBundleAsset("glassworks.minigames", "WireSpliceScreen", o
 {
     Logger.LogInfo("Loaded bundled screen prefab: " + screenPrefab.name);
 }</code></pre>
-      <p>Bundle asset names must match the names you exported in Unity. For minigame screens that usually means a prefab asset name such as <span class="inline-code">WireSpliceScreen</span>. For curves, CUCoreLib expects ScriptableObject wrapper assets described below, not raw <span class="inline-code">AnimationCurve</span> fields floating by themselves.</p>
+      <p>Bundle asset names must match the names you exported in Unity. For minigame screens that usually means a prefab asset name such as <span class="inline-code">WireSpliceScreen</span>.</p>
     </section>
     <section class="lesson-card">
       <h2>Bundle invalidation hooks</h2>
@@ -3198,13 +3198,9 @@ AssetLoader.InvalidateAllBundles();                    // clears every registere
     <section class="lesson-card">
       <h2>Unity / ThunderKit authoring</h2>
       <p>For minigame screens, build a normal Unity prefab with a root <span class="inline-code">GameObject</span> or <span class="inline-code">RectTransform</span> and export it into an AssetBundle through your usual ThunderKit or Unity build pipeline. CUCoreLib instantiates that prefab under the live minigame screen canvas, then applies the same sibling-index and <span class="inline-code">spawnedMiniGame</span> bookkeeping the vanilla runner uses.</p>
-      <p>For body curves, create a CUCoreLib-owned <span class="inline-code">AnimationCurveAsset</span> ScriptableObject and assign the curve into its <span class="inline-code">Curve</span> field. If you want a reusable batch, create a <span class="inline-code">BodyAnimationCurveProfileAsset</span> and fill its array with <span class="inline-code">BodyAnimationCurveField</span> plus asset-name pairs.</p>
       <pre><code>// Unity authoring summary:
 // 1. Create prefab asset: WireSpliceScreen
-// 2. Create ScriptableObject asset: SprintStaminaCurve (AnimationCurveAsset)
-// 3. Optional batch asset: WinterProfile (BodyAnimationCurveProfileAsset)
-// 4. Export them into an AssetBundle with stable asset names</code></pre>
-      <p>The profile stores asset-name strings on purpose so the same bundle can keep one reusable profile asset that points at multiple curve assets without forcing CUCoreLib into a separate registry layer.</p>
+// 2. Export it into an AssetBundle with a stable asset name</code></pre>
     </section>
     <details open>
       <summary>When to choose which</summary>
@@ -3212,7 +3208,7 @@ AssetLoader.InvalidateAllBundles();                    // clears every registere
         <ul>
           <li>Embed required icons, shipped sounds, and bundled text or JSON files.</li>
           <li>Use loose files for texture packs, config-adjacent assets, or anything players may replace.</li>
-          <li>Use AssetBundles in v1 only for minigame prefabs and body-curve data.</li>
+          <li>Use AssetBundles in v1 for minigame prefabs and other explicitly supported CUCoreLib asset workflows.</li>
           <li>See the Audio page for <span class="inline-code">AudioClip</span>-specific loading, caching, and playback guidance.</li>
         </ul>
       </div>

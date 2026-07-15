@@ -110,14 +110,6 @@ export const hoverPanels: Record<string, HoverPanel> = {
     title: "CUCoreMinigameSession",
     body: "Live view over the active MinigameBase runner. It exposes the active body, current item, hand state, spawned minigame UI, vanilla-style and bundled screen creation helpers, and runtime hand-sprite utilities without forcing global lookups throughout your minigame logic."
   },
-  BodyAnimationCurves: {
-    title: "BodyAnimationCurves",
-    body: "Typed helper surface for assigning bundled or already-resolved AnimationCurve data onto the vanilla Body curve fields without rewriting the same field switch in every mod."
-  },
-  BodyAnimationCurveField: {
-    title: "BodyAnimationCurveField",
-    body: "Enum listing the supported vanilla Body AnimationCurve fields exposed through BodyAnimationCurves, such as staminaStrength, movement curves, heart curves, and thirstBloodPressureCurve."
-  },
   CUCoreMinigameDefinition: {
     title: "CUCoreMinigameDefinition",
     body: "Composable minigame definition surface. Override only the behavior you need, then start it through CUCoreMinigames.TryStart so your game logic works against a CUCoreMinigameSession instead of inheriting directly from the vanilla Minigame type."
