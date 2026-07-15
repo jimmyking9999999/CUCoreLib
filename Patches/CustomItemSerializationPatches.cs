@@ -23,7 +23,16 @@ namespace CUCoreLib.Patches
             if (original == null) return null;
 
             var clone = Object.Instantiate(original, position, rotation);
-            if (clone is GameObject obj) obj.SetActive(true);
+            if (clone is GameObject obj)
+            {
+                obj.SetActive(true);
+
+                // Apply registered runtime properties (container capacity etc.) immediately:
+                // TryLoadGame refills containers via Container.LoadItem in this same frame,
+                // before the Item.Start postfix would apply them.
+                var item = obj.GetComponent<Item>();
+                if (item != null) ItemRegistryPatches.ApplyCustomItemRuntime(item);
+            }
 
             return clone;
         }

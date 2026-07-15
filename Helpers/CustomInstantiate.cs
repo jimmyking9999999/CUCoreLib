@@ -111,7 +111,13 @@ namespace CUCoreLib.Helpers
             }
 
             var item = obj.GetComponent<Item>();
-            if (item) item.id = id;
+            if (item)
+            {
+                item.id = id;
+                // Container capacity must live on the template itself: saved-game loading calls
+                // Container.LoadItem in the same frame as instantiation, before Item.Start runs.
+                ItemRegistryPatches.ApplyContainerProperties(item, info);
+            }
 
             if (item != null && info.wearable && obj.GetComponent<Wearable>() == null)
             {

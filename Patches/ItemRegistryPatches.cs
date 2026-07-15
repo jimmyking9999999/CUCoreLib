@@ -281,16 +281,7 @@ namespace CUCoreLib.Patches
             // So instead we have to add components at runtime and copy values over, which is less efficient but necessary for flexibility
 
             // Containers
-            if (def.Container != null)
-            {
-                var cont = item.GetComponent<Container>();
-                if (cont == null) cont = item.gameObject.AddComponent<Container>();
-                cont.maxWeight = def.Container.Capacity;
-                cont.maxWeightPerItem = def.Container.MaxWeightPerItem;
-                cont.encumberanceMult = def.Container.EncumbranceReduction;
-                cont.itemsVisible = def.Container.ItemsVisible;
-                cont.tagRestriction = def.Container.TagRestriction ?? new string[0];
-            }
+            ApplyContainerProperties(item, def);
 
             // Batteries
             if (def.Battery != null)
@@ -340,6 +331,19 @@ namespace CUCoreLib.Patches
                 if (def.Syringe.Capacity > 0f)
                     item.condition = Mathf.Clamp01(wat.stack.Sum(liquid => liquid.amount) / def.Syringe.Capacity);
             }
+        }
+
+        internal static void ApplyContainerProperties(Item item, CustomItemInfo def)
+        {
+            if (item == null || def?.Container == null) return;
+
+            var cont = item.GetComponent<Container>();
+            if (cont == null) cont = item.gameObject.AddComponent<Container>();
+            cont.maxWeight = def.Container.Capacity;
+            cont.maxWeightPerItem = def.Container.MaxWeightPerItem;
+            cont.encumberanceMult = def.Container.EncumbranceReduction;
+            cont.itemsVisible = def.Container.ItemsVisible;
+            cont.tagRestriction = def.Container.TagRestriction ?? new string[0];
         }
 
         private static bool IsLiquidContainer(CustomItemInfo def)
