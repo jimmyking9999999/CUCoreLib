@@ -47,6 +47,9 @@ namespace CUCoreLib.Registries
         private static readonly HashSet<string> WarnedMissingCustomIconIds =
             new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
+        private static readonly HashSet<string> WarnedInvalidLiquidStackKeys =
+            new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
         private static readonly ConditionalWeakTable<Item, ItemCustomDataState> ItemCustomDataStates =
             new ConditionalWeakTable<Item, ItemCustomDataState>();
 
@@ -93,6 +96,7 @@ namespace CUCoreLib.Registries
             ApplyMedicalActions(info);
             ApplyDefaultOverrides(info);
             LocaleRegistry.RegisterCraftingQualities(info.qualities);
+            ValidateLiquidReferences(id, info);
 
             if (!string.IsNullOrEmpty(info.fullName)) info.fullName = LocaleRegistry.Get("item", id, info.fullName);
 
@@ -434,6 +438,57 @@ namespace CUCoreLib.Registries
             NetworkSpawnComponentsWarningLogged = true;
             CUCoreLibPlugin.Log?.LogWarning(
                 "CUCoreLib Items: Ignoring network snapshot 'spawnComponents'. SpawnComponents are only honored from local registration.");
+        }
+
+        private static void ValidateLiquidReferences(string itemId, CustomItemInfo info)
+        {
+            if (info == null) return;
+
+            ValidateLiquidStacks(itemId, "defaultContents", info.defaultContents);
+            ValidateLiquidStacks(itemId, "Syringe.DefaultContents", info.Syringe?.DefaultContents);
+        }
+
+        private static void ValidateLiquidStacks(string itemId, string sourceName, IList<LiquidStack> stacks)
+        {
+            if (stacks == null) return;
+
+            for (var i = 0; i < stacks.Count; i++)
+            {
+                var stack = stacks[i];
+                if (stack == null)
+                {
+                    var nullKey = BuildInvalidLiquidStackWarningKey(itemId, sourceName, i, "<null>");
+                    if (!WarnedInvalidLiquidStackKeys.Add(nullKey)) continue;
+
+                    CUCoreLibPlugin.Log?.LogWarning(
+                        $"Item '{itemId}' has a null liquid stack at {sourceName}[{i}].");
+                    continue;
+                }
+
+                if (string.IsNullOrWhiteSpace(stack.liquidId))
+                {
+                    var emptyKey = BuildInvalidLiquidStackWarningKey(itemId, sourceName, i, "<empty>");
+                    if (!WarnedInvalidLiquidStackKeys.Add(emptyKey)) continue;
+
+                    CUCoreLibPlugin.Log?.LogWarning(
+                        $"Item '{itemId}' has a liquid stack with no liquid ID at {sourceName}[{i}].");
+                    continue;
+                }
+
+                var normalizedId = stack.liquidId.Trim();
+                if (LiquidRegistry.TryGetCustomInfo(normalizedId, out _) || Liquids.Registry.ContainsKey(normalizedId)) continue;
+
+                var warningKey = BuildInvalidLiquidStackWarningKey(itemId, sourceName, i, normalizedId);
+                if (!WarnedInvalidLiquidStackKeys.Add(warningKey)) continue;
+
+                CUCoreLibPlugin.Log?.LogWarning(
+                    $"Item '{itemId}' references unknown liquid '{normalizedId}' at {sourceName}[{i}].");
+            }
+        }
+
+        private static string BuildInvalidLiquidStackWarningKey(string itemId, string sourceName, int index, string liquidId)
+        {
+            return (itemId ?? string.Empty) + "|" + sourceName + "|" + index + "|" + liquidId;
         }
 
         public static bool TryGetCustomInfo(string id, out CustomItemInfo info)
