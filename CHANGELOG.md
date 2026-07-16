@@ -4,6 +4,17 @@ I figured that this would be nice to have, as to easily take a look at everythin
 **Changes** refers to potential mod-breaking changes, which may need manual work to update
 **Fixes** refers to bugfixes that are very unlikely or will not break your mod
 
+## v1.0.4
+
+### New Stuff!
+-
+
+### Changes
+-
+
+### Fixes
+-
+
 ## v1.0.3
 
 ### New Stuff!
@@ -15,13 +26,15 @@ I figured that this would be nice to have, as to easily take a look at everythin
 - Runtime debugger for variables was introduced, under the console command `debugwatch`
 - Added early AssetBundle support for minigame screens, with a guide to follow soon
 - Added bundled body animation curve/profile loading support, ^
-- Added `DropPool` support for custom items, so they can target corpses, crates, traders, and capsules directly. Access this via the new itemregistry field `DropPool = DropPool = DropPool.FoodCrate | DropPool.MedicalCrate`.
+- Added `DropPool` support for custom items, so they can target corpses, crates, traders, and capsules directly. Access this via the new itemregistry field `DropPool = DropPool.FoodCrate | DropPool.MedicalCrate`.
 - The specific fields are `Corpse, MedicalCrate, FoodCrate, ContainerCrate, Trader1, Trader2, Trader3, (or, for all three trader species) AllTraders, DropCapsule, CapsuleContainer`
 - Added itemregistry field `WorldSpawnPerChunk` for randomly spawning raw items into the world per chunk
 - Added `SetWornSprite` / `setWornSprite` helpers for refreshing live worn sprites
+- Added a few more CUCoreUtils functions akin to ^
 - Animation support
 
 ### Changes
+- !! Recipes with no args now default to 90% condition instead of 0% condition !! (Sorry, it was the lesser or two evils. You need to use (0f) to have it back to 0% condition requirement)
 - Locale recursive directory search was accidentally removed and now re-added
 - Slimmed down batteryProperties, as I was overcomplicating it. Your mods will work still, but you may face some slight changes
 - Custom structures now no longer spawn in the tutorial, and spawn up to only once in the debug world

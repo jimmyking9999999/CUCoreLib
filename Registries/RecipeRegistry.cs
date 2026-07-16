@@ -89,10 +89,7 @@ namespace CUCoreLib.Registries
                 foreach (var item in recipe.items)
                 {
                     if (!string.IsNullOrEmpty(item.specificId))
-                    {
-                        NormalizeSpecificIngredientDefaults(item);
                         item.specific = true;
-                    }
 
                     item.ignoredId = recipe.isRepair ? string.Empty : recipe.result.id;
                 }
@@ -183,13 +180,6 @@ namespace CUCoreLib.Registries
             result?.AddInfo("Cleared " + ownedKeys.Length + " recipes owned by '" + normalizedOwnerId + "'.");
         }
 
-        private static void NormalizeSpecificIngredientDefaults(RecipeItem item)
-        {
-            if (item == null || item.specific) return;
-
-            if (Mathf.Approximately(item.minimumCondition, 0.9f)) item.minimumCondition = 0f;
-        }
-
         private static void NormalizeRecipeIngredients(Recipe recipe)
         {
             if (recipe?.items == null) return;
@@ -198,7 +188,6 @@ namespace CUCoreLib.Registries
             {
                 if (item == null || string.IsNullOrWhiteSpace(item.specificId)) continue;
 
-                NormalizeSpecificIngredientDefaults(item);
                 item.specific = true;
             }
         }

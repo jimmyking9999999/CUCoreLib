@@ -3032,7 +3032,7 @@ function recipePage(): string {
       <h3>Specific item</h3>
       <p>Use <span class="inline-code">specificId</span> when the recipe should require one exact item ID.</p>
       <pre><code>new RecipeItem { specificId = "stick" },</code></pre>
-      <p>If you need a condition requirement, you can set it either in the constructor or on the field itself.</p>
+      <p>Specific items follow vanilla behavior: if you omit the condition, they default to <span class="inline-code">0.9f</span> minimum condition. If you need a different condition requirement, you can set it either in the constructor or on the field itself.</p>
       <pre><code>new RecipeItem(0.7f) { specificId = "ironore" },
 new RecipeItem { specificId = "ironore", minimumCondition = 0.7f },</code></pre>
 
