@@ -1959,9 +1959,11 @@ function liquidsPage(): string {
             <tr><td><span class="inline-code">color</span></td><td><span class="inline-code">Color</span></td><td>Color used by liquid UI, average container color, and liquid fill visuals.</td></tr>
             <tr><td><span class="inline-code">valuePerLiter</span></td><td><span class="inline-code">float</span></td><td>Trade/value basis for 1000 mL of the liquid.</td></tr>
             <tr><td><span class="inline-code">onDrink</span></td><td><span class="inline-code">LiquidType.OnDrink</span></td><td>Called by <span class="inline-code">WaterContainerItem.Drink(body, amount)</span> for each drained liquid portion.</td></tr>
-            <tr><td><span class="inline-code">onHealthUse</span></td><td><span class="inline-code">LiquidType.OnHealthUse</span></td><td>Called by limb use when allowed. Injection also uses this delegate when <span class="inline-code">injectable</span> is true.</td></tr>
-            <tr><td><span class="inline-code">healthUsable</span></td><td><span class="inline-code">bool</span></td><td>Allows <span class="inline-code">ApplyToLimb</span> to call <span class="inline-code">onHealthUse</span>.</td></tr>
-            <tr><td><span class="inline-code">injectable</span></td><td><span class="inline-code">bool</span></td><td>Allows <span class="inline-code">Inject</span> to call <span class="inline-code">onHealthUse</span>. Injection sickness can still apply even when this is false.</td></tr>
+            <tr><td><span class="inline-code">onApplyToLimb</span></td><td><span class="inline-code">LiquidType.OnHealthUse</span></td><td>Called by <span class="inline-code">ApplyToLimb</span> when the liquid is <span class="inline-code">healthUsable</span>. Falls back to <span class="inline-code">onHealthUse</span> when unset.</td></tr>
+            <tr><td><span class="inline-code">onInject</span></td><td><span class="inline-code">LiquidType.OnHealthUse</span></td><td>Called by <span class="inline-code">Inject</span> when the liquid is <span class="inline-code">injectable</span>. Falls back to <span class="inline-code">onHealthUse</span> when unset.</td></tr>
+            <tr><td><span class="inline-code">onHealthUse</span></td><td><span class="inline-code">LiquidType.OnHealthUse</span></td><td>Legacy shared fallback used when <span class="inline-code">onApplyToLimb</span> or <span class="inline-code">onInject</span> are not set.</td></tr>
+            <tr><td><span class="inline-code">healthUsable</span></td><td><span class="inline-code">bool</span></td><td>Allows <span class="inline-code">ApplyToLimb</span> to call <span class="inline-code">onApplyToLimb</span>, or <span class="inline-code">onHealthUse</span> as a fallback.</td></tr>
+            <tr><td><span class="inline-code">injectable</span></td><td><span class="inline-code">bool</span></td><td>Allows <span class="inline-code">Inject</span> to call <span class="inline-code">onInject</span>, or <span class="inline-code">onHealthUse</span> as a fallback. Injection sickness can still apply even when this is false.</td></tr>
             <tr><td><span class="inline-code">injectionSickness</span></td><td><span class="inline-code">float</span></td><td>Multiplier for sickness and blood-viscosity changes during injection. Defaults to <span class="inline-code">1f</span>.</td></tr>
             <tr><td><span class="inline-code">localeFromItem</span></td><td><span class="inline-code">bool</span></td><td>If true, tooltip names/descriptions come from item locale keys using the liquid ID.</td></tr>
             <tr><td><span class="inline-code">qualities</span></td><td><span class="inline-code">List&lt;CraftingQuality&gt;</span></td><td>Liquid qualities used by recipe matching. Amounts scale by mL through <span class="inline-code">GetScaledQualities</span>. Use <span class="inline-code">CUCoreUtils.CreateCraftingQuality(...)</span> when you want to attach a fallback display name for a custom quality ID.</td></tr>
@@ -1977,7 +1979,7 @@ function liquidsPage(): string {
     valuePerLiter = 90f,
     healthUsable = true,
     injectable = false,
-    onHealthUse = (ml, limb) =>
+    onApplyToLimb = (ml, limb) =>
     {
         if (limb.skinHealth > 20f)
         {
@@ -2015,6 +2017,7 @@ function liquidsPage(): string {
       <h2>Liquid containers</h2>
       <p>The runtime component is <span class="inline-code">WaterContainerItem</span>. It owns the liquid stack list, tracks capacity and fill amount, adds or drains liquids, and calls liquid effects when the player drinks, applies, or injects contents.</p>
       <p><span class="inline-code">CustomItemInfo</span> inherits the vanilla <span class="inline-code">LiquidItemInfo</span> fields, so normal liquid containers use <span class="inline-code">capacity</span>, <span class="inline-code">defaultContents</span>, and <span class="inline-code">autoFill</span> directly. <span class="inline-code">SyringeProperties</span> is only for syringe minigame/injection behavior.</p>
+      <p>Use liquid callbacks on the liquid registration itself, not on the item. Put topical effects in <span class="inline-code">onApplyToLimb</span>, injection effects in <span class="inline-code">onInject</span>, and keep <span class="inline-code">onHealthUse</span> only when you intentionally want one shared fallback for both paths.</p>
       <div class="table-wrap">
         <table class="field-table">
           <thead><tr><th>Member</th><th>Type</th><th>What it means</th></tr></thead>
@@ -2029,8 +2032,8 @@ function liquidsPage(): string {
             <tr><td><span class="inline-code">AddLiquid(id, amount)</span></td><td><span class="inline-code">float</span></td><td>Adds as much liquid as fits and returns the amount actually added.</td></tr>
             <tr><td><span class="inline-code">Drain(...)</span></td><td><span class="inline-code">void</span></td><td>Removes calculated liquid amounts and updates item condition to match fill percentage.</td></tr>
             <tr><td><span class="inline-code">Drink(body, amount)</span></td><td><span class="inline-code">void</span></td><td>Drains proportionally and calls each liquid's <span class="inline-code">onDrink</span>.</td></tr>
-            <tr><td><span class="inline-code">ApplyToLimb(limb, amount)</span></td><td><span class="inline-code">void</span></td><td>Drains proportionally and calls <span class="inline-code">onHealthUse</span> only for liquids marked <span class="inline-code">healthUsable</span>.</td></tr>
-            <tr><td><span class="inline-code">Inject(limb, amount)</span></td><td><span class="inline-code">void</span></td><td>Drains proportionally, applies injection sickness, then calls <span class="inline-code">onHealthUse</span> for liquids marked <span class="inline-code">injectable</span>.</td></tr>
+            <tr><td><span class="inline-code">ApplyToLimb(limb, amount)</span></td><td><span class="inline-code">void</span></td><td>Drains proportionally and calls <span class="inline-code">onApplyToLimb</span>, or <span class="inline-code">onHealthUse</span> when the new callback is unset, only for liquids marked <span class="inline-code">healthUsable</span>.</td></tr>
+            <tr><td><span class="inline-code">Inject(limb, amount)</span></td><td><span class="inline-code">void</span></td><td>Drains proportionally, applies injection sickness, then calls <span class="inline-code">onInject</span>, or <span class="inline-code">onHealthUse</span> when the new callback is unset, for liquids marked <span class="inline-code">injectable</span>.</td></tr>
           </tbody>
         </table>
       </div>
@@ -2771,7 +2774,7 @@ function advancedItemPage(): string {
     AssetLoader.LoadEmbeddedSprite("Images.reliefinjector.png")
 );</code></pre>
       <img src="images/relief-injector-ingame.png" alt="In-game screenshot of the relief injector's syringe minigame" class="screenshot" />
-      <p>The liquid decides what injection actually does. <span class="inline-code">WaterContainerItem.Inject</span> drains the liquid stack and calls the liquid's health-use behavior when that liquid is injectable.</p>
+      <p>The liquid decides what injection actually does. <span class="inline-code">WaterContainerItem.Inject</span> drains the liquid stack and calls <span class="inline-code">onInject</span> when that liquid is injectable, falling back to <span class="inline-code">onHealthUse</span> for older registrations.</p>
       <p>You'll learn more about liquids and their use on the <a href="index.html#liquids">Liquids</a> page.</p>
     </section>
 

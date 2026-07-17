@@ -31,6 +31,12 @@ namespace CUCoreLib.Patches
         private static readonly HashSet<string> WarnedInvalidSpawnComponents =
             new HashSet<string>();
 
+        [ThreadStatic]
+        private static LiquidRegistry.HealthUseMode previousLiquidApplyMode;
+
+        [ThreadStatic]
+        private static LiquidRegistry.HealthUseMode previousLiquidInjectMode;
+
         // Startup injection
         [HarmonyPatch("SetupItems")]
         [HarmonyPostfix]
@@ -63,6 +69,36 @@ namespace CUCoreLib.Patches
             if (!ItemRegistry.TryGetCustomInfo(item, out var def)) return;
 
             __instance.fillSprite = def.LiquidMask;
+        }
+
+        [HarmonyPatch(typeof(WaterContainerItem), nameof(WaterContainerItem.ApplyToLimb))]
+        [HarmonyPrefix]
+        private static void BeginLiquidApplyToLimb()
+        {
+            previousLiquidApplyMode = LiquidRegistry.PushHealthUseMode(LiquidRegistry.HealthUseMode.ApplyToLimb);
+        }
+
+        [HarmonyPatch(typeof(WaterContainerItem), nameof(WaterContainerItem.ApplyToLimb))]
+        [HarmonyFinalizer]
+        private static Exception EndLiquidApplyToLimb(Exception __exception)
+        {
+            LiquidRegistry.PopHealthUseMode(previousLiquidApplyMode);
+            return __exception;
+        }
+
+        [HarmonyPatch(typeof(WaterContainerItem), nameof(WaterContainerItem.Inject))]
+        [HarmonyPrefix]
+        private static void BeginLiquidInject()
+        {
+            previousLiquidInjectMode = LiquidRegistry.PushHealthUseMode(LiquidRegistry.HealthUseMode.Inject);
+        }
+
+        [HarmonyPatch(typeof(WaterContainerItem), nameof(WaterContainerItem.Inject))]
+        [HarmonyFinalizer]
+        private static Exception EndLiquidInject(Exception __exception)
+        {
+            LiquidRegistry.PopHealthUseMode(previousLiquidInjectMode);
+            return __exception;
         }
 
         internal static void ApplyCustomItemRuntime(Item item, bool preferWornSprite = false)

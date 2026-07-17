@@ -149,7 +149,7 @@ namespace AcidShroomTutorial
                     body.talker.EatBad();
                 },
                 // On health panel limb use effects
-                onHealthUse = (ml, limb) =>
+                onApplyToLimb = (ml, limb) =>
                 {
                     float dose = ml * 0.01f; // 100ml 
 
@@ -1775,6 +1775,7 @@ private void RegisterPineappleJuiceContent()
         color = new Color(0.94f, 0.88f, 0.66f),
         valuePerLiter = 22f,
         healthUsable = true,
+        injectable = true,
         injectionSickness = 0.4f,
         onDrink = (ml, body) =>
         {
@@ -1785,16 +1786,22 @@ private void RegisterPineappleJuiceContent()
             body.happiness += 2f * liters; // +2 happiness
             body.talker.EatGood();
         },
-        onHealthUse = (ml, limb) =>
+        onApplyToLimb = (ml, limb) =>
         {
-            float dose = ml * 0.01f; // 100ml = 1 full opium syringe
+            float dose = ml * 0.01f;
             
+            limb.pain -= dose * 2f;
+            limb.skinHealth += dose * 3f;
+        },
+        onInject = (ml, limb) =>
+        {
+            float dose = ml * 0.01f; // 100ml = 1 full syringe
+
             limb.body.happiness -= dose * 8f;
-            limb.body.bloodVolume += dose * 0.5f; 
+            limb.body.bloodVolume += dose * 0.5f;
             limb.body.sicknessAmount += dose * 7f;
             limb.infected = true;
             limb.infectionAmount += dose * 10f;
-            
         },
         qualities = new List<CraftingQuality>
         {

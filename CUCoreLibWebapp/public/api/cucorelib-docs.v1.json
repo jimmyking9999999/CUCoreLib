@@ -2,7 +2,7 @@
   "version": "1.0",
   "library": "CUCoreLib",
   "description": "Machine-readable CUCoreLib web docs generated from the interactive docs sources.",
-  "generatedAt": "2026-07-15T08:41:23.054Z",
+  "generatedAt": "2026-07-17T09:53:56.030Z",
   "baseUrl": "/",
   "topics": [
     {
@@ -100,7 +100,7 @@
       "label": "Recipe API",
       "crumb": "Content APIs",
       "title": "Creating recipes",
-      "lead": "Wanna make a super secret item? Have it require 500 INT to craft, so that only blueprints can reveal it.",
+      "lead": "Creating custom recipes for all sorts of items!",
       "appUrl": "/docs/recipe/",
       "machineUrl": "/api/topics/recipe.json"
     },
@@ -217,7 +217,7 @@
       "label": "Console and You",
       "crumb": "Debug APIs",
       "title": "The Console and You",
-      "lead": "...and the many commands for the few~. Register development commands that can be ran via the game's console.",
+      "lead": "...and the many comcurmands for the few~. Register development commands that can be ran via the game's console.",
       "appUrl": "/docs/console/",
       "machineUrl": "/api/topics/console.json"
     },

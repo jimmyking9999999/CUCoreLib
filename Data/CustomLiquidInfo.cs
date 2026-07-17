@@ -54,6 +54,18 @@ namespace CUCoreLib.Data
         public LiquidType.OnHealthUse onHealthUse;
 
         /// <summary>
+        /// Callback invoked when the liquid is applied directly to a limb.
+        /// Falls back to <see cref="onHealthUse"/> when unset.
+        /// </summary>
+        public LiquidType.OnHealthUse onApplyToLimb;
+
+        /// <summary>
+        /// Callback invoked when the liquid is injected into a limb.
+        /// Falls back to <see cref="onHealthUse"/> when unset.
+        /// </summary>
+        public LiquidType.OnHealthUse onInject;
+
+        /// <summary>
         /// Crafting-quality tags associated with the liquid.
         /// </summary>
         public List<CraftingQuality> qualities = new List<CraftingQuality>();

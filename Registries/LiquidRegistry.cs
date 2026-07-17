@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using CUCoreLib.ContentReload;
 using CUCoreLib.Data;
 using CUCoreLib.Helpers;
@@ -12,11 +13,20 @@ namespace CUCoreLib.Registries
 {
     public static class LiquidRegistry
     {
+        internal enum HealthUseMode
+        {
+            None,
+            ApplyToLimb,
+            Inject
+        }
+
         internal static Dictionary<string, CustomLiquidInfo> RegisteredLiquids =
             new Dictionary<string, CustomLiquidInfo>(StringComparer.OrdinalIgnoreCase);
 
         private static readonly RegistrationOwnershipIndex<string> LiquidOwners =
             new RegistrationOwnershipIndex<string>(StringComparer.OrdinalIgnoreCase);
+
+        private static readonly AsyncLocal<HealthUseMode> CurrentHealthUseMode = new AsyncLocal<HealthUseMode>();
 
         private static bool LoggedInitialInjection;
 
@@ -84,7 +94,7 @@ namespace CUCoreLib.Registries
                 color = info.color,
                 valuePerLiter = info.valuePerLiter,
                 onDrink = info.onDrink,
-                onHealthUse = info.onHealthUse,
+                onHealthUse = CreateHealthUseDispatcher(info),
                 healthUsable = info.healthUsable,
                 injectable = info.injectable,
                 injectionSickness = info.injectionSickness,
@@ -97,6 +107,47 @@ namespace CUCoreLib.Registries
             if (!string.IsNullOrEmpty(info.description)) LocaleRegistry.Register("liquid", id + "dsc", info.description);
 
             return !wasPresent;
+        }
+
+        internal static HealthUseMode PushHealthUseMode(HealthUseMode mode)
+        {
+            var previousMode = CurrentHealthUseMode.Value;
+            CurrentHealthUseMode.Value = mode;
+            return previousMode;
+        }
+
+        internal static void PopHealthUseMode(HealthUseMode previousMode)
+        {
+            CurrentHealthUseMode.Value = previousMode;
+        }
+
+        internal static HealthUseMode GetCurrentHealthUseMode()
+        {
+            return CurrentHealthUseMode.Value;
+        }
+
+        private static LiquidType.OnHealthUse CreateHealthUseDispatcher(CustomLiquidInfo info)
+        {
+            return (amount, limb) =>
+            {
+                var handler = ResolveHealthUseHandler(info);
+                handler?.Invoke(amount, limb);
+            };
+        }
+
+        private static LiquidType.OnHealthUse ResolveHealthUseHandler(CustomLiquidInfo info)
+        {
+            if (info == null) return null;
+
+            switch (CurrentHealthUseMode.Value)
+            {
+                case HealthUseMode.ApplyToLimb:
+                    return info.onApplyToLimb ?? info.onHealthUse;
+                case HealthUseMode.Inject:
+                    return info.onInject ?? info.onHealthUse;
+                default:
+                    return info.onHealthUse ?? info.onApplyToLimb ?? info.onInject;
+            }
         }
 
         public static IEnumerable<string> GetRegisteredLiquidIds()
