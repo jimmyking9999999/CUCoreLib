@@ -136,6 +136,8 @@ namespace CUCoreLib.Networking
             RegisterModule("tiles", CaptureTileManifest, TileRegistry.ApplyNetworkSnapshot);
             RegisterModule("buildings", CaptureBuildingManifest, BuildingEntityRegistry.ApplyNetworkSnapshot);
             RegisterModule("liquids", CaptureLiquidManifest, LiquidRegistry.ApplyNetworkSnapshot);
+            RegisterModule("liquidtiles", LiquidTileRegistry.CaptureNetworkSnapshot,
+                LiquidTileRegistry.ApplyNetworkSnapshot);
             RegisterModule("statuses", StatusRegistry.CaptureNetworkSnapshot, StatusRegistry.ApplyNetworkSnapshot);
             RegisterModule("moodles", MoodleRegistry.CaptureNetworkSnapshot, MoodleRegistry.ApplyNetworkSnapshot);
             RegisterModule("settings", ModOptionsRegistry.CaptureNetworkSnapshot,

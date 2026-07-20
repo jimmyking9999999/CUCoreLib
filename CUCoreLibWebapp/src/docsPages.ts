@@ -20,7 +20,7 @@ export const pages: Page[] = [
     label: "Setup",
     crumb: "Getting Started",
     title: "Install ScavTemplate",
-    lead: "Create a template mod, point it at your local game install, and add CUCoreLib as a hard dependency."
+    lead: "Getting ready for modding!"
   },
   {
     id: "harmony0",
@@ -907,7 +907,7 @@ Vector3 position = body.transform.position;</code></pre>
           <tr><td><span class="inline-code">sleeping</span></td><td><span class="inline-code">bool</span></td><td>Whether the body is currently sleeping.</td></tr>
           <tr><td><span class="inline-code">temperature</span></td><td><span class="inline-code">float</span></td><td>Core body temperature.</td></tr>
           <tr><td><span class="inline-code">clothingTemperature</span></td><td><span class="inline-code">float</span></td><td>Temperature contribution from worn clothing.</td></tr>
-          <tr><td><span class="inline-code">averagePain</span></td><td><span class="inline-code">float</span></td><td>Aggregate pain across the body.</td></tr>
+          <tr><td><span class="inline-code">averagePain</span></td><td><span class="inline-code">float</span></td><td>Not usable directly. Adjust via setting the limb's pain property. (e.g. Body.limb[0].pain += 50f;)</td></tr>
           <tr><td><span class="inline-code">totalBleedSpeed</span></td><td><span class="inline-code">float</span></td><td>Total bleed rate from all wounds.</td></tr>
           <tr><td><span class="inline-code">slots</span></td><td><span class="inline-code">InventorySlot[]</span></td><td>Player inventory and equipment slots.</td></tr>
           <tr><td><span class="inline-code">breathing</span></td><td><span class="inline-code">bool</span></td><td>Whether the body is currently breathing.</td></tr>
@@ -1361,15 +1361,15 @@ function setupPage(): string {
    
 
     <section class="lesson-card">
-      <h2>Use ScavTemplate as the project shell</h2>
-      <p><span class="inline-code">ScavTemplate</span> gives you the BepInEx project shape so you are not starting from an empty C# library. CUCoreLib is added on top as a dependency.</p>
+      <h2>Using a template as the project shell</h2>
+      <p>We'll start by downloading a template <span class="inline-code">(CCLScavTemplate)</span>, which gives you the BepInEx project shape with the necessary structure and dependencies.</p>
       <ol>
-        <li>Open <a href="https://github.com/05126619z/ScavTemplate" target="_blank" rel="noopener">05126619z/ScavTemplate</a>.</li>
+        <li>Open <a href="https://github.com/jimmyking9999999/CCLScavTemplate" target="_blank" rel="noopener">jimmyking9999999/CCLScavTemplate</a>.</li>
         <li>Create a new repository from the template or clone/download it.</li>
-        <pre><code>git clone https://github.com/05126619z/ScavTemplate</code></pre>
-        <li>Open the folder in whichever C# editor you prefer, or stay in the terminal and build with <span class="inline-code">dotnet</span>.</li>
+        <pre><code>git clone https://github.com/jimmyking9999999/CCLScavTemplate</code></pre>
+        <li>Open the folder in whichever C# editor you prefer, or stay in the terminal and build with <span class="inline-code">dotnet build</span>.</li>
       </ol>
-      <p><span class="inline-code">Template.sln</span> works in Visual Studio or Rider, but it is not required. VS Code users can open the folder directly once the .NET SDK and C# tooling are installed.</p>
+      <p>It is recommended to use Visual Studio or Rider, but it is not required. Reminder to install the .NET SDK and C# tooling, if no highlighting is present!</p>
     </section>
 
     <section class="lesson-card">
@@ -1379,7 +1379,7 @@ function setupPage(): string {
         <li>Open <a href="https://github.com/jimmyking9999999/CUCoreLib/releases/" target="_blank" rel="noopener">jimmyking9999999/CUCoreLib/releases/</a>.</li>
         <li>Download the latest <span class="inline-code">CUCoreLib.dll</span> and place it into your BepInEx\\plugins folder.</li>
         <pre><code>C:\\Program Files (x86)\\Steam\\steamapps\\common\\Casualties Unknown Playtest\\BepInEx\\plugins</code></pre>
-        <li>Add the DLL as a reference in your mod project. The most universal way is to edit the <span class="inline-code">.csproj</span> file directly.</li>
+        <li>(If not using the template) Add the DLL as a reference in your mod project. The most universal way is to edit the <span class="inline-code">.csproj</span> file directly.</li>
       </ol>
       <pre><code>&lt;ItemGroup&gt;
   &lt;Reference Include="CUCoreLib"&gt;
@@ -1391,22 +1391,20 @@ function setupPage(): string {
       <ul>
         <li>Visual Studio: right-click the project, choose <span class="inline-code">Add &gt; Reference</span>, then browse to <span class="inline-code">CUCoreLib.dll</span>.</li>
         <li>Rider: open the project file editor or project settings and add a local assembly reference.</li>
-        <li>VS Code: edit the <span class="inline-code">.csproj</span> directly. That is the normal path there.</li>
+        <li>VS Code: edit the <span class="inline-code">.csproj</span> directly.</li>
       </ul>
       <img src="images/assembly-location.png" alt="Add Reference screenshot" class="screenshot" />
     </section>
 
     <section class="lesson-card">
-      <h2>Where the code goes</h2>
+      <h2>Setup for existing projects</h2>
       <p>The code panel on the right shows the classic plugin shape CUCoreLib expects</p>
-      <p>In <code>plugins.cs</code>, copy-paste the right side code and change the namespace, class name, and BepInPlugin attributes to match your mod. </p>
-      <p>That starter plugin is only the shell. For real gameplay changes, keep the decompiled game open beside it so you can look up the vanilla methods you want to call and the values or fields you may need to patch around.</p>
-
       <p>This line must be present for your mod to use CUCoreLib:</p>
       <pre><code>[BepInDependency("net.cucorelib", BepInDependency.DependencyFlags.HardDependency)]
 </code></pre>
 
       ${docsVideo(externalVideoUrls.setup, "/videos/setup.mp4", "screenshot docs-video")}
+      <p>(Setup video for people using the <a href="https://github.com/OzzySpaghettiTeam/ScavTemplate" target="_blank" rel="noopener">old template</a>. For the new template, simply download CUCoreLib and add it to the <span class="inline-code">BepInEx/plugins/</span> folder before building.)</p>
     </section>
     <section class="lesson-card">
       <h2>Testing the mod</h2>
@@ -1472,7 +1470,14 @@ WriteUnityLog = false</code></pre>
     </section>
 
     <section class="lesson-card">
-      <h2>CUCoreLib using statements</h2>
+      <h2>Renaming the project</h2>
+      <p>When you create a new project from the template, it will have the name <span class="inline-code">ScavTemplate</span>.</p>
+      <p>To rename the project, right-click on the project in the Solution Explorer and select "Rename".</p>
+      <p>Lastly, to rename the .dll, adjust the <span class="inline-code">vars.targets</span> file in the mod folder one directory upwards.</p>
+    </section>
+
+    <section class="lesson-card">
+      <h2>Using CUCoreLib functions</h2>
       <p>After referencing CUCoreLib, you will need some namespaces imported at the top of your plugin files. You do not need every namespace in every file. Rather, these just make CUCoreLib classes available without typing their full namespace. Very neat, very handy.</p>
       <p>The supported public API for downstream mods is the documented surface in <span class="inline-code">CUCoreLib.Data</span>, <span class="inline-code">CUCoreLib.Registries</span>, <span class="inline-code">CUCoreLib.Saving</span>, and the intentionally public helpers documented here such as <span class="inline-code">AssetLoader</span>, <span class="inline-code">CUCoreUtils</span>, and <span class="inline-code">CustomInstantiate</span>. Types outside that documented surface are implementation details and may change without compatibility guarantees.</p>
       <pre><code>using CUCoreLib.Helpers;
@@ -3399,7 +3404,7 @@ function debugTestingPage(): string {
     <section class="lesson-card">
       <h2>Testing in multiplayer</h2>
       <ul>
-        <li>In <span class="inline-code">Casualties Unknown Demo\\CasualtiesUnknown_Data\\boot.config</span>, remove the <span class="inline-code">forceSingleInstance: 1</span> line.</li>
+        <li>In <span class="inline-code">Casualties Unknown Demo\\CasualtiesUnknown_Data\\boot.config</span>, remove the entire <span class="inline-code">forceSingleInstance: 1</span> line.</li>
         <li>Open the multiplayer mod on two instances and swap from Steam to IP hosting.</li>
         <li>The name of the client and the host must be different.</li>
         <li>Connect on both, and you can test multiplayer interactions.</li>

@@ -227,6 +227,7 @@
         <Compile Include="Data\DropPool.cs"/>
         <Compile Include="Data\CustomItemInfo.cs"/>
         <Compile Include="Data\CustomLiquidInfo.cs"/>
+        <Compile Include="Data\CustomLiquidTileInfo.cs"/>
         <Compile Include="Data\BodyAnimationPackManifest.cs"/>
         <Compile Include="Data\ModOptionDefinition.cs"/>
         <Compile Include="Data\RegisteredSpriteAnimation.cs"/>
@@ -274,6 +275,7 @@
         <Compile Include="Patches\ItemRegistryPatches.cs"/>
         <Compile Include="Patches\LocalePatches.cs"/>
         <Compile Include="Patches\LiquidRegistryPatches.cs"/>
+        <Compile Include="Patches\LiquidTileRegistryPatches.cs"/>
         <Compile Include="Patches\ModOptionsPatches.cs"/>
         <Compile Include="Patches\MoodleManagerPatches.cs"/>
         <Compile Include="Patches\ItemLootPoolPatch.cs"/>
@@ -289,6 +291,7 @@
         <Compile Include="Registries\BuildingEntityRegistry.cs"/>
         <Compile Include="Registries\ItemRegistry.cs"/>
         <Compile Include="Registries\LiquidRegistry.cs"/>
+        <Compile Include="Registries\LiquidTileRegistry.cs"/>
         <Compile Include="Registries\ModOptionsRegistry.cs"/>
         <Compile Include="Registries\MoodleRegistry.cs"/>
         <Compile Include="Registries\LocaleRegistry.cs"/>
@@ -307,6 +310,7 @@
         <Compile Include="Saving\BuiltInBodyStatusSaveProvider.cs"/>
         <Compile Include="Saving\BuiltInItemRuntimeSaveProvider.cs"/>
         <Compile Include="Saving\BuiltInLimbStatusSaveProvider.cs"/>
+        <Compile Include="Saving\BuiltInLiquidTileSaveProvider.cs"/>
         <Compile Include="Saving\SaveCoordinator.cs"/>
         <Compile Include="Saving\SaveInterfaces.cs"/>
         <Compile Include="CUCoreLib.cs"/>

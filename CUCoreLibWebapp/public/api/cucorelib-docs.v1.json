@@ -2,7 +2,7 @@
   "version": "1.0",
   "library": "CUCoreLib",
   "description": "Machine-readable CUCoreLib web docs generated from the interactive docs sources.",
-  "generatedAt": "2026-07-17T09:53:56.030Z",
+  "generatedAt": "2026-07-20T18:32:53.045Z",
   "baseUrl": "/",
   "topics": [
     {
@@ -28,7 +28,7 @@
       "label": "Setup",
       "crumb": "Getting Started",
       "title": "Install ScavTemplate",
-      "lead": "Create a template mod, point it at your local game install, and add CUCoreLib as a hard dependency.",
+      "lead": "Getting ready for modding!",
       "appUrl": "/docs/setup/",
       "machineUrl": "/api/topics/setup.json"
     },

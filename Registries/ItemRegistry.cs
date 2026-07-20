@@ -27,6 +27,7 @@ namespace CUCoreLib.Registries
         private static readonly HashSet<string> IgnoredMissingIconIds =
             new HashSet<string>(StringComparer.OrdinalIgnoreCase)
             {
+                // Awful terrible hack :>
                 "climbingropeextended",
                 "grabberplant",
                 "grabbershroom",

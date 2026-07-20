@@ -55,6 +55,7 @@ namespace CUCoreLib
             DebugWatchService.Initialize();
             ContentReloadManager.Initialize();
             SaveRegistry.RegisterBuiltIns();
+            LiquidTileRegistry.RegisterBuiltIns();
             MultiplayerApi.RegisterBuiltIns();
             BuiltInCommandRegistrar.Register();
             UpdateChecker.Initialize(Logger);
