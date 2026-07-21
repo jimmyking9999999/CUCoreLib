@@ -59,6 +59,21 @@ namespace CUCoreLib.Patches
             ApplyCustomItemRuntime(__instance);
         }
 
+        [HarmonyPatch(nameof(Item.totalWeight), MethodType.Getter)]
+        [HarmonyPrefix]
+        private static bool OverrideCustomScaledWeight(Item __instance, ref float __result)
+        {
+            if (__instance == null || !ItemRegistry.TryGetCustomInfo(__instance, out _))
+                return true;
+
+            var stats = __instance.Stats;
+            if (stats == null || !stats.scaleWeightWithCondition)
+                return true;
+
+            __result = Mathf.Max(0f, stats.weight * Mathf.Clamp01(__instance.condition));
+            return false;
+        }
+
         [HarmonyPatch(typeof(WaterContainerItem), "Start")]
         [HarmonyPrefix]
         private static void ApplyCustomLiquidMaskBeforeWaterContainerStart(WaterContainerItem __instance)
