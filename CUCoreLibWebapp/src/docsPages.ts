@@ -2389,6 +2389,7 @@ function settingsPage(): string {
     <section class="lesson-card">
       <h2>Register settings in startup</h2>
       <p>Use <span class="inline-code">ModOptionsRegistry.Register</span> from your plugin startup to add rows to the normal game options menu. CUCoreLib appends real vanilla <span class="inline-code">Setting</span> objects, so the game keeps owning rendering, <span class="inline-code">settings.json</span>, immediate apply, menu close saves, and Reset to Default.</p>
+      <p>If you also bind a BepInEx config entry with the same setting name suffix, CUCoreLib will mirror the in-game value back into that config entry after the game setting applies. For example, <span class="inline-code">my.mod.AllowPlushHarm</span> will sync with a config key named <span class="inline-code">AllowPlushHarm</span>. The in-game setting is the source of truth, and invalid config values are rejected with a console error.</p>
       <pre><code>using CUCoreLib.Data;
 using CUCoreLib.Registries;
 using UnityEngine;
@@ -2465,6 +2466,35 @@ private void Update()
     </section>
 
     <section class="lesson-card">
+      <h2>Optional BepInEx config mirroring</h2>
+      <p>This bridge is opt-in. Your mod still creates its own config entry with <span class="inline-code">Config.Bind(...)</span>, and CUCoreLib only syncs it when the config key matches your registered option ID or its final suffix.</p>
+      <pre><code>using BepInEx.Configuration;
+using CUCoreLib.Data;
+using CUCoreLib.Registries;
+
+private ConfigEntry&lt;bool&gt; allowPlushHarmConfig;
+
+private void Awake()
+{
+    allowPlushHarmConfig = Config.Bind(
+        "General",
+        "AllowPlushHarm",
+        true,
+        "Whether plush attacks can cause harm.");
+
+    ModOptionsRegistry.Register(ModOptionDefinition.Bool(
+        $"{MyPluginInfo.PLUGIN_GUID}.AllowPlushHarm",
+        "Allow plush harm",
+        "Whether plush attacks can cause harm.",
+        Setting.SettingCategory.Game,
+        allowPlushHarmConfig.Value,
+        value => ApplyAllowPlushHarm(value)
+    ));
+}</code></pre>
+      <p>The bridge supports bool, int, float, dropdown, and keybind rows. Dropdown config values may be either the numeric index or the choice key string. Keybind config values may be either the key name or numeric <span class="inline-code">KeyCode</span>.</p>
+    </section>
+
+    <section class="lesson-card">
       <h2>Apply callbacks</h2>
       <p>The callback receives the current value after the player changes the control or after settings are loaded. Keep it small: write your own persistent mirror if needed, update runtime state, and let vanilla settings handle the main save file.</p>
       <pre><code>ModOptionsRegistry.Register(ModOptionDefinition.Float(
@@ -2530,7 +2560,7 @@ function advancedItemPage(): string {
   return `
     <section class="lesson-card">
       <h2>When to use this page</h2>
-      <p>The basic Item API page uses vanilla <span class="inline-code">ItemInfo</span> to mimic the base game. Advanced items can use <span class="inline-code">CustomItemInfo</span>, which includes normal <span class="inline-code">ItemInfo</span> fields, vanilla <span class="inline-code">LiquidItemInfo</span> fields, and CUCoreLib-only fields like <span class="inline-code">Container</span>, <span class="inline-code">Battery</span>, <span class="inline-code">Light</span>, <span class="inline-code">Tool</span>, <span class="inline-code">WornSprite</span>, <span class="inline-code">MultiWornSprites</span>, <span class="inline-code">WornSpriteOffset</span>, <span class="inline-code">MultiWornSpriteOffsets</span>, <span class="inline-code">LiquidMask</span>, <span class="inline-code">SpriteScaleDimensions</span>, <span class="inline-code">DropPool</span>, <span class="inline-code">SpawnFrequency</span>, <span class="inline-code">WorldSpawnPerChunk</span>, and <span class="inline-code">CustomData</span>.</p>
+      <p>The basic Item API page uses vanilla <span class="inline-code">ItemInfo</span> to mimic the base game. Advanced items can use <span class="inline-code">CustomItemInfo</span>, which includes normal <span class="inline-code">ItemInfo</span> fields, vanilla <span class="inline-code">LiquidItemInfo</span> fields, and CUCoreLib-only fields like <span class="inline-code">Container</span>, <span class="inline-code">Battery</span>, <span class="inline-code">Light</span>, <span class="inline-code">Tool</span>, <span class="inline-code">WornSprite</span>, <span class="inline-code">MultiWornSprites</span>, <span class="inline-code">VisualOffset</span>, <span class="inline-code">WornSpriteOffset</span>, <span class="inline-code">MultiWornSpriteOffsets</span>, <span class="inline-code">LiquidMask</span>, <span class="inline-code">SpriteScaleDimensions</span>, <span class="inline-code">DropPool</span>, <span class="inline-code">SpawnFrequency</span>, <span class="inline-code">WorldSpawnPerChunk</span>, and <span class="inline-code">CustomData</span>.</p>
       <p>Why is the mod doing it this way? Traditonally, the game sets these settings via the Unity prefab editor, and as such does not appear in the game's default item code.</p>
       <pre><code>// Replace new ItemInfo{ ... } with 
       new CustomItemInfo{ ... }</code></pre>
@@ -2553,6 +2583,7 @@ function advancedItemPage(): string {
             <tr><td><span class="inline-code">Icon</span></td><td><span class="inline-code">Sprite</span></td><td>Inventory/world sprite used by custom templates and cached under the item ID. Passing the sprite as the third register argument sets this for you.</td></tr>
             <tr><td><span class="inline-code">WornSprite</span></td><td><span class="inline-code">Sprite</span></td><td>Optional sprite applied while a wearable custom item is worn, then restored to <span class="inline-code">Icon</span> when dropped.</td></tr>
             <tr><td><span class="inline-code">MultiWornSprites</span></td><td><span class="inline-code">Dictionary&lt;string, Sprite&gt;</span></td><td>Optional extra worn sprites keyed by vanilla limb name. CUCoreLib maps these onto the game's secondary wearable sprite arrays, so one wearable can draw on multiple limbs while equipped.</td></tr>
+            <tr><td><span class="inline-code">VisualOffset</span></td><td><span class="inline-code">Vector2</span></td><td>Optional local-space offset applied only while the item is held in a hand slot.</td></tr>
             <tr><td><span class="inline-code">WornSpriteOffset</span></td><td><span class="inline-code">Vector2</span></td><td>Optional local-space offset applied to the worn item sprite after vanilla attaches it to <span class="inline-code">desiredWearLimb</span>.</td></tr>
             <tr><td><span class="inline-code">WearableSortingOrder</span></td><td><span class="inline-code">int?</span></td><td>Optional worn-renderer sorting order override. When set, CUCoreLib applies that exact order to the main worn sprite and any <span class="inline-code">MultiWornSprites</span>; higher values draw on top of lower values.</td></tr>
             <tr><td><span class="inline-code">MultiWornSpriteOffsets</span></td><td><span class="inline-code">Dictionary&lt;string, Vector2&gt;</span></td><td>Optional per-limb local offsets for entries in <span class="inline-code">MultiWornSprites</span>. Use matching limb keys, or fill it through <span class="inline-code">SetMultiWornSpriteOffset(...)</span>.</td></tr>
@@ -2882,7 +2913,7 @@ function advancedItemPage(): string {
 
     <section class="lesson-card">
       <h2>Equippables</h2>
-      <p>Wearables are regular items with wearable fields set. <span class="inline-code">wearSlotId</span> is the save/load and replacement key. <span class="inline-code">desiredWearLimb</span> points the primary visual/armor behavior at a body region, while <span class="inline-code">wearableArmor</span> and <span class="inline-code">wearableIsolation</span> affect protection and temperature. Use <span class="inline-code">MultiWornSprites</span> when the same wearable should also draw extra pieces on other limbs, and set <span class="inline-code">WearableSortingOrder</span> when you need that whole wearable stack to use a higher or lower draw priority than other equipment.</p>
+      <p>Wearables are regular items with wearable fields set. <span class="inline-code">wearSlotId</span> is the save/load and replacement key. <span class="inline-code">desiredWearLimb</span> points the primary visual/armor behavior at a body region, while <span class="inline-code">wearableArmor</span> and <span class="inline-code">wearableIsolation</span> affect protection and temperature. Use <span class="inline-code">VisualOffset</span> when you want the held hand sprite moved without changing the worn sprite, use <span class="inline-code">MultiWornSprites</span> when the same wearable should also draw extra pieces on other limbs, and set <span class="inline-code">WearableSortingOrder</span> when you need that whole wearable stack to use a higher or lower draw priority than other equipment.</p>
       <p>If a wearable needs a custom script, use the same item-side <span class="inline-code">AddSpawnComponent&lt;T&gt;()</span> helper described below. There is no separate wearable-only script hook.</p>
       <pre><code> ItemRegistry.Register(
      "fieldpack",
@@ -2904,6 +2935,7 @@ function advancedItemPage(): string {
          rec = new Recognition(4),
          WornSprite = AssetLoader.LoadEmbeddedSprite("Images.fieldpack-worn.png"),
          WornSpriteOffset = new Vector2(0f, -0.04f),
+         VisualOffset = new Vector2(0f, -0.02f),
          WearableSortingOrder = 206,
          MultiWornSprites = new Dictionary<string, Sprite>
          {

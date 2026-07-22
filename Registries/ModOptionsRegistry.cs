@@ -39,6 +39,7 @@ namespace CUCoreLib.Registries
 
             ResolveCategory(option);
             RegisteredOptions.Add(option);
+            ModSettingsConfigSyncRegistry.RegisterOption(option);
             RegisterLocale(option);
             MergeIntoLoadedSettings(option);
             SettingsMenuCategoryExtender.RefreshLiveMenu();
@@ -54,7 +55,9 @@ namespace CUCoreLib.Registries
                      where option != null && !settings.Any(setting => setting != null && setting.name == option1.Id)
                      select option)
             {
-                settings.Add(option.CreateSetting());
+                var createdSetting = option.CreateSetting();
+                settings.Add(createdSetting);
+                ModSettingsConfigSyncRegistry.RegisterSetting(option, createdSetting);
             }
         }
 
@@ -70,6 +73,7 @@ namespace CUCoreLib.Registries
 
             var createdSetting = option.CreateSetting();
             Settings.settings.Add(createdSetting);
+            ModSettingsConfigSyncRegistry.RegisterSetting(option, createdSetting);
             createdSetting.Apply();
         }
 

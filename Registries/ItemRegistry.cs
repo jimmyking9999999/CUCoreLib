@@ -232,6 +232,8 @@ namespace CUCoreLib.Registries
                         : JValue.CreateNull(),
                     ["multiWornSprites"] = NetworkSnapshotSerialization.WriteSpriteDictionary(info.MultiWornSprites),
                     ["liquidMask"] = NetworkSnapshotSerialization.WriteSprite(info.LiquidMask),
+                    ["visualOffsetX"] = info.VisualOffset.x,
+                    ["visualOffsetY"] = info.VisualOffset.y,
                     ["heldSpriteOffsetX"] = info.HeldSpriteOffset.x,
                     ["heldSpriteOffsetY"] = info.HeldSpriteOffset.y,
                     ["wornSpriteOffsetX"] = info.WornSpriteOffset.x,
@@ -364,6 +366,9 @@ namespace CUCoreLib.Registries
                         obj.Value<float?>("spriteScaleWidth") ?? 0f,
                         obj.Value<float?>("spriteScaleHeight") ?? 0f,
                         obj.Value<bool?>("spriteScaleExpandToFirstMetCondition") ?? false),
+                    VisualOffset = new Vector2(
+                        obj.Value<float?>("visualOffsetX") ?? 0f,
+                        obj.Value<float?>("visualOffsetY") ?? 0f),
                     HeldSpriteOffset = new Vector2(
                         obj.Value<float?>("heldSpriteOffsetX") ?? 0f,
                         obj.Value<float?>("heldSpriteOffsetY") ?? 0f),

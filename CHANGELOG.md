@@ -10,7 +10,7 @@ I figured that this would be nice to have, as to easily take a look at everythin
 ## v1.0.4
 
 ### New Stuff!
--
+- Added optional sync between `ModOptionsRegistry` settings and manually bound BepInEx config entries when they share the same namespaced ID or key suffix. The in-game setting is the source of truth, and invalid config values now log a clear error instead of silently applying bad data.
 
 ### Changes
 -

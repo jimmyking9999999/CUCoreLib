@@ -261,6 +261,7 @@
         <Compile Include="Helpers\StatusExtensions.cs"/>
         <Compile Include="Helpers\LocaleLoader.cs"/>
         <Compile Include="Helpers\LaunchOverrideManager.cs"/>
+        <Compile Include="Helpers\ModSettingsConfigSyncRegistry.cs"/>
         <Compile Include="Helpers\SettingsMenuCategoryExtender.cs"/>
         <Compile Include="Networking\MultiplayerApi.cs"/>
         <Compile Include="Networking\MultiplayerBridge.cs"/>

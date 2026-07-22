@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using BepInEx.Configuration;
 using CUCoreLib.Helpers;
 using CUCoreLib.Registries;
 using HarmonyLib;
@@ -34,6 +35,17 @@ namespace CUCoreLib.Patches
         private static void AppendRegisteredOptions(List<Setting> __result)
         {
             ModOptionsRegistry.AppendRegisteredOptions(__result);
+        }
+    }
+
+    [HarmonyPatch(typeof(ConfigFile), nameof(ConfigFile.Add), typeof(ConfigDefinition), typeof(ConfigEntryBase))]
+    internal static class ConfigFileAddPatch
+    {
+        [HarmonyPostfix]
+        private static void Postfix(ConfigFile __instance, ConfigDefinition definition, ConfigEntryBase entry)
+        {
+            if (__instance == null || entry == null) return;
+            ModSettingsConfigSyncRegistry.RegisterConfigEntry(__instance, entry);
         }
     }
 

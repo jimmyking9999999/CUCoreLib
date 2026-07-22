@@ -34,7 +34,12 @@ namespace CUCoreLib.Data
         public Dictionary<string, object> CustomData = new Dictionary<string, object>();
 
         /// <summary>
-        /// Local position offset applied to the held-item sprite.
+        /// Local position offset applied only while the item is held in an inventory hand slot.
+        /// </summary>
+        public Vector2 VisualOffset;
+
+        /// <summary>
+        /// Legacy alias for <see cref="VisualOffset"/>.
         /// </summary>
         public Vector2 HeldSpriteOffset;
 

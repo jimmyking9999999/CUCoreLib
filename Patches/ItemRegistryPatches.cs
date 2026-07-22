@@ -288,7 +288,10 @@ namespace CUCoreLib.Patches
             var slot = item.transform.parent != null ? item.transform.parent.GetComponent<InventorySlot>() : null;
             if (slot == null || !slot.isHand) return;
 
-            item.transform.localPosition = new Vector3(def.HeldSpriteOffset.x, def.HeldSpriteOffset.y,
+            var offset = def.VisualOffset;
+            if (offset == default(Vector2))
+                offset = def.HeldSpriteOffset;
+            item.transform.localPosition = new Vector3(offset.x, offset.y,
                 item.transform.localPosition.z);
         }
 
