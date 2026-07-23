@@ -229,6 +229,7 @@
         <Compile Include="Data\CustomLiquidInfo.cs"/>
         <Compile Include="Data\CustomLiquidTileInfo.cs"/>
         <Compile Include="Data\BodyAnimationPackManifest.cs"/>
+        <Compile Include="Data\BodyFormulaData.cs"/>
         <Compile Include="Data\ModOptionDefinition.cs"/>
         <Compile Include="Data\RegisteredSpriteAnimation.cs"/>
         <Compile Include="Data\StatusBase.cs"/>
@@ -254,6 +255,7 @@
         <Compile Include="Helpers\CustomBuildingRuntime.cs"/>
         <Compile Include="Helpers\DebugWatchConsoleCommands.cs"/>
         <Compile Include="Helpers\DebugWatchService.cs"/>
+        <Compile Include="Helpers\CCLBody.cs"/>
         <Compile Include="Helpers\MinigameHelpers.cs"/>
         <Compile Include="Helpers\ExtensionData.cs"/>
         <Compile Include="Helpers\SpawnIdHelpers.cs"/>
@@ -266,6 +268,7 @@
         <Compile Include="Networking\MultiplayerApi.cs"/>
         <Compile Include="Networking\MultiplayerBridge.cs"/>
         <Compile Include="Networking\MultiplayerSyncRegistry.cs"/>
+        <Compile Include="Patches\BodyFormulaPatches.cs"/>
         <Compile Include="Patches\BuildingEntityPatches.cs"/>
         <Compile Include="Patches\CorpsePatches.cs"/>
         <Compile Include="Patches\ConsolePatch.cs"/>

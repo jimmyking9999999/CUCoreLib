@@ -13,6 +13,7 @@ export const machineExportEnabledPageIds = [
   "custom-item-scripts",
   "recipe",
   "liquids",
+  "liquid-tiles",
   "player",
   "statuses",
   "moodles",

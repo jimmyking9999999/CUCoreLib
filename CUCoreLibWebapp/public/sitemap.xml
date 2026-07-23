@@ -13,6 +13,7 @@
   <url><loc>https://cucorelib.jimmyking.dev/docs/custom-item-scripts/</loc></url>
   <url><loc>https://cucorelib.jimmyking.dev/docs/recipe/</loc></url>
   <url><loc>https://cucorelib.jimmyking.dev/docs/liquids/</loc></url>
+  <url><loc>https://cucorelib.jimmyking.dev/docs/liquid-tiles/</loc></url>
   <url><loc>https://cucorelib.jimmyking.dev/docs/player/</loc></url>
   <url><loc>https://cucorelib.jimmyking.dev/docs/statuses/</loc></url>
   <url><loc>https://cucorelib.jimmyking.dev/docs/moodles/</loc></url>
@@ -43,6 +44,7 @@
   <url><loc>https://cucorelib.jimmyking.dev/api/topics/custom-item-scripts.json</loc></url>
   <url><loc>https://cucorelib.jimmyking.dev/api/topics/recipe.json</loc></url>
   <url><loc>https://cucorelib.jimmyking.dev/api/topics/liquids.json</loc></url>
+  <url><loc>https://cucorelib.jimmyking.dev/api/topics/liquid-tiles.json</loc></url>
   <url><loc>https://cucorelib.jimmyking.dev/api/topics/player.json</loc></url>
   <url><loc>https://cucorelib.jimmyking.dev/api/topics/statuses.json</loc></url>
   <url><loc>https://cucorelib.jimmyking.dev/api/topics/moodles.json</loc></url>

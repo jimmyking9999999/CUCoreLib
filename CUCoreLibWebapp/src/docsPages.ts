@@ -86,6 +86,13 @@ export const pages: Page[] = [
     lead: "Register liquid definitions, fill liquid containers, and understand WaterContainerItem behavior."
   },
   {
+    id: "liquid-tiles",
+    label: "Liquid Tiles",
+    crumb: "World",
+    title: "Liquid Tile API",
+    lead: "Register swimmable world liquids with custom visuals, touch effects, drinking behavior, and worldgen."
+  },
+  {
     id: "guns",
     label: "Guns",
     crumb: "Items / Liquids",
@@ -278,6 +285,7 @@ export function pageBody(page: PageId, nextItemState: ItemState, nextRecipeState
   else if (page === "advanced-item") content = advancedItemPage();
   else if (page === "custom-item-scripts") content = customItemScriptsPage();
   else if (page === "liquids") content = liquidsPage();
+  else if (page === "liquid-tiles") content = liquidTilesPage();
   else if (page === "player") content = playerPage();
   else if (page === "animations") content = animationsPage();
   else if (page === "statuses") content = statusesPage();
@@ -837,49 +845,156 @@ function playerPage(): string {
   return `
     <section class="lesson-card">
       <h2>The player object</h2>
-      <p>The live player object is the vanilla <span class="inline-code">Body</span> component. Most player values you inspect or change from mods live on <span class="inline-code">PlayerCamera.main.body</span>.</p>
+      <p>The live player object is the vanilla <span class="inline-code">Body</span> component. Most player values you inspect or change from mods can be accessed via <span class="inline-code">PlayerCamera.main.body</span>.</p>
       <pre><code>Body body = PlayerCamera.main.body;
 float hunger = body.hunger;
-Vector3 position = body.transform.position;</code></pre>
+</code></pre>
       <p>This page is a reference page. Most fields thus come from the decompiled vanilla <span class="inline-code">Body.cs</span>.</p>
     </section>
 
+    <section class="lesson-card">
+      <h2>CCLBody fields</h2>
+      <p>Some public <span class="inline-code">Body</span> fields are recalculated by vanilla helper methods such as <span class="inline-code">HandleCirculation()</span>, <span class="inline-code">HandlePeriodicChecks()</span>, and <span class="inline-code">HandleBodyTemperature()</span>. For those fields, directly assigning a value in your own update loop often gets overwritten immediately.</p>
+      <p>For ease of use, CUCoreLib adds the <span class="inline-code">CCLBody</span> shorthand for this case. It lets you adjust vanilla body formulas without writing their own Harmony patch.</p>
+      <pre><code>CCLBody.TotalEncumberance += 10f;
+CCLBody.BloodPressure = -25f;
+CCLBody.HeartRate += 15f;</code></pre>
+      <p>The live value still ends up on the normal vanilla field, so you keep reading <span class="inline-code">body.totalEncumberance</span>, <span class="inline-code">body.bloodPressure</span>, and so on.</p>
+      <p>These fields are listed below:</p>
+      </section>
 
     <section class="lesson-card">
-      <h2>Player field reference</h2>
+      <h2>CCLBody fields</h2>
       <table>
         <thead>
           <tr><th>Field</th><th>Type</th><th>Description</th></tr>
         </thead>
         <tbody>
-          <tr><td><span class="inline-code">limbs</span></td><td><span class="inline-code">Limb[]</span></td><td>All player limbs. Use for limb-specific wounds, treatment, and temperature work.</td></tr>
+          <tr><td><span class="inline-code">BloodPressure</span></td><td><span class="inline-code">float</span></td><td>Your mod's contribution to the vanilla blood pressure formula.</td></tr>
+          <tr><td><span class="inline-code">HeartRate</span></td><td><span class="inline-code">float</span></td><td>Your mod's contribution to the vanilla heart rate formula.</td></tr>
+          <tr><td><span class="inline-code">RespiratoryRate</span></td><td><span class="inline-code">float</span></td><td>Your mod's contribution to the vanilla respiratory rate formula.</td></tr>
+          <tr><td><span class="inline-code">MaxEncumberance</span></td><td><span class="inline-code">float</span></td><td>Your mod's contribution to the vanilla maximum encumbrance formula.</td></tr>
+          <tr><td><span class="inline-code">TotalEncumberance</span></td><td><span class="inline-code">float</span></td><td>Your mod's contribution to the vanilla total encumbrance value.</td></tr>
+          <tr><td><span class="inline-code">Immunity</span></td><td><span class="inline-code">float</span></td><td>Your mod's contribution to the vanilla immunity formula.</td></tr>
+          <tr><td><span class="inline-code">JumpSpeed</span></td><td><span class="inline-code">float</span></td><td>Your mod's contribution to the live jump-speed field. CUCoreLib reapplies it without permanently drifting the saved vanilla value.</td></tr>
+          <tr><td><span class="inline-code">AveragePain</span></td><td><span class="inline-code">float</span></td><td>Your mod's contribution to limb pain across the whole body before vanilla recomputes <span class="inline-code">averagePain</span>.</td></tr>
+          <tr><td><span class="inline-code">Temperature</span></td><td><span class="inline-code">float</span></td><td>Your mod's contribution to the vanilla body temperature result.</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+
+    <section class="lesson-card">
+      <h2>Normal player fields</h2>
+      <p>The vanilla <span class="inline-code">Body</span> class exposes a lot of public fields. The normal player fields below are split by topic so you can scan for health, references, animation, and similar seams faster.</p>
+    </section>
+
+    <section class="lesson-card">
+      <h2>Reference and components</h2>
+      <table>
+        <thead>
+          <tr><th>Field</th><th>Type</th><th>Description</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><span class="inline-code">limbs</span></td><td><span class="inline-code">Limb[]</span></td><td>All player limbs. Use for limb-specific wounds, treatment, and temperature work. Order is the same as the setlimbfield console command.</td></tr>
           <tr><td><span class="inline-code">legLimbs</span></td><td><span class="inline-code">Limb[]</span></td><td>Leg-only limb subset used by movement checks.</td></tr>
           <tr><td><span class="inline-code">baseLimb</span></td><td><span class="inline-code">Limb</span></td><td>Base/root limb reference for the body.</td></tr>
+          <tr><td><span class="inline-code">rb</span></td><td><span class="inline-code">Rigidbody2D</span></td><td>Player rigidbody used for physics and movement.</td></tr>
+          <tr><td><span class="inline-code">col</span></td><td><span class="inline-code">BoxCollider2D</span></td><td>Main player collider reference.</td></tr>
+          <tr><td><span class="inline-code">vomiter</span></td><td><span class="inline-code">Vomiter</span></td><td>Vomiting behavior component.</td></tr>
+          <tr><td><span class="inline-code">talker</span></td><td><span class="inline-code">Talker</span></td><td>Speech/talker component for text. Note that traders (and the electronic watch) also have one.</td></tr>
+          <tr><td><span class="inline-code">harmer</span></td><td><span class="inline-code">SelfHarmer</span></td><td>Self-harm related component/reference.</td></tr>
+          <tr><td><span class="inline-code">bodyAffect</span></td><td><span class="inline-code">LiquidAffect</span></td><td>Active body-wide liquid effect reference.</td></tr>
+          <tr><td><span class="inline-code">mindWipe</span></td><td><span class="inline-code">MindwipeScript</span></td><td>Mindwipe effect component/reference.</td></tr>
+          <tr><td><span class="inline-code">tail</span></td><td><span class="inline-code">Transform</span></td><td>Tail transform reference, when present.</td></tr>
+          <tr><td><span class="inline-code">skills</span></td><td><span class="inline-code">Skills</span></td><td>Player skill/stat container.</td></tr>
+          <tr><td><span class="inline-code">currentClimbable</span></td><td><span class="inline-code">Climbable</span></td><td>Current climbable object reference.</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="lesson-card">
+      <h2>Animation and visuals</h2>
+      <table>
+        <thead>
+          <tr><th>Field</th><th>Type</th><th>Description</th></tr>
+        </thead>
+        <tbody>
           <tr><td><span class="inline-code">bodyAnimator</span></td><td><span class="inline-code">Animator</span></td><td>Main body animator.</td></tr>
           <tr><td><span class="inline-code">idleClip</span></td><td><span class="inline-code">AnimationClip</span></td><td>Idle animation clip reference.</td></tr>
           <tr><td><span class="inline-code">armsAnimator</span></td><td><span class="inline-code">Animator</span></td><td>Animator for the arms layer.</td></tr>
-          <tr><td><span class="inline-code">rb</span></td><td><span class="inline-code">Rigidbody2D</span></td><td>Player rigidbody used for physics and movement.</td></tr>
-          <tr><td><span class="inline-code">standing</span></td><td><span class="inline-code">bool</span></td><td>Whether the player is standing.</td></tr>
-          <tr><td><span class="inline-code">col</span></td><td><span class="inline-code">BoxCollider2D</span></td><td>Main player collider reference.</td></tr>
           <tr><td><span class="inline-code">isRight</span></td><td><span class="inline-code">bool</span></td><td>Facing/orientation flag used by look and animation logic.</td></tr>
-          <tr><td><span class="inline-code">maxSpeed</span></td><td><span class="inline-code">float</span></td><td>Movement speed cap.</td></tr>
           <tr><td><span class="inline-code">targetLookPos</span></td><td><span class="inline-code">Vector3</span></td><td>World position the player is looking toward.</td></tr>
-          <tr><td><span class="inline-code">staminaStrength</span></td><td><span class="inline-code">AnimationCurve</span></td><td>Curve used for stamina-related scaling.</td></tr>
-          <tr><td><span class="inline-code">vomiter</span></td><td><span class="inline-code">Vomiter</span></td><td>Vomiting behavior component.</td></tr>
           <tr><td><span class="inline-code">idleTime</span></td><td><span class="inline-code">float</span></td><td>How long the body has been idle.</td></tr>
+          <tr><td><span class="inline-code">eyeCloseTime</span></td><td><span class="inline-code">float</span></td><td>Eye closing animation timer.</td></tr>
+          <tr><td><span class="inline-code">eyeScareTime</span></td><td><span class="inline-code">float</span></td><td>Scare eye animation timer.</td></tr>
+          <tr><td><span class="inline-code">eyePanicTime</span></td><td><span class="inline-code">float</span></td><td>Panic eye animation timer.</td></tr>
+          <tr><td><span class="inline-code">bonusRot</span></td><td><span class="inline-code">float</span></td><td>Extra body rotation offset.</td></tr>
+          <tr><td><span class="inline-code">accelRot</span></td><td><span class="inline-code">float</span></td><td>Rotation caused by acceleration/movement.</td></tr>
+          <tr><td><span class="inline-code">attackRot</span></td><td><span class="inline-code">float</span></td><td>Rotation added by attacks.</td></tr>
+          <tr><td><span class="inline-code">visualBodyOffset</span></td><td><span class="inline-code">Vector2</span></td><td>Visual offset for the rendered body.</td></tr>
+          <tr><td><span class="inline-code">overrideLookTime</span></td><td><span class="inline-code">float</span></td><td>Duration for a forced look override.</td></tr>
+          <tr><td><span class="inline-code">overrideLookPos</span></td><td><span class="inline-code">Vector2</span></td><td>Forced look target position.</td></tr>
+          <tr><td><span class="inline-code">charType</span></td><td><span class="inline-code">int</span></td><td>Character/body type selector.</td></tr>
+          <tr><td><span class="inline-code">armOffset</span></td><td><span class="inline-code">float</span></td><td>Arm visual offset.</td></tr>
+          <tr><td><span class="inline-code">wallSlideParticle</span></td><td><span class="inline-code">ParticleSystem</span></td><td>Particle effect used while wall sliding.</td></tr>
+          <tr><td><span class="inline-code">standLerpTime</span></td><td><span class="inline-code">float</span></td><td>Stand transition lerp timer.</td></tr>
+          <tr><td><span class="inline-code">limpAnimatorSpeed</span></td><td><span class="inline-code">float</span></td><td>Animator speed modifier for limping.</td></tr>
+          <tr><td><span class="inline-code">furColors</span></td><td><span class="inline-code">Gradient</span></td><td>Gradient used for fur coloration.</td></tr>
+          <tr><td><span class="inline-code">dogShakeIntensity</span></td><td><span class="inline-code">float</span></td><td>Shake intensity for wet shake behavior.</td></tr>
+          <tr><td><span class="inline-code">brainShakeIntensity</span></td><td><span class="inline-code">float</span></td><td>Shake caused by brain effects.</td></tr>
+          <tr><td><span class="inline-code">miscShakeIntensity</span></td><td><span class="inline-code">float</span></td><td>Catch-all extra shake intensity.</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="lesson-card">
+      <h2>Movement and traversal</h2>
+      <table>
+        <thead>
+          <tr><th>Field</th><th>Type</th><th>Description</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><span class="inline-code">standing</span></td><td><span class="inline-code">bool</span></td><td>Whether the player is standing.</td></tr>
+          <tr><td><span class="inline-code">maxSpeed</span></td><td><span class="inline-code">float</span></td><td>Movement speed cap.</td></tr>
+          <tr><td><span class="inline-code">staminaStrength</span></td><td><span class="inline-code">AnimationCurve</span></td><td>Curve used for stamina-related scaling.</td></tr>
           <tr><td><span class="inline-code">interactionRange</span></td><td><span class="inline-code">const float</span></td><td>Vanilla interaction distance limit.</td></tr>
-          <tr><td><span class="inline-code">stimulantMultiplier</span></td><td><span class="inline-code">float</span></td><td>Multiplier affecting stimulant movement/response behavior.</td></tr>
+          <tr><td><span class="inline-code">stimulantMultiplier</span></td><td><span class="inline-code">float</span></td><td>Multiplier affecting stimulant movement increase.</td></tr>
           <tr><td><span class="inline-code">jumpSpeed</span></td><td><span class="inline-code">float</span></td><td>Jump velocity/speed.</td></tr>
           <tr><td><span class="inline-code">temporarySlowdown</span></td><td><span class="inline-code">float</span></td><td>Temporary movement penalty.</td></tr>
           <tr><td><span class="inline-code">grounded</span></td><td><span class="inline-code">bool</span></td><td>Whether the player is on the ground.</td></tr>
           <tr><td><span class="inline-code">moveDir</span></td><td><span class="inline-code">Vector2</span></td><td>Current movement input direction.</td></tr>
           <tr><td><span class="inline-code">moveForce</span></td><td><span class="inline-code">float</span></td><td>Base movement force/acceleration.</td></tr>
-          <tr><td><span class="inline-code">liquidSlipTime</span></td><td><span class="inline-code">float</span></td><td>How long liquid slip effects remain active.</td></tr>
-          <tr><td><span class="inline-code">liquidRagdollBar</span></td><td><span class="inline-code">float</span></td><td>Slip/ragdoll buildup related to liquids.</td></tr>
+          <tr><td><span class="inline-code">liquidSlipTime</span></td><td><span class="inline-code">float</span></td><td>How long liquid slip ragdoll remain active.</td></tr>
+          <tr><td><span class="inline-code">liquidRagdollBar</span></td><td><span class="inline-code">float</span></td><td>Liquid ragdoll bar.</td></tr>
           <tr><td><span class="inline-code">slowdownAmount</span></td><td><span class="inline-code">float</span></td><td>Current total slowdown strength.</td></tr>
           <tr><td><span class="inline-code">lastTimeStepVelocity</span></td><td><span class="inline-code">Vector2</span></td><td>Most recent physics-step velocity.</td></tr>
           <tr><td><span class="inline-code">wallSlideSlowdown</span></td><td><span class="inline-code">float</span></td><td>Wall-slide movement reduction.</td></tr>
           <tr><td><span class="inline-code">timeSlidfor</span></td><td><span class="inline-code">float</span></td><td>How long wall sliding has been happening.</td></tr>
+          <tr><td><span class="inline-code">weightMovementCurve</span></td><td><span class="inline-code">AnimationCurve</span></td><td>Movement scaling from carried/body weight.</td></tr>
+          <tr><td><span class="inline-code">temperatureMovementCurve</span></td><td><span class="inline-code">AnimationCurve</span></td><td>Movement scaling from temperature.</td></tr>
+          <tr><td><span class="inline-code">foodMovementCurve</span></td><td><span class="inline-code">AnimationCurve</span></td><td>Movement scaling from hunger/food state.</td></tr>
+          <tr><td><span class="inline-code">crouchAmount</span></td><td><span class="inline-code">float</span></td><td>Blend amount for crouching.</td></tr>
+          <tr><td><span class="inline-code">crouching</span></td><td><span class="inline-code">bool</span></td><td>Whether the player is crouching.</td></tr>
+          <tr><td><span class="inline-code">totalEncumberance</span></td><td><span class="inline-code">float</span></td><td>Total carried weight burden.</td></tr>
+          <tr><td><span class="inline-code">overEncumberance</span></td><td><span class="inline-code">float</span></td><td>How far over the encumbrance limit the player is.</td></tr>
+          <tr><td><span class="inline-code">maxEncumberance</span></td><td><span class="inline-code">float</span></td><td>Maximum normal encumbrance before penalties.</td></tr>
+          <tr><td><span class="inline-code">forceWalk</span></td><td><span class="inline-code">bool</span></td><td>Whether movement is forced into walk mode.</td></tr>
+          <tr><td><span class="inline-code">endedJump</span></td><td><span class="inline-code">bool</span></td><td>Whether the current jump has ended.</td></tr>
+          <tr><td><span class="inline-code">fallShakeCooldown</span></td><td><span class="inline-code">float</span></td><td>Cooldown for fall/camera shake effects.</td></tr>
+          <tr><td><span class="inline-code">climbableProgress</span></td><td><span class="inline-code">float</span></td><td>Progress through the current climb action.</td></tr>
+          <tr><td><span class="inline-code">climbVelocity</span></td><td><span class="inline-code">float</span></td><td>Current climb movement speed.</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="lesson-card">
+      <h2>Health and physiology</h2>
+      <table>
+        <thead>
+          <tr><th>Field</th><th>Type</th><th>Description</th></tr>
+        </thead>
+        <tbody>
           <tr><td><span class="inline-code">bloodOxygen</span></td><td><span class="inline-code">float</span></td><td>Current oxygenation value.</td></tr>
           <tr><td><span class="inline-code">bloodVolume</span></td><td><span class="inline-code">float</span></td><td>Current blood amount. Important for bleeding, shock, and survival logic.</td></tr>
           <tr><td><span class="inline-code">heartRate</span></td><td><span class="inline-code">float</span></td><td>Current heart rate.</td></tr>
@@ -900,83 +1015,34 @@ Vector3 position = body.transform.position;</code></pre>
           <tr><td><span class="inline-code">hunger</span></td><td><span class="inline-code">float</span></td><td>Current hunger meter.</td></tr>
           <tr><td><span class="inline-code">thirst</span></td><td><span class="inline-code">float</span></td><td>Current thirst meter.</td></tr>
           <tr><td><span class="inline-code">stamina</span></td><td><span class="inline-code">float</span></td><td>Current stamina amount.</td></tr>
-          <tr><td><span class="inline-code">energy</span></td><td><span class="inline-code">float</span></td><td>Current energy/fatigue reserve.</td></tr>
-          <tr><td><span class="inline-code">brainHealth</span></td><td><span class="inline-code">float</span></td><td>Brain health value.</td></tr>
+          <tr><td><span class="inline-code">energy</span></td><td><span class="inline-code">float</span></td><td>Current energy amount.</td></tr>
+          <tr><td><span class="inline-code">brainHealth</span></td><td><span class="inline-code">float</span></td><td>Brain health value. 0 = death.</td></tr>
           <tr><td><span class="inline-code">consciousness</span></td><td><span class="inline-code">float</span></td><td>Wakefulness/consciousness level.</td></tr>
-          <tr><td><span class="inline-code">shock</span></td><td><span class="inline-code">float</span></td><td>General shock value.</td></tr>
+          <tr><td><span class="inline-code">shock</span></td><td><span class="inline-code">float</span></td><td>Shock amount, usually from pain. Incapacitates the player.</td></tr>
           <tr><td><span class="inline-code">sleeping</span></td><td><span class="inline-code">bool</span></td><td>Whether the body is currently sleeping.</td></tr>
           <tr><td><span class="inline-code">temperature</span></td><td><span class="inline-code">float</span></td><td>Core body temperature.</td></tr>
           <tr><td><span class="inline-code">clothingTemperature</span></td><td><span class="inline-code">float</span></td><td>Temperature contribution from worn clothing.</td></tr>
-          <tr><td><span class="inline-code">averagePain</span></td><td><span class="inline-code">float</span></td><td>Not usable directly. Adjust via setting the limb's pain property. (e.g. Body.limb[0].pain += 50f;)</td></tr>
+          <tr><td><span class="inline-code">averagePain</span></td><td><span class="inline-code">float</span></td><td>Recomputed from limb pain. Direct writes do not stick; use limb pain or <span class="inline-code">CCLBody.AveragePain</span> when you want a body-wide contribution.</td></tr>
           <tr><td><span class="inline-code">totalBleedSpeed</span></td><td><span class="inline-code">float</span></td><td>Total bleed rate from all wounds.</td></tr>
-          <tr><td><span class="inline-code">slots</span></td><td><span class="inline-code">InventorySlot[]</span></td><td>Player inventory and equipment slots.</td></tr>
           <tr><td><span class="inline-code">breathing</span></td><td><span class="inline-code">bool</span></td><td>Whether the body is currently breathing.</td></tr>
-          <tr><td><span class="inline-code">eatTime</span></td><td><span class="inline-code">float</span></td><td>Timer/state related to eating actions.</td></tr>
-          <tr><td><span class="inline-code">attackCooldown</span></td><td><span class="inline-code">float</span></td><td>Attack delay/cooldown timer.</td></tr>
-          <tr><td><span class="inline-code">crouchAmount</span></td><td><span class="inline-code">float</span></td><td>Blend amount for crouching.</td></tr>
-          <tr><td><span class="inline-code">crouching</span></td><td><span class="inline-code">bool</span></td><td>Whether the player is crouching.</td></tr>
-          <tr><td><span class="inline-code">sicknessAmount</span></td><td><span class="inline-code">float</span></td><td>General sickness or poison meter.</td></tr>
-          <tr><td><span class="inline-code">talker</span></td><td><span class="inline-code">Talker</span></td><td>Speech/talker component for reactions and barks.</td></tr>
-          <tr><td><span class="inline-code">eyeCloseTime</span></td><td><span class="inline-code">float</span></td><td>Eye closing animation timer.</td></tr>
-          <tr><td><span class="inline-code">eyeScareTime</span></td><td><span class="inline-code">float</span></td><td>Scare eye animation timer.</td></tr>
-          <tr><td><span class="inline-code">eyePanicTime</span></td><td><span class="inline-code">float</span></td><td>Panic eye animation timer.</td></tr>
-          <tr><td><span class="inline-code">weightMovementCurve</span></td><td><span class="inline-code">AnimationCurve</span></td><td>Movement scaling from carried/body weight.</td></tr>
-          <tr><td><span class="inline-code">temperatureMovementCurve</span></td><td><span class="inline-code">AnimationCurve</span></td><td>Movement scaling from temperature.</td></tr>
-          <tr><td><span class="inline-code">foodMovementCurve</span></td><td><span class="inline-code">AnimationCurve</span></td><td>Movement scaling from hunger/food state.</td></tr>
+          <tr><td><span class="inline-code">sicknessAmount</span></td><td><span class="inline-code">float</span></td><td>Sickness... amount.</td></tr>
           <tr><td><span class="inline-code">consciousnessRiseRate</span></td><td><span class="inline-code">static float</span></td><td>Vanilla rate constant for regaining consciousness.</td></tr>
           <tr><td><span class="inline-code">consciousnessFallRate</span></td><td><span class="inline-code">static float</span></td><td>Vanilla rate constant for losing consciousness.</td></tr>
-          <tr><td><span class="inline-code">desensitizedMult</span></td><td><span class="inline-code">float</span></td><td>Multiplier for desensitization effects.</td></tr>
-          <tr><td><span class="inline-code">corpsesSeen</span></td><td><span class="inline-code">int</span></td><td>Counter used for corpse-related mental effects.</td></tr>
-          <tr><td><span class="inline-code">soundCooldown</span></td><td><span class="inline-code">float</span></td><td>Cooldown for sound-producing actions.</td></tr>
-          <tr><td><span class="inline-code">bonusRot</span></td><td><span class="inline-code">float</span></td><td>Extra body rotation offset.</td></tr>
-          <tr><td><span class="inline-code">accelRot</span></td><td><span class="inline-code">float</span></td><td>Rotation caused by acceleration/movement.</td></tr>
-          <tr><td><span class="inline-code">attackRot</span></td><td><span class="inline-code">float</span></td><td>Rotation added by attacks.</td></tr>
           <tr><td><span class="inline-code">septicShock</span></td><td><span class="inline-code">float</span></td><td>Septic shock severity.</td></tr>
-          <tr><td><span class="inline-code">harmer</span></td><td><span class="inline-code">SelfHarmer</span></td><td>Self-harm related component/reference.</td></tr>
-          <tr><td><span class="inline-code">disfigured</span></td><td><span class="inline-code">bool</span></td><td>Whether the body is marked as disfigured.</td></tr>
-          <tr><td><span class="inline-code">eyeGone</span></td><td><span class="inline-code">bool</span></td><td>Whether one eye is gone.</td></tr>
-          <tr><td><span class="inline-code">bothEyesGone</span></td><td><span class="inline-code">bool</span></td><td>Whether both eyes are gone.</td></tr>
-          <tr><td><span class="inline-code">visualBodyOffset</span></td><td><span class="inline-code">Vector2</span></td><td>Visual offset for the rendered body.</td></tr>
-          <tr><td><span class="inline-code">overrideLookTime</span></td><td><span class="inline-code">float</span></td><td>Duration for a forced look override.</td></tr>
-          <tr><td><span class="inline-code">overrideLookPos</span></td><td><span class="inline-code">Vector2</span></td><td>Forced look target position.</td></tr>
-          <tr><td><span class="inline-code">charType</span></td><td><span class="inline-code">int</span></td><td>Character/body type selector.</td></tr>
-          <tr><td><span class="inline-code">armOffset</span></td><td><span class="inline-code">float</span></td><td>Arm visual offset.</td></tr>
-          <tr><td><span class="inline-code">wallSlideParticle</span></td><td><span class="inline-code">ParticleSystem</span></td><td>Particle effect used while wall sliding.</td></tr>
-          <tr><td><span class="inline-code">standLerpTime</span></td><td><span class="inline-code">float</span></td><td>Stand transition lerp timer.</td></tr>
-          <tr><td><span class="inline-code">totalEncumberance</span></td><td><span class="inline-code">float</span></td><td>Total carried weight burden.</td></tr>
-          <tr><td><span class="inline-code">overEncumberance</span></td><td><span class="inline-code">float</span></td><td>How far over the encumbrance limit the player is.</td></tr>
-          <tr><td><span class="inline-code">limpAnimatorSpeed</span></td><td><span class="inline-code">float</span></td><td>Animator speed modifier for limping.</td></tr>
           <tr><td><span class="inline-code">radiationSickness</span></td><td><span class="inline-code">float</span></td><td>Radiation sickness amount.</td></tr>
-          <tr><td><span class="inline-code">maxEncumberance</span></td><td><span class="inline-code">float</span></td><td>Maximum normal encumbrance before penalties.</td></tr>
-          <tr><td><span class="inline-code">fallShakeCooldown</span></td><td><span class="inline-code">float</span></td><td>Cooldown for fall/camera shake effects.</td></tr>
           <tr><td><span class="inline-code">caffeinated</span></td><td><span class="inline-code">float</span></td><td>Caffeine effect strength.</td></tr>
-          <tr><td><span class="inline-code">handSlot</span></td><td><span class="inline-code">int</span></td><td>Currently active hand slot index.</td></tr>
           <tr><td><span class="inline-code">hearingLoss</span></td><td><span class="inline-code">float</span></td><td>Current hearing loss severity.</td></tr>
           <tr><td><span class="inline-code">internalBleeding</span></td><td><span class="inline-code">float</span></td><td>Internal bleeding amount.</td></tr>
           <tr><td><span class="inline-code">hemothorax</span></td><td><span class="inline-code">float</span></td><td>Blood/fluid in the chest severity.</td></tr>
-          <tr><td><span class="inline-code">forceWalk</span></td><td><span class="inline-code">bool</span></td><td>Whether movement is forced into walk mode.</td></tr>
           <tr><td><span class="inline-code">painShock</span></td><td><span class="inline-code">float</span></td><td>Pain-induced shock amount.</td></tr>
           <tr><td><span class="inline-code">limbBloodUpdateTimer</span></td><td><span class="inline-code">float</span></td><td>Timer for limb blood updates.</td></tr>
           <tr><td><span class="inline-code">traumaAmount</span></td><td><span class="inline-code">float</span></td><td>General trauma severity.</td></tr>
           <tr><td><span class="inline-code">hungerLimbHeal</span></td><td><span class="inline-code">AnimationCurve</span></td><td>Curve controlling healing relative to hunger.</td></tr>
           <tr><td><span class="inline-code">overdoseIndex</span></td><td><span class="inline-code">int</span></td><td>Runtime overdose tracking index.</td></tr>
-          <tr><td><span class="inline-code">impactSmall</span></td><td><span class="inline-code">AudioClip[]</span></td><td>Small impact sounds.</td></tr>
-          <tr><td><span class="inline-code">impactMedium</span></td><td><span class="inline-code">AudioClip[]</span></td><td>Medium impact sounds.</td></tr>
-          <tr><td><span class="inline-code">impactLarge</span></td><td><span class="inline-code">AudioClip[]</span></td><td>Large impact sounds.</td></tr>
-          <tr><td><span class="inline-code">reversedControls</span></td><td><span class="inline-code">bool</span></td><td>Whether controls are currently reversed.</td></tr>
-          <tr><td><span class="inline-code">furColors</span></td><td><span class="inline-code">Gradient</span></td><td>Gradient used for fur coloration.</td></tr>
-          <tr><td><span class="inline-code">endedJump</span></td><td><span class="inline-code">bool</span></td><td>Whether the current jump has ended.</td></tr>
           <tr><td><span class="inline-code">depressionChanceCurve</span></td><td><span class="inline-code">AnimationCurve</span></td><td>Curve tied to depression-style chance/effect logic.</td></tr>
           <tr><td><span class="inline-code">wetness</span></td><td><span class="inline-code">float</span></td><td>How wet the player is.</td></tr>
-          <tr><td><span class="inline-code">specialCrying</span></td><td><span class="inline-code">bool</span></td><td>Special crying state toggle.</td></tr>
-          <tr><td><span class="inline-code">inWater</span></td><td><span class="inline-code">bool</span></td><td>Whether the body is currently in water.</td></tr>
           <tr><td><span class="inline-code">liquidDrinkTime</span></td><td><span class="inline-code">float</span></td><td>Timer/state for liquid drinking.</td></tr>
-          <tr><td><span class="inline-code">bodyAffect</span></td><td><span class="inline-code">LiquidAffect</span></td><td>Active body-wide liquid effect reference.</td></tr>
-          <tr><td><span class="inline-code">dogShakeIntensity</span></td><td><span class="inline-code">float</span></td><td>Shake intensity for wet shake behavior.</td></tr>
-          <tr><td><span class="inline-code">brainShakeIntensity</span></td><td><span class="inline-code">float</span></td><td>Shake caused by brain effects.</td></tr>
-          <tr><td><span class="inline-code">miscShakeIntensity</span></td><td><span class="inline-code">float</span></td><td>Catch-all extra shake intensity.</td></tr>
           <tr><td><span class="inline-code">hasScubaGear</span></td><td><span class="inline-code">bool</span></td><td>Whether the player is treated as having scuba gear.</td></tr>
-          <tr><td><span class="inline-code">mindWipe</span></td><td><span class="inline-code">MindwipeScript</span></td><td>Mindwipe effect component/reference.</td></tr>
           <tr><td><span class="inline-code">curSleep</span></td><td><span class="inline-code">SleepQuality</span></td><td>Current sleep quality enum.</td></tr>
           <tr><td><span class="inline-code">badSleepAmount</span></td><td><span class="inline-code">float</span></td><td>Accumulated poor sleep amount.</td></tr>
           <tr><td><span class="inline-code">goodSleepTime</span></td><td><span class="inline-code">float</span></td><td>Accumulated good sleep time.</td></tr>
@@ -985,15 +1051,8 @@ Vector3 position = body.transform.position;</code></pre>
           <tr><td><span class="inline-code">immunityInfectionSpeed</span></td><td><span class="inline-code">AnimationCurve</span></td><td>Curve affecting infection speed from immunity.</td></tr>
           <tr><td><span class="inline-code">antibioticImmunityTime</span></td><td><span class="inline-code">float</span></td><td>Remaining boosted-immunity time from antibiotics.</td></tr>
           <tr><td><span class="inline-code">curImmunityMult</span></td><td><span class="inline-code">float</span></td><td>Current immunity multiplier.</td></tr>
-          <tr><td><span class="inline-code">tail</span></td><td><span class="inline-code">Transform</span></td><td>Tail transform reference, when present.</td></tr>
-          <tr><td><span class="inline-code">lastHappiness</span></td><td><span class="inline-code">float[]</span></td><td>Recent happiness history buffer.</td></tr>
-          <tr><td><span class="inline-code">triedRollingLastStand</span></td><td><span class="inline-code">bool</span></td><td>Whether the game already tried a last-stand roll.</td></tr>
-          <tr><td><span class="inline-code">succesfullyRolledLastStand</span></td><td><span class="inline-code">bool</span></td><td>Whether the last-stand roll succeeded.</td></tr>
-          <tr><td><span class="inline-code">lastLastChanceHappiness</span></td><td><span class="inline-code">AnimationCurve</span></td><td>Curve involved in last-stand happiness logic.</td></tr>
-          <tr><td><span class="inline-code">lastStandTime</span></td><td><span class="inline-code">float</span></td><td>Time spent in or around last-stand state.</td></tr>
           <tr><td><span class="inline-code">dirtyness</span></td><td><span class="inline-code">float</span></td><td>Dirtiness amount.</td></tr>
           <tr><td><span class="inline-code">brainGrowSickness</span></td><td><span class="inline-code">float</span></td><td>Brain-growth sickness amount.</td></tr>
-          <tr><td><span class="inline-code">usedNeuralBooster</span></td><td><span class="inline-code">bool</span></td><td>Whether a neural booster has already been used.</td></tr>
           <tr><td><span class="inline-code">forcedSleepQuality</span></td><td><span class="inline-code">SleepQuality?</span></td><td>Optional forced sleep quality override.</td></tr>
           <tr><td><span class="inline-code">clawDamageCurve</span></td><td><span class="inline-code">AnimationCurve</span></td><td>Curve used for claw damage scaling.</td></tr>
           <tr><td><span class="inline-code">clawHealth</span></td><td><span class="inline-code">float</span></td><td>Current claw health.</td></tr>
@@ -1001,11 +1060,6 @@ Vector3 position = body.transform.position;</code></pre>
           <tr><td><span class="inline-code">heartProg</span></td><td><span class="inline-code">float</span></td><td>Heart cycle progression value.</td></tr>
           <tr><td><span class="inline-code">randomFibrillationVariation</span></td><td><span class="inline-code">float</span></td><td>Extra randomness applied to fibrillation behavior.</td></tr>
           <tr><td><span class="inline-code">tempDiffFromNormal</span></td><td><span class="inline-code">float</span></td><td>Difference from normal body temperature.</td></tr>
-          <tr><td><span class="inline-code">skills</span></td><td><span class="inline-code">Skills</span></td><td>Player skill/stat container.</td></tr>
-          <tr><td><span class="inline-code">currentClimbable</span></td><td><span class="inline-code">Climbable</span></td><td>Current climbable object reference.</td></tr>
-          <tr><td><span class="inline-code">climbableProgress</span></td><td><span class="inline-code">float</span></td><td>Progress through the current climb action.</td></tr>
-          <tr><td><span class="inline-code">climbVelocity</span></td><td><span class="inline-code">float</span></td><td>Current climb movement speed.</td></tr>
-          <tr><td><span class="inline-code">onHardStimulants</span></td><td><span class="inline-code">bool</span></td><td>Whether hard stimulant effects are active.</td></tr>
           <tr><td><span class="inline-code">usingSleepingBag</span></td><td><span class="inline-code">bool</span></td><td>Whether the player is currently using a sleeping bag.</td></tr>
           <tr><td><span class="inline-code">heartCurveNormal</span></td><td><span class="inline-code">AnimationCurve</span></td><td>Heart rhythm curve for normal state.</td></tr>
           <tr><td><span class="inline-code">heartCurveArrythmia</span></td><td><span class="inline-code">AnimationCurve</span></td><td>Heart rhythm curve for arrhythmia state.</td></tr>
@@ -1013,6 +1067,51 @@ Vector3 position = body.transform.position;</code></pre>
           <tr><td><span class="inline-code">thirstBloodPressureCurve</span></td><td><span class="inline-code">AnimationCurve</span></td><td>Curve connecting thirst state to blood pressure changes.</td></tr>
           <tr><td><span class="inline-code">hasPulmonaryEmbolism</span></td><td><span class="inline-code">bool</span></td><td>Whether pulmonary embolism is active.</td></tr>
           <tr><td><span class="inline-code">strokeAmount</span></td><td><span class="inline-code">float</span></td><td>Stroke severity amount.</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="lesson-card">
+      <h2>Inventory, combat, and interaction</h2>
+      <table>
+        <thead>
+          <tr><th>Field</th><th>Type</th><th>Description</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><span class="inline-code">slots</span></td><td><span class="inline-code">InventorySlot[]</span></td><td>Player inventory and equipment slots.</td></tr>
+          <tr><td><span class="inline-code">eatTime</span></td><td><span class="inline-code">float</span></td><td>Timer/state related to eating actions.</td></tr>
+          <tr><td><span class="inline-code">attackCooldown</span></td><td><span class="inline-code">float</span></td><td>Attack delay/cooldown timer.</td></tr>
+          <tr><td><span class="inline-code">soundCooldown</span></td><td><span class="inline-code">float</span></td><td>Cooldown for certain sound-producing actions.</td></tr>
+          <tr><td><span class="inline-code">handSlot</span></td><td><span class="inline-code">int</span></td><td>Currently active hand slot index.</td></tr>
+          <tr><td><span class="inline-code">impactSmall</span></td><td><span class="inline-code">AudioClip[]</span></td><td>Small impact sounds.</td></tr>
+          <tr><td><span class="inline-code">impactMedium</span></td><td><span class="inline-code">AudioClip[]</span></td><td>Medium impact sounds.</td></tr>
+          <tr><td><span class="inline-code">impactLarge</span></td><td><span class="inline-code">AudioClip[]</span></td><td>Large impact sounds.</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="lesson-card">
+      <h2>Conditions and special states</h2>
+      <table>
+        <thead>
+          <tr><th>Field</th><th>Type</th><th>Description</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><span class="inline-code">desensitizedMult</span></td><td><span class="inline-code">float</span></td><td>Multiplier for corpse desensitization requirement.</td></tr>
+          <tr><td><span class="inline-code">corpsesSeen</span></td><td><span class="inline-code">int</span></td><td>How many corpses have been seen.</td></tr>
+          <tr><td><span class="inline-code">disfigured</span></td><td><span class="inline-code">bool</span></td><td>Whether the body is marked as disfigured.</td></tr>
+          <tr><td><span class="inline-code">eyeGone</span></td><td><span class="inline-code">bool</span></td><td>Whether one eye is gone.</td></tr>
+          <tr><td><span class="inline-code">bothEyesGone</span></td><td><span class="inline-code">bool</span></td><td>Whether both eyes are gone.</td></tr>
+          <tr><td><span class="inline-code">reversedControls</span></td><td><span class="inline-code">bool</span></td><td>Whether controls are currently reversed.</td></tr>
+          <tr><td><span class="inline-code">specialCrying</span></td><td><span class="inline-code">bool</span></td><td>Special crying state toggle.</td></tr>
+          <tr><td><span class="inline-code">inWater</span></td><td><span class="inline-code">bool</span></td><td>Whether the body is currently in water.</td></tr>
+          <tr><td><span class="inline-code">lastHappiness</span></td><td><span class="inline-code">float[]</span></td><td>Recent happiness history buffer.</td></tr>
+          <tr><td><span class="inline-code">triedRollingLastStand</span></td><td><span class="inline-code">bool</span></td><td>Whether the game already tried a last-stand roll.</td></tr>
+          <tr><td><span class="inline-code">succesfullyRolledLastStand</span></td><td><span class="inline-code">bool</span></td><td>Whether the last-stand roll succeeded.</td></tr>
+          <tr><td><span class="inline-code">lastLastChanceHappiness</span></td><td><span class="inline-code">AnimationCurve</span></td><td>Curve involved in last-stand happiness logic.</td></tr>
+          <tr><td><span class="inline-code">lastStandTime</span></td><td><span class="inline-code">float</span></td><td>Time spent in or around last-stand state.</td></tr>
+          <tr><td><span class="inline-code">usedNeuralBooster</span></td><td><span class="inline-code">bool</span></td><td>Whether a neural booster has already been used.</td></tr>
+          <tr><td><span class="inline-code">onHardStimulants</span></td><td><span class="inline-code">bool</span></td><td>Whether hard stimulant effects are active.</td></tr>
         </tbody>
       </table>
     </section>
@@ -1042,6 +1141,15 @@ status.ExposureSeconds += Time.deltaTime;</code></pre>
           public bool WarnedPlayer;
       }</code></pre>
       <p>These fields are ordinary C# fields. Think of them as extra body data for your mod.</p>
+    </section>
+
+    <section class="lesson-card">
+      <h2>CCLBody is for vanilla-owned calculations</h2>
+      <p>Use a normal <span class="inline-code">BodyStatus</span> when your mod needs attached custom state. Use <span class="inline-code">CCLBody</span> when the game recalculates a public vanilla <span class="inline-code">Body</span> field and you want CUCoreLib to inject your value into that formula seam for you.</p>
+      <pre><code>CCLBody.TotalEncumberance += 10f;
+CCLBody.MaxEncumberance += 1.5f;
+CCLBody.BloodPressure -= 12f;</code></pre>
+      <p>The current built-in surface is intentionally explicit. Only fields CUCoreLib actually patches are supported here.</p>
     </section>
 
     <section class="lesson-card">
@@ -1092,6 +1200,7 @@ public static class BodyUpdateStatusPatch
           </thead>
           <tbody>
             <tr><td>Per-body runtime fields that act like new vanilla body variables</td><td><span class="inline-code">BodyStatus</span></td></tr>
+            <tr><td>Public vanilla body fields that vanilla recalculates every frame or periodic pass</td><td><span class="inline-code">CCLBody</span></td></tr>
             <tr><td>Per-limb runtime fields tied to one limb instance</td><td><span class="inline-code">LimbStatus</span></td></tr>
             <tr><td>Registration-time metadata for a custom item/tile/building definition</td><td><span class="inline-code">CustomData</span> on the registered definition</td></tr>
             <tr><td>Large mod-wide systems not owned by one body/limb instance</td><td>Your own manager plus <span class="inline-code">SaveRegistry</span> provider if needed</td></tr>
@@ -2046,6 +2155,143 @@ function liquidsPage(): string {
 
    
 
+  `;
+}
+
+function liquidTilesPage(): string {
+  return `
+    <section class="lesson-card">
+      <h2>Liquids? Tiles? Why not combine the two?</h2>
+      <p><span class="inline-code">LiquidTileRegistry</span> is CUCoreLib's world-liquid API. It registers custom fluid cells in the vanilla <span class="inline-code">FluidManager</span>, gives them a stable custom world byte, and patches the normal liquid systems so they can render, be drunk, fill containers, and affect bodies standing in them.</p>
+      <p>This is different from <a href="/docs/liquids/" data-page="liquids">Liquid API</a>. A liquid registration defines what a logical liquid is. A liquid tile registration defines how that liquid behaves when it exists as a pool in the world.</p>
+      <pre><code>LiquidRegistry.Register("acidbrine", new CustomLiquidInfo
+{
+    name = "Acid brine",
+    description = "A shimmering pool of caustic industrial runoff.",
+    color = new Color(0.72f, 0.96f, 0.28f),
+    valuePerLiter = 8f,
+    onDrink = (ml, body) =>
+    {
+        float dose = ml * 0.01f;
+        body.Drink(dose * 2f);
+        body.sicknessAmount += dose * 9f;
+        body.happiness -= dose * 3f;
+    }
+});
+
+LiquidTileRegistry.Register("acidbrinepool", new CustomLiquidTileInfo
+{
+    LiquidId = "acidbrine",
+    FillLiquidId = "acidbrine",
+    Tint = new Color(0.8f, 1f, 0.45f, 1f),
+    TemperaturePerSecond = 4f,
+    SicknessPerSecond = 6f,
+    WetnessPerSecond = 30f,
+    SlipPerSecond = 0.35f,
+    SpawnAmount = 0.15f
+});</code></pre>
+    </section>
+
+    <section class="lesson-card">
+      <h2>What gets patched for you</h2>
+      <p>Once registered, CUCoreLib hooks the tile into the normal game liquid flow. <span class="inline-code">FluidManager.WaterInfo</span> reads your buoyancy and drag, <span class="inline-code">LiquidColor</span> and <span class="inline-code">LiquidName</span> use your registered display data, <span class="inline-code">DrinkLiquid</span> can consume the pool through the linked liquid, and <span class="inline-code">Body.HandleVariableUpdates</span> applies touch effects every frame.</p>
+      <p>That means you do not need a separate Harmony patch just to make a custom swamp, acid pond, algae bath, or healing puddle act like a real world liquid.</p>
+    </section>
+
+    <section class="lesson-card">
+      <h2>CustomLiquidTileInfo</h2>
+      <p><span class="inline-code">CustomLiquidTileInfo</span> controls the world-facing behavior of the liquid tile. Most mods only need to set the linked liquid IDs, visuals, touch effects, and maybe worldgen.</p>
+      <div class="table-wrap">
+        <table class="field-table">
+          <thead><tr><th>Field</th><th>Type</th><th>What it does</th></tr></thead>
+          <tbody>
+            <tr><td><span class="inline-code">LiquidId</span></td><td><span class="inline-code">string</span></td><td>Logical liquid used for display color fallback, drinking, and tooltip locale lookup. Defaults to the tile registration ID.</td></tr>
+            <tr><td><span class="inline-code">FillLiquidId</span></td><td><span class="inline-code">string</span></td><td>Liquid ID loose containers receive when they fill from this tile. Defaults to <span class="inline-code">LiquidId</span>.</td></tr>
+            <tr><td><span class="inline-code">Buoyancy</span></td><td><span class="inline-code">float</span></td><td>Returned through <span class="inline-code">FluidManager.WaterInfo</span> so bodies float or sink differently in this liquid.</td></tr>
+            <tr><td><span class="inline-code">Drag</span></td><td><span class="inline-code">float</span></td><td>Movement resistance used while inside the liquid.</td></tr>
+            <tr><td><span class="inline-code">PushBodies</span></td><td><span class="inline-code">bool</span></td><td>If true, CUCoreLib marks the body as <span class="inline-code">inWater</span> while touching the tile.</td></tr>
+            <tr><td><span class="inline-code">WetnessPerSecond</span></td><td><span class="inline-code">float</span></td><td>Wetness added to the body each second.</td></tr>
+            <tr><td><span class="inline-code">TemperaturePerSecond</span></td><td><span class="inline-code">float</span></td><td>Temperature change applied every second while touching the tile.</td></tr>
+            <tr><td><span class="inline-code">SicknessPerSecond</span></td><td><span class="inline-code">float</span></td><td>Sickness buildup per second.</td></tr>
+            <tr><td><span class="inline-code">DirtynessPerSecond</span></td><td><span class="inline-code">float</span></td><td>Dirtyness added per second.</td></tr>
+            <tr><td><span class="inline-code">DisinfectPerSecond</span></td><td><span class="inline-code">float</span></td><td>Refreshes limb disinfect time while standing in the liquid.</td></tr>
+            <tr><td><span class="inline-code">SlipPerSecond</span></td><td><span class="inline-code">float</span></td><td>Adds to <span class="inline-code">body.liquidSlipTime</span> for slippery liquids.</td></tr>
+            <tr><td><span class="inline-code">RagdollBarDrainPerSecond</span></td><td><span class="inline-code">float</span></td><td>Subtracts from <span class="inline-code">body.liquidRagdollBar</span> over time.</td></tr>
+            <tr><td><span class="inline-code">ConsumeOnDrink</span></td><td><span class="inline-code">bool</span></td><td>If true, drinking removes the world liquid cell after use.</td></tr>
+            <tr><td><span class="inline-code">ConsumeOnFill</span></td><td><span class="inline-code">bool</span></td><td>Whether filling containers should consume the world liquid tile through the game's normal fill flow.</td></tr>
+            <tr><td><span class="inline-code">OnDrinkOverride</span></td><td><span class="inline-code">LiquidType.OnDrink</span></td><td>Optional direct drink callback for the tile. If unset, the linked <span class="inline-code">LiquidId</span> <span class="inline-code">onDrink</span> is used instead.</td></tr>
+            <tr><td><span class="inline-code">OnEnter</span></td><td><span class="inline-code">Action&lt;Body, LiquidTileTouchContext&gt;</span></td><td>Called once when a body steps into this liquid tile.</td></tr>
+            <tr><td><span class="inline-code">OnTouch</span></td><td><span class="inline-code">Action&lt;Body, LiquidTileTouchContext&gt;</span></td><td>Called every frame while a body remains on the tile, after the built-in wetness/sickness/slip effects.</td></tr>
+            <tr><td><span class="inline-code">OnExit</span></td><td><span class="inline-code">Action&lt;Body, LiquidTileTouchContext&gt;</span></td><td>Called once when a body leaves the tile.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="lesson-card">
+      <h2>Visuals</h2>
+      <p>Custom liquid tiles keep using the game's fluid rendering path, but you can steer how the visuals are sourced. The final display color is the linked liquid's color multiplied by <span class="inline-code">Tint</span>.</p>
+      <div class="table-wrap">
+        <table class="field-table">
+          <thead><tr><th>Field</th><th>Type</th><th>What it does</th></tr></thead>
+          <tbody>
+            <tr><td><span class="inline-code">VisualMode</span></td><td><span class="inline-code">LiquidTileVisualMode</span></td><td>Chooses whether the tile reuses an existing vanilla fluid visual, a custom material, a sprite texture, or a generated high-res image.</td></tr>
+            <tr><td><span class="inline-code">ExistingVisualLiquidByte</span></td><td><span class="inline-code">byte</span></td><td>Base vanilla liquid visual to clone from. Defaults to <span class="inline-code">1</span> which is water.</td></tr>
+            <tr><td><span class="inline-code">Tint</span></td><td><span class="inline-code">Color</span></td><td>Multiplier applied to the linked liquid color for fluid rendering and tile tooltip color.</td></tr>
+            <tr><td><span class="inline-code">VisualMaterial</span></td><td><span class="inline-code">Material</span></td><td>Material override used when <span class="inline-code">VisualMode</span> is <span class="inline-code">Material</span>.</td></tr>
+            <tr><td><span class="inline-code">VisualSprite</span></td><td><span class="inline-code">Sprite</span></td><td>Sprite texture override used when <span class="inline-code">VisualMode</span> is <span class="inline-code">Sprite</span>.</td></tr>
+            <tr><td><span class="inline-code">HighResImage</span></td><td><span class="inline-code">Texture2D</span></td><td>Texture override used when <span class="inline-code">VisualMode</span> is <span class="inline-code">HighResImageGenerated</span>.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Most mods should start with <span class="inline-code">ExistingLiquidPlusTint</span> and only move to material or sprite overrides when the liquid needs a distinct surface look.</p>
+    </section>
+
+    <section class="lesson-card">
+      <h2>Placement and worldgen</h2>
+      <p>Use <span class="inline-code">LiquidTileRegistry.Place(id, blockPos)</span> to place one custom liquid cell into an empty world block, or <span class="inline-code">FloodFill(id, start, maxFill)</span> to spread the liquid outward using the vanilla fill simulation.</p>
+      <p>For terrain generation, set <span class="inline-code">SpawnAmount</span> above <span class="inline-code">0f</span>. CUCoreLib patches <span class="inline-code">WorldGeneration.GenerateOres()</span> and calls <span class="inline-code">world.PlaceLiquids(...)</span> for each registered tile that matches the current biome layer mask.</p>
+      <div class="table-wrap">
+        <table class="field-table">
+          <thead><tr><th>Field</th><th>Type</th><th>What it does</th></tr></thead>
+          <tbody>
+            <tr><td><span class="inline-code">SpawnAmount</span></td><td><span class="inline-code">float</span></td><td>How often the liquid generates during world creation. Values above <span class="inline-code">0f</span> opt into generation.</td></tr>
+            <tr><td><span class="inline-code">SpawnLayers</span></td><td><span class="inline-code">int</span></td><td>Layer mask controlling which biome depths can spawn this liquid. Use <span class="inline-code">LiquidTileRegistry.AllSpawnLayersMask</span> for every layer, or the same helper-mask pattern as tiles/buildings when you need specific layers.</td></tr>
+            <tr><td><span class="inline-code">MaxFloodFill</span></td><td><span class="inline-code">int</span></td><td>Default maximum fill size for <span class="inline-code">FloodFill</span> and worldgen placement.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="lesson-card">
+      <h2>Touch callbacks</h2>
+      <p>The callback context reports the block position, world position, custom world byte, delta time, and whether the body just entered or exited. Use it for special logic that should happen on top of the built-in wetness, sickness, disinfect, or slip behavior.</p>
+      <pre><code>LiquidTileRegistry.Register("healingpool", new CustomLiquidTileInfo
+{
+    LiquidId = "disinfectant",
+    WetnessPerSecond = 8f,
+    DisinfectPerSecond = 20f,
+    OnEnter = (body, context) =>
+    {
+        body.talker.Say("Warm...");
+    },
+    OnTouch = (body, context) =>
+    {
+        if (body.health < 100f)
+            body.health += 2f * context.DeltaTime;
+    },
+    OnExit = (body, context) =>
+    {
+        body.happiness += 1f;
+    }
+});</code></pre>
+    </section>
+
+    <section class="lesson-card">
+      <h2>Persistence and multiplayer</h2>
+      <p>Liquid tile definitions, their world-byte mapping, and current custom-liquid cells are already included in CUCoreLib's built-in save and multiplayer snapshot flow. The registry registers a world save provider during startup, and the multiplayer sync registry includes a dedicated <span class="inline-code">liquidtiles</span> module.</p>
+      <p>The one important caveat is content reload: strict replayable content reload does not support liquid tile registration right now, so <span class="inline-code">LiquidTileRegistry.Register()</span> intentionally rejects that path.</p>
+    </section>
   `;
 }
 

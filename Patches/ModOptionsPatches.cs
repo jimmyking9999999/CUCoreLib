@@ -42,10 +42,10 @@ namespace CUCoreLib.Patches
     internal static class ConfigFileAddPatch
     {
         [HarmonyPostfix]
-        private static void Postfix(ConfigFile __instance, ConfigDefinition definition, ConfigEntryBase entry)
+        private static void Postfix(ConfigFile __instance, ConfigDefinition key, ConfigEntryBase value)
         {
-            if (__instance == null || entry == null) return;
-            ModSettingsConfigSyncRegistry.RegisterConfigEntry(__instance, entry);
+            if (__instance == null || value == null) return;
+            ModSettingsConfigSyncRegistry.RegisterConfigEntry(__instance, value);
         }
     }
 

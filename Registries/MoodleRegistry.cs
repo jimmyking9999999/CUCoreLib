@@ -347,8 +347,17 @@ namespace CUCoreLib.Registries
 
         private static void AddMoodle(MoodleManager manager, StatusMoodleDefinition moodle, bool important)
         {
-            if (manager == null || moodle == null || string.IsNullOrWhiteSpace(moodle.Icon) ||
-                string.IsNullOrWhiteSpace(moodle.Name)) return;
+            if (manager == null || moodle == null || string.IsNullOrWhiteSpace(moodle.Name)) return;
+
+            if (moodle.IconSprite != null)
+            {
+                var iconKey = "cucorelib.status." + BuildQueueKey(moodle, moodle.IconSprite, null);
+                manager.icons[iconKey] = NormalizeIconSprite(moodle.IconSprite);
+                ActiveAnimationIdsByIconKey.Remove(iconKey);
+                moodle.Icon = iconKey;
+            }
+
+            if (string.IsNullOrWhiteSpace(moodle.Icon)) return;
 
             if (!manager.icons.ContainsKey(moodle.Icon))
             {

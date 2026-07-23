@@ -613,6 +613,7 @@ export function currentCode(nextPage: PageId, nextItemState: ItemState, nextReci
   if (currentPage === "advanced-item") return advancedItemCode();
   if (currentPage === "custom-item-scripts") return customItemScriptsCode();
   if (currentPage === "liquids") return liquidCode();
+  if (currentPage === "liquid-tiles") return liquidTileCode();
   if (currentPage === "player") return playerCode();
   if (currentPage === "animations") return animationsCode();
   if (currentPage === "statuses") return statusesCode();
@@ -650,6 +651,7 @@ export function codeTitle(currentPage: PageId): string {
   if (currentPage === "advanced-item") return "RegisterAdvancedItems.cs";
   if (currentPage === "custom-item-scripts") return "StormMantleScript.cs";
   if (currentPage === "liquids") return "RegisterLiquids.cs";
+  if (currentPage === "liquid-tiles") return "RegisterLiquidTiles.cs";
   if (currentPage === "player") return "PlayerHelpers.cs";
   if (currentPage === "animations") return "RegisterAnimationPack.cs";
   if (currentPage === "statuses") return "StatusesExample.cs";
@@ -1846,6 +1848,58 @@ private void RegisterPineappleJuiceContent()
 }`;
 }
 
+function liquidTileCode(): string {
+  return `using CUCoreLib.Data;
+using CUCoreLib.Registries;
+using UnityEngine;
+
+private void RegisterLiquidTiles()
+{
+    LiquidRegistry.Register("acidbrine", new CustomLiquidInfo
+    {
+        name = "Acid brine",
+        description = "A shimmering pool of caustic industrial runoff.",
+        color = new Color(0.72f, 0.96f, 0.28f),
+        valuePerLiter = 8f,
+        onDrink = (ml, body) =>
+        {
+            float dose = ml * 0.01f;
+
+            body.Drink(dose * 2f);
+            body.sicknessAmount += dose * 9f;
+            body.happiness -= dose * 3f;
+        }
+    });
+
+    LiquidTileRegistry.Register("acidbrinepool", new CustomLiquidTileInfo
+    {
+        LiquidId = "acidbrine",
+        FillLiquidId = "acidbrine",
+        Buoyancy = 0.55f,
+        Drag = 0.94f,
+        PushBodies = true,
+        WetnessPerSecond = 30f,
+        TemperaturePerSecond = 4f,
+        SicknessPerSecond = 6f,
+        SlipPerSecond = 0.35f,
+        Tint = new Color(0.8f, 1f, 0.45f, 1f),
+        SpawnAmount = 0.15f,
+        MaxFloodFill = 96,
+        OnEnter = (body, context) =>
+        {
+            body.talker.Say("Ow.");
+        },
+        OnTouch = (body, context) =>
+        {
+            body.health -= 4f * context.DeltaTime;
+        }
+    });
+
+    LiquidTileRegistry.Place("acidbrinepool", new Vector2Int(128, 42));
+    LiquidTileRegistry.FloodFill("acidbrinepool", new Vector2Int(132, 42));
+}`;
+}
+
 function advancedItemCode(): string {
   return `using System.Collections.Generic;
 using CUCoreLib.Data;
@@ -1998,10 +2052,18 @@ private float GetCustomFloat(Item item, string key, float fallback)
 
 function playerCode(): string {
   return `using System.Collections;
-using CUCoreLib.Data;
 using CUCoreLib.Helpers;
 using CUCoreLib.Registries;
 using UnityEngine;
+
+private static void ApplyCustomBodyFormula()
+{
+    CCLBody.TotalEncumberance += 10f;
+    CCLBody.BloodPressure -= 8f;
+    CCLBody.HeartRate += 15f;
+
+    Debug.Log($"Live encumberance after CUCoreLib formula patching: {PlayerCamera.main.body.totalEncumberance}");
+}
 
 private IEnumerator LogPlayerStateWhenReady()
 {
@@ -2052,6 +2114,21 @@ using CUCoreLib.Helpers;
 using CUCoreLib.Registries;
 using HarmonyLib;
 using UnityEngine;
+
+[StatusOptions(Key = "com.yourname.sunstroke", SaveEnabled = true)]
+public sealed class SunstrokeStatus : BodyStatus
+{
+    public float ExposureSeconds;
+    public float CoolingGraceSeconds;
+    public bool WarnedPlayer;
+}
+
+private static void ConfigureBodyFormula(Body body)
+{
+    CCLBody.TotalEncumberance += 5f;
+    CCLBody.MaxEncumberance += 1.5f;
+    CCLBody.BloodPressure -= 10f;
+}
 
 [StatusOptions(Key = "com.yourname.sunstroke", SaveEnabled = true)]
 public sealed class SunstrokeStatus : BodyStatus

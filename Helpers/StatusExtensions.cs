@@ -16,5 +16,10 @@ namespace CUCoreLib.Helpers
         {
             return StatusRegistry.Get(limb).Get<TStatus>();
         }
+
+        internal static BodyFormulaData GetBodyFormulaData(this Body body)
+        {
+            return StatusRegistry.Get(body).Get<BodyFormulaData>();
+        }
     }
 }

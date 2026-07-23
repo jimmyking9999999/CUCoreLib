@@ -70,7 +70,6 @@ namespace CUCoreLib.Registries
             RegisterBodyProvider("cucorelib.bodyStatuses", new BuiltInBodyStatusSaveProvider());
             RegisterLimbProvider("cucorelib.limbStatuses", new BuiltInLimbStatusSaveProvider());
             RegisterWorldProvider("cucorelib.buildings", new BuiltInBuildingEntitySaveProvider());
-            RegisterWorldProvider("cucorelib.liquidTiles", new BuiltInLiquidTileSaveProvider());
         }
 
         private static void RegisterProvider<T>(Dictionary<string, T> map, string scope, string key, T provider)

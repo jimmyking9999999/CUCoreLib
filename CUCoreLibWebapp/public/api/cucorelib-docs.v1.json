@@ -2,7 +2,7 @@
   "version": "1.0",
   "library": "CUCoreLib",
   "description": "Machine-readable CUCoreLib web docs generated from the interactive docs sources.",
-  "generatedAt": "2026-07-20T18:32:53.045Z",
+  "generatedAt": "2026-07-23T10:20:19.483Z",
   "baseUrl": "/",
   "topics": [
     {
@@ -112,6 +112,15 @@
       "lead": "Register liquid definitions, fill liquid containers, and understand WaterContainerItem behavior.",
       "appUrl": "/docs/liquids/",
       "machineUrl": "/api/topics/liquids.json"
+    },
+    {
+      "id": "liquid-tiles",
+      "label": "Liquid Tiles",
+      "crumb": "World",
+      "title": "Liquid Tile API",
+      "lead": "Register swimmable world liquids with custom visuals, touch effects, drinking behavior, and worldgen.",
+      "appUrl": "/docs/liquid-tiles/",
+      "machineUrl": "/api/topics/liquid-tiles.json"
     },
     {
       "id": "player",
