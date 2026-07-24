@@ -13,17 +13,10 @@ namespace CUCoreLib.Patches
         [HarmonyPrefix]
         private static bool HateGameset(string __0, ref string __result)
         {
-            if (string.IsNullOrEmpty(__0) || !__0.StartsWith("gameset"))
+            if (!ModOptionsRegistry.TryGetLocalizedText(__0, out var localizedText))
                 return true;
 
-            var language = Locale.currentLang;
-            if (language?.other == null)
-                return true;
-
-            var cleanKey = __0.Substring("gameset".Length);
-            if (!language.other.TryGetValue(cleanKey, out var value)
-                || string.IsNullOrWhiteSpace(value)) return true;
-            __result = value;
+            __result = localizedText;
             return false;
         }
     }

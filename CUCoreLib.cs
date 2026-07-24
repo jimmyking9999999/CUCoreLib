@@ -19,7 +19,7 @@ namespace CUCoreLib
     {
         public const string GUID = "net.cucorelib";
         public const string MODNAME = "CUCoreLib";
-        public const string VERSION = "1.0.3";
+        public const string VERSION = "1.0.4";
         private const string BepInExCoreConfigFileName = "BepInEx.cfg";
 
         internal static ManualLogSource Log;

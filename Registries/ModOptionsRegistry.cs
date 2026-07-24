@@ -15,6 +15,8 @@ namespace CUCoreLib.Registries
         internal static readonly List<ModOptionDefinition> RegisteredOptions = new List<ModOptionDefinition>();
         private static readonly HashSet<string> RegisteredIds = new HashSet<string>(StringComparer.Ordinal);
         private static readonly List<ModOptionCategoryEntry> CustomCategories = new List<ModOptionCategoryEntry>();
+        private static readonly Dictionary<string, ModOptionCategoryEntry> CustomCategoriesByOptionId =
+            new Dictionary<string, ModOptionCategoryEntry>(StringComparer.Ordinal);
 
         private static readonly Dictionary<string, ModOptionCategoryEntry> CustomCategoriesByKey =
             new Dictionary<string, ModOptionCategoryEntry>(StringComparer.Ordinal);
@@ -50,6 +52,8 @@ namespace CUCoreLib.Registries
         {
             if (settings == null) return;
 
+            ReconcileCustomCategoryOwnership(settings);
+
             foreach (var option in from option in RegisteredOptions
                      let option1 = option
                      where option != null && !settings.Any(setting => setting != null && setting.name == option1.Id)
@@ -66,11 +70,83 @@ namespace CUCoreLib.Registries
             return CustomCategories.ToList();
         }
 
+        internal static bool TryGetOwnedCustomCategory(Setting.SettingCategory category, out ModOptionCategoryEntry entry)
+        {
+            entry = CustomCategories.FirstOrDefault(candidate => candidate != null && candidate.Category == category);
+            return entry != null;
+        }
+
+        internal static bool TryGetOwnedCustomCategory(string normalizedKey, out ModOptionCategoryEntry entry)
+        {
+            entry = null;
+            if (string.IsNullOrWhiteSpace(normalizedKey)) return false;
+
+            return CustomCategoriesByKey.TryGetValue(normalizedKey, out entry) && entry != null;
+        }
+
+        internal static string NormalizeCustomCategoryKey(string category)
+        {
+            return NormalizeCategoryKey(category);
+        }
+
+        internal static bool IsOwnedCustomCategory(Setting.SettingCategory category)
+        {
+            return CustomCategories.Any(entry => entry != null && entry.Category == category);
+        }
+
+        internal static void ReconcileCustomCategoryOwnership(IEnumerable<Setting> settings = null)
+        {
+            if (CustomCategories.Count == 0) return;
+
+            var occupiedIndices = CollectForeignCustomCategoryIndices(settings);
+            var assignedIndices = new HashSet<int>();
+            var changed = false;
+
+            foreach (var entry in CustomCategories)
+            {
+                if (entry == null) continue;
+
+                var currentIndex = (int)entry.Category;
+                var needsReassignment = currentIndex < CustomCategoryBaseIndex ||
+                                        occupiedIndices.Contains(currentIndex) ||
+                                        !assignedIndices.Add(currentIndex);
+
+                if (!needsReassignment) continue;
+
+                var nextIndex = FindNextAvailableCategoryIndex(occupiedIndices, assignedIndices);
+                if (currentIndex == nextIndex) continue;
+
+                entry.SetCategory((Setting.SettingCategory)nextIndex);
+                assignedIndices.Add(nextIndex);
+                changed = true;
+            }
+
+            if (changed) ApplyResolvedCategoriesToOwnedOptions(settings);
+        }
+
+        internal static bool TryGetLocalizedText(string localeKey, out string text)
+        {
+            text = null;
+            if (string.IsNullOrWhiteSpace(localeKey) ||
+                !localeKey.StartsWith("gameset", StringComparison.Ordinal)) return false;
+
+            if (TryGetLoadedLocaleText(localeKey, out text)) return true;
+
+            var cleanKey = localeKey.Substring("gameset".Length);
+            if (TryGetLoadedLocaleText(cleanKey, out text)) return true;
+
+            if (TryGetRegisteredLocaleText(LocaleRegistry.LocaleCategory.Other, localeKey, out text)) return true;
+            if (TryGetRegisteredLocaleText(LocaleRegistry.LocaleCategory.Other, cleanKey, out text)) return true;
+
+            return TryGetRegisteredLocaleText(LocaleRegistry.LocaleCategory.Option, cleanKey, out text);
+        }
+
         private static void MergeIntoLoadedSettings(ModOptionDefinition option)
         {
             if (Settings.settings == null ||
                 Settings.settings.Any(setting => setting != null && setting.name == option.Id)) return;
 
+            ReconcileCustomCategoryOwnership(Settings.settings);
             var createdSetting = option.CreateSetting();
             Settings.settings.Add(createdSetting);
             ModSettingsConfigSyncRegistry.RegisterSetting(option, createdSetting);
@@ -80,9 +156,14 @@ namespace CUCoreLib.Registries
         private static void RegisterLocale(ModOptionDefinition option)
         {
             LocaleRegistry.Register(LocaleRegistry.LocaleCategory.Option, option.Id, option.Label);
+            LocaleRegistry.Register(LocaleRegistry.LocaleCategory.Other, "gameset" + option.Id, option.Label);
             if (!string.IsNullOrWhiteSpace(option.Description))
+            {
                 LocaleRegistry.Register(LocaleRegistry.LocaleCategory.Option, option.Id + "dsc",
                     option.Description);
+                LocaleRegistry.Register(LocaleRegistry.LocaleCategory.Other, "gameset" + option.Id + "dsc",
+                    option.Description);
+            }
             // todo I really need to figure this out
             // man this is kinda ass ngl
             if (option.Kind != ModOptionKind.Dropdown || option.Choices == null) return;
@@ -90,6 +171,8 @@ namespace CUCoreLib.Registries
             foreach (var choice in option.Choices)
             {
                 LocaleRegistry.Register(LocaleRegistry.LocaleCategory.Option, option.Id + choice.Key,
+                    choice.Label);
+                LocaleRegistry.Register(LocaleRegistry.LocaleCategory.Other, "gameset" + option.Id + choice.Key,
                     choice.Label);
             }
         }
@@ -274,29 +357,121 @@ namespace CUCoreLib.Registries
             if (!CustomCategoriesByKey.TryGetValue(normalizedKey, out var entry))
             {
                 entry = new ModOptionCategoryEntry(option.CustomCategory.Trim(),
-                    CustomCategoryBaseIndex + CustomCategories.Count);
+                    (Setting.SettingCategory)FindNextAvailableCategoryIndex(CollectForeignCustomCategoryIndices(null),
+                        new HashSet<int>(CustomCategories.Select(category => (int)category.Category))));
                 CustomCategories.Add(entry);
                 CustomCategoriesByKey.Add(normalizedKey, entry);
             }
 
-            option.SetResolvedCategory((Setting.SettingCategory)entry.CategoryIndex);
+            entry.RegisterOption(option.Id);
+            CustomCategoriesByOptionId[option.Id] = entry;
+            option.SetResolvedCategory(entry.Category);
         }
 
         private static string NormalizeCategoryKey(string category)
         {
             return (category ?? string.Empty).Trim().ToLowerInvariant();
         }
+
+        private static HashSet<int> CollectForeignCustomCategoryIndices(IEnumerable<Setting> settings)
+        {
+            var occupiedIndices = new HashSet<int>();
+            var source = settings ?? Settings.settings;
+            if (source == null) return occupiedIndices;
+
+            foreach (var setting in source)
+            {
+                if (setting == null) continue;
+                var categoryIndex = (int)setting.category;
+                if (categoryIndex < CustomCategoryBaseIndex) continue;
+                if (RegisteredIds.Contains(setting.name)) continue;
+                occupiedIndices.Add(categoryIndex);
+            }
+
+            return occupiedIndices;
+        }
+
+        private static int FindNextAvailableCategoryIndex(ISet<int> occupiedIndices, ISet<int> assignedIndices)
+        {
+            var nextIndex = CustomCategoryBaseIndex;
+            while ((occupiedIndices != null && occupiedIndices.Contains(nextIndex)) ||
+                   (assignedIndices != null && assignedIndices.Contains(nextIndex)))
+                nextIndex++;
+
+            return nextIndex;
+        }
+
+        private static void ApplyResolvedCategoriesToOwnedOptions(IEnumerable<Setting> settings)
+        {
+            foreach (var option in RegisteredOptions)
+            {
+                if (option == null || !CustomCategoriesByOptionId.TryGetValue(option.Id, out var entry) || entry == null) continue;
+                option.SetResolvedCategory(entry.Category);
+            }
+
+            var targetSettings = settings ?? Settings.settings;
+            if (targetSettings == null) return;
+
+            foreach (var setting in targetSettings)
+            {
+                if (setting == null || !CustomCategoriesByOptionId.TryGetValue(setting.name, out var entry) || entry == null)
+                    continue;
+
+                setting.category = entry.Category;
+            }
+        }
+
+        private static bool TryGetLoadedLocaleText(string key, out string text)
+        {
+            text = null;
+            if (string.IsNullOrWhiteSpace(key)) return false;
+
+            var language = Locale.currentLang;
+            if (language?.other == null ||
+                !language.other.TryGetValue(key, out var localizedText) ||
+                string.IsNullOrWhiteSpace(localizedText)) return false;
+
+            text = localizedText;
+            return true;
+        }
+
+        private static bool TryGetRegisteredLocaleText(LocaleRegistry.LocaleCategory category, string key, out string text)
+        {
+            text = null;
+            if (string.IsNullOrWhiteSpace(key)) return false;
+
+            if (!LocaleRegistry.CustomLocales.TryGetValue((int)category, out var locales) ||
+                !locales.TryGetValue(key, out var localizedText) ||
+                string.IsNullOrWhiteSpace(localizedText)) return false;
+
+            text = localizedText;
+            return true;
+        }
     }
 
     internal sealed class ModOptionCategoryEntry
     {
-        public ModOptionCategoryEntry(string displayName, int categoryIndex)
+        private readonly HashSet<string> ownedOptionIds = new HashSet<string>(StringComparer.Ordinal);
+
+        public ModOptionCategoryEntry(string displayName, Setting.SettingCategory category)
         {
             DisplayName = displayName;
-            CategoryIndex = categoryIndex;
+            Category = category;
+        }
+
+        public void RegisterOption(string optionId)
+        {
+            if (!string.IsNullOrWhiteSpace(optionId))
+                ownedOptionIds.Add(optionId);
+        }
+
+        public void SetCategory(Setting.SettingCategory category)
+        {
+            Category = category;
         }
 
         public string DisplayName { get; }
-        public int CategoryIndex { get; }
+        public Setting.SettingCategory Category { get; private set; }
+        public int CategoryIndex => (int)Category;
     }
 }

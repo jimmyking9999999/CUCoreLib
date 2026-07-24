@@ -10,15 +10,22 @@ I figured that this would be nice to have, as to easily take a look at everythin
 ## v1.0.4
 
 ### New Stuff!
-- Added optional sync between `ModOptionsRegistry` settings and manually bound BepInEx config entries when they share the same namespaced ID or key suffix. Note the in-game setting is still the source of truth 
+- Added optional sync between `ModOptionsRegistry` settings and manually bound BepInEx config entries when they share the same namespaced ID or key suffix. Note the in-game setting is still the source of truth.
 - Added `CCLBody` for formula-owned vanilla `Body` fields such as blood pressure and encumberance values, so mods can inject simple per-mod contributions without writing their own Harmony patches.
+- ^ do send suggestions for more body fields that might want to be added!
 - `StatusMoodleDefinition` can now carry a direct sprite icon instead of requiring a pre-existing vanilla icon ID.
+- Tiles? Liquids? Why noy both? Added early liquid tile support
+- Liquid registration now has an onuse field and inject field that can be used in place of the item
 
 ### Changes
--
+- QoL settings menu compatibility
 
 ### Fixes
--
+- Mod options now fall back to their registered label/description/dropdown text when no locale overrides exist (whoops!)
+- Fixed ScaleWithCondition scaling towards 0.1f
+- Item.stats works properly for a couple more immutable stats
+- ^ once more, do send suggestions for more body fields that might want to be added!
+- Documentation, bleh...
 
 ## v1.0.3
 

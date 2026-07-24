@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using CUCoreLib.ContentReload;
+using CUCoreLib.Data;
 using CUCoreLib.Helpers;
 using CUCoreLib.Registries;
 using HarmonyLib;
@@ -20,6 +21,7 @@ namespace CUCoreLib.Patches
             RefreshSpawnAutofill();
             RefreshCustomSpawnAutofill();
             RefreshAddLiquidAutofill();
+            RefreshFloodFillAutofill();
             RefreshDebugWatchAutofill();
             RefreshReloadContentAutofill();
             RefreshSetTileAutofill();
@@ -296,6 +298,32 @@ namespace CUCoreLib.Patches
             };
         }
 
+        private static Dictionary<int, List<string>> BuildFloodFillAutofill()
+        {
+            var values = new HashSet<byte>();
+
+            for (var liquidByte = 1; liquidByte <= 6; liquidByte++)
+                values.Add((byte)liquidByte);
+
+            foreach (var id in LiquidTileRegistry.GetRegisteredIds())
+            {
+                if (!LiquidTileRegistry.TryGetWorldByte(id, out var worldByte)) continue;
+                if (worldByte == 0) continue;
+                values.Add(worldByte);
+            }
+
+            var sortedValues = values
+                .OrderBy(value => value)
+                .Select(value => value.ToString())
+                .ToList();
+
+            return new Dictionary<int, List<string>>
+            {
+                { 0, new List<string> { "cursor", "player", "random", "#.#" } },
+                { 1, sortedValues }
+            };
+        }
+
         private static void RefreshAddLiquidAutofill()
         {
             LiquidRegistry.InjectRegisteredLiquids(true);
@@ -317,6 +345,14 @@ namespace CUCoreLib.Patches
             foreach (var id in LiquidRegistry.GetRegisteredLiquidIds())
                 if (!liquidIds.Contains(id, StringComparer.OrdinalIgnoreCase))
                     liquidIds.Add(id);
+        }
+
+        private static void RefreshFloodFillAutofill()
+        {
+            var floodFillCommand = ConsoleScript.SearchExact("floodfill");
+            if (floodFillCommand == null) return;
+
+            floodFillCommand.argAutofill = BuildFloodFillAutofill();
         }
 
         private static void RefreshSetTileAutofill()
@@ -486,6 +522,100 @@ namespace CUCoreLib.Patches
             return bestMatch;
         }
 
+        private static bool TryGetFloodFillVisual(byte liquidByte, out string liquidId, out string displayName)
+        {
+            liquidId = null;
+            displayName = null;
+
+            if (!LiquidTileRegistry.TryGetTileId(liquidByte, out liquidId) || string.IsNullOrWhiteSpace(liquidId))
+            {
+                switch (liquidByte)
+                {
+                    case 1:
+                        liquidId = "water";
+                        break;
+                    case 2:
+                        liquidId = "groundwater";
+                        break;
+                    case 3:
+                        liquidId = "lumalgae";
+                        break;
+                    case 4:
+                        liquidId = "oil";
+                        break;
+                    case 5:
+                        liquidId = "sap";
+                        break;
+                    case 6:
+                        liquidId = "dirtywater";
+                        break;
+                    default:
+                        return false;
+                }
+            }
+
+            CustomLiquidInfo customInfo;
+            if (LiquidRegistry.TryGetCustomInfo(liquidId, out customInfo) &&
+                customInfo != null &&
+                !string.IsNullOrWhiteSpace(customInfo.name))
+            {
+                displayName = customInfo.name;
+                return true;
+            }
+
+            LiquidType liquidType;
+            if (Liquids.Registry != null && Liquids.Registry.TryGetValue(liquidId, out liquidType) && liquidType != null)
+            {
+                var localeKey = !string.IsNullOrWhiteSpace(liquidType.localeName) ? liquidType.localeName : liquidId;
+                displayName = Locale.GetOther(localeKey);
+                return true;
+            }
+
+            displayName = Locale.GetOther(liquidId);
+            return true;
+        }
+
+        private static string FormatFloodFillAutofill(string value)
+        {
+            byte liquidByte;
+            if (!byte.TryParse(value, out liquidByte)) return value;
+
+            string liquidId;
+            string displayName;
+            if (!TryGetFloodFillVisual(liquidByte, out liquidId, out displayName) || string.IsNullOrWhiteSpace(liquidId))
+                return value;
+
+            if (string.IsNullOrWhiteSpace(displayName) ||
+                string.Equals(displayName, liquidId, StringComparison.OrdinalIgnoreCase))
+                return value + " - " + liquidId;
+
+            return value + " - " + liquidId + " - " + displayName;
+        }
+
+        private static string FormatFloodFillSuggestionLine(string line)
+        {
+            if (string.IsNullOrEmpty(line)) return line;
+
+            var prefix = string.Empty;
+            var suffix = string.Empty;
+            var content = line;
+
+            if (line.StartsWith("<color=", StringComparison.Ordinal))
+            {
+                var tagEnd = line.IndexOf('>');
+                var closeTag = line.LastIndexOf("</color>", StringComparison.Ordinal);
+                if (tagEnd >= 0 && closeTag > tagEnd)
+                {
+                    prefix = line.Substring(0, tagEnd + 1);
+                    suffix = line.Substring(closeTag);
+                    content = line.Substring(tagEnd + 1, closeTag - tagEnd - 1);
+                }
+            }
+
+            var formatted = FormatFloodFillAutofill(content);
+            return string.Equals(formatted, content, StringComparison.Ordinal) ? line : prefix + formatted + suffix;
+        }
+
         public static int LevenshteinDistance(string s, string t)
         {
             var n = s.Length;
@@ -513,6 +643,24 @@ namespace CUCoreLib.Patches
             }
 
             return d[n, m];
+        }
+
+        [HarmonyPatch(typeof(ConsoleScript), "HandleDescriptionText")]
+        [HarmonyPostfix]
+        private static void LabelFloodFillAutofill(ConsoleScript __instance, string[] args)
+        {
+            if (__instance?.descriptionText == null || args == null || args.Length < 2) return;
+            if (!string.Equals(args[0], "floodfill", StringComparison.OrdinalIgnoreCase)) return;
+
+            var text = __instance.descriptionText.text;
+            var newlineIndex = text.IndexOf('\n');
+            if (newlineIndex < 0) return;
+
+            var lines = text.Substring(newlineIndex + 1).Split('\n');
+            for (var i = 0; i < lines.Length; i++)
+                lines[i] = FormatFloodFillSuggestionLine(lines[i]);
+
+            __instance.descriptionText.text = text.Substring(0, newlineIndex + 1) + string.Join("\n", lines);
         }
 
         [HarmonyPatch(typeof(ConsoleScript), "RegisterPlayerDetails")]
