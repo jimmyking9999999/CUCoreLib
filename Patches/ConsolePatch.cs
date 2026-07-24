@@ -592,9 +592,46 @@ namespace CUCoreLib.Patches
             return value + " - " + liquidId + " - " + displayName;
         }
 
-        private static string FormatFloodFillSuggestionLine(string line)
+        private static string FormatSetTileAutofill(string value)
         {
-            if (string.IsNullOrEmpty(line)) return line;
+            ushort tileIndex;
+            if (!ushort.TryParse(value, out tileIndex)) return value;
+
+            CustomTileDefinition definition;
+            if (!TileRegistry.TryGetDefinition(tileIndex, out definition) || definition == null ||
+                string.IsNullOrWhiteSpace(definition.ID))
+                return value;
+
+            if (string.IsNullOrWhiteSpace(definition.Name) ||
+                string.Equals(definition.Name, definition.ID, StringComparison.OrdinalIgnoreCase))
+                return value + " - " + definition.ID;
+
+            return value + " - " + definition.ID + " - " + definition.Name;
+        }
+
+        private static bool TryGetAutofillFormatter(string commandName, int argumentIndex,
+            out Func<string, string> formatter)
+        {
+            formatter = null;
+
+            if (string.Equals(commandName, "floodfill", StringComparison.OrdinalIgnoreCase) && argumentIndex == 1)
+            {
+                formatter = FormatFloodFillAutofill;
+                return true;
+            }
+
+            if (string.Equals(commandName, "settile", StringComparison.OrdinalIgnoreCase) && argumentIndex == 0)
+            {
+                formatter = FormatSetTileAutofill;
+                return true;
+            }
+
+            return false;
+        }
+
+        private static string FormatAutofillSuggestionLine(string line, Func<string, string> formatter)
+        {
+            if (string.IsNullOrEmpty(line) || formatter == null) return line;
 
             var prefix = string.Empty;
             var suffix = string.Empty;
@@ -612,7 +649,7 @@ namespace CUCoreLib.Patches
                 }
             }
 
-            var formatted = FormatFloodFillAutofill(content);
+            var formatted = formatter(content);
             return string.Equals(formatted, content, StringComparison.Ordinal) ? line : prefix + formatted + suffix;
         }
 
@@ -647,10 +684,12 @@ namespace CUCoreLib.Patches
 
         [HarmonyPatch(typeof(ConsoleScript), "HandleDescriptionText")]
         [HarmonyPostfix]
-        private static void LabelFloodFillAutofill(ConsoleScript __instance, string[] args)
+        private static void LabelCommandAutofill(ConsoleScript __instance, string[] args)
         {
             if (__instance?.descriptionText == null || args == null || args.Length < 2) return;
-            if (!string.Equals(args[0], "floodfill", StringComparison.OrdinalIgnoreCase)) return;
+
+            Func<string, string> formatter;
+            if (!TryGetAutofillFormatter(args[0], args.Length - 2, out formatter)) return;
 
             var text = __instance.descriptionText.text;
             var newlineIndex = text.IndexOf('\n');
@@ -658,7 +697,7 @@ namespace CUCoreLib.Patches
 
             var lines = text.Substring(newlineIndex + 1).Split('\n');
             for (var i = 0; i < lines.Length; i++)
-                lines[i] = FormatFloodFillSuggestionLine(lines[i]);
+                lines[i] = FormatAutofillSuggestionLine(lines[i], formatter);
 
             __instance.descriptionText.text = text.Substring(0, newlineIndex + 1) + string.Join("\n", lines);
         }

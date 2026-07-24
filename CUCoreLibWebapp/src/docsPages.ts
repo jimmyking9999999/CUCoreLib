@@ -615,8 +615,12 @@ function minigamesPage(): string {
   return `
     <section class="lesson-card">
       <h2>What this wraps</h2>
-      <p>CUCoreLib does not replace the game's minigame system. It now mirrors the game's real split more closely: the vanilla <span class="inline-code">Minigame</span> contract still does the actual work, while CUCoreLib adds a runner facade, a live session object, and a definition layer so mods can target stable seams instead of poking globals directly.</p>
-      <p>The important vanilla hooks are <span class="inline-code">Start()</span>, <span class="inline-code">Update()</span>, <span class="inline-code">PhysicsUpdate()</span>, <span class="inline-code">HandType()</span>, <span class="inline-code">GuideLocaleString()</span>, <span class="inline-code">NeedsItem()</span>, and <span class="inline-code">CanExit()</span>.</p>
+      <p>THIS PAGE IS IN DEVELOPMENT!</p>
+      <p>Custom minigames are planned to be implemented with a dedicated Unity tool, whilst the current api acts as a (pretty limited) wrapper around the vanilla system. </p>
+      <p>It is advised to either create your own minigame with raw code, or wait until the dedicated tool is released. Thanks! </p>
+      <p>Information below is retained for reference, but will soon be mostly outdated and unsupported.</p>
+
+      <p>Some important vanilla hooks are <span class="inline-code">Start()</span>, <span class="inline-code">Update()</span>, <span class="inline-code">PhysicsUpdate()</span>, <span class="inline-code">HandType()</span>, <span class="inline-code">GuideLocaleString()</span>, <span class="inline-code">NeedsItem()</span>, and <span class="inline-code">CanExit()</span>.</p>
       <p>For quick visual wiring, the session layer exposes the live hand sprite, hand state, spawned minigame root, session-scoped state storage, and the shared screen factory so custom minigames can swap art or grab child GameObjects without repeating reflection code everywhere.</p>
     </section>
 
@@ -647,77 +651,13 @@ function minigamesPage(): string {
       </div>
     </section>
 
-    <section class="lesson-card">
-      <h2>Minimal custom minigame</h2>
-      <p>For new work, subclass <span class="inline-code">CUCoreMinigameDefinition</span> and start it through <span class="inline-code">CUCoreMinigames.TryStartDefinition(...)</span>. That keeps your minigame logic focused on one live session object instead of scattered global calls. Put static policy in <span class="inline-code">Configure(...)</span>, then keep runtime state inside the session.</p>
-      <pre><code>using System.Collections.Generic;
-using CUCoreLib.Helpers;
-using UnityEngine;
-using UnityEngine.EventSystems;
-
-public sealed class WireSpliceMinigame : CUCoreMinigameDefinition
-{
-    private sealed class WireSpliceState
-    {
-        public CUCoreMinigameTimer Timer = new CUCoreMinigameTimer(6f);
-        public CUCoreMinigameProgress Progress = new CUCoreMinigameProgress(3f);
-    }
-
-    public override CUCoreMinigameConfig Configure(CUCoreMinigameSession session)
-    {
-        return new CUCoreMinigameConfig
-        {
-            HandType = _ =&gt; Minigame.HandSpriteType.Tweezers,
-            NeedsItem = _ =&gt; false,
-            GuideLocaleKey = _ =&gt; "wireSpliceGuide"
-        };
-    }
-
-    public override void Start(CUCoreMinigameSession session)
-    {
-        session.TryCreateScreen("Special/WireSpliceMinigame");
-        session.GetOrCreateState(() =&gt; new WireSpliceState());
-    }
-
-    public override void Update(CUCoreMinigameSession session, List&lt;RaycastResult&gt; uiCasts)
-    {
-        WireSpliceState state = session.GetOrCreateState(() =&gt; new WireSpliceState());
-
-        if (state.Timer.Tick(Time.deltaTime))
-        {
-            session.Fail();
-            return;
-        }
-
-        if (Input.GetKeyDown(KeyCode.Space))
-        {
-            state.Progress.Add(1f);
-            if (state.Progress.IsComplete) session.Complete();
-        }
-
-        if (Input.GetKeyDown(KeyCode.Escape))
-        {
-            session.Cancel();
-        }
-    }
-
-    public override void End(CUCoreMinigameSession session, CUCoreMinigameEndReason reason)
-    {
-        Debug.Log("WireSplice ended with reason: " + reason);
-    }
-}</code></pre>
-    </section>
+    
     <section class="lesson-card">
       <h2>Bundled screen prefabs</h2>
       <p>If your minigame UI lives in an AssetBundle instead of the game's normal <span class="inline-code">Resources</span> path, register the bundle once during plugin setup and then use either the typed bundled helper or the reserved <span class="inline-code">cclbundle://</span> screen ID.</p>
       <pre><code>private void Awake()
 {
     AssetLoader.RegisterBundleFromPluginFolder(this, "glassworks.minigames", "Bundles/glassworks-minigames");
-}
-
-public override void Start(CUCoreMinigameSession session)
-{
-    session.TryCreateBundledScreen("glassworks.minigames", "WireSpliceScreen");
 }</code></pre>
       <pre><code>public override void Start(CUCoreMinigameSession session)
 {
@@ -733,17 +673,6 @@ public override void Start(CUCoreMinigameSession session)
 {
     // Started successfully.
 }</code></pre>
-    </section>
-
-    <section class="lesson-card">
-      <h2>Compatibility path</h2>
-      <p>If you already have a custom class that wants to inherit directly from <span class="inline-code">Minigame</span>-style helpers, <span class="inline-code">CUCoreMinigame</span> still works and now delegates through the same runner/session layer. Use it when direct subclassing is the least awkward fit, but prefer the definition/session surface for new APIs.</p>
-    </section>
-
-    <section class="lesson-card">
-      <h2>Built-in overlap</h2>
-      <p>CUCoreLib already maps <span class="inline-code">BandageProperties</span> to <span class="inline-code">BandageMinigame</span> and <span class="inline-code">SyringeProperties</span> to <span class="inline-code">SyringeMinigame</span>. Those are the best examples to copy if your custom minigame needs a custom hand type, item requirement, or screen prefab.</p>
-      <p>For building interactions, the vanilla <span class="inline-code">Openable</span> flow still handles keypad and lockpick minigames. The helper framework is meant to make new custom minigames easier, not replace that existing behavior.</p>
     </section>
   `;
 }
@@ -3241,7 +3170,8 @@ decayInfo = (byte)(
 
     <section class="lesson-card">
       <h2>SpawnComponents type names</h2>
-      <p>For plugin-authored item scripts, prefer <span class="inline-code">AddSpawnComponent&lt;T&gt;()</span>. It stores the runtime-resolvable assembly-qualified name for you, so you do not have to hand-write <span class="inline-code">Type.GetType(...)</span> strings.</p>
+      <p>!! Legacy !! Prefer custom item scripts, in the next page.</p>
+      <p>For plugin-authored item scripts, <span class="inline-code">AddSpawnComponent&lt;T&gt;()</span> exists. It stores the runtime-resolvable assembly-qualified name for you, so you do not have to hand-write <span class="inline-code">Type.GetType(...)</span> strings.</p>
       <pre><code>ItemRegistry.Register(
     "ToggleBlade",
     new CustomItemInfo
@@ -3457,9 +3387,9 @@ Sprite cachedIcon = AssetLoader.GetCachedSprite("sunpear");</code></pre>
       <p>Audio loading, caching, and playback patterns now have their own dedicated page so they are easier to find when you are wiring loops, hit sounds, or sound packs.</p>
       </section>
     <section class="lesson-card">
-      <h2>AssetBundles in v1</h2>
-      <p>CUCoreLib's first AssetBundle pass is intentionally narrow: use bundles for minigame screen prefabs and body <span class="inline-code">AnimationCurve</span> data. BuildingEntity bundles are out of scope for this rollout, so do not treat this as a general prefab registry yet.</p>
-      <p>Register the bundle once, then resolve assets from it by bundle ID plus asset name. Loose bundles are best when you want a replaceable <span class="inline-code">.bundle</span> file beside the plugin DLL; embedded bundles are best when the bundle itself should ship inside the mod assembly.</p>
+      <h2>AssetBundles</h2>
+      <p>AssetBundles are a more advanced way to create and load assets directly from Unity, used in CUCoreLib for animations and minigames.</p>
+      <p>As per usual, you can choose to either embed the assetbundle or have it as a loose file.</p>
       <pre><code>// Loose bundle next to your plugin DLL:
 AssetLoader.RegisterBundleFromPluginFolder(this, "glassworks.minigames", "Bundles/glassworks-minigames");
 
@@ -3471,34 +3401,8 @@ if (AssetLoader.TryLoadBundleAsset("glassworks.minigames", "WireSpliceScreen", o
 {
     Logger.LogInfo("Loaded bundled screen prefab: " + screenPrefab.name);
 }</code></pre>
-      <p>Bundle asset names must match the names you exported in Unity. For minigame screens that usually means a prefab asset name such as <span class="inline-code">WireSpliceScreen</span>.</p>
     </section>
-    <section class="lesson-card">
-      <h2>Bundle invalidation hooks</h2>
-      <p>CUCoreLib exposes explicit cache invalidation because bundle lifetimes are now separate from sprite/audio lifetimes. That lets your mod clear a bundle registration before re-registering it, or discard the loaded bundle handle without promising full live hot-reload semantics.</p>
-      <pre><code>AssetLoader.InvalidateBundle("glassworks.minigames");   // unloads the bundle handle + clears resolved bundle-asset caches
-AssetLoader.UnregisterBundle("glassworks.minigames");  // invalidates and removes the registration definition
-AssetLoader.InvalidateAllBundles();                    // clears every registered bundle handle</code></pre>
-      <p>v1 only guarantees these hooks clear CUCoreLib-owned caches. They are not a promise that every live scene instance or Unity reference updates itself automatically after the bundle changes.</p>
-    </section>
-    <section class="lesson-card">
-      <h2>Unity / ThunderKit authoring</h2>
-      <p>For minigame screens, build a normal Unity prefab with a root <span class="inline-code">GameObject</span> or <span class="inline-code">RectTransform</span> and export it into an AssetBundle through your usual ThunderKit or Unity build pipeline. CUCoreLib instantiates that prefab under the live minigame screen canvas, then applies the same sibling-index and <span class="inline-code">spawnedMiniGame</span> bookkeeping the vanilla runner uses.</p>
-      <pre><code>// Unity authoring summary:
-// 1. Create prefab asset: WireSpliceScreen
-// 2. Export it into an AssetBundle with a stable asset name</code></pre>
-    </section>
-    <details open>
-      <summary>When to choose which</summary>
-      <div class="details-body">
-        <ul>
-          <li>Embed required icons, shipped sounds, and bundled text or JSON files.</li>
-          <li>Use loose files for texture packs, config-adjacent assets, or anything players may replace.</li>
-          <li>Use AssetBundles in v1 for minigame prefabs and other explicitly supported CUCoreLib asset workflows.</li>
-          <li>See the Audio page for <span class="inline-code">AudioClip</span>-specific loading, caching, and playback guidance.</li>
-        </ul>
-      </div>
-    </details>
+  
   `;
 }
 
@@ -3544,9 +3448,7 @@ BuildingEntityRegistry.Register("centrifuge", new CustomBuildingEntityDefinition
     delay: 0.1f,
     position: (Vector2)transform.position,
     pitch: 1.1f
-);</code></pre>
-      <pre><code>CUCoreUtils.Talk("Hello there.");
-CUCoreUtils.TalkElectronic("Beep boop.", item);</code></pre>
+);
     </section>
 
     <details open>
