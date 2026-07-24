@@ -25,6 +25,7 @@ I figured that this would be nice to have, as to easily take a look at everythin
 - Fixed ScaleWithCondition scaling towards 0.1f
 - Item.stats works properly for a couple more immutable stats
 - ^ once more, do send suggestions for more body fields that might want to be added!
+- Autofills now exist for `floodfill` and `settile`
 - Documentation, bleh...
 
 ## v1.0.3

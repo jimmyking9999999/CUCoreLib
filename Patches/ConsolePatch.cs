@@ -324,6 +324,129 @@ namespace CUCoreLib.Patches
             };
         }
 
+        private static bool TryGetVanillaTileVisual(ushort tileIndex, out string tileId, out string displayName)
+        {
+            tileId = null;
+            displayName = null;
+
+            switch (tileIndex)
+            {
+                case 0:
+                    tileId = "air";
+                    break;
+                case 1:
+                    tileId = "lightrock";
+                    break;
+                case 2:
+                    tileId = "gravel";
+                    break;
+                case 3:
+                    tileId = "scrappile";
+                    break;
+                case 4:
+                    tileId = "trashpile";
+                    break;
+                case 5:
+                    tileId = "concretetile";
+                    break;
+                case 6:
+                    tileId = "steeltile";
+                    break;
+                case 7:
+                    tileId = "glass";
+                    break;
+                case 8:
+                    tileId = "rubber";
+                    break;
+                case 9:
+                    tileId = "plastic";
+                    break;
+                case 10:
+                    tileId = "heatresistantalloy";
+                    break;
+                case 11:
+                    tileId = "wood";
+                    break;
+                case 12:
+                    tileId = "sand";
+                    break;
+                case 13:
+                    tileId = "sandstone";
+                    break;
+                case 14:
+                    tileId = "infinirock";
+                    break;
+                case 15:
+                    tileId = "clay";
+                    break;
+                case 16:
+                    tileId = "soil";
+                    break;
+                case 17:
+                    tileId = "granite";
+                    break;
+                case 18:
+                    tileId = "marble";
+                    break;
+                case 19:
+                    tileId = "limestone";
+                    break;
+                case 20:
+                    tileId = "bricks";
+                    break;
+                case 21:
+                    tileId = "scaffolding";
+                    break;
+                case 22:
+                    tileId = "toxirock";
+                    break;
+                case 23:
+                    tileId = "grass";
+                    break;
+                case 24:
+                    tileId = "log";
+                    break;
+                case 25:
+                    tileId = "leaves";
+                    break;
+                case 26:
+                    tileId = "snow";
+                    break;
+                case 27:
+                    tileId = "ice";
+                    break;
+                case 28:
+                    tileId = "thinice";
+                    break;
+                case 29:
+                    tileId = "powdersnow";
+                    break;
+                case 30:
+                    tileId = "heavyrock";
+                    break;
+                case 31:
+                    tileId = "fungus";
+                    break;
+                case 32:
+                    tileId = "mushroombody";
+                    break;
+                case 33:
+                    tileId = "mushroomcap";
+                    break;
+                case 34:
+                    tileId = "copper";
+                    break;
+                case 35:
+                    tileId = "ilmenite";
+                    break;
+                default:
+                    return false;
+            }
+
+            displayName = Locale.GetOther(tileId);
+            return true;
+        }
+
         private static void RefreshAddLiquidAutofill()
         {
             LiquidRegistry.InjectRegisteredLiquids(true);
@@ -527,31 +650,37 @@ namespace CUCoreLib.Patches
             liquidId = null;
             displayName = null;
 
+            switch (liquidByte)
+            {
+                case 1:
+                    liquidId = "water";
+                    displayName = Locale.GetOther("water");
+                    return true;
+                case 2:
+                    liquidId = "algae";
+                    displayName = Locale.GetOther("algae");
+                    return true;
+                case 3:
+                    liquidId = "oil";
+                    displayName = Locale.GetOther("oil");
+                    return true;
+                case 4:
+                    liquidId = "sap";
+                    displayName = Locale.GetOther("sap");
+                    return true;
+                case 5:
+                    liquidId = "dirtywater";
+                    displayName = Locale.GetOther("dirtywater");
+                    return true;
+                case 6:
+                    liquidId = "magma";
+                    displayName = Locale.GetOther("magma");
+                    return true;
+            }
+
             if (!LiquidTileRegistry.TryGetTileId(liquidByte, out liquidId) || string.IsNullOrWhiteSpace(liquidId))
             {
-                switch (liquidByte)
-                {
-                    case 1:
-                        liquidId = "water";
-                        break;
-                    case 2:
-                        liquidId = "groundwater";
-                        break;
-                    case 3:
-                        liquidId = "lumalgae";
-                        break;
-                    case 4:
-                        liquidId = "oil";
-                        break;
-                    case 5:
-                        liquidId = "sap";
-                        break;
-                    case 6:
-                        liquidId = "dirtywater";
-                        break;
-                    default:
-                        return false;
-                }
+                return false;
             }
 
             CustomLiquidInfo customInfo;
@@ -597,6 +726,18 @@ namespace CUCoreLib.Patches
             ushort tileIndex;
             if (!ushort.TryParse(value, out tileIndex)) return value;
 
+            string vanillaTileId;
+            string vanillaDisplayName;
+            if (TryGetVanillaTileVisual(tileIndex, out vanillaTileId, out vanillaDisplayName) &&
+                !string.IsNullOrWhiteSpace(vanillaTileId))
+            {
+                if (string.IsNullOrWhiteSpace(vanillaDisplayName) ||
+                    string.Equals(vanillaDisplayName, vanillaTileId, StringComparison.OrdinalIgnoreCase))
+                    return value + " - " + vanillaTileId;
+
+                return value + " - " + vanillaTileId + " - " + vanillaDisplayName;
+            }
+
             CustomTileDefinition definition;
             if (!TileRegistry.TryGetDefinition(tileIndex, out definition) || definition == null ||
                 string.IsNullOrWhiteSpace(definition.ID))
@@ -637,16 +778,27 @@ namespace CUCoreLib.Patches
             var suffix = string.Empty;
             var content = line;
 
-            if (line.StartsWith("<color=", StringComparison.Ordinal))
+            while (content.StartsWith("<color=", StringComparison.Ordinal) ||
+                   content.StartsWith("</color>", StringComparison.Ordinal))
             {
-                var tagEnd = line.IndexOf('>');
-                var closeTag = line.LastIndexOf("</color>", StringComparison.Ordinal);
-                if (tagEnd >= 0 && closeTag > tagEnd)
+                if (content.StartsWith("<color=", StringComparison.Ordinal))
                 {
-                    prefix = line.Substring(0, tagEnd + 1);
-                    suffix = line.Substring(closeTag);
-                    content = line.Substring(tagEnd + 1, closeTag - tagEnd - 1);
+                    var tagEnd = content.IndexOf('>');
+                    if (tagEnd < 0) break;
+
+                    prefix += content.Substring(0, tagEnd + 1);
+                    content = content.Substring(tagEnd + 1);
+                    continue;
                 }
+
+                prefix += "</color>";
+                content = content.Substring("</color>".Length);
+            }
+
+            while (content.EndsWith("</color>", StringComparison.Ordinal))
+            {
+                suffix = "</color>" + suffix;
+                content = content.Substring(0, content.Length - "</color>".Length);
             }
 
             var formatted = formatter(content);
