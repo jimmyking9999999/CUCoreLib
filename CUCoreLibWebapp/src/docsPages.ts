@@ -2160,6 +2160,20 @@ LiquidTileRegistry.Register("acidbrinepool", new CustomLiquidTileInfo
     <section class="lesson-card">
       <h2>Visuals</h2>
       <p>Custom liquid tiles keep using the game's fluid rendering path, but you can steer how the visuals are sourced. The final display color is the linked liquid's color multiplied by <span class="inline-code">Tint</span>.</p>
+      <p>When you need a real custom surface instead of "vanilla water, but with a different texture", use <span class="inline-code">LiquidVisualHelper</span> to build a dedicated <span class="inline-code">VisualMaterial</span> from an embedded texture, loose file, or explicit shader name.</p>
+      <pre><code>Material acidMaterial = LiquidVisualHelper.CreateLiquidMaterialFromEmbeddedTexture(
+    "Images.acidbrine-surface.png",
+    shaderName: "Legacy Shaders/Particles/Alpha Blended"
+);
+
+LiquidTileRegistry.Register("acidbrinepool", new CustomLiquidTileInfo
+{
+    LiquidId = "acidbrine",
+    FillLiquidId = "acidbrine",
+    VisualMode = LiquidTileVisualMode.Material,
+    VisualMaterial = acidMaterial,
+    Tint = Color.white
+});</code></pre>
       <div class="table-wrap">
         <table class="field-table">
           <thead><tr><th>Field</th><th>Type</th><th>What it does</th></tr></thead>
@@ -2167,13 +2181,13 @@ LiquidTileRegistry.Register("acidbrinepool", new CustomLiquidTileInfo
             <tr><td><span class="inline-code">VisualMode</span></td><td><span class="inline-code">LiquidTileVisualMode</span></td><td>Chooses whether the tile reuses an existing vanilla fluid visual, a custom material, a sprite texture, or a generated high-res image.</td></tr>
             <tr><td><span class="inline-code">ExistingVisualLiquidByte</span></td><td><span class="inline-code">byte</span></td><td>Base vanilla liquid visual to clone from. Defaults to <span class="inline-code">1</span> which is water.</td></tr>
             <tr><td><span class="inline-code">Tint</span></td><td><span class="inline-code">Color</span></td><td>Multiplier applied to the linked liquid color for fluid rendering and tile tooltip color.</td></tr>
-            <tr><td><span class="inline-code">VisualMaterial</span></td><td><span class="inline-code">Material</span></td><td>Material override used when <span class="inline-code">VisualMode</span> is <span class="inline-code">Material</span>.</td></tr>
-            <tr><td><span class="inline-code">VisualSprite</span></td><td><span class="inline-code">Sprite</span></td><td>Sprite texture override used when <span class="inline-code">VisualMode</span> is <span class="inline-code">Sprite</span>.</td></tr>
-            <tr><td><span class="inline-code">HighResImage</span></td><td><span class="inline-code">Texture2D</span></td><td>Texture override used when <span class="inline-code">VisualMode</span> is <span class="inline-code">HighResImageGenerated</span>.</td></tr>
+            <tr><td><span class="inline-code">VisualMaterial</span></td><td><span class="inline-code">Material</span></td><td>Material override used when <span class="inline-code">VisualMode</span> is <span class="inline-code">Material</span>. This is the full custom surface path.</td></tr>
+            <tr><td><span class="inline-code">VisualSprite</span></td><td><span class="inline-code">Sprite</span></td><td>Sprite texture override used when <span class="inline-code">VisualMode</span> is <span class="inline-code">Sprite</span>. It still reuses the current fluid material.</td></tr>
+            <tr><td><span class="inline-code">HighResImage</span></td><td><span class="inline-code">Texture2D</span></td><td>Texture override used when <span class="inline-code">VisualMode</span> is <span class="inline-code">HighResImageGenerated</span>. It still reuses the current fluid material.</td></tr>
           </tbody>
         </table>
       </div>
-      <p>Most mods should start with <span class="inline-code">ExistingLiquidPlusTint</span> and only move to material or sprite overrides when the liquid needs a distinct surface look.</p>
+      <p>Most mods should start with <span class="inline-code">ExistingLiquidPlusTint</span> and move to <span class="inline-code">VisualMaterial</span> when the liquid needs a truly distinct surface look or a custom shader path.</p>
     </section>
 
     <section class="lesson-card">

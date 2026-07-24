@@ -252,6 +252,7 @@
         <Compile Include="Helpers\BodyAnimationPlayer.cs"/>
         <Compile Include="Helpers\CCLBase.cs"/>
         <Compile Include="Helpers\CUCoreUtils.cs"/>
+        <Compile Include="Helpers\LiquidVisualHelper.cs"/>
         <Compile Include="Helpers\CustomBuildingRuntime.cs"/>
         <Compile Include="Helpers\DebugWatchConsoleCommands.cs"/>
         <Compile Include="Helpers\DebugWatchService.cs"/>
