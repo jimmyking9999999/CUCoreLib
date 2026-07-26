@@ -104,6 +104,32 @@ jobs:
             ${{ runner.temp }}\${{ env.NIGHTLY_ZIP_NAME }}
           if-no-files-found: error
 
+      - name: Prepare nightly release description
+        shell: powershell
+        run: |
+          $releaseBodyPath = Join-Path $env:RUNNER_TEMP 'CUCoreLib-nightly-release.md'
+          $commitSha = (git show -s --format=%H HEAD | Out-String).Trim()
+          $commitShortSha = (git show -s --format=%h HEAD | Out-String).Trim()
+          $commitDate = (git show -s --format=%cI HEAD | Out-String).Trim()
+          $commitMessage = (git show -s --format=%s HEAD | Out-String).Trim()
+          $updatedDate = (Get-Date).ToUniversalTime().ToString('yyyy-MM-dd HH:mm:ss UTC')
+
+          @"
+          Automated nightly build from the latest `main` snapshot!
+          This is the latest cutting-edge build of CUCoreLib, and may be unstable.
+          It updates from the scheduled nightly workflow or a manual run on `main`.
+
+          **Last updated:** $updatedDate
+          **Source commit:** [$commitShortSha](https://github.com/${{ github.repository }}/commit/$commitSha)
+          **Commit date:** $commitDate
+          **Commit message:** $commitMessage
+
+          For the changelogs, please refer to [CHANGELOG.md](https://github.com/jimmyking9999999/CUCoreLib/blob/main/CHANGELOG.md).
+
+          For most users, it is recommended to use the latest stable release below.
+          Thanks for testing and reporting issues!
+          "@ | Set-Content -LiteralPath $releaseBodyPath -Encoding utf8
+
       - name: Publish nightly prerelease
         if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v2
@@ -113,15 +139,6 @@ jobs:
           prerelease: true
           make_latest: false
           generate_release_notes: false
-          body: |
-            Automated nightly build from the latest `main` snapshot!
-            This is the latest cutting-edge build of CUCoreLib, and may be unstable.
-            It updates from the scheduled nightly workflow or a manual run on `main`.
-
-            For the changelogs, please refer to [CHANGELOG.md](https://github.com/jimmyking9999999/CUCoreLib/blob/main/CHANGELOG.md).
-
-            For most users, it is recommended to use the latest stable release below.
-            Thanks for testing and reporting issues!
-            
+          body_path: ${{ runner.temp }}\CUCoreLib-nightly-release.md
           files: |
             ${{ runner.temp }}\${{ env.NIGHTLY_ZIP_NAME }}

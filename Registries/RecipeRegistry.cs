@@ -155,7 +155,7 @@ namespace CUCoreLib.Registries
             foreach (var recipe in recipes) Register(recipe);
         }
 
-        internal static void ClearOwnerEntries(string ownerId, ContentReloadResult result)
+        public static void ClearOwnerEntries(string ownerId, ContentReloadResult result)
         {
             if (string.IsNullOrWhiteSpace(ownerId)) return;
 
