@@ -21,6 +21,7 @@ I figured that this would be nice to have, as to easily take a look at everythin
 - QoL settings menu compatibility
 
 ### Fixes
+- Fixed a startup `InvalidProgramException`, affecting only a few people (?)
 - Mod options now fall back to their registered label/description/dropdown text when no locale overrides exist (whoops!)
 - Fixed ScaleWithCondition scaling towards 0.1f
 - Item.stats works properly for a couple more immutable stats

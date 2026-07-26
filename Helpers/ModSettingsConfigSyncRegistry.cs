@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using BepInEx;
 using BepInEx.Configuration;
 using CUCoreLib.Data;
 using UnityEngine;
@@ -34,8 +35,7 @@ namespace CUCoreLib.Helpers
 
             var state = GetOrCreateState(option.Id);
             state.Option = option;
-            TryAttachTrackedConfigEntry(state);
-            TryLinkState(state);
+            RefreshLoadedConfigEntries();
         }
 
         internal static void RegisterSetting(ModOptionDefinition option, Setting setting)
@@ -46,7 +46,7 @@ namespace CUCoreLib.Helpers
             state.Option = option;
             state.Setting = setting;
             WrapSettingApply(state);
-            TryLinkState(state);
+            RefreshLoadedConfigEntries();
         }
 
         internal static void RegisterConfigEntry(ConfigFile configFile, ConfigEntryBase entry)
@@ -325,6 +325,38 @@ namespace CUCoreLib.Helpers
             }
 
             entries[BuildDefinitionKey(entry.Definition)] = entry;
+        }
+
+        private static void DiscoverLoadedConfigEntries()
+        {
+            try
+            {
+                // ConfigFile.Add is a throw-only compatibility method in BepInEx 5.4.20 and is unsafe to detour.
+                // Inspect the public config contents instead when options are registered or the settings menu loads.
+                foreach (var plugin in Resources.FindObjectsOfTypeAll<BaseUnityPlugin>())
+                {
+                    var configFile = plugin?.Config;
+                    if (configFile == null) continue;
+
+                    foreach (var entry in ((IDictionary<ConfigDefinition, ConfigEntryBase>)configFile).Values)
+                        TrackConfigEntry(configFile, entry);
+                }
+            }
+            catch (Exception ex)
+            {
+                CUCoreLibPlugin.Log?.LogDebug($"CUCoreLib settings sync could not inspect loaded plugin configs: {ex.Message}");
+            }
+        }
+
+        internal static void RefreshLoadedConfigEntries()
+        {
+            DiscoverLoadedConfigEntries();
+
+            foreach (var state in StatesById.Values)
+            {
+                TryAttachTrackedConfigEntry(state);
+                TryLinkState(state);
+            }
         }
 
         private static bool TryConvertConfigValueToSetting(

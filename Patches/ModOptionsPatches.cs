@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using BepInEx.Configuration;
 using CUCoreLib.Helpers;
 using CUCoreLib.Registries;
 using HarmonyLib;
@@ -28,17 +27,7 @@ namespace CUCoreLib.Patches
         private static void AppendRegisteredOptions(List<Setting> __result)
         {
             ModOptionsRegistry.AppendRegisteredOptions(__result);
-        }
-    }
-
-    [HarmonyPatch(typeof(ConfigFile), nameof(ConfigFile.Add), typeof(ConfigDefinition), typeof(ConfigEntryBase))]
-    internal static class ConfigFileAddPatch
-    {
-        [HarmonyPostfix]
-        private static void Postfix(ConfigFile __instance, ConfigDefinition key, ConfigEntryBase value)
-        {
-            if (__instance == null || value == null) return;
-            ModSettingsConfigSyncRegistry.RegisterConfigEntry(__instance, value);
+            ModSettingsConfigSyncRegistry.RefreshLoadedConfigEntries();
         }
     }
 
@@ -48,6 +37,7 @@ namespace CUCoreLib.Patches
         [HarmonyPostfix]
         private static void Postfix(SettingsMenu __instance)
         {
+            ModSettingsConfigSyncRegistry.RefreshLoadedConfigEntries();
             SettingsMenuCategoryExtender.EnsureAttached(__instance);
             var helper = __instance.GetComponent<SettingsMenuCategoryExtender>();
             helper?.OnTabSelected(Setting.SettingCategory.Video);
