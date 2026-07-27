@@ -2014,7 +2014,9 @@ private void RegisterAdvancedItems()
                 PointLightInnerRadius = 0f,
                 PointLightOuterAngle = 360f,
                 PointLightInnerAngle = 360f,
-                LightType = CustomLightType.Point
+                LightType = CustomLightType.Point,
+                Rotation = 0f,
+                Offset = Vector2.zero
             },
             SpawnFrequency = 1
         },

@@ -2913,6 +2913,7 @@ function advancedItemPage(): string {
             <tr><td><span class="inline-code">PointLightOuterAngle</span></td><td><span class="inline-code">float</span></td><td>Outer cone angle for point lights. Defaults to <span class="inline-code">360f</span>.</td></tr>
             <tr><td><span class="inline-code">PointLightInnerAngle</span></td><td><span class="inline-code">float</span></td><td>Inner cone angle for point lights. Defaults to <span class="inline-code">360f</span>.</td></tr>
             <tr><td><span class="inline-code">LightType</span></td><td><span class="inline-code">CustomLightType</span></td><td>CUCoreLib light type mapped internally to URP <span class="inline-code">Light2D.LightType</span>. Use <span class="inline-code">CustomLightType.Point</span> for lantern-style item light.</td></tr>
+            <tr><td><span class="inline-code">Rotation</span></td><td><span class="inline-code">float</span></td><td>Local Z-axis rotation in degrees. Use this to aim a cone-shaped point light.</td></tr>
             <tr><td><span class="inline-code">Offset</span></td><td><span class="inline-code">Vector2</span></td><td>Local offset for the light object relative to the item.</td></tr>
             <tr><td><span class="inline-code">AddLightItem</span></td><td><span class="inline-code">bool</span></td><td>If true, CUCoreLib wires the light through vanilla <span class="inline-code">LightItem</span> so container/on-off behavior can apply.</td></tr>
           </tbody>
@@ -3067,7 +3068,9 @@ function advancedItemPage(): string {
             PointLightInnerRadius = 0f,
             PointLightOuterAngle = 360f,
             PointLightInnerAngle = 360f,
-            LightType = CustomLightType.Point
+            LightType = CustomLightType.Point,
+            Rotation = 0f,
+            Offset = Vector2.zero
         },
         SpawnFrequency = 1
     },

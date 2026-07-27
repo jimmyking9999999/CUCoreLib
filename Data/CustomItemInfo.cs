@@ -501,6 +501,11 @@ namespace CUCoreLib.Data
         public CustomLightType LightType = CustomLightType.Point;
 
         /// <summary>
+        /// Local Z-axis rotation, in degrees, applied to the spawned light.
+        /// </summary>
+        public float Rotation;
+
+        /// <summary>
         /// Local offset applied to the spawned light.
         /// </summary>
         public Vector2 Offset = Vector2.zero;

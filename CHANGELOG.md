@@ -10,6 +10,7 @@ I figured that this would be nice to have, as to easily take a look at everythin
 ## v1.0.4
 
 ### New Stuff!
+- `LightProperties` now supports local `Rotation` in degrees when placing generated item lights. Its existing `Offset` (`Vector2`) support is documented alongside it.
 - Added optional sync between `ModOptionsRegistry` settings and manually bound BepInEx config entries when they share the same namespaced ID or key suffix. Note the in-game setting is still the source of truth.
 - Added `CCLBody` for formula-owned vanilla `Body` fields such as blood pressure and encumberance values, so mods can inject simple per-mod contributions without writing their own Harmony patches.
 - ^ do send suggestions for more body fields that might want to be added!

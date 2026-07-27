@@ -458,6 +458,7 @@ namespace CUCoreLib.Patches
             }
 
             light.transform.localPosition = properties.Offset;
+            light.transform.localRotation = Quaternion.Euler(0f, 0f, properties.Rotation);
             light.lightType = ToLight2DType(properties.LightType);
             light.intensity = properties.Intensity;
             light.color = properties.Color;
