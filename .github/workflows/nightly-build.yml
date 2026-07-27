@@ -143,3 +143,30 @@ jobs:
           body_path: ${{ runner.temp }}\CUCoreLib-nightly-release.md
           files: |
             ${{ runner.temp }}\${{ env.NIGHTLY_ZIP_NAME }}
+
+      - name: Refresh nightly release publication timestamp
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const release = await github.rest.repos.getReleaseByTag({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              tag: 'nightly'
+            });
+
+            // GitHub preserves published_at when an existing release is edited.
+            // Toggling draft status republishes this rolling prerelease without
+            // changing its tag, body, or uploaded assets.
+            await github.rest.repos.updateRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              release_id: release.data.id,
+              draft: true
+            });
+            await github.rest.repos.updateRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              release_id: release.data.id,
+              draft: false
+            });
