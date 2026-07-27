@@ -4,6 +4,7 @@ using BepInEx;
 using BepInEx.Configuration;
 using BepInEx.Logging;
 using CUCoreLib.Bootstrap;
+using CUCoreLib.BugReporting;
 using CUCoreLib.ContentReload;
 using CUCoreLib.Helpers;
 using CUCoreLib.Networking;

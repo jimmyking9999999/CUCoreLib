@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using BepInEx.Bootstrap;
+using CUCoreLib.BugReporting;
 using CUCoreLib.ContentReload;
 using CUCoreLib.Helpers;
 using CUCoreLib.Registries;
@@ -46,6 +47,17 @@ namespace CUCoreLib.Bootstrap
                     CUCoreUtils.ConsoleLog(console, summary);
                     foreach (var line in loadedPlugins) CUCoreUtils.ConsoleLog(console, line);
                 });
+
+            ConsoleCommandRegistry.Register("bugreport",
+                "Sends a diagnostic bug report with debug logs. Thanks!",
+                BugReportService.RunCommand,
+                new Dictionary<int, List<string>>
+                {
+                    [2] = new List<string> { "low", "medium", "high", "critical" } 
+                },
+                ("description", "Optional description in quotation marks \"\". Optional, but highly recommended."),
+                ("bool screenshot", "True/false. Captures the current game screen if true. Optional."),
+                ("severity", "low/medium/high/critical. Optional."));
 
             ConsoleCommandRegistry.Register("reloadcontent",
                 "Strictly reloads item/liquid/recipe/locale content from a rebuilt mod DLL.",

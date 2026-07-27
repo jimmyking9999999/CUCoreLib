@@ -48,6 +48,10 @@
     <ItemGroup>
         <Compile Include="Bootstrap\BepInExConfigurationGuard.cs"/>
         <Compile Include="Bootstrap\BuiltInCommandRegistrar.cs"/>
+        <Compile Include="BugReporting\BugReportCollector.cs"/>
+        <Compile Include="BugReporting\BugReportModels.cs"/>
+        <Compile Include="BugReporting\BugReportService.cs"/>
+        <Compile Include="BugReporting\DiscordWebhookDestination.cs"/>
         <Reference Include="0Harmony, Version=2.7.0.0, Culture=neutral, processorArchitecture=MSIL">
             <HintPath>packages\HarmonyX.2.7.0\lib\net45\0Harmony.dll</HintPath>
         </Reference>
@@ -191,6 +195,10 @@
         </Reference>
         <Reference Include="UnityEngine.Physics2DModule">
             <HintPath>$(GameManagedDir)\UnityEngine.Physics2DModule.dll</HintPath>
+            <Private>False</Private>
+        </Reference>
+        <Reference Include="UnityEngine.ScreenCaptureModule">
+            <HintPath>$(GameManagedDir)\UnityEngine.ScreenCaptureModule.dll</HintPath>
             <Private>False</Private>
         </Reference>
         <Reference Include="UnityEngine.TextRenderingModule">

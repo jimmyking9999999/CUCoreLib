@@ -115,18 +115,19 @@ jobs:
           $updatedDate = (Get-Date).ToUniversalTime().ToString('yyyy-MM-dd HH:mm:ss UTC')
 
           @"
-          Automated nightly build from the latest `main` snapshot!
+          <img width="1440" height="368" alt="cucorelibbannernightly" src="https://github.com/user-attachments/assets/d83e5a13-a531-4728-a242-1bfb308e98e6" />
+
+          ### Automated nightly build from the latest main snapshot!
           This is the latest cutting-edge build of CUCoreLib, and may be unstable.
-          It updates from the scheduled nightly workflow or a manual run on `main`.
+          It typically updates from the scheduled nightly action. 
+
 
           **Last updated:** $updatedDate
           **Source commit:** [$commitShortSha](https://github.com/${{ github.repository }}/commit/$commitSha)
-          **Commit date:** $commitDate
           **Commit message:** $commitMessage
 
           For the changelogs, please refer to [CHANGELOG.md](https://github.com/jimmyking9999999/CUCoreLib/blob/main/CHANGELOG.md).
-
-          For most users, it is recommended to use the latest stable release below.
+          
           Thanks for testing and reporting issues!
           "@ | Set-Content -LiteralPath $releaseBodyPath -Encoding utf8
 
