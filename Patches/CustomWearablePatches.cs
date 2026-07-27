@@ -12,6 +12,28 @@ namespace CUCoreLib.Patches
     [HarmonyPatch]
     internal static class CustomWearablePatches
     {
+        [HarmonyPatch(typeof(Body), "AutoPickUpItem")]
+        [HarmonyPrefix]
+        private static bool PreventAutoPickupWearableSlotReplacement(Body __instance, Item item)
+        {
+            if (!HasWearableSlotConflict(__instance, item, out _)) return true;
+
+            // Route through WearWearable so the normal "already wearing" alert is shown,
+            // but do not let vanilla drop a wearable whose full slot string happened to match.
+            __instance.WearWearable(item);
+            return false;
+        }
+
+        [HarmonyPatch(typeof(Body), "WearWearable")]
+        [HarmonyPrefix]
+        private static bool PreventConflictingWearableSlots(Body __instance, Item item)
+        {
+            if (!HasWearableSlotConflict(__instance, item, out var conflictingWearable)) return true;
+
+            ShowWearableConflictAlert(item, conflictingWearable);
+            return false;
+        }
+
         [HarmonyPatch(typeof(Body), "WearWearable")]
         [HarmonyPrefix]
         private static void ApplyWornSpriteBeforeWear(Item item, out bool __state)
@@ -157,6 +179,60 @@ namespace CUCoreLib.Patches
         {
             var parent = item != null ? item.transform.parent : null;
             return parent != null && parent.GetComponent<Limb>() != null;
+        }
+
+        private static bool HasWearableSlotConflict(Body body, Item item, out Item conflictingWearable)
+        {
+            conflictingWearable = null;
+            if (body == null || item == null || item.Stats == null || !item.Stats.wearable)
+                return false;
+
+            var requestedSlots = GetWearableSlots(item.Stats.wearSlotId);
+            if (requestedSlots.Count == 0) return false;
+
+            var wornWearables = body.GetAllWearables();
+            if (wornWearables == null) return false;
+
+            foreach (var wornWearable in wornWearables)
+            {
+                if (wornWearable == null || wornWearable == item || wornWearable.Stats == null)
+                    continue;
+
+                var wornSlots = GetWearableSlots(wornWearable.Stats.wearSlotId);
+                if (requestedSlots.Count <= 1 && wornSlots.Count <= 1) continue;
+                if (!requestedSlots.Overlaps(wornSlots)) continue;
+
+                conflictingWearable = wornWearable;
+                return true;
+            }
+
+            return false;
+        }
+
+        private static HashSet<string> GetWearableSlots(string wearSlotId)
+        {
+            return new HashSet<string>(
+                (wearSlotId ?? string.Empty).Split(',')
+                    .Select(slot => slot.Trim())
+                    .Where(slot => !string.IsNullOrWhiteSpace(slot)),
+                StringComparer.OrdinalIgnoreCase);
+        }
+
+        private static void ShowWearableConflictAlert(Item item, Item conflictingWearable)
+        {
+            if (PlayerCamera.main == null || item == null || conflictingWearable == null)
+                return;
+
+            var itemName = item.Stats.rec.recognizable
+                ? item.fullName
+                : Locale.GetOther("unknownobject");
+            var conflictingItemName = conflictingWearable.Stats.rec.recognizable
+                ? conflictingWearable.fullName
+                : Locale.GetOther("unknownobject");
+
+            PlayerCamera.main.DoAlert(Locale.GetOther("alertalreadywearing")
+                .Replace("<1>", itemName)
+                .Replace("<2>", conflictingItemName));
         }
 
         private static void ConfigureSecondarySprites(Wearable wearable, Body body, Item item, CustomItemInfo def)
