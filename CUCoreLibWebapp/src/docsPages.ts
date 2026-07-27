@@ -1508,6 +1508,12 @@ WriteUnityLog = false</code></pre>
     </section>
 
     <section class="lesson-card">
+      <h2>'ConsoleScript' does not contain a definition for 'Start'?</h2>
+      <p>This is an issue with the BepInEx's publicizer.</p>
+      <p>For most mods, deleting the entire <span class="inline-code">patches.cs</span> file will suffice.</p>
+    </section>
+
+    <section class="lesson-card">
       <h2>Renaming the project</h2>
       <p>When you create a new project from the template, it will have the name <span class="inline-code">ScavTemplate</span>.</p>
       <p>To rename the project, right-click on the project in the Solution Explorer and select "Rename".</p>
@@ -2680,7 +2686,7 @@ private void Awake()
         value => ApplyAllowPlushHarm(value)
     ));
 }</code></pre>
-      <p>The bridge supports bool, int, float, dropdown, and keybind rows. Dropdown config values may be either the numeric index or the choice key string. Keybind config values may be either the key name or numeric <span class="inline-code">KeyCode</span>.</p>
+      <p>The bridge supports bool, int, float, dropdown, and keybind rows. Dropdown config values may be the numeric index, choice key string, or an enum with matching numeric values. Keybind config values may be either the key name or numeric <span class="inline-code">KeyCode</span>.</p>
     </section>
 
     <section class="lesson-card">

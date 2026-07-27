@@ -491,6 +491,8 @@ namespace CUCoreLib.Helpers
                         convertedValue = option.Choices[dropdownIndex].Key;
                     else if (targetType == typeof(int) || targetType == typeof(object))
                         convertedValue = dropdownIndex;
+                    else if (targetType.IsEnum)
+                        convertedValue = Enum.ToObject(targetType, dropdownIndex);
                     else
                         convertedValue = Convert.ChangeType(dropdownIndex, targetType, CultureInfo.InvariantCulture);
                     return true;
@@ -582,6 +584,9 @@ namespace CUCoreLib.Helpers
                     return true;
                 case KeyCode keyCode:
                     value = (int)keyCode;
+                    return true;
+                case Enum enumValue:
+                    value = Convert.ToInt32(enumValue, CultureInfo.InvariantCulture);
                     return true;
                 case string text when int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out value):
                     return true;
