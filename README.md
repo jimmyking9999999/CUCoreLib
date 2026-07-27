@@ -100,32 +100,16 @@ Before opening a change:
 
 When working on code:
 
-- Preserve the existing C# style and Harmony patch patterns. (See the contributing page in the webapp)
-- Keep side effects in mind and an open mind
-- Add null and runtime-state guards where a patch might run before game state is ready, or other mods may also call the method
-- Avoid committing generated outputs from `bin/`, `obj/`, or `CUCoreLibWebapp/dist/`. 
+- Preserve the existing C# style and patterns, ideally!
+- Keep side effects in mind and an open mind. This doesn't mean test it with every mod, but be mindful of potential failure points.
+- Add null and runtime-state guards where a patch might run before game state is ready, or other mods may also call the method. Defensive coding is always appreciated ^^
+- Avoid committing generated outputs that aren't needed. 
 
 When changing public behavior:
 
 - Update docs or examples in `CUCoreLibWebapp/` if the supported API has been changed.
 - Validate the impact quickly with existing mods if possible
-- Mention any required migration notes clearly in your PR or commit message
-
-### Contributor-facing authoring scope
-
-`CUCoreLibAuthoring` is intentionally scoped to CUCoreLib v1 bundle assets only:
-
-- Minigame UI screen prefabs
-
-For Unity authoring, use `CUCoreLibAuthoring` and register those bundles through
-
-`AssetLoader.RegisterBundleFromPluginFolder(this, bundleId, "Bundles/<bundleFileName>")`
-
-and
-
-`session.TryCreateBundledScreen` or `session.TryCreateScreen("cclbundle://...")`.
-
-Everything else (items, locale, recipes, structures, etc.) stays on the normal C# modding path.
+- Mention any required migration notes clearly in your PR or commit message, or edit CHANGELOG.md
 
 ## Repo Format
 
