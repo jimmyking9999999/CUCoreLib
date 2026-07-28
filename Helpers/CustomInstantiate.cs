@@ -48,6 +48,18 @@ namespace CUCoreLib.Helpers
                 : GetOrCreateTemplate(id);
         }
 
+        /// <summary>
+        /// Resolves a saved or externally-restored item resource.  Vanilla resources are returned unchanged;
+        /// CUCoreLib runtime item templates are returned when the ID is registered by a dependent mod.
+        /// </summary>
+        public static Object ResolveSavedResource(string id)
+        {
+            if (string.IsNullOrWhiteSpace(id)) return null;
+
+            var vanilla = Resources.Load(id);
+            return vanilla != null ? vanilla : GetOrCreateTemplate(id);
+        }
+
         private static GameObject PrepareInstantiatedObject(GameObject obj, float? condition)
         {
             if (obj == null) return null;

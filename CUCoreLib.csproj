@@ -284,6 +284,7 @@
         <Compile Include="Patches\CustomWearablePatches.cs"/>
         <Compile Include="Patches\CustomItemSerializationPatches.cs"/>
         <Compile Include="Patches\KrokMpCompatibilityPatches.cs"/>
+        <Compile Include="Patches\QoLUnknownCompatibilityPatches.cs"/>
         <Compile Include="Patches\LaunchOverridePatches.cs"/>
         <Compile Include="Patches\ItemRegistryPatches.cs"/>
         <Compile Include="Patches\LocalePatches.cs"/>

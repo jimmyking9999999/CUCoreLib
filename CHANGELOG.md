@@ -23,6 +23,8 @@ I figured that this would be nice to have, as to easily take a look at everythin
 - QoL settings menu compatibility
 
 ### Fixes
+- QoL Unknown-multiplayer-CUCorelib compatibility patch, may or may not work
+- Settings menu description fixes
 - Fixed a startup `InvalidProgramException`, affecting only a few people (?)
 - Mod options now fall back to their registered label/description/dropdown text when no locale overrides exist (whoops!)
 - Fixed ScaleWithCondition scaling towards 0.1f

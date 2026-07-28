@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using CUCoreLib.Data;
 using CUCoreLib.Helpers;
 using CUCoreLib.Registries;
 using HarmonyLib;
@@ -56,6 +57,35 @@ namespace CUCoreLib.Patches
 
             if (__instance && __instance.content && helper)
                 helper.FixDropdownsInContent(__instance.content);
+
+            RestoreRegisteredKeybindTooltips(__instance, category);
+        }
+
+        private static void RestoreRegisteredKeybindTooltips(SettingsMenu menu, Setting.SettingCategory category)
+        {
+            if (!menu || !menu.content) return;
+
+            var displayedSettingIndex = 0;
+            foreach (var setting in Settings.GetAllSettings())
+            {
+                if (setting == null || setting.category != category) continue;
+                if (displayedSettingIndex >= menu.content.childCount) return;
+
+                if (setting is SettingKeybind)
+                {
+                    var option = ModOptionsRegistry.RegisteredOptions.Find(candidate =>
+                        candidate != null && candidate.Id == setting.name && candidate.Kind == ModOptionKind.Keybind);
+                    if (option != null && !string.IsNullOrWhiteSpace(option.Description))
+                    {
+                        var tooltipTarget = menu.content.GetChild(displayedSettingIndex).GetChild(0);
+                        var tooltip = tooltipTarget.GetComponent<UITooltip>();
+                        if (tooltip != null)
+                            tooltip.tipDesc = option.Description;
+                    }
+                }
+
+                displayedSettingIndex++;
+            }
         }
     }
 

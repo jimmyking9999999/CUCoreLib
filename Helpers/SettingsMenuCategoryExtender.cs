@@ -362,8 +362,7 @@ namespace CUCoreLib.Helpers
 
             var totalButtons = menu.buttons.Count;
             var firstLeft = builtInAnchoredPositions[0].x - builtInSizes[0].x * 0.5f;
-            var lastRight = builtInAnchoredPositions[BuiltInTabCount - 1].x +
-                            builtInSizes[BuiltInTabCount - 1].x * 0.5f;
+            var lastRight = GetTabStripRightEdge(firstLeft);
             var availableWidth = Mathf.Max(0f, lastRight - firstLeft);
             var gap = totalButtons > 1 ? MinimumInterButtonGap : 0f;
             var targetWidth = totalButtons > 0
@@ -385,6 +384,21 @@ namespace CUCoreLib.Helpers
                 var label = button.GetComponentInChildren<TextMeshProUGUI>(true);
                 if (label) NormalizeTabLabel(label);
             }
+        }
+
+        private float GetTabStripRightEdge(float firstLeft)
+        {
+            var parentRect = menu.buttons[0] != null ? menu.buttons[0].transform.parent as RectTransform : null;
+            if (parentRect == null)
+            {
+                return builtInAnchoredPositions[BuiltInTabCount - 1].x +
+                       builtInSizes[BuiltInTabCount - 1].x * 0.5f;
+            }
+
+            // The vanilla buttons occupy only part of their parent. Use the matching right inset so
+            // custom tabs consume the entire visible tab strip instead of stopping at the Language tab.
+            var leftInset = firstLeft - parentRect.rect.xMin;
+            return parentRect.rect.xMax - leftInset;
         }
 
         private static void NormalizeTabLabel(TMP_Text label)

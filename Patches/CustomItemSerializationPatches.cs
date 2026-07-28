@@ -12,10 +12,7 @@ namespace CUCoreLib.Patches
     {
         internal static Object LoadSavedItemResource(string id)
         {
-            var vanilla = Resources.Load(id);
-            if (vanilla != null) return vanilla;
-
-            return CustomInstantiate.GetOrCreateTemplate(id);
+            return CustomInstantiate.ResolveSavedResource(id);
         }
 
         internal static Object InstantiateSavedItem(Object original, Vector3 position, Quaternion rotation)

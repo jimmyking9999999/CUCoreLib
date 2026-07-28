@@ -65,6 +65,7 @@ namespace CUCoreLib
             var harmony = new Harmony(GUID);
             harmony.PatchAll();
             KrokMpCompatibilityPatches.Install(harmony);
+            QoLUnknownCompatibilityPatches.Install(harmony);
 
             MultiplayerBridge.Initialize();
             MultiplayerSyncRegistry.ScheduleInitialSnapshot();
