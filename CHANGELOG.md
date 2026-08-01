@@ -11,8 +11,11 @@ I figured that this would be nice to have, as to easily take a look at everythin
 
 ### New Stuff!
 - Added the built-in `bug-report [description] [bool screenshot] [severity]` command. Send quick reports to your favourite (?) modders. Multi-word descriptions can be wrapped in double quotation marks.
-- `LightProperties` now supports local `Rotation` in degrees when placing generated item lights. Its existing `Offset` (`Vector2`) support is documented alongside it.
-- Added optional sync between `ModOptionsRegistry` settings and manually bound BepInEx config entries when they share the same namespaced ID or key suffix. Note the in-game setting is still the source of truth.
+
+### Fixes
+- Custom tile drops are no longer tied to KrokMP compatibility (yeah.)
+- `LightProperties` now supports local `Rotation` in degrees when placing generated item lights. Its existing `Offset` (`Vector2`) support is documented alongside it
+- Added optional sync between `ModOptionsRegistry` settings and manually bound BepInEx config entries when they share the same namespaced ID or key suffix
 - Added `CCLBody` for formula-owned vanilla `Body` fields such as blood pressure and encumberance values, so mods can inject simple per-mod contributions without writing their own Harmony patches.
 - ^ do send suggestions for more body fields that might want to be added!
 - `StatusMoodleDefinition` can now carry a direct sprite icon instead of requiring a pre-existing vanilla icon ID.

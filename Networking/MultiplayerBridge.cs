@@ -395,7 +395,7 @@ namespace CUCoreLib.Networking
                     typeof(MultiplayerBridge).GetMethod(nameof(HandleServerMessageObject),
                         BindingFlags.NonPublic | BindingFlags.Static));
                 if (serverDelegate != null)
-                    registerServer.Invoke(null, new object[] { RequestMessageId, serverDelegate });
+                    TryInstallReceiver(registerServer, "SERVER_MESSAGE_HANDLERS", RequestMessageId, serverDelegate);
             }
 
             if (registerClient == null) return;
@@ -403,7 +403,43 @@ namespace CUCoreLib.Networking
                 typeof(MultiplayerBridge).GetMethod(nameof(HandleClientMessageObject),
                     BindingFlags.NonPublic | BindingFlags.Static));
             if (clientDelegate != null)
-                registerClient.Invoke(null, new object[] { ResponseMessageId, clientDelegate });
+                TryInstallReceiver(registerClient, "CLIENT_MESSAGE_HANDLERS", ResponseMessageId, clientDelegate);
+        }
+
+        private static bool TryInstallReceiver(MethodInfo registerMethod, string handlerFieldName, ushort messageId,
+            Delegate receiver)
+        {
+            if (registerMethod == null || receiver == null) return false;
+
+            if (IsReceiverRegistered(registerMethod.DeclaringType, handlerFieldName, messageId)) return true;
+
+            try
+            {
+                registerMethod.Invoke(null, new object[] { messageId, receiver });
+                return true;
+            }
+            catch (TargetInvocationException ex) when (ex.InnerException is ArgumentException &&
+                                                        IsReceiverRegistered(registerMethod.DeclaringType,
+                                                            handlerFieldName, messageId))
+            {
+                return true;
+            }
+            catch (Exception ex)
+            {
+                CUCoreLibPlugin.Log?.LogWarning("CUCoreLib could not register KrokMP receiver " + messageId + ".\n" +
+                                                ex);
+                return false;
+            }
+        }
+
+        private static bool IsReceiverRegistered(Type netType, string handlerFieldName, ushort messageId)
+        {
+            if (netType == null || string.IsNullOrWhiteSpace(handlerFieldName)) return false;
+
+            var field = netType.GetField(handlerFieldName, BindingFlags.NonPublic | BindingFlags.Static);
+            if (!(field?.GetValue(null) is IDictionary handlers)) return false;
+
+            return handlers.Contains(messageId);
         }
 
         private static Delegate CreateReceiverDelegate(MethodInfo registerMethod, MethodInfo helperMethod)

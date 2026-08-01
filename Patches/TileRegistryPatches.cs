@@ -64,8 +64,9 @@ namespace CUCoreLib.Patches
         {
             if (__state == null || !__state.ShouldSpawn || __instance == null || __instance.GetBlock(pos) != 0) return;
 
-            // Multiplayer clients replay block damage from the server for visuals only.
-            if (MultiplayerBridge.IsAvailable && MultiplayerBridge.IsClient) return;
+            // Multiplayer clients replay block damage from the server for visuals only. KrokMP defaults to
+            // its Client mode before a transport starts, so only suppress drops during an active session.
+            if (MultiplayerBridge.IsRunning && MultiplayerBridge.IsClient) return;
 
             TileRegistry.SpawnDrops(__instance, pos, __state.TileIndex);
         }
