@@ -3528,11 +3528,11 @@ function consolePage(): string {
     <section class="lesson-card">
       <h2>Built-in bug reports</h2>
       <p>Players can send a diagnostic report to the configured Discord webhook from anywhere in the game:</p>
-      <pre><code>bugreport
-bugreport inventory-crash
-bugreport "Inventory crashes when opened"
-bugreport inventory-crash true high</code></pre>
-      <p>The syntax is <span class="inline-code">bugreport ["description text"] [bool screenshot] [severity]</span>. All arguments are optional. Wrap a multi-word description in double quotation marks; existing one-token descriptions remain supported, and their hyphens or underscores display as spaces in Discord. Screenshots default to <span class="inline-code">false</span>, and severity defaults to <span class="inline-code">medium</span>. Valid severities are <span class="inline-code">low</span>, <span class="inline-code">medium</span>, <span class="inline-code">high</span>, and <span class="inline-code">critical</span>.</p>
+      <pre><code>bug-report
+bug-report inventory-crash
+bug-report "Inventory crashes when opened"
+bug-report inventory-crash true high</code></pre>
+      <p>The syntax is <span class="inline-code">bug-report ["description text"] [bool screenshot] [severity]</span>. All arguments are optional. Wrap a multi-word description in double quotation marks; existing one-token descriptions remain supported, and their hyphens or underscores display as spaces in Discord. Screenshots default to <span class="inline-code">false</span>, and severity defaults to <span class="inline-code">medium</span>. Valid severities are <span class="inline-code">low</span>, <span class="inline-code">medium</span>, <span class="inline-code">high</span>, and <span class="inline-code">critical</span>.</p>
       <p>Every report includes the loaded mod list and runtime metadata. By default it also attaches the newest 1 MiB of <span class="inline-code">BepInEx/LogOutput.log</span> and the in-game console history. A screenshot is captured only when the player explicitly passes <span class="inline-code">true</span>; it captures the screen as it appears, including an open console.</p>
       <p>CUCoreLib contains a lightly obfuscated built-in webhook destination. Bug reporting has no configuration entries: reports always include the available BepInEx and console logs, and attempts have a fixed 60-second cooldown. Logs and screenshots can contain player names, paths, chat, or other visible information, so only send them to the trusted built-in destination.</p>
       <p>Uploads are capped, screenshots are compressed or omitted when necessary, only one report can send at a time, and Discord rate-limit or server failures receive one bounded retry.</p>

@@ -108,7 +108,7 @@ namespace CUCoreLib.Helpers
                 case "flashlight" when info.Battery != null && info.Light == null:
                 {
                     var light = obj.GetComponentInChildren<Light2D>();
-                    if (light) Object.DestroyImmediate(light.gameObject);
+                    if (light) DestroyWithoutImmediate(light.gameObject);
                     break;
                 }
                 default:
@@ -332,7 +332,21 @@ namespace CUCoreLib.Helpers
             var colliders = obj.GetComponents<Collider2D>();
             foreach (var collider in colliders)
                 if (collider != null && collider != keep)
-                    Object.DestroyImmediate(collider);
+                    DestroyWithoutImmediate(collider);
+        }
+
+        private static void DestroyWithoutImmediate(Object target)
+        {
+            if (target == null) return;
+
+            // Disabled objects/components do not affect templates instantiated before Unity completes
+            // the deferred destroy, and Object.Destroy is permitted from physics callbacks.
+            if (target is GameObject gameObject)
+                gameObject.SetActive(false);
+            else if (target is Behaviour behaviour)
+                behaviour.enabled = false;
+
+            Object.Destroy(target);
         }
 
         private static void EnsureLightItemHasLight(GameObject obj, LightProperties properties)

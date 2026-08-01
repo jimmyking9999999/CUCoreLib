@@ -1,4 +1,8 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Reflection;
+using System.Reflection.Emit;
 using CUCoreLib.Data;
 using CUCoreLib.Helpers;
 using CUCoreLib.Registries;
@@ -21,6 +25,39 @@ namespace CUCoreLib.Patches
 
             if (!__instance.skipDescriptionSet && !string.IsNullOrEmpty(definition.Description))
                 __instance.description = definition.Description;
+        }
+    }
+
+    // BuildingEntity's vanilla destruction path loads each drop directly from Resources.
+    // CUCoreLib items are runtime templates, so they need the same fallback used by save loading.
+    [HarmonyPatch(typeof(BuildingEntity), "Update")]
+    internal static class BuildingEntityCustomDropResolutionPatch
+    {
+        private static readonly MethodInfo ResourcesLoadMethod = typeof(Resources)
+            .GetMethods(BindingFlags.Public | BindingFlags.Static)
+            .First(method =>
+                method.Name == nameof(Resources.Load) &&
+                !method.IsGenericMethod &&
+                method.GetParameters().Length == 1 &&
+                method.GetParameters()[0].ParameterType == typeof(string));
+
+        private static readonly MethodInfo ResolveSavedResourceMethod =
+            AccessTools.Method(typeof(CustomInstantiate), nameof(CustomInstantiate.ResolveSavedResource));
+
+        [HarmonyTranspiler]
+        private static IEnumerable<CodeInstruction> ResolveRuntimeCustomDrops(
+            IEnumerable<CodeInstruction> instructions)
+        {
+            foreach (var instruction in instructions)
+            {
+                if (instruction.Calls(ResourcesLoadMethod))
+                {
+                    yield return new CodeInstruction(OpCodes.Call, ResolveSavedResourceMethod);
+                    continue;
+                }
+
+                yield return instruction;
+            }
         }
     }
 

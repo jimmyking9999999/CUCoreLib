@@ -207,7 +207,9 @@ namespace CUCoreLib.Helpers
                     continue;
                 }
 
-                button.onClick.RemoveAllListeners();
+                // The cloned prefab retains its inspector-wired callback. Remove it by replacing
+                // the event, otherwise this tab selects both its template category and ours.
+                button.onClick = new Button.ButtonClickedEvent();
                 var categoryIndex = category.CategoryIndex;
                 button.onClick.AddListener(delegate { menu.SelectTab(categoryIndex); });
 

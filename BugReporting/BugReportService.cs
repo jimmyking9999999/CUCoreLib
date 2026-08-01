@@ -130,7 +130,7 @@ namespace CUCoreLib.BugReporting
 
         private static string GetUsage()
         {
-            return "Usage: bugreport [\"description text\"] [bool screenshot] [severity]";
+            return "Usage: bug-report [\"description text\"] [bool screenshot] [severity]";
         }
 
         private static IEnumerator SendRoutine(BugReportRequest request)

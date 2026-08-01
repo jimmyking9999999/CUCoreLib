@@ -48,7 +48,7 @@ namespace CUCoreLib.Bootstrap
                     foreach (var line in loadedPlugins) CUCoreUtils.ConsoleLog(console, line);
                 });
 
-            ConsoleCommandRegistry.Register("bugreport",
+            ConsoleCommandRegistry.Register("bug-report",
                 "Sends a diagnostic bug report with debug logs. Thanks!",
                 BugReportService.RunCommand,
                 new Dictionary<int, List<string>>
