@@ -1073,15 +1073,6 @@ status.ExposureSeconds += Time.deltaTime;</code></pre>
     </section>
 
     <section class="lesson-card">
-      <h2>CCLBody is for vanilla-owned calculations</h2>
-      <p>Use a normal <span class="inline-code">BodyStatus</span> when your mod needs attached custom state. Use <span class="inline-code">CCLBody</span> when the game recalculates a public vanilla <span class="inline-code">Body</span> field and you want CUCoreLib to inject your value into that formula seam for you.</p>
-      <pre><code>CCLBody.TotalEncumberance += 10f;
-CCLBody.MaxEncumberance += 1.5f;
-CCLBody.BloodPressure -= 12f;</code></pre>
-      <p>The current built-in surface is intentionally explicit. Only fields CUCoreLib actually patches are supported here.</p>
-    </section>
-
-    <section class="lesson-card">
       <h2>Read vanilla fields and update your own state in Update()</h2>
       <p>A common pattern is: read real vanilla body values, update your attached status, then write the gameplay effect back into other vanilla body fields. This keeps your custom logic self-contained while still using the real game simulation.</p>
       <pre><code>[HarmonyPatch(typeof(Body), "Update")]
@@ -2755,7 +2746,7 @@ function advancedItemPage(): string {
   return `
     <section class="lesson-card">
       <h2>When to use this page</h2>
-      <p>The basic Item API page uses vanilla <span class="inline-code">ItemInfo</span> to mimic the base game. Advanced items can use <span class="inline-code">CustomItemInfo</span>, which includes normal <span class="inline-code">ItemInfo</span> fields, vanilla <span class="inline-code">LiquidItemInfo</span> fields, and CUCoreLib-only fields like <span class="inline-code">Container</span>, <span class="inline-code">Battery</span>, <span class="inline-code">Light</span>, <span class="inline-code">Tool</span>, <span class="inline-code">WornSprite</span>, <span class="inline-code">MultiWornSprites</span>, <span class="inline-code">VisualOffset</span>, <span class="inline-code">WornSpriteOffset</span>, <span class="inline-code">MultiWornSpriteOffsets</span>, <span class="inline-code">LiquidMask</span>, <span class="inline-code">SpriteScaleDimensions</span>, <span class="inline-code">DropPool</span>, <span class="inline-code">SpawnFrequency</span>, <span class="inline-code">WorldSpawnPerChunk</span>, and <span class="inline-code">CustomData</span>.</p>
+      <p>The basic Item API page uses vanilla <span class="inline-code">ItemInfo</span> to mimic the base game. Advanced items can use <span class="inline-code">CustomItemInfo</span>, which includes normal <span class="inline-code">ItemInfo</span> fields, vanilla <span class="inline-code">LiquidItemInfo</span> fields, and CUCoreLib-only fields like <span class="inline-code">Container</span>, <span class="inline-code">Battery</span>, <span class="inline-code">Light</span>, <span class="inline-code">Tool</span>, <span class="inline-code">Gun</span>, <span class="inline-code">WornSprite</span>, <span class="inline-code">MultiWornSprites</span>, <span class="inline-code">VisualOffset</span>, <span class="inline-code">WornSpriteOffset</span>, <span class="inline-code">MultiWornSpriteOffsets</span>, <span class="inline-code">LiquidMask</span>, <span class="inline-code">SpriteScaleDimensions</span>, <span class="inline-code">DropPool</span>, <span class="inline-code">SpawnFrequency</span>, <span class="inline-code">WorldSpawnPerChunk</span>, and <span class="inline-code">CustomData</span>.</p>
       <p>Why is the mod doing it this way? Traditonally, the game sets these settings via the Unity prefab editor, and as such does not appear in the game's default item code.</p>
       <pre><code>// Replace new ItemInfo{ ... } with 
       new CustomItemInfo{ ... }</code></pre>
@@ -2795,6 +2786,7 @@ function advancedItemPage(): string {
             <tr><td><span class="inline-code">Bandage</span></td><td><span class="inline-code">BandageProperties</span></td><td>Installs a vanilla-style <span class="inline-code">BandageMinigame</span> limb action and applies limb healing, pain reduction, and bandage slow values.</td></tr>
             <tr><td><span class="inline-code">Syringe</span></td><td><span class="inline-code">SyringeProperties</span></td><td>Adds syringe-style liquid injection behavior through <span class="inline-code">WaterContainerItem</span> and <span class="inline-code">SyringeMinigame</span>.</td></tr>
             <tr><td><span class="inline-code">Tool</span></td><td><span class="inline-code">ToolProperties</span></td><td>Builds a vanilla <span class="inline-code">AttackInfo</span> and calls <span class="inline-code">Body.Attack</span> for melee-style tools or weapons.</td></tr>
+            <tr><td><span class="inline-code">Gun</span></td><td><span class="inline-code">GunProperties</span></td><td>Configures <span class="inline-code">GunScript</span> behavior.</td></tr>
             <tr><td><span class="inline-code">SpawnComponents</span></td><td><span class="inline-code">List&lt;string&gt;</span></td><td>Backing list of runtime-resolvable <span class="inline-code">MonoBehaviour</span> type names CUCoreLib adds to the spawned item GameObject the first time the item appears. For plugin-defined scripts, prefer <span class="inline-code">AddSpawnComponent&lt;T&gt;()</span> so you do not have to hand-write the assembly-qualified name.</td></tr>
             <tr><td><span class="inline-code">CustomData</span></td><td><span class="inline-code">Dictionary&lt;string, object&gt;</span></td><td>Inline defaults for mod-owned per-item custom state. CUCoreLib copies them onto each spawned item instance so your mod can read or mutate them later with <span class="inline-code">ItemRegistry.GetCustomData&lt;T&gt;</span> and <span class="inline-code">ItemRegistry.SetCustomData</span>.</td></tr>
           </tbody>
@@ -2900,6 +2892,8 @@ function advancedItemPage(): string {
           </tbody>
         </table>
       </div>
+
+      
 
       <h3>LightProperties</h3>
       <div class="table-wrap">
@@ -3206,7 +3200,6 @@ decayInfo = (byte)(
     icon
 );</code></pre>
       <p><span class="inline-code">SpawnComponents</span> remains the backing list, so you can still fill it manually for uncommon reflection-driven cases. When you do, use the full type name plus the assembly name without the <span class="inline-code">.dll</span> extension. Example: <span class="inline-code">"TestModd.ToggleBladeScript, TestModd"</span>.</p>
-      <p>Current runtime note: invalid raw entries are skipped and now log a warning with the item ID and failing entry.</p>
     </section>
 
     <section class="lesson-card">
@@ -3631,16 +3624,6 @@ function debugTestingPage(): string {
       <p>For testing elements that are not covered by hot reload, CUCoreLib has a configuration for loading directly into a test world or tutorial.</p>
       <p>In BepInEx -> Config -> CUCoreLib.cfg, there are options to instantly load the debug world or tutorial on launch.</p>
       <img src="images/cucorelib-config.png" alt="CUCoreLib .cfg config" class="screenshot">
-    </section>
-
-    <section class="lesson-card">
-      <h2>Debugwatch overlay</h2>
-      <p>CUCoreLib also includes a built-in <span class="inline-code">debugwatch</span> command for runtime value watching and debugging.</p>
-      <p>The command resolves supported static fields by reflected <span class="inline-code">Type.member</span> name, then shows watched values as white text in the top-right corner while a world is active.</p>
-      <pre><code>debugwatch add MyNamespace.MyPlugin.healthRate
-debugwatch add MyNamespace.MyPlugin.debugEnabled
-debugwatch clear</code></pre>
-      <p>Currently, debugwatch supports static fields only. Supported field types are simple values such as numbers, <span class="inline-code">bool</span>, <span class="inline-code">string</span>, enums, and <span class="inline-code">Vector2</span>/<span class="inline-code">Vector3</span>.</p>
     </section>
 
 

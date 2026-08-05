@@ -114,6 +114,11 @@ namespace CUCoreLib.Data
         public ToolProperties Tool;
 
         /// <summary>
+        /// Optional vanilla-compatible firearm behavior added to the spawned item.
+        /// </summary>
+        public GunProperties Gun;
+
+        /// <summary>
         /// Optional extra worn sprites keyed by vanilla limb name. These are spawned as additive wearable visuals while the item is worn.
         /// </summary>
         public Dictionary<string, Sprite> MultiWornSprites = new Dictionary<string, Sprite>();
@@ -628,6 +633,72 @@ namespace CUCoreLib.Data
         /// Tool condition/battery lost per successful hit.
         /// </summary>
         public float ConditionLossOnHit = 0.02f;
+    }
+
+    /// <summary>
+    /// Vanilla GunScript configuration applied to a pistol-based custom firearm. Nullable fields keep
+    /// the pistol's defaults when an author does not override a value.
+    /// </summary>
+    [Serializable]
+    public class GunProperties
+    {
+        public GunScript.AmmoType? AmmoType;
+        public GunScript.FiringMode? FiringMode;
+        public GunScript.FeedType? FeedType;
+        public int? MagCapacity;
+        public float? KnockBack;
+        public float? StructureDamage;
+        public float? AnimalDamage;
+        public float? Loudness;
+        public float? DesiredGasTime;
+        public int? ShotsPerFire;
+        public float? VerticalSpread;
+        public float? ConditionLossPerShot;
+
+        /// <summary>
+        /// Optional custom firing audio. Null keeps the vanilla pistol clip.
+        /// </summary>
+        public AudioClip FireSound;
+
+        /// <summary>
+        /// Optional custom rack audio. Null keeps the vanilla pistol clip.
+        /// </summary>
+        public AudioClip CustomRack;
+
+        /// <summary>
+        /// Optional custom unrack audio. Null keeps the vanilla pistol clip.
+        /// </summary>
+        public AudioClip CustomUnrack;
+
+        /// <summary>
+        /// Optional normal-state sprite. When omitted, the item icon is used.
+        /// </summary>
+        public Sprite NormalSprite;
+
+        /// <summary>
+        /// Optional racked-state sprite. When omitted, the icon is used when available.
+        /// </summary>
+        public Sprite RackedSprite;
+
+        /// <summary>
+        /// Optional normal-state sprite used without a magazine. When omitted, the icon is used when available.
+        /// </summary>
+        public Sprite NormalSpriteNoMag;
+
+        /// <summary>
+        /// Optional racked-state sprite used without a magazine. When omitted, the icon is used when available.
+        /// </summary>
+        public Sprite RackedSpriteNoMag;
+
+        /// <summary>
+        /// Local offset for the vanilla barrel transform.
+        /// </summary>
+        public Vector2? BarrelOffset;
+
+        /// <summary>
+        /// Local offset for the vanilla muzzle-particle transform.
+        /// </summary>
+        public Vector2? MuzzleOffset;
     }
 
     /// <summary>

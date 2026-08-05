@@ -78,22 +78,22 @@ namespace CUCoreLib.Registries
         {
             itemId = null;
 
-            var candidates = new List<string>();
-            if (!string.IsNullOrWhiteSpace(fallbackCategory) &&
-                ItemLootPool.pool != null &&
-                ItemLootPool.pool.TryGetValue(fallbackCategory, out var fallbackItems) &&
-                fallbackItems != null &&
-                fallbackItems.Count > 0)
-                candidates.AddRange(fallbackItems);
+            List<string> fallbackItems = null;
+            if (!string.IsNullOrWhiteSpace(fallbackCategory) && ItemLootPool.pool != null)
+                ItemLootPool.pool.TryGetValue(fallbackCategory, out fallbackItems);
 
-            if (ExplicitPools.TryGetValue(source, out var explicitItems) &&
-                explicitItems != null &&
-                explicitItems.Count > 0)
-                candidates.AddRange(explicitItems);
+            if (fallbackItems != null && fallbackItems.Count == 0) fallbackItems = null;
 
-            if (candidates.Count == 0) return false;
+            ExplicitPools.TryGetValue(source, out var explicitItems);
+            if (explicitItems != null && explicitItems.Count == 0) explicitItems = null;
 
-            itemId = candidates[UnityEngine.Random.Range(0, candidates.Count)];
+            var fallbackCount = fallbackItems != null ? fallbackItems.Count : 0;
+            var explicitCount = explicitItems != null ? explicitItems.Count : 0;
+            var totalCount = fallbackCount + explicitCount;
+            if (totalCount == 0) return false;
+
+            var index = UnityEngine.Random.Range(0, totalCount);
+            itemId = index < fallbackCount ? fallbackItems[index] : explicitItems[index - fallbackCount];
             return !string.IsNullOrWhiteSpace(itemId);
         }
 

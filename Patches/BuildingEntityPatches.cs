@@ -163,20 +163,10 @@ namespace CUCoreLib.Patches
         private static void SpawnSingleDrop(Vector3 position, string itemId, float conditionMin, float conditionMax,
             bool isNearPlayer)
         {
-            var instance = CustomInstantiate.InstantiateReturn(
-                itemId,
-                position,
-                Quaternion.Euler(0f, 0f, UnityEngine.Random.Range(0f, 360f)),
-                UnityEngine.Random.Range(conditionMin, conditionMax));
-            if (instance == null) return;
-
-            if (instance.TryGetComponent<Rigidbody2D>(out var body))
-                body.velocity = new Vector2(UnityEngine.Random.Range(-7f, 7f), UnityEngine.Random.Range(-7f, 7f));
-
-            if (instance.TryGetComponent<Item>(out var item)) item.SetCondition(UnityEngine.Random.Range(conditionMin, conditionMax));
-
-            if (isNearPlayer && instance.GetComponent<Rigidbody2D>() != null && instance.GetComponent<SpriteRenderer>() != null)
-                instance.AddComponent<FreshItemDrop>();
+            var rotation = Quaternion.Euler(0f, 0f, UnityEngine.Random.Range(0f, 360f));
+            var initialCondition = UnityEngine.Random.Range(conditionMin, conditionMax);
+            BuildingEntityRegistry.SpawnDrop(position, itemId, rotation, initialCondition, conditionMin, conditionMax,
+                isNearPlayer);
         }
 
         private static bool TryGetComponent<T>(Component component, out T value) where T : Component

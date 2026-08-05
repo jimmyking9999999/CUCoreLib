@@ -872,14 +872,20 @@ namespace CUCoreLib.Registries
         private static void SpawnAndSetupDrop(BuildingEntity source, string itemId, float conditionMin,
             float conditionMax, bool isNearPlayer)
         {
-            var obj = CustomInstantiate.InstantiateReturn(itemId, source.transform.position,
-                Quaternion.Euler(0f, 0f, Random.Range(0f, 360f)));
+            var obj = SpawnDrop(source.transform.position, itemId,
+                Quaternion.Euler(0f, 0f, Random.Range(0f, 360f)), null, conditionMin, conditionMax, isNearPlayer);
             if (obj == null)
             {
                 CUCoreLibPlugin.Log?.LogWarning("Custom building '" + source.id + "' failed to spawn drop '" + itemId +
                                                 "'.");
-                return;
             }
+        }
+
+        internal static GameObject SpawnDrop(Vector3 position, string itemId, Quaternion rotation,
+            float? initialCondition, float conditionMin, float conditionMax, bool isNearPlayer)
+        {
+            var obj = CustomInstantiate.InstantiateReturn(itemId, position, rotation, initialCondition);
+            if (obj == null) return null;
 
             if (obj.TryGetComponent(out Rigidbody2D rb))
                 rb.velocity = new Vector2(Random.Range(-7f, 7f), Random.Range(-7f, 7f));
@@ -888,6 +894,8 @@ namespace CUCoreLib.Registries
 
             if (isNearPlayer && obj.GetComponent<Rigidbody2D>() != null && obj.GetComponent<SpriteRenderer>() != null)
                 obj.AddComponent<FreshItemDrop>();
+
+            return obj;
         }
 
     }

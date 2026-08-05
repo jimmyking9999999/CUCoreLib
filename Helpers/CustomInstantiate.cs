@@ -136,6 +136,9 @@ namespace CUCoreLib.Helpers
                 obj.AddComponent<Wearable>();
             }
 
+            if (item != null && info.Gun != null)
+                ItemRegistryPatches.ApplyGunProperties(item, info);
+
             var waterContainer = obj.GetComponent<WaterContainerItem>();
             if (waterContainer != null) waterContainer.fillSprite = info.LiquidMask;
 
@@ -390,6 +393,7 @@ namespace CUCoreLib.Helpers
         {
             // Shhh...
             if (info == null) return "bandage";
+            if (info.Gun != null) return "pistol";
             if (info.Container != null) return "smallpack";
             if (info.Battery != null) return "flashlight";
             if (info.Light != null) return "bandage";

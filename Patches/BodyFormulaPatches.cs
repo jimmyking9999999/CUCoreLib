@@ -118,27 +118,6 @@ namespace CUCoreLib.Patches
             ApplyJumpSpeedContribution(__instance);
         }
 
-        [HarmonyPatch(typeof(Body), "Update")]
-        [HarmonyPrefix]
-        private static void Update_Prefix(Body __instance)
-        {
-            ApplyJumpSpeedContribution(__instance);
-        }
-
-        [HarmonyPatch(typeof(Body), "FixedUpdate")]
-        [HarmonyPrefix]
-        private static void FixedUpdate_Prefix(Body __instance)
-        {
-            ApplyJumpSpeedContribution(__instance);
-        }
-
-        [HarmonyPatch(typeof(Body), "OnCollisionEnter2D")]
-        [HarmonyPrefix]
-        private static void OnCollisionEnter2D_Prefix(Body __instance)
-        {
-            ApplyJumpSpeedContribution(__instance);
-        }
-
         private static IEnumerable<CodeInstruction> ReplaceBodyFieldStores(
             IEnumerable<CodeInstruction> instructions,
             IReadOnlyDictionary<string, MethodInfo> replacements)
@@ -186,7 +165,7 @@ namespace CUCoreLib.Patches
             return Mathf.Lerp(current, target + BodyFormulaData.Sum(data.BloodPressure), t);
         }
 
-        private static void ApplyJumpSpeedContribution(Body body)
+        internal static void ApplyJumpSpeedContribution(Body body)
         {
             if (body == null)
             {

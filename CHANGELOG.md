@@ -10,6 +10,7 @@ I figured that this would be nice to have, as to easily take a look at everythin
 ## v1.0.4
 
 ### New Stuff!
+- Added `GunProperties` 
 - Added the built-in `bug-report [description] [bool screenshot] [severity]` command. Send quick reports to your favourite (?) modders. Multi-word descriptions can be wrapped in double quotation marks.
 
 ### Fixes
@@ -23,9 +24,11 @@ I figured that this would be nice to have, as to easily take a look at everythin
 - Liquid registration now has an onuse field and inject field that can be used in place of the item
 
 ### Changes
+- `GunProperties` always uses the vanilla pistol prefab; `GunTemplate` has been removed. Tune the pistol's `GunScript` fields directly instead.
 - QoL settings menu compatibility
 
 ### Fixes
+- `GunProperties` firearms cannot be used by the vanilla self-harm gun event.
 - QoL Unknown-multiplayer-CUCorelib compatibility patch, may or may not work
 - Settings menu description fixes
 - Fixed a startup `InvalidProgramException`, affecting only a few people (?)

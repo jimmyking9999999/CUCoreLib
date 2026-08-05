@@ -14,6 +14,7 @@ namespace CUCoreLib.Helpers
         private bool _isQuitting;
         private bool _registered;
         private bool _spawnedDrops;
+        private float _heatElapsed;
 
         private void Awake()
         {
@@ -25,7 +26,21 @@ namespace CUCoreLib.Helpers
 
         private void Update()
         {
-            ApplyHeatAura();
+            if (_definition == null || _definition.HeatRadius <= 0f || _definition.HeatPerSecond == 0f) return;
+
+            var playerCamera = PlayerCamera.main;
+            var body = playerCamera != null ? playerCamera.body : null;
+            if (body == null)
+            {
+                _heatElapsed = 0f;
+                return;
+            }
+
+            _heatElapsed += Time.deltaTime;
+            if (_heatElapsed < 1f) return;
+
+            ApplyHeatAura(body, _heatElapsed);
+            _heatElapsed = 0f;
         }
 
         private void OnEnable()
@@ -64,14 +79,8 @@ namespace CUCoreLib.Helpers
             _isQuitting = true;
         }
 
-        private void ApplyHeatAura()
+        private void ApplyHeatAura(Body body, float elapsed)
         {
-            if (_definition == null || _definition.HeatRadius <= 0f || _definition.HeatPerSecond == 0f) return;
-
-            var playerCamera = PlayerCamera.main;
-            var body = playerCamera != null ? playerCamera.body : null;
-            if (body == null) return;
-
             var distance = Vector2.Distance(transform.position, body.transform.position);
             if (distance > _definition.HeatRadius) return;
 
@@ -82,7 +91,7 @@ namespace CUCoreLib.Helpers
             if (body.temperature >= targetTemperature) return;
 
             body.temperature = Mathf.Min(targetTemperature,
-                body.temperature + _definition.HeatPerSecond * Time.deltaTime);
+                body.temperature + _definition.HeatPerSecond * elapsed);
         }
 
         private void ApplySpawnComponents()

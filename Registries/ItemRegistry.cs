@@ -293,6 +293,8 @@ namespace CUCoreLib.Registries
 
                 if (info.Tool != null) item["tool"] = JObject.FromObject(info.Tool);
 
+                if (info.Gun != null) item["gun"] = CaptureGunProperties(info.Gun);
+
                 if (info.qualities != null)
                     item["qualities"] = NetworkSnapshotSerialization.WriteCraftingQualities(info.qualities);
 
@@ -311,6 +313,11 @@ namespace CUCoreLib.Registries
                 var id = property.Name;
                 var obj = property.Value as JObject;
                 if (string.IsNullOrWhiteSpace(id) || obj == null) continue;
+
+                // Audio clips are intentionally omitted from snapshots. Preserve clips from
+                // the client's local registration when the host sends the static gun data.
+                GunProperties localGun = null;
+                if (RegisteredItems.TryGetValue(id, out var localInfo)) localGun = localInfo?.Gun;
 
                 var info = new CustomItemInfo
                 {
@@ -421,6 +428,18 @@ namespace CUCoreLib.Registries
 
                 var tool = obj["tool"] as JObject;
                 if (tool != null) info.Tool = tool.ToObject<ToolProperties>();
+
+                var gun = obj["gun"] as JObject;
+                if (gun != null)
+                {
+                    info.Gun = RestoreGunProperties(gun);
+                    if (info.Gun != null && localGun != null)
+                    {
+                        info.Gun.FireSound = localGun.FireSound;
+                        info.Gun.CustomRack = localGun.CustomRack;
+                        info.Gun.CustomUnrack = localGun.CustomUnrack;
+                    }
+                }
 
                 var qualities = obj["qualities"];
                 if (qualities != null) info.qualities = NetworkSnapshotSerialization.ReadCraftingQualities(qualities);
@@ -955,6 +974,108 @@ namespace CUCoreLib.Registries
                     if (body.Attack(attack, 0)) item.condition -= tool.ConditionLossOnHit;
                 };
             }
+
+            if (info.Gun != null)
+            {
+                info.autoAttack = true;
+                info.usable = true;
+                info.usableWithLMB = true;
+                info.tags = AddTag(info.tags, "gun");
+                info.useAction = (body, item) =>
+                {
+                    if (item == null) return;
+                    var gun = item.GetComponent<GunScript>();
+                    if (gun != null) gun.triggerPressed = true;
+                };
+            }
+        }
+
+        private static JObject CaptureGunProperties(GunProperties gun)
+        {
+            var result = new JObject
+            {
+                ["ammoType"] = gun.AmmoType.HasValue ? (JToken)new JValue((int)gun.AmmoType.Value) : JValue.CreateNull(),
+                ["firingMode"] = gun.FiringMode.HasValue ? (JToken)new JValue((int)gun.FiringMode.Value) : JValue.CreateNull(),
+                ["feedType"] = gun.FeedType.HasValue ? (JToken)new JValue((int)gun.FeedType.Value) : JValue.CreateNull(),
+                ["magCapacity"] = gun.MagCapacity.HasValue ? (JToken)new JValue(gun.MagCapacity.Value) : JValue.CreateNull(),
+                ["knockBack"] = gun.KnockBack.HasValue ? (JToken)new JValue(gun.KnockBack.Value) : JValue.CreateNull(),
+                ["structureDamage"] = gun.StructureDamage.HasValue ? (JToken)new JValue(gun.StructureDamage.Value) : JValue.CreateNull(),
+                ["animalDamage"] = gun.AnimalDamage.HasValue ? (JToken)new JValue(gun.AnimalDamage.Value) : JValue.CreateNull(),
+                ["loudness"] = gun.Loudness.HasValue ? (JToken)new JValue(gun.Loudness.Value) : JValue.CreateNull(),
+                ["desiredGasTime"] = gun.DesiredGasTime.HasValue ? (JToken)new JValue(gun.DesiredGasTime.Value) : JValue.CreateNull(),
+                ["shotsPerFire"] = gun.ShotsPerFire.HasValue ? (JToken)new JValue(gun.ShotsPerFire.Value) : JValue.CreateNull(),
+                ["verticalSpread"] = gun.VerticalSpread.HasValue ? (JToken)new JValue(gun.VerticalSpread.Value) : JValue.CreateNull(),
+                ["conditionLossPerShot"] = gun.ConditionLossPerShot.HasValue ? (JToken)new JValue(gun.ConditionLossPerShot.Value) : JValue.CreateNull(),
+                ["normalSprite"] = NetworkSnapshotSerialization.WriteSprite(gun.NormalSprite),
+                ["rackedSprite"] = NetworkSnapshotSerialization.WriteSprite(gun.RackedSprite),
+                ["normalSpriteNoMag"] = NetworkSnapshotSerialization.WriteSprite(gun.NormalSpriteNoMag),
+                ["rackedSpriteNoMag"] = NetworkSnapshotSerialization.WriteSprite(gun.RackedSpriteNoMag)
+            };
+
+            if (gun.BarrelOffset.HasValue)
+                result["barrelOffset"] = new JObject { ["x"] = gun.BarrelOffset.Value.x, ["y"] = gun.BarrelOffset.Value.y };
+            if (gun.MuzzleOffset.HasValue)
+                result["muzzleOffset"] = new JObject { ["x"] = gun.MuzzleOffset.Value.x, ["y"] = gun.MuzzleOffset.Value.y };
+
+            return result;
+        }
+
+        private static GunProperties RestoreGunProperties(JObject obj)
+        {
+            var gun = new GunProperties
+            {
+                AmmoType = ReadNullableEnum<GunScript.AmmoType>(obj, "ammoType"),
+                FiringMode = ReadNullableEnum<GunScript.FiringMode>(obj, "firingMode"),
+                FeedType = ReadNullableEnum<GunScript.FeedType>(obj, "feedType"),
+                MagCapacity = ReadNullableInt(obj, "magCapacity"),
+                KnockBack = ReadNullableFloat(obj, "knockBack"),
+                StructureDamage = ReadNullableFloat(obj, "structureDamage"),
+                AnimalDamage = ReadNullableFloat(obj, "animalDamage"),
+                Loudness = ReadNullableFloat(obj, "loudness"),
+                DesiredGasTime = ReadNullableFloat(obj, "desiredGasTime"),
+                ShotsPerFire = ReadNullableInt(obj, "shotsPerFire"),
+                VerticalSpread = ReadNullableFloat(obj, "verticalSpread"),
+                ConditionLossPerShot = ReadNullableFloat(obj, "conditionLossPerShot"),
+                NormalSprite = NetworkSnapshotSerialization.ReadSprite(obj["normalSprite"]),
+                RackedSprite = NetworkSnapshotSerialization.ReadSprite(obj["rackedSprite"]),
+                NormalSpriteNoMag = NetworkSnapshotSerialization.ReadSprite(obj["normalSpriteNoMag"]),
+                RackedSpriteNoMag = NetworkSnapshotSerialization.ReadSprite(obj["rackedSpriteNoMag"])
+            };
+
+            gun.BarrelOffset = ReadNullableVector2(obj["barrelOffset"]);
+            gun.MuzzleOffset = ReadNullableVector2(obj["muzzleOffset"]);
+            return gun;
+        }
+
+        private static T? ReadNullableEnum<T>(JObject obj, string key) where T : struct
+        {
+            if (obj[key] == null || obj[key].Type == JTokenType.Null) return null;
+            return (T)Enum.ToObject(typeof(T), obj.Value<int?>(key) ?? 0);
+        }
+
+        private static int? ReadNullableInt(JObject obj, string key)
+        {
+            return obj[key] == null || obj[key].Type == JTokenType.Null ? (int?)null : obj.Value<int?>(key);
+        }
+
+        private static float? ReadNullableFloat(JObject obj, string key)
+        {
+            return obj[key] == null || obj[key].Type == JTokenType.Null ? (float?)null : obj.Value<float?>(key);
+        }
+
+        private static Vector2? ReadNullableVector2(JToken token)
+        {
+            var obj = token as JObject;
+            return obj == null ? (Vector2?)null : new Vector2(obj.Value<float?>("x") ?? 0f, obj.Value<float?>("y") ?? 0f);
+        }
+
+        private static string AddTag(string tags, string tag)
+        {
+            if (string.IsNullOrWhiteSpace(tag)) return tags ?? string.Empty;
+            if (string.IsNullOrWhiteSpace(tags)) return tag;
+            if (tags.Split(',').Any(existing => string.Equals(existing.Trim(), tag,
+                    StringComparison.OrdinalIgnoreCase))) return tags;
+            return tags.TrimEnd() + "," + tag;
         }
 
         private static void EnsureQualitiesForTags(ItemInfo info)

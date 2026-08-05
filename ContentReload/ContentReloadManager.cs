@@ -281,7 +281,6 @@ namespace CUCoreLib.ContentReload
                 EnsureModConfigBound(modGuid);
             }
 
-            configFile?.Save();
         }
 
         private static void EnsureModConfigBound(string modGuid)
@@ -297,7 +296,7 @@ namespace CUCoreLib.ContentReload
 
             if (!OverridePathEntriesByModGuid.TryGetValue(normalizedModGuid, out var overrideEntry) || overrideEntry == null)
             {
-                overrideEntry = configFile.Bind(
+                overrideEntry = CUCoreLibPlugin.BindSharedConfig(
                     ConfigSectionName,
                     normalizedModGuid + ".overridePath",
                     string.Empty,

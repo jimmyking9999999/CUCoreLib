@@ -59,6 +59,16 @@ namespace CUCoreLib.Patches
             ApplyCustomItemRuntime(__instance);
         }
 
+        [HarmonyPatch(typeof(GunScript), nameof(GunScript.Fire))]
+        [HarmonyPrefix]
+        private static bool PreventCustomGunSelfHarm(GunScript __instance, bool suicide)
+        {
+            if (!suicide || __instance == null) return true;
+
+            var item = __instance.GetComponent<Item>();
+            return !ItemRegistry.TryGetCustomInfo(item, out var def) || def?.Gun == null;
+        }
+
         [HarmonyPatch(nameof(Item.totalWeight), MethodType.Getter)]
         [HarmonyPrefix]
         private static bool OverrideCustomScaledWeight(Item __instance, ref float __result)
@@ -369,6 +379,9 @@ namespace CUCoreLib.Patches
                 def.decayInfo |= (byte)ItemInfo.DecayType.BatteryDecay;
             }
 
+            if (def.Gun != null)
+                ApplyGunProperties(item, def);
+
             if (def.Light != null) ApplyLight(item, def.Light);
 
             if (IsLiquidContainer(def))
@@ -470,6 +483,63 @@ namespace CUCoreLib.Patches
             if (lightItem == null) return;
             lightItem.light = light;
             lightItem.shouldEnable = true;
+        }
+
+        internal static void ApplyGunProperties(Item item, CustomItemInfo def)
+        {
+            if (item == null || def?.Gun == null) return;
+
+            var properties = def.Gun;
+            var gun = item.GetComponent<GunScript>();
+            if (gun == null) gun = item.gameObject.AddComponent<GunScript>();
+
+            if (properties.AmmoType.HasValue) gun.ammoType = properties.AmmoType.Value;
+            if (properties.FiringMode.HasValue) gun.firingMode = properties.FiringMode.Value;
+            if (properties.FeedType.HasValue) gun.feedType = properties.FeedType.Value;
+            if (properties.MagCapacity.HasValue) gun.magCapacity = Mathf.Max(0, properties.MagCapacity.Value);
+            if (properties.KnockBack.HasValue) gun.knockBack = properties.KnockBack.Value;
+            if (properties.StructureDamage.HasValue) gun.structureDamage = properties.StructureDamage.Value;
+            if (properties.AnimalDamage.HasValue) gun.animalDamage = properties.AnimalDamage.Value;
+            if (properties.Loudness.HasValue) gun.loudness = properties.Loudness.Value;
+            if (properties.DesiredGasTime.HasValue) gun.desiredGasTime = properties.DesiredGasTime.Value;
+            if (properties.ShotsPerFire.HasValue) gun.shotsPerFire = Mathf.Max(1, properties.ShotsPerFire.Value);
+            if (properties.VerticalSpread.HasValue) gun.verticalSpread = properties.VerticalSpread.Value;
+            if (properties.ConditionLossPerShot.HasValue)
+                gun.conditionLossPerShot = properties.ConditionLossPerShot.Value;
+
+            if (properties.FireSound != null) gun.fireSound = properties.FireSound;
+            if (properties.CustomRack != null) gun.customRack = properties.CustomRack;
+            if (properties.CustomUnrack != null) gun.customUnrack = properties.CustomUnrack;
+
+            var baseSprite = properties.NormalSprite ?? def.Icon;
+            if (def.Icon != null)
+            {
+                gun.normalSprite = properties.NormalSprite ?? def.Icon;
+                gun.rackedSprite = properties.RackedSprite ?? def.Icon;
+                gun.normalSpriteNoMag = properties.NormalSpriteNoMag ?? def.Icon;
+                gun.rackedSpriteNoMag = properties.RackedSpriteNoMag ?? def.Icon;
+            }
+            else
+            {
+                gun.normalSprite = properties.NormalSprite ?? gun.normalSprite;
+                gun.rackedSprite = properties.RackedSprite ?? gun.rackedSprite;
+                gun.normalSpriteNoMag = properties.NormalSpriteNoMag ?? gun.normalSpriteNoMag;
+                gun.rackedSpriteNoMag = properties.RackedSpriteNoMag ?? gun.rackedSpriteNoMag;
+            }
+
+            ApplyGunTransformOffset(gun.barrel, properties.BarrelOffset);
+            ApplyGunTransformOffset(gun.muzzleParticle != null ? gun.muzzleParticle.transform : null,
+                properties.MuzzleOffset);
+        }
+
+        private static void ApplyGunTransformOffset(Transform target, Vector2? requestedOffset)
+        {
+            if (target == null) return;
+
+            var offset = requestedOffset;
+            if (!offset.HasValue) return;
+
+            target.localPosition = offset.Value;
         }
 
         private static Light2D.LightType ToLight2DType(CustomLightType type)
@@ -631,18 +701,6 @@ namespace CUCoreLib.Patches
             if (__instance.light != null) NextLightLookupFrameByInstance.Remove(__instance.GetInstanceID());
         }
 
-        [HarmonyPatch(typeof(LightItem), "Update")]
-        [HarmonyPrefix]
-        private static void SyncCustomBatteryLightState(LightItem __instance)
-        {
-            if (__instance == null) return;
-            if (!ItemRegistry.TryGetCustomInfo(__instance.GetComponent<Item>(), out var def) || def?.Light == null) return;
-
-            var battery = __instance.GetComponent<BatteryItem>();
-            if (battery != null)
-                __instance.shouldEnable = battery.hasCharge;
-        }
-
         private static void ApplyCustomSpawnComponents(Item item, CustomItemInfo def)
         {
             if (item == null || def?.SpawnComponents == null || def.SpawnComponents.Count == 0) return;
@@ -686,19 +744,29 @@ namespace CUCoreLib.Patches
 
         [HarmonyPatch(typeof(LightItem), "Update")]
         [HarmonyPrefix]
-        private static bool SkipNullCustomLightUpdate(LightItem __instance)
+        private static bool PrepareCustomLightUpdate(LightItem __instance)
         {
             if (__instance == null) return false;
-            if (__instance.light != null) return __instance.light != null;
-            var instanceId = __instance.GetInstanceID();
-            if (NextLightLookupFrameByInstance.TryGetValue(instanceId, out var nextFrame) &&
-                Time.frameCount < nextFrame) return false;
 
-            NextLightLookupFrameByInstance[instanceId] = Time.frameCount + 30;
-            __instance.light = __instance.GetComponentInChildren<Light2D>();
-            if (__instance.light != null) NextLightLookupFrameByInstance.Remove(instanceId);
+            if (ItemRegistry.TryGetCustomInfo(__instance.GetComponent<Item>(), out var def) && def?.Light != null)
+            {
+                var battery = __instance.GetComponent<BatteryItem>();
+                if (battery != null) __instance.shouldEnable = battery.hasCharge;
+            }
 
-            return __instance.light != null;
+            if (__instance.light == null)
+            {
+                var instanceId = __instance.GetInstanceID();
+                if (NextLightLookupFrameByInstance.TryGetValue(instanceId, out var nextFrame) &&
+                    Time.frameCount < nextFrame) return false;
+
+                NextLightLookupFrameByInstance[instanceId] = Time.frameCount + 30;
+                __instance.light = __instance.GetComponentInChildren<Light2D>();
+                if (__instance.light != null) NextLightLookupFrameByInstance.Remove(instanceId);
+            }
+
+            if (__instance.light == null) return false;
+            return true;
         }
 
         [HarmonyPatch(typeof(Item), "HandleDecay")]

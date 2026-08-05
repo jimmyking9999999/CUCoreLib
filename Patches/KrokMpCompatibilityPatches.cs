@@ -212,7 +212,7 @@ namespace CUCoreLib.Patches
 
             if (string.IsNullOrWhiteSpace(resource_stringid)) return null;
 
-            if (!TryResolveResourcePrefab(resource_stringid, out var prefab, out var parentToWorldGrid) ||
+            if (!TryResolveResourcePrefab(resource_stringid, out var prefab) ||
                 prefab == null)
             {
                 LogMissingCustomResolution(resource_stringid);
@@ -222,9 +222,6 @@ namespace CUCoreLib.Patches
             var position = (Vector2)_posField.GetValue(packet);
             var instance = Object.Instantiate(prefab, position, Quaternion.identity);
             if (instance == null) return null;
-
-            if (parentToWorldGrid && WorldGeneration.world != null && WorldGeneration.world.worldGrid != null)
-                instance.transform.SetParent(WorldGeneration.world.worldGrid.transform);
 
             instance.SetActive(true);
             var registered = RegisterPacketObject(packet, instance);
@@ -279,11 +276,9 @@ namespace CUCoreLib.Patches
             _syncInfoLastUpdateTimeField.SetValue(syncInfo, Time.realtimeSinceStartupAsDouble);
         }
 
-        private static bool TryResolveResourcePrefab(string resourceStringId, out GameObject prefab,
-            out bool parentToWorldGrid)
+        private static bool TryResolveResourcePrefab(string resourceStringId, out GameObject prefab)
         {
             prefab = null;
-            parentToWorldGrid = false;
             if (string.IsNullOrWhiteSpace(resourceStringId)) return false;
 
             var normalized = resourceStringId.Trim();
@@ -323,7 +318,7 @@ namespace CUCoreLib.Patches
                 pos = vector;
             }
 
-            if (!TryResolveResourcePrefab(resourceid, out var prefab, out var parentToWorldGrid) ||
+            if (!TryResolveResourcePrefab(resourceid, out var prefab) ||
                 prefab == null) return true;
 
             var instance = Object.Instantiate(prefab, pos, Quaternion.identity);
@@ -332,9 +327,6 @@ namespace CUCoreLib.Patches
                 __result = null;
                 return false;
             }
-
-            if (parentToWorldGrid && WorldGeneration.world != null && WorldGeneration.world.worldGrid != null)
-                instance.transform.SetParent(WorldGeneration.world.worldGrid.transform);
 
             instance.SetActive(true);
             __result = instance;

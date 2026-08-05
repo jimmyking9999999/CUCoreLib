@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using CUCoreLib.Data;
+using CUCoreLib.Patches;
 
 namespace CUCoreLib.Helpers
 {
@@ -48,7 +49,11 @@ namespace CUCoreLib.Helpers
         public static float JumpSpeed
         {
             get => GetValue(data => data.JumpSpeed);
-            set => SetValue(value, data => data.JumpSpeed);
+            set
+            {
+                SetValue(value, data => data.JumpSpeed);
+                BodyFormulaPatches.ApplyJumpSpeedContribution(PlayerCamera.main != null ? PlayerCamera.main.body : null);
+            }
         }
 
         public static float AveragePain

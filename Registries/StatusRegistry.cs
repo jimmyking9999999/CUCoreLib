@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using CUCoreLib.Data;
+using CUCoreLib.Patches;
 using Newtonsoft.Json.Linq;
 
 namespace CUCoreLib.Registries
@@ -65,6 +66,7 @@ namespace CUCoreLib.Registries
 
             var collection = Get(body);
             foreach (var token in payloads) RestoreStatusToken(collection, token, true);
+            BodyFormulaPatches.ApplyJumpSpeedContribution(body);
         }
 
         internal static void RestoreLimbStatuses(Limb limb, JArray payloads)
@@ -190,6 +192,7 @@ namespace CUCoreLib.Registries
 
             var collection = Get(body);
             foreach (var token in payloads) ApplySnapshotToken(collection, token, true);
+            BodyFormulaPatches.ApplyJumpSpeedContribution(body);
         }
 
         private static void ApplyLimbSnapshot(Body body, JArray payloads)

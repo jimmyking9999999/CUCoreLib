@@ -6,12 +6,7 @@ using UnityEngine.Networking;
 
 namespace CUCoreLib.BugReporting
 {
-    internal interface IBugReportDestination
-    {
-        IEnumerator Send(BugReportPackage report, Action<BugReportSendResult> completed);
-    }
-
-    internal sealed class DiscordWebhookDestination : IBugReportDestination
+    internal sealed class DiscordWebhookDestination
     {
         private const int RequestTimeoutSeconds = 30;
         // Surely...

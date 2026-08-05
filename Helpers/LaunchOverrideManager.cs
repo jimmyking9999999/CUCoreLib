@@ -39,27 +39,26 @@ namespace CUCoreLib.Helpers
 
             _quickTestStatePath = Path.Combine(Paths.ConfigPath, QuickTestStateDirectoryName, QuickTestStateFileName);
             _configFile = CUCoreLibPlugin.GetOrCreateSharedConfig();
-            _launchInSandbox = _configFile.Bind(
+            _launchInSandbox = CUCoreLibPlugin.BindSharedConfig(
                 SectionName,
                 "launchInSandbox",
                 false,
                 "When true, the next game launch skips the menu and opens the tutorial sandbox course.");
-            _launchInDebugWorld = _configFile.Bind(
+            _launchInDebugWorld = CUCoreLibPlugin.BindSharedConfig(
                 SectionName,
                 "launchInDebugWorld",
                 false,
                 "When true, the next game launch skips the menu and starts a normal run with debugworld enabled.");
-            _multiplayerQuickTest = _configFile.Bind(
+            _multiplayerQuickTest = CUCoreLibPlugin.BindSharedConfig(
                 SectionName,
                 "multiplayerQuickTest",
                 false,
                 "When true, the first local game instance becomes localhost Host and the second becomes localhost Client for quick KrokMP testing.");
-            _multiplayerQuickTestAddress = _configFile.Bind(
+            _multiplayerQuickTestAddress = CUCoreLibPlugin.BindSharedConfig(
                 SectionName,
                 "multiplayerQuickTestAddress",
                 DefaultQuickTestAddress,
                 "The localhost KrokMP address used by multiplayerQuickTest.");
-            _configFile.Save();
         }
 
         internal static bool TryConsumeMenuLaunchOverride(PreRunScript menu)
