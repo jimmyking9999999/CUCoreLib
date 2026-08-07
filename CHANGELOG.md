@@ -5,41 +5,41 @@ I figured that this would be nice to have, as to easily take a look at everythin
 
 **Changes** refer to potential mod-breaking changes, which may need manual work to update
 
-**Fixes** refers to bugfixes that are very unlikely or will not break your mod
+**Fixes** refers to bugfixes that will not or are very unlikely to break your mod
 
 ## v1.0.4
 
 ### New Stuff!
 - Added `GunProperties` 
 - Added the built-in `bug-report [description] [bool screenshot] [severity]` command. Send quick reports to your favourite (?) modders!
-
+- Added `CUCoreUtils.EditVanillaItem(...)` 
 
 ### Fixes
 - KrokMP v4 support
-- It feels kinda weird making QoL changelogs in here, but the reason that one hasn't gotten any updates is since it's tied to mpv5, (which is in its early playtest phase) and I really don't want to navigate my tangled version control to handpick the features and remove v5 support
-- Custom tile drops are no longer tied to KrokMP compatibility (yeah.)
-- `LightProperties` now supports local `Rotation` in degrees when placing generated item lights. Its existing `Offset` (`Vector2`) support is documented alongside it
-- Added `LightProperties.FalloffIntensity` for configurable 2D-light edge softness.
+- It feels kinda weird making QoL changelogs in here, but the reason that one hasn't gotten any updates is since it's tied to mpv5, (which is in its early playtest phase) and I really don't want to navigate my tangled version control to handpick the features and remove v5 support. Guuuh.
+- `LightProperties` supports local `Rotation` (light rotation), `Offset` (light offset), and `FalloffIntensity` (harshness/softness)
 - Added optional sync between `ModOptionsRegistry` settings and manually bound BepInEx config entries when they share the same namespaced ID or key suffix
 - Added `CCLBody` for formula-owned vanilla `Body` fields such as blood pressure and encumberance values, so mods can inject simple per-mod contributions without writing their own Harmony patches.
 - ^ do send suggestions for more body fields that might want to be added!
 - `StatusMoodleDefinition` can now carry a direct sprite icon instead of requiring a pre-existing vanilla icon ID.
-- Tiles? Liquids? Why noy both? Added early liquid tile support
+- Tiles? Liquids? Why not both? Added early liquid tile support
 - Liquid registration now has an onuse field and inject field that can be used in place of the item
 
 ### Changes
 - QoL settings menu compatibility
+- Fixed ScaleWithCondition scaling towards 0.1f. Technically this is basegame, but a bit confusing to most
 
 ### Fixes
 - QoL Unknown-multiplayer-CUCorelib compatibility patch, may or may not work
+- Custom tile drops are no longer tied to KrokMP compatibility (yeah.)
 - Settings menu description fixes
 - Fixed a startup `InvalidProgramException`, affecting only a few people (?)
 - Mod options now fall back to their registered label/description/dropdown text when no locale overrides exist (whoops!)
-- Fixed ScaleWithCondition scaling towards 0.1f. Technically this is basegame, but a bit confusing to most
 - Item.stats works properly for a couple more immutable stats
 - ^ once more, do send suggestions for more body fields that might want to be added!
 - Autofills now exist for `floodfill` and `settile`
 - Documentation, bleh...
+- Moved a bunch of stuff around, really sorry for your forks if you touched the hot reload code
 
 ## v1.0.3
 
@@ -118,7 +118,34 @@ I figured that this would be nice to have, as to easily take a look at everythin
 - Added a few enums for clarity
 
 ## v1.0.1 
-- All update logs prior were lost in the great time catastrophe...
+
+### New stuff!
+- Hot reload! See https://cucorelib.web.app/docs/debug-testing for more details
+- ^ You can now develop your mod without needing to close the game at all! (for basic functionality)
+- Automatic sandbox/debug world config
+- Version checker
+- Liquid sprite mask
+
+### Changes
+- Added more smart defaults and regular defaults
+- Battery fixes
+
+### Fixes
+- Fixed tiles not working
+- Fixed lifepod in mp
+- Fixed createLocale
+- Improved webapp, added sitemap
+- V4.0.0.0 mp compatibility
+- DestroyAtZeroCondition fixes
+- We recovered the changelogs from within the great time catastrophe! Yay!
 
 ## v1.0
 - Release!
+
+### Reminder for mod developers:
+- This .dll must be in the BepInEx/plugins/ folder
+- Your own mod must add an assembly reference to this mod. For non-visual studio users, you must add a reference in your .csproj
+- For visual studio users, right click assemblies -> add assembly -> navigate to the CUCoreLib.dll file
+- For more info, see https://cucorelib.jimmyking.dev#setup
+
+Happy modding!

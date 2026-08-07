@@ -20,6 +20,12 @@ namespace CUCoreLib.Registries
         internal static Dictionary<string, CustomItemInfo> RegisteredItems =
             new Dictionary<string, CustomItemInfo>(StringComparer.OrdinalIgnoreCase);
 
+        private static readonly Dictionary<string, List<Action<ItemInfo>>> VanillaItemEdits =
+            new Dictionary<string, List<Action<ItemInfo>>>(StringComparer.OrdinalIgnoreCase);
+
+        private static readonly Dictionary<string, ItemInfo> AppliedVanillaItemEditTables =
+            new Dictionary<string, ItemInfo>(StringComparer.OrdinalIgnoreCase);
+
         private static readonly RegistrationOwnershipIndex<string> ItemOwners =
             new RegistrationOwnershipIndex<string>(StringComparer.OrdinalIgnoreCase);
 
@@ -67,6 +73,52 @@ namespace CUCoreLib.Registries
             customInfo.SpawnFrequency = spawnFrequency;
 
             Register(id, customInfo);
+        }
+
+        internal static void QueueVanillaItemEdit(string id, Action<ItemInfo> edit)
+        {
+            if (string.IsNullOrWhiteSpace(id) || edit == null) return;
+
+            var normalizedId = SpawnIdHelpers.NormalizeSpawnId(id);
+            if (string.IsNullOrWhiteSpace(normalizedId)) return;
+
+            if (!VanillaItemEdits.TryGetValue(normalizedId, out var edits))
+            {
+                edits = new List<Action<ItemInfo>>();
+                VanillaItemEdits[normalizedId] = edits;
+            }
+
+            edits.Add(edit);
+
+            if (Item.GlobalItems != null && Item.GlobalItems.TryGetValue(normalizedId, out var info))
+                ApplyVanillaItemEdits(normalizedId, info, new[] { edit });
+        }
+
+        internal static void ApplyVanillaItemEdits()
+        {
+            if (Item.GlobalItems == null || VanillaItemEdits.Count == 0) return;
+
+            foreach (var entry in VanillaItemEdits.ToArray())
+                if (Item.GlobalItems.TryGetValue(entry.Key, out var info))
+                {
+                    if (AppliedVanillaItemEditTables.TryGetValue(entry.Key, out var appliedInfo) &&
+                        ReferenceEquals(appliedInfo, info))
+                        continue;
+
+                    ApplyVanillaItemEdits(entry.Key, info, entry.Value);
+                }
+        }
+
+        private static void ApplyVanillaItemEdits(string id, ItemInfo info, IEnumerable<Action<ItemInfo>> edits)
+        {
+            if (info == null || edits == null) return;
+
+            foreach (var edit in edits.ToArray())
+                TryRun(() => edit(info));
+
+            info.tags = info.tags ?? string.Empty;
+            TryRun(info.SetTags);
+            AppliedVanillaItemEditTables[id] = info;
         }
 
         public static void Register(string id, CustomItemInfo info, Sprite icon = null)

@@ -1704,6 +1704,17 @@ ItemRegistry.Register(
       <img src="images/decompiled-item-cs.png" alt="Decompiled Item.cs SetupItems method showing vanilla ItemInfo values." class="screenshot">
     </section>
     <section class="lesson-card">
+      <h2>Editing a vanilla item</h2>
+      <p>Use <span class="inline-code">CUCoreUtils.EditVanillaItem</span> when you want to alter an existing game item instead of registering a new one. Call it from your plugin's <span class="inline-code">Awake()</span>; CUCoreLib applies the edit after the game creates its item table, then reapplies it whenever that table is rebuilt.</p>
+      <pre><code>CUCoreUtils.EditVanillaItem("flimsyknife", info =&gt;
+{
+    info.weight = 0.15f;
+    info.rec.min = 2;
+    info.tags = info.tags + ",myTag";
+});</code></pre>
+      <p>You may change any <span class="inline-code">ItemInfo</span> field. After the callback, CUCoreLib refreshes the item's parsed tags and its vanilla loot category. The edit changes the shared definition, so newly spawned items use it; avoid changing a field repeatedly after items have spawned because some item-side values are cached on spawn.</p>
+    </section>
+    <section class="lesson-card">
       <h2>Fields</h2>
       <p>A field is a named value stored on an object. When you write <span class="inline-code">new ItemInfo { weight = 0.4f }</span>, you are setting the <span class="inline-code">weight</span> field on that <span class="inline-code">ItemInfo</span> instance before CUCoreLib registers it.</p>
       <p>In the decompiled game, <span class="inline-code">Item.cs</span> builds <span class="inline-code">Item.GlobalItems</span> from <span class="inline-code">ItemInfo</span> objects. The table below is based on the decompiled <span class="inline-code">ItemInfo.cs</span> fields that those vanilla items use.</p>

@@ -44,6 +44,9 @@ namespace CUCoreLib.Patches
         {
             if (Item.GlobalItems == null) return;
 
+            ItemRegistry.ApplyVanillaItemEdits();
+            ItemLootPool.InitializePool();
+
             foreach (var kvp in ItemRegistry.RegisteredItems.ToArray())
                 try
                 {
@@ -53,7 +56,6 @@ namespace CUCoreLib.Patches
                 {
                 }
 
-            ItemLootPool.InitializePool();
             CUCoreLibPlugin.Log.LogInfo($"Bulk injected {ItemRegistry.RegisteredItems.Count} items.");
         }
 

@@ -1648,6 +1648,14 @@ private void Awake()
     CUCoreUtils.SetWornSprite("glassworks.apron", alternateWorn);
     bool isModded = CUCoreUtils.IsModdedItem("glassworks.someitem");
 
+    // Vanilla item definition edits are deferred until the game creates its item table.
+    CUCoreUtils.EditVanillaItem("flimsyknife", info =>
+    {
+        info.weight = 0.15f;
+        info.rec.min = 2;
+        info.tags += ",myTag";
+    });
+
     // ReflectionUtils + console
     CUCoreUtils.GetMethod(this, "Awake");
     CUCoreUtils.InvokeMethod(this, "Awake");

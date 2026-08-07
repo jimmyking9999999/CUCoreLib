@@ -291,6 +291,22 @@ namespace CUCoreLib.Helpers
             return new CraftingQuality(id);
         }
 
+        /// <summary>
+        /// Applies an edit to a vanilla item definition. The edit is queued automatically when
+        /// called before vanilla item setup and reapplied whenever the vanilla table is rebuilt.
+        /// </summary>
+        /// <param name="itemId">Vanilla item ID, such as <c>flimsyknife</c>.</param>
+        /// <param name="edit">Mutation to apply to the vanilla <see cref="ItemInfo"/>.</param>
+        public static void EditVanillaItem(string itemId, Action<ItemInfo> edit)
+        {
+            ItemRegistry.QueueVanillaItemEdit(itemId, edit);
+        }
+
+        public static void editVanillaItem(string itemId, Action<ItemInfo> edit)
+        {
+            EditVanillaItem(itemId, edit);
+        }
+
         public static bool IsInWorld()
         {
             return IsWorldGenerationReady() && PlayerCamera.main != null && PlayerCamera.main.body != null;
