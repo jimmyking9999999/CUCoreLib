@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using CUCoreLib.ContentReload;
 using CUCoreLib.Helpers;
 using CUCoreLib.Registries;
-using CUCoreLib.Saving;
 using Newtonsoft.Json.Linq;
 
 namespace CUCoreLib.Networking
@@ -132,17 +131,16 @@ namespace CUCoreLib.Networking
 
             _builtInsRegistered = true;
 
+            RegisterModule("liquids", CaptureLiquidManifest, LiquidRegistry.ApplyNetworkSnapshot);
             RegisterModule("items", CaptureItemManifest, ItemRegistry.ApplyNetworkSnapshot);
             RegisterModule("tiles", CaptureTileManifest, TileRegistry.ApplyNetworkSnapshot);
             RegisterModule("buildings", CaptureBuildingManifest, BuildingEntityRegistry.ApplyNetworkSnapshot);
-            RegisterModule("liquids", CaptureLiquidManifest, LiquidRegistry.ApplyNetworkSnapshot);
             RegisterModule("liquidtiles", LiquidTileRegistry.CaptureNetworkSnapshot,
                 LiquidTileRegistry.ApplyNetworkSnapshot);
             RegisterModule("statuses", StatusRegistry.CaptureNetworkSnapshot, StatusRegistry.ApplyNetworkSnapshot);
             RegisterModule("moodles", MoodleRegistry.CaptureNetworkSnapshot, MoodleRegistry.ApplyNetworkSnapshot);
             RegisterModule("settings", ModOptionsRegistry.CaptureNetworkSnapshot,
                 ModOptionsRegistry.ApplyNetworkSnapshot);
-            RegisterModule("save", SaveCoordinator.CaptureNetworkSnapshot, SaveCoordinator.ApplyNetworkSnapshot);
 
             MultiplayerBridge.RegisterServerHandler(SnapshotChannel, _ => CaptureSnapshot());
             MultiplayerBridge.RegisterClientHandler(SnapshotChannel, payload =>

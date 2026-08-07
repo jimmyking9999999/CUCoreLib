@@ -21,10 +21,12 @@ namespace CUCoreLib.Patches
         private const string SyncInfoTypeName = "KrokoshaCasualtiesMP.SyncInfo";
         private const string NetObjectRegistryTypeName = "KrokoshaCasualtiesMP.NetObjectRegistry";
         private const string NewObjectSystemTypeName = "KrokoshaCasualtiesMP.NewCoolerObjectPacketWriteReadSystem";
+        private const string ItemSetupListenerTypeName = "KrokoshaCasualtiesMP.Item_SetupItems_Listener";
         private static bool _installed;
         private static bool _retryScheduled;
         private static Hook _applyHook;
         private static bool _newLoaderPatched;
+        private static bool _liquidRegistryPatched;
         private static Type _syncInfoType;
         private static Type _netObjectRegistryType;
         private static MethodInfo _getSyncInfoMethod;
@@ -88,14 +90,75 @@ namespace CUCoreLib.Patches
                 }
             }
 
+            if (!_liquidRegistryPatched && ResolveLoadedType(ItemSetupListenerTypeName) != null)
+            {
+                var setupItems = AccessTools.Method(typeof(Item), "SetupItems");
+                if (setupItems != null)
+                {
+                    harmony.Patch(setupItems,
+                        postfix: new HarmonyMethod(typeof(KrokMpCompatibilityPatches),
+                            nameof(RefreshLiquidRegistry_AfterItemSetup))
+                        {
+                            priority = Priority.Last
+                        });
+                    _liquidRegistryPatched = true;
+                    patchedAnything = true;
+                }
+            }
+
             if (patchedAnything)
             {
-                _installed = true;
-                CUCoreLibPlugin.Log?.LogInfo("CUCoreLib KrokMP compatibility patch installed.");
-                return;
+                RefreshLiquidRegistry();
+                if (_newLoaderPatched || _applyHook != null)
+                {
+                    _installed = true;
+                    CUCoreLibPlugin.Log?.LogInfo("CUCoreLib KrokMP compatibility patch installed.");
+                    return;
+                }
             }
 
             ScheduleRetry(harmony);
+        }
+
+        internal static void RefreshLiquidRegistry()
+        {
+            try
+            {
+                if (Liquids.Registry == null) return;
+
+                var listenerType = ResolveLoadedType(ItemSetupListenerTypeName);
+                if (listenerType == null) return;
+
+                var idsField = AccessTools.Field(listenerType, "LiquidIdRegistry");
+                var reverseIdsField = AccessTools.Field(listenerType, "LiquidNetIdToId");
+                if (idsField == null || reverseIdsField == null) return;
+
+                if (Liquids.Registry.Count > byte.MaxValue + 1) return;
+
+                var count = Liquids.Registry.Count;
+                var ids = new Dictionary<string, byte>(count, StringComparer.Ordinal);
+                var reverseIds = new string[count];
+                var index = 0;
+                foreach (var liquid in Liquids.Registry.OrderBy(entry => entry.Key, StringComparer.Ordinal))
+                {
+                    if (index == count) break;
+
+                    ids[liquid.Key] = (byte)index;
+                    reverseIds[index] = liquid.Key;
+                    index++;
+                }
+
+                idsField.SetValue(null, ids);
+                reverseIdsField.SetValue(null, reverseIds);
+            }
+            catch
+            {
+            }
+        }
+
+        private static void RefreshLiquidRegistry_AfterItemSetup()
+        {
+            RefreshLiquidRegistry();
         }
 
         private static DynamicMethod CreateApplyReplacement(Type packetType)

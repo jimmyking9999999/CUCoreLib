@@ -43,22 +43,42 @@ namespace CUCoreLib.Saving
 
     public sealed class WorldSaveContext
     {
-        public Body Body => PlayerCamera.main != null ? PlayerCamera.main.body : null;
-        public PlayerCamera PlayerCamera => PlayerCamera.main;
-        public WorldGeneration World => WorldGeneration.world;
+        private readonly Body _body;
+        private readonly PlayerCamera _playerCamera;
+        private readonly WorldGeneration _world;
+
+        public WorldSaveContext()
+            : this(PlayerCamera.main != null ? PlayerCamera.main.body : null, PlayerCamera.main,
+                WorldGeneration.world)
+        {
+        }
+
+        internal WorldSaveContext(Body body, PlayerCamera playerCamera, WorldGeneration world)
+        {
+            _body = body;
+            _playerCamera = playerCamera;
+            _world = world;
+        }
+
+        public Body Body => _body;
+        public PlayerCamera PlayerCamera => _playerCamera;
+        public WorldGeneration World => _world;
     }
 
     public sealed class SaveRestoreContext
     {
         private readonly List<Action> _deferredActions = new List<Action>();
 
-        internal SaveRestoreContext()
+        internal SaveRestoreContext(Body body, PlayerCamera playerCamera, WorldGeneration world)
         {
+            Body = body;
+            PlayerCamera = playerCamera;
+            World = world;
         }
 
-        public Body Body => PlayerCamera.main != null ? PlayerCamera.main.body : null;
-        public PlayerCamera PlayerCamera => PlayerCamera.main;
-        public WorldGeneration World => WorldGeneration.world;
+        public Body Body { get; }
+        public PlayerCamera PlayerCamera { get; }
+        public WorldGeneration World { get; }
 
         public void Defer(Action action)
         {

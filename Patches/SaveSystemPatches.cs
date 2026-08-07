@@ -4,6 +4,7 @@ using HarmonyLib;
 namespace CUCoreLib.Patches
 {
     [HarmonyPatch(typeof(SaveSystem))]
+    [HarmonyAfter("KrokoshaCasualtiesMP")]
     internal static class SaveSystemPatches
     {
         [HarmonyPatch("SaveGame")]
@@ -15,28 +16,16 @@ namespace CUCoreLib.Patches
 
         [HarmonyPatch("TryLoadGame")]
         [HarmonyPrefix]
-        private static void TryLoadGame_Prefix()
+        private static void TryLoadGame_Prefix(out SaveCoordinator.LoadState __state)
         {
-            if (!SaveSystem.loadedRun || !SaveSystem.HasSave())
-            {
-                SaveCoordinator.ClearPendingRestore();
-                return;
-            }
-
-            SaveCoordinator.PrepareRestoreFromSaveFile();
+            __state = SaveCoordinator.PrepareRestoreFromSaveFile();
         }
 
         [HarmonyPatch("TryLoadGame")]
         [HarmonyPostfix]
-        private static void TryLoadGame_Postfix()
+        private static void TryLoadGame_Postfix(SaveCoordinator.LoadState __state)
         {
-            if (!SaveSystem.loadedRun)
-            {
-                SaveCoordinator.ClearPendingRestore();
-                return;
-            }
-
-            SaveCoordinator.ApplyPendingRestore();
+            SaveCoordinator.ApplyRestore(__state);
         }
     }
 }

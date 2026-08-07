@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using CUCoreLib.Networking;
 using CUCoreLib.Registries;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -22,37 +23,39 @@ namespace CUCoreLib.Saving
         private const string PayloadKey = "payload";
         private const int SchemaVersion = 1;
 
-        private static JObject PendingRestoreRoot;
+        private static bool _warnedUnsupportedKrokMpScope;
 
-        internal static void ClearPendingRestore()
+        internal sealed class LoadState
         {
-            PendingRestoreRoot = null;
-        }
+            internal readonly KrokMpSaveScope Scope;
+            internal readonly JObject Payload;
+            internal readonly Body Body;
+            internal readonly PlayerCamera PlayerCamera;
+            internal readonly WorldGeneration World;
 
-        internal static JObject CaptureNetworkSnapshot()
-        {
-            return CaptureRoot();
-        }
-
-        internal static void ApplyNetworkSnapshot(JObject snapshot)
-        {
-            if (snapshot == null) return;
-
-            // Reuse the same restore pipeline as save-file loads
-            PendingRestoreRoot = snapshot;
-            ApplyPendingRestore();
+            internal LoadState(KrokMpSaveScope scope, JObject payload, Body body, PlayerCamera playerCamera,
+                WorldGeneration world)
+            {
+                Scope = scope;
+                Payload = payload;
+                Body = body;
+                PlayerCamera = playerCamera;
+                World = world;
+            }
         }
 
         internal static void EmbedIntoSaveFile()
         {
             try
             {
-                var path = GetSavePath();
+                if (!TryGetSavePath(out var scope, out var path)) return;
                 if (!File.Exists(path)) return;
 
                 var json = SaveSystem.Unzip(File.ReadAllBytes(path));
                 var saveRoot = JObject.Parse(json);
-                var cuRoot = CaptureRoot();
+                var playerCamera = PlayerCamera.main;
+                var body = playerCamera != null ? playerCamera.body : null;
+                var cuRoot = CapturePayload(scope, body, playerCamera, WorldGeneration.world);
                 if (cuRoot == null) return;
 
                 saveRoot[RootKey] = cuRoot;
@@ -65,46 +68,54 @@ namespace CUCoreLib.Saving
             }
         }
 
-        internal static void PrepareRestoreFromSaveFile()
+        internal static LoadState PrepareRestoreFromSaveFile()
         {
-            ClearPendingRestore();
-
             try
             {
-                var path = GetSavePath();
-                if (!File.Exists(path)) return;
+                if (!TryGetSavePath(out var scope, out var path)) return null;
+                if (scope == KrokMpSaveScope.NotActive && (!SaveSystem.loadedRun || !SaveSystem.HasSave())) return null;
+                if (!File.Exists(path)) return null;
 
                 var json = SaveSystem.Unzip(File.ReadAllBytes(path));
                 var saveRoot = JObject.Parse(json);
-                // Only cache the CUCoreLib section so restore ignores the rest of the save file
-                PendingRestoreRoot = saveRoot[RootKey] as JObject;
+                var payload = saveRoot[RootKey] as JObject;
+                if (payload == null) return null;
+
+                var playerCamera = PlayerCamera.main;
+                return new LoadState(scope, payload, playerCamera != null ? playerCamera.body : null, playerCamera,
+                    WorldGeneration.world);
             }
             catch (Exception ex)
             {
                 SaveLogger.Warn("Failed to read CUCoreLib payload from save file.", ex);
+                return null;
             }
         }
 
-        internal static void ApplyPendingRestore()
+        internal static void ApplyRestore(LoadState state)
         {
-            if (PendingRestoreRoot == null) return;
+            if (state == null || state.Payload == null || !SaveSystem.loadedRun) return;
 
             try
             {
-                var body = PlayerCamera.main != null ? PlayerCamera.main.body : null;
+                var restoreContext = new SaveRestoreContext(state.Body, state.PlayerCamera, state.World);
 
+                if (state.Scope != KrokMpSaveScope.Player)
+                {
+                    WarnUnknownProviders(state.Payload["global"] as JObject, SaveRegistry.GlobalProviderKeys, "global");
+                    WarnUnknownProviders(state.Payload["world"] as JObject, SaveRegistry.WorldProviderKeys, "world");
+                    ApplyGlobalProviders(state.Payload["global"] as JObject, restoreContext);
+                    ApplyWorldProviders(state.Payload["world"] as JObject, restoreContext, state.Body, state.PlayerCamera,
+                        state.World);
+                }
 
-                var restoreContext = new SaveRestoreContext();
-                WarnUnknownProviders(PendingRestoreRoot["global"] as JObject, SaveRegistry.GlobalProviderKeys,
-                    "global");
-                WarnUnknownProviders(PendingRestoreRoot["body"] as JObject, SaveRegistry.BodyProviderKeys, "body");
-                WarnUnknownProviders(PendingRestoreRoot["world"] as JObject, SaveRegistry.WorldProviderKeys, "world");
-
-                ApplyGlobalProviders(PendingRestoreRoot["global"] as JObject, restoreContext);
-                ApplyBodyProviders(body, PendingRestoreRoot["body"] as JObject, restoreContext);
-                ApplyLimbProviders(body, PendingRestoreRoot["limbs"] as JArray, restoreContext);
-                ApplyItemProviders(body, PendingRestoreRoot["items"] as JObject, restoreContext);
-                ApplyWorldProviders(PendingRestoreRoot["world"] as JObject, restoreContext);
+                if (state.Scope != KrokMpSaveScope.Shared && state.Body != null)
+                {
+                    WarnUnknownProviders(state.Payload["body"] as JObject, SaveRegistry.BodyProviderKeys, "body");
+                    ApplyBodyProviders(state.Body, state.Payload["body"] as JObject, restoreContext);
+                    ApplyLimbProviders(state.Body, state.Payload["limbs"] as JArray, restoreContext);
+                    ApplyItemProviders(state.Body, state.Payload["items"] as JObject, restoreContext);
+                }
 
                 restoreContext.ExecuteDeferred();
             }
@@ -112,16 +123,12 @@ namespace CUCoreLib.Saving
             {
                 SaveLogger.Warn("Unexpected failure while restoring CUCoreLib save payload D:", ex);
             }
-            finally
-            {
-                ClearPendingRestore();
-            }
         }
 
-        private static JObject CaptureRoot()
+        private static JObject CapturePayload(KrokMpSaveScope scope, Body body, PlayerCamera playerCamera,
+            WorldGeneration world)
         {
-            var body = PlayerCamera.main != null ? PlayerCamera.main.body : null;
-            if (body == null)
+            if (scope != KrokMpSaveScope.Shared && body == null)
             {
                 SaveLogger.Warn("Skipping custom save capture because the player body is not ready.");
                 return null;
@@ -132,18 +139,18 @@ namespace CUCoreLib.Saving
                 ["version"] = SchemaVersion
             };
 
-            var global = CaptureGlobalProviders();
-            var bodyPayload = CaptureBodyProviders(body);
-            var limbs = CaptureLimbProviders(body);
-            var items = CaptureItemProviders(body);
-            var world = CaptureWorldProviders();
+            if (scope != KrokMpSaveScope.Player)
+            {
+                root["global"] = CaptureGlobalProviders() ?? new JObject();
+                root["world"] = CaptureWorldProviders(body, playerCamera, world) ?? new JObject();
+            }
 
-            // Need all sections present
-            root["global"] = global ?? new JObject();
-            root["body"] = bodyPayload ?? new JObject();
-            root["limbs"] = limbs ?? new JArray();
-            root["items"] = items ?? new JObject();
-            root["world"] = world ?? new JObject();
+            if (scope != KrokMpSaveScope.Shared)
+            {
+                root["body"] = CaptureBodyProviders(body) ?? new JObject();
+                root["limbs"] = CaptureLimbProviders(body) ?? new JArray();
+                root["items"] = CaptureItemProviders(body) ?? new JObject();
+            }
 
             return root;
         }
@@ -211,10 +218,10 @@ namespace CUCoreLib.Saving
             return result;
         }
 
-        private static JObject CaptureWorldProviders()
+        private static JObject CaptureWorldProviders(Body body, PlayerCamera playerCamera, WorldGeneration world)
         {
             var result = new JObject();
-            var context = new WorldSaveContext();
+            var context = new WorldSaveContext(body, playerCamera, world);
 
             foreach (var entry in SaveRegistry.WorldProviders)
                 CaptureProvider(entry.Key, entry.Value, result, () => entry.Value.Capture(context));
@@ -349,11 +356,12 @@ namespace CUCoreLib.Saving
             }
         }
 
-        private static void ApplyWorldProviders(JObject payloadRoot, SaveRestoreContext context)
+        private static void ApplyWorldProviders(JObject payloadRoot, SaveRestoreContext context, Body body,
+            PlayerCamera playerCamera, WorldGeneration world)
         {
             if (payloadRoot == null) return;
 
-            var worldContext = new WorldSaveContext();
+            var worldContext = new WorldSaveContext(body, playerCamera, world);
 
             foreach (var property in payloadRoot.Properties())
             {
@@ -479,9 +487,32 @@ namespace CUCoreLib.Saving
                     SaveLogger.Warn("Skipping unknown " + scope + " save provider '" + property.Name + "'.");
         }
 
-        private static string GetSavePath()
+        private static bool TryGetSavePath(out KrokMpSaveScope scope, out string path)
         {
-            return Path.Combine(Application.persistentDataPath, "save.sv");
+            scope = MultiplayerBridge.GetKrokMpSaveScope(out var directory);
+            switch (scope)
+            {
+                case KrokMpSaveScope.NotActive:
+                    path = Path.Combine(Application.persistentDataPath, "save.sv");
+                    return true;
+                case KrokMpSaveScope.Shared:
+                case KrokMpSaveScope.Player:
+                    path = Path.Combine(directory, "save.sv");
+                    return true;
+                case KrokMpSaveScope.Client:
+                    path = null;
+                    return false;
+                default:
+                    if (!_warnedUnsupportedKrokMpScope)
+                    {
+                        _warnedUnsupportedKrokMpScope = true;
+                        SaveLogger.Warn("Skipping CUCoreLib save-provider persistence because KrokMP's active save " +
+                                        "directory could not be resolved safely.");
+                    }
+
+                    path = null;
+                    return false;
+            }
         }
     }
 

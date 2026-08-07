@@ -58,7 +58,7 @@ namespace CUCoreLib.Registries
         {
             if (string.IsNullOrWhiteSpace(id))
             {
-                CUCoreLibPlugin.Log.LogWarning("Ignored custom item registration with no ID.");
+                CUCoreLibPlugin.Log?.LogWarning("Ignored custom item registration with no ID.");
                 return;
             }
 
@@ -80,7 +80,7 @@ namespace CUCoreLib.Registries
         {
             if (string.IsNullOrWhiteSpace(id))
             {
-                CUCoreLibPlugin.Log.LogWarning("Ignored custom item registration with no ID.");
+                CUCoreLibPlugin.Log?.LogWarning("Ignored custom item registration with no ID.");
                 return;
             }
 
@@ -88,36 +88,38 @@ namespace CUCoreLib.Registries
 
             id = id.Trim();
             info.ID = id;
+            info.tags = info.tags ?? string.Empty;
             var normalizedId = SpawnIdHelpers.NormalizeSpawnId(id);
             WarnedMissingIconIds.Remove(normalizedId);
             WarnedMissingCustomIconIds.Remove(normalizedId);
 
             if (string.IsNullOrWhiteSpace(info.category)) info.category = "nospawn";
 
-            ApplyMedicalActions(info);
-            ApplyDefaultOverrides(info);
-            LocaleRegistry.RegisterCraftingQualities(info.qualities);
-            ValidateLiquidReferences(id, info);
+            TryRun(() => ApplyMedicalActions(info));
+            TryRun(() => ApplyDefaultOverrides(info));
+            TryRun(() => LocaleRegistry.RegisterCraftingQualities(info.qualities));
+            TryRun(() => ValidateLiquidReferences(id, info));
 
-            if (!string.IsNullOrEmpty(info.fullName)) info.fullName = LocaleRegistry.Get("item", id, info.fullName);
+            if (!string.IsNullOrEmpty(info.fullName))
+                TryRun(() => info.fullName = LocaleRegistry.Get("item", id, info.fullName));
 
             if (!string.IsNullOrEmpty(info.description))
-                info.description = LocaleRegistry.Get("item", id + "dsc", info.description);
+                TryRun(() => info.description = LocaleRegistry.Get("item", id + "dsc", info.description));
 
-            WarnMissingCustomIcon(id, info);
+            TryRun(() => WarnMissingCustomIcon(id, info));
 
             // Store or replace the registry entry, apply defaults and inject into runtime tables.
             var replacingExisting = RegisteredItems.ContainsKey(id);
             RegisteredItems[id] = info;
-            ItemOwners.Assign(id, ContentReloadSession.ResolveAmbientOwnerId());
+            TryRun(() => ItemOwners.Assign(id, ContentReloadSession.ResolveAmbientOwnerId()));
 
-            DropPoolRegistry.RegisterItem(id, info);
+            TryRun(() => DropPoolRegistry.RegisterItem(id, info));
 
-            if (Item.GlobalItems != null) InjectSingleItem(id, info, replacingExisting);
+            if (Item.GlobalItems != null) TryRun(() => InjectSingleItem(id, info, replacingExisting));
 
-            if (ItemLootPool.pool != null) ItemLootPoolPatch.EnsureItemInLootPool(id, info);
+            if (ItemLootPool.pool != null) TryRun(() => ItemLootPoolPatch.EnsureItemInLootPool(id, info));
 
-            MultiplayerSyncRegistry.QueueHostSnapshotBroadcast();
+            TryRun(MultiplayerSyncRegistry.QueueHostSnapshotBroadcast);
         }
 
         public static IDisposable BeginOwnerRegistration(string ownerId)
@@ -178,127 +180,133 @@ namespace CUCoreLib.Registries
         internal static JObject CaptureNetworkSnapshot()
         {
             var root = new JObject();
-            foreach (var entry in RegisteredItems)
+            foreach (var entry in RegisteredItems.ToArray())
             {
-                var info = entry.Value;
-                if (info == null) continue;
-
-                var item = new JObject
+                try
                 {
-                    ["fullName"] = info.fullName ?? string.Empty,
-                    ["description"] = info.description ?? string.Empty,
-                    ["category"] = info.category ?? string.Empty,
-                    ["slotRotation"] = info.slotRotation,
-                    ["usable"] = info.usable,
-                    ["usableOnLimb"] = info.usableOnLimb,
-                    ["rotSpeed"] = info.rotSpeed,
-                    ["destroyAtZeroCondition"] = info.destroyAtZeroCondition,
-                    ["weight"] = info.weight,
-                    ["scaleWeightWithCondition"] = info.scaleWeightWithCondition,
-                    ["onlyHoldInHands"] = info.onlyHoldInHands,
-                    ["autoAttack"] = info.autoAttack,
-                    ["usableWithLMB"] = info.usableWithLMB,
-                    ["wearable"] = info.wearable,
-                    ["wearableCanBeHeld"] = info.wearableCanBeHeld,
-                    ["desiredWearLimb"] = info.desiredWearLimb ?? string.Empty,
-                    ["wearSlotId"] = info.wearSlotId ?? string.Empty,
-                    ["wearableArmor"] = info.wearableArmor,
-                    ["wearableIsolation"] = info.wearableIsolation,
-                    ["wearableHitDurabilityLossMultiplier"] = info.wearableHitDurabilityLossMultiplier,
-                    ["jumpHeightMultChange"] = info.jumpHeightMultChange,
-                    ["combineable"] = info.combineable,
-                    ["ignoreDepression"] = info.ignoreDepression,
-                    ["value"] = info.value,
-                    ["wearableVisualOffset"] = info.wearableVisualOffset,
-                    ["tags"] = info.tags ?? string.Empty,
-                    ["decayInfo"] = info.decayInfo,
-                    ["decayMinutes"] = info.decayMinutes,
-                    ["spawnFrequency"] = info.SpawnFrequency,
-                    ["dropPool"] = info.DropPool.HasValue
-                        ? new JValue((ushort)info.DropPool.Value)
-                        : JValue.CreateNull(),
-                    ["worldSpawnPerChunk"] = info.WorldSpawnPerChunk.HasValue
-                        ? new JValue(info.WorldSpawnPerChunk.Value)
-                        : JValue.CreateNull(),
-                    ["recognitionMin"] = info.rec != null ? info.rec.min : 0,
-                    ["capacity"] = info.capacity,
-                    ["autoFill"] = info.autoFill,
-                    ["defaultContents"] = NetworkSnapshotSerialization.WriteLiquidStacks(info.defaultContents),
-                    ["icon"] = NetworkSnapshotSerialization.WriteSprite(info.Icon),
-                    ["inventoryIconScale"] = info.InventoryIconScale,
-                    ["wornSprite"] = NetworkSnapshotSerialization.WriteSprite(info.WornSprite),
-                    ["wearableSortingOrder"] = info.WearableSortingOrder.HasValue
-                        ? new JValue(info.WearableSortingOrder.Value)
-                        : JValue.CreateNull(),
-                    ["multiWornSprites"] = NetworkSnapshotSerialization.WriteSpriteDictionary(info.MultiWornSprites),
-                    ["liquidMask"] = NetworkSnapshotSerialization.WriteSprite(info.LiquidMask),
-                    ["visualOffsetX"] = info.VisualOffset.x,
-                    ["visualOffsetY"] = info.VisualOffset.y,
-                    ["heldSpriteOffsetX"] = info.HeldSpriteOffset.x,
-                    ["heldSpriteOffsetY"] = info.HeldSpriteOffset.y,
-                    ["wornSpriteOffsetX"] = info.WornSpriteOffset.x,
-                    ["wornSpriteOffsetY"] = info.WornSpriteOffset.y,
-                    ["multiWornSpriteOffsets"] =
-                        NetworkSnapshotSerialization.WriteVector2Dictionary(info.MultiWornSpriteOffsets),
-                    ["spriteScale"] = info.SpriteScale,
-                    ["spriteScaleWidth"] = info.SpriteScaleDimensions.Width,
-                    ["spriteScaleHeight"] = info.SpriteScaleDimensions.Height,
-                    ["spriteScaleExpandToFirstMetCondition"] = info.SpriteScaleDimensions.ExpandToFirstMetCondition,
-                    ["spawnComponents"] = info.SpawnComponents != null
-                        ? JArray.FromObject(info.SpawnComponents)
-                        : new JArray(),
-                    ["customData"] = info.CustomData != null ? JObject.FromObject(info.CustomData) : new JObject()
-                };
+                    var info = entry.Value;
+                    if (info == null) continue;
 
-                if (info.Container != null) item["container"] = JObject.FromObject(info.Container);
-
-                if (info.Battery != null) item["battery"] = JObject.FromObject(info.Battery);
-
-                if (info.Light != null)
-                {
-                    var light = new JObject
+                    var item = new JObject
                     {
-                        ["intensity"] = info.Light.Intensity,
-                        ["color"] = NetworkSnapshotSerialization.WriteColor(info.Light.Color),
-                        ["pointLightOuterRadius"] = info.Light.PointLightOuterRadius,
-                        ["pointLightInnerRadius"] = info.Light.PointLightInnerRadius,
-                        ["pointLightOuterAngle"] = info.Light.PointLightOuterAngle,
-                        ["pointLightInnerAngle"] = info.Light.PointLightInnerAngle,
-                        ["lightType"] = (int)info.Light.LightType,
-                        ["offsetX"] = info.Light.Offset.x,
-                        ["offsetY"] = info.Light.Offset.y,
-                        ["addLightItem"] = info.Light.AddLightItem
+                        ["fullName"] = info.fullName ?? string.Empty,
+                        ["description"] = info.description ?? string.Empty,
+                        ["category"] = info.category ?? string.Empty,
+                        ["slotRotation"] = info.slotRotation,
+                        ["usable"] = info.usable,
+                        ["usableOnLimb"] = info.usableOnLimb,
+                        ["rotSpeed"] = info.rotSpeed,
+                        ["destroyAtZeroCondition"] = info.destroyAtZeroCondition,
+                        ["weight"] = info.weight,
+                        ["scaleWeightWithCondition"] = info.scaleWeightWithCondition,
+                        ["onlyHoldInHands"] = info.onlyHoldInHands,
+                        ["autoAttack"] = info.autoAttack,
+                        ["usableWithLMB"] = info.usableWithLMB,
+                        ["wearable"] = info.wearable,
+                        ["wearableCanBeHeld"] = info.wearableCanBeHeld,
+                        ["desiredWearLimb"] = info.desiredWearLimb ?? string.Empty,
+                        ["wearSlotId"] = info.wearSlotId ?? string.Empty,
+                        ["wearableArmor"] = info.wearableArmor,
+                        ["wearableIsolation"] = info.wearableIsolation,
+                        ["wearableHitDurabilityLossMultiplier"] = info.wearableHitDurabilityLossMultiplier,
+                        ["jumpHeightMultChange"] = info.jumpHeightMultChange,
+                        ["combineable"] = info.combineable,
+                        ["ignoreDepression"] = info.ignoreDepression,
+                        ["value"] = info.value,
+                        ["wearableVisualOffset"] = info.wearableVisualOffset,
+                        ["tags"] = info.tags ?? string.Empty,
+                        ["decayInfo"] = info.decayInfo,
+                        ["decayMinutes"] = info.decayMinutes,
+                        ["spawnFrequency"] = info.SpawnFrequency,
+                        ["dropPool"] = info.DropPool.HasValue
+                            ? new JValue((ushort)info.DropPool.Value)
+                            : JValue.CreateNull(),
+                        ["worldSpawnPerChunk"] = info.WorldSpawnPerChunk.HasValue
+                            ? new JValue(info.WorldSpawnPerChunk.Value)
+                            : JValue.CreateNull(),
+                        ["recognitionMin"] = info.rec != null ? info.rec.min : 0,
+                        ["capacity"] = info.capacity,
+                        ["autoFill"] = info.autoFill,
+                        ["defaultContents"] = NetworkSnapshotSerialization.WriteLiquidStacks(info.defaultContents),
+                        ["icon"] = NetworkSnapshotSerialization.WriteSprite(info.Icon),
+                        ["inventoryIconScale"] = info.InventoryIconScale,
+                        ["wornSprite"] = NetworkSnapshotSerialization.WriteSprite(info.WornSprite),
+                        ["wearableSortingOrder"] = info.WearableSortingOrder.HasValue
+                            ? new JValue(info.WearableSortingOrder.Value)
+                            : JValue.CreateNull(),
+                        ["multiWornSprites"] = NetworkSnapshotSerialization.WriteSpriteDictionary(info.MultiWornSprites),
+                        ["liquidMask"] = NetworkSnapshotSerialization.WriteSprite(info.LiquidMask),
+                        ["visualOffsetX"] = info.VisualOffset.x,
+                        ["visualOffsetY"] = info.VisualOffset.y,
+                        ["heldSpriteOffsetX"] = info.HeldSpriteOffset.x,
+                        ["heldSpriteOffsetY"] = info.HeldSpriteOffset.y,
+                        ["wornSpriteOffsetX"] = info.WornSpriteOffset.x,
+                        ["wornSpriteOffsetY"] = info.WornSpriteOffset.y,
+                        ["multiWornSpriteOffsets"] =
+                            NetworkSnapshotSerialization.WriteVector2Dictionary(info.MultiWornSpriteOffsets),
+                        ["spriteScale"] = info.SpriteScale,
+                        ["spriteScaleWidth"] = info.SpriteScaleDimensions.Width,
+                        ["spriteScaleHeight"] = info.SpriteScaleDimensions.Height,
+                        ["spriteScaleExpandToFirstMetCondition"] = info.SpriteScaleDimensions.ExpandToFirstMetCondition,
+                        ["spawnComponents"] = info.SpawnComponents != null
+                            ? JArray.FromObject(info.SpawnComponents)
+                            : new JArray(),
+                        ["customData"] = info.CustomData != null ? JObject.FromObject(info.CustomData) : new JObject()
                     };
 
-                    item["light"] = light;
-                }
+                    if (info.Container != null) item["container"] = JObject.FromObject(info.Container);
 
-                if (info.Bandage != null) item["bandage"] = JObject.FromObject(info.Bandage);
+                    if (info.Battery != null) item["battery"] = JObject.FromObject(info.Battery);
 
-                if (info.Syringe != null)
-                {
-                    var syringe = new JObject
+                    if (info.Light != null)
                     {
-                        ["capacity"] = info.Syringe.Capacity,
-                        ["autoFill"] = info.Syringe.AutoFill,
-                        ["amountPerFullUse"] = info.Syringe.AmountPerFullUse,
-                        ["useAverageColor"] = info.Syringe.UseAverageColor,
-                        ["minigameColor"] = NetworkSnapshotSerialization.WriteColor(info.Syringe.MinigameColor),
-                        ["defaultContents"] =
-                            NetworkSnapshotSerialization.WriteLiquidStacks(info.Syringe.DefaultContents)
-                    };
+                        var light = new JObject
+                        {
+                            ["intensity"] = info.Light.Intensity,
+                            ["color"] = NetworkSnapshotSerialization.WriteColor(info.Light.Color),
+                            ["pointLightOuterRadius"] = info.Light.PointLightOuterRadius,
+                            ["pointLightInnerRadius"] = info.Light.PointLightInnerRadius,
+                            ["pointLightOuterAngle"] = info.Light.PointLightOuterAngle,
+                            ["pointLightInnerAngle"] = info.Light.PointLightInnerAngle,
+                            ["lightType"] = (int)info.Light.LightType,
+                            ["offsetX"] = info.Light.Offset.x,
+                            ["offsetY"] = info.Light.Offset.y,
+                            ["addLightItem"] = info.Light.AddLightItem
+                        };
 
-                    item["syringe"] = syringe;
+                        item["light"] = light;
+                    }
+
+                    if (info.Bandage != null) item["bandage"] = JObject.FromObject(info.Bandage);
+
+                    if (info.Syringe != null)
+                    {
+                        var syringe = new JObject
+                        {
+                            ["capacity"] = info.Syringe.Capacity,
+                            ["autoFill"] = info.Syringe.AutoFill,
+                            ["amountPerFullUse"] = info.Syringe.AmountPerFullUse,
+                            ["useAverageColor"] = info.Syringe.UseAverageColor,
+                            ["minigameColor"] = NetworkSnapshotSerialization.WriteColor(info.Syringe.MinigameColor),
+                            ["defaultContents"] =
+                                NetworkSnapshotSerialization.WriteLiquidStacks(info.Syringe.DefaultContents)
+                        };
+
+                        item["syringe"] = syringe;
+                    }
+
+                    if (info.Tool != null) item["tool"] = JObject.FromObject(info.Tool);
+
+                    if (info.Gun != null) item["gun"] = CaptureGunProperties(info.Gun);
+
+                    if (info.qualities != null)
+                        item["qualities"] = NetworkSnapshotSerialization.WriteCraftingQualities(info.qualities);
+
+                    root[entry.Key] = item;
                 }
-
-                if (info.Tool != null) item["tool"] = JObject.FromObject(info.Tool);
-
-                if (info.Gun != null) item["gun"] = CaptureGunProperties(info.Gun);
-
-                if (info.qualities != null)
-                    item["qualities"] = NetworkSnapshotSerialization.WriteCraftingQualities(info.qualities);
-
-                root[entry.Key] = item;
+                catch
+                {
+                }
             }
 
             return root;
@@ -314,16 +322,18 @@ namespace CUCoreLib.Registries
                 var obj = property.Value as JObject;
                 if (string.IsNullOrWhiteSpace(id) || obj == null) continue;
 
-                // Audio clips are intentionally omitted from snapshots. Preserve clips from
-                // the client's local registration when the host sends the static gun data.
-                GunProperties localGun = null;
-                if (RegisteredItems.TryGetValue(id, out var localInfo)) localGun = localInfo?.Gun;
-
-                var info = new CustomItemInfo
+                try
                 {
-                    fullName = obj.Value<string>("fullName"),
-                    description = obj.Value<string>("description"),
-                    category = obj.Value<string>("category"),
+                    // Audio clips are intentionally omitted from snapshots. Preserve clips from
+                    // the client's local registration when the host sends the static gun data.
+                    GunProperties localGun = null;
+                    if (RegisteredItems.TryGetValue(id, out var localInfo)) localGun = localInfo?.Gun;
+
+                    var info = new CustomItemInfo
+                    {
+                        fullName = obj.Value<string>("fullName"),
+                        description = obj.Value<string>("description"),
+                        category = obj.Value<string>("category"),
                     slotRotation = obj.Value<float?>("slotRotation") ?? 0f,
                     usable = obj.Value<bool?>("usable") ?? false,
                     usableOnLimb = obj.Value<bool?>("usableOnLimb") ?? false,
@@ -452,7 +462,11 @@ namespace CUCoreLib.Registries
                     WarnIgnoredNetworkSpawnComponents();
 
                 // Recreate registry entries from the net request
-                Register(id, info);
+                    Register(id, info);
+                }
+                catch
+                {
+                }
             }
         }
 
@@ -501,7 +515,8 @@ namespace CUCoreLib.Registries
                 }
 
                 var normalizedId = stack.liquidId.Trim();
-                if (LiquidRegistry.TryGetCustomInfo(normalizedId, out _) || Liquids.Registry.ContainsKey(normalizedId)) continue;
+                if (LiquidRegistry.TryGetCustomInfo(normalizedId, out _) ||
+                    (Liquids.Registry != null && Liquids.Registry.ContainsKey(normalizedId))) continue;
 
                 var warningKey = BuildInvalidLiquidStackWarningKey(itemId, sourceName, i, normalizedId);
                 if (!WarnedInvalidLiquidStackKeys.Add(warningKey)) continue;
@@ -675,26 +690,28 @@ namespace CUCoreLib.Registries
             if (Item.GlobalItems.ContainsKey(id) && !replaceExisting) return;
 
             info.ID = id;
-            info.SetTags();
-            if (!string.IsNullOrEmpty(info.fullName)) info.fullName = LocaleRegistry.Get("item", id, info.fullName);
+            info.tags = info.tags ?? string.Empty;
+            TryRun(info.SetTags);
+            if (!string.IsNullOrEmpty(info.fullName))
+                TryRun(() => info.fullName = LocaleRegistry.Get("item", id, info.fullName));
 
             if (!string.IsNullOrEmpty(info.description))
-                info.description = LocaleRegistry.Get("item", id + "dsc", info.description);
+                TryRun(() => info.description = LocaleRegistry.Get("item", id + "dsc", info.description));
 
             if (info.decayMinutes > 0f) info.rotSpeed = 1.666f / info.decayMinutes;
 
-            ExtensionData.Set<ItemInfo, CustomItemInfo>(info, info);
+            TryRun(() => ExtensionData.Set<ItemInfo, CustomItemInfo>(info, info));
 
             Item.GlobalItems[id] = info;
 
-            if (info.Icon != null) AssetLoader.CacheSprite(id, info.Icon);
-            if (info.WornSprite != null) AssetLoader.CacheSprite(id + "_worn", info.WornSprite);
+            if (info.Icon != null) TryRun(() => AssetLoader.CacheSprite(id, info.Icon));
+            if (info.WornSprite != null) TryRun(() => AssetLoader.CacheSprite(id + "_worn", info.WornSprite));
             if (info.MultiWornSprites != null)
                 foreach (var entry in info.MultiWornSprites)
                     if (!string.IsNullOrWhiteSpace(entry.Key) && entry.Value != null)
-                        AssetLoader.CacheSprite(id + "_worn_" + entry.Key, entry.Value);
+                        TryRun(() => AssetLoader.CacheSprite(id + "_worn_" + entry.Key, entry.Value));
 
-            WarnMissingCustomIcon(id, info);
+            TryRun(() => WarnMissingCustomIcon(id, info));
         }
 
         internal static void InjectSingleItem(CustomItemInfo info, bool replaceExisting = false)
@@ -710,10 +727,22 @@ namespace CUCoreLib.Registries
             var clone = new CustomItemInfo();
             if (info == null) return clone;
 
-            // Shallow-copy all fields
-            foreach (var field in GetPublicInstanceFields(info.GetType())) field.SetValue(clone, field.GetValue(info));
+            // Shallow-copy all fields. A field added by another mod should not prevent the rest from registering.
+            foreach (var field in GetPublicInstanceFields(info.GetType()))
+                TryRun(() => field.SetValue(clone, field.GetValue(info)));
 
             return clone;
+        }
+
+        private static void TryRun(Action action)
+        {
+            try
+            {
+                action?.Invoke();
+            }
+            catch
+            {
+            }
         }
 
         internal static bool EnsureRuntimeCustomDataState(Item item, out ItemCustomDataState state)
@@ -1187,7 +1216,7 @@ namespace CUCoreLib.Registries
         {
             var tags = info.tags.Split(',');
             if (!tags.Any(t => t.Trim() == tag)) return;
-            if (info.qualities.Any(q => q.id == tag)) return;
+            if (info.qualities.Any(q => q != null && q.id == tag)) return;
 
             info.qualities.Add(new CraftingQuality(tag));
         }

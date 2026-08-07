@@ -22,10 +22,23 @@ namespace CUCoreLib.Patches
 
             if (ItemLootPool.pool == null || ItemRegistry.RegisteredItems == null) return;
 
-            DropPoolRegistry.Rebuild();
+            try
+            {
+                DropPoolRegistry.Rebuild();
+            }
+            catch
+            {
+            }
 
-            var injectedCount = ItemRegistry.RegisteredItems
-                .Sum(kvp => EnsureItemInLootPool(kvp.Key, kvp.Value));
+            var injectedCount = 0;
+            foreach (var item in ItemRegistry.RegisteredItems.ToArray())
+                try
+                {
+                    injectedCount += EnsureItemInLootPool(item.Key, item.Value);
+                }
+                catch
+                {
+                }
 
             if (injectedCount <= 0) return;
 

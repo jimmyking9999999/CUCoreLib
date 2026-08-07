@@ -2419,7 +2419,7 @@ function multiplayerPage(): string {
     <section class="lesson-card">
       <h2>Setup for normal content</h2>
       <p>For normal CUCoreLib registries, everything is automatic. All you need is the content (mod) with stable IDs on every machine.</p>
-      <p>CUCoreLib registers built-in snapshot modules during startup for <span class="inline-code">items</span>, <span class="inline-code">tiles</span>, <span class="inline-code">buildings</span>, <span class="inline-code">liquids</span>, <span class="inline-code">statuses</span>, <span class="inline-code">moodles</span>, <span class="inline-code">settings</span>, and <span class="inline-code">save</span>.</p>
+      <p>CUCoreLib registers built-in snapshot modules during startup for <span class="inline-code">items</span>, <span class="inline-code">tiles</span>, <span class="inline-code">buildings</span>, <span class="inline-code">liquids</span>, <span class="inline-code">statuses</span>, <span class="inline-code">moodles</span>, and <span class="inline-code">settings</span>.</p>
       <p>You do not need to add dedicated multiplayer support for these.</p>
       <img src="images/mp-integration-ingame.png" alt="In-game screenshot of registered content working in multiplayer. Look, ma! No mp code." class="screenshot">
       <pre><code>ItemRegistry.Register("conicalFlask", flaskInfo, flaskSprite);
@@ -2719,6 +2719,7 @@ function savingPage(): string {
       <h2>How CUCoreLib saving works</h2>
       <p>CUCoreLib hooks the normal vanilla <span class="inline-code">SaveSystem.SaveGame()</span> and <span class="inline-code">SaveSystem.TryLoadGame()</span> flow, then stores a <span class="inline-code">CUCoreLib</span> object inside the existing compressed <span class="inline-code">save.sv</span> JSON.</p>
       <p>On save, vanilla writes the run first, then CUCoreLib reopens <span class="inline-code">save.sv</span> and appends its payload. On load, CUCoreLib reads that payload before vanilla finishes loading, then restores it after the player body and world exist.</p>
+      <p>With KrokMP v4, CUCoreLib follows KrokMP's save layout: item, body, and limb providers are stored with each player, while global and world providers are stored once in the shared multiplayer save. Save-provider data is deliberately not sent through the normal multiplayer snapshot.</p>
     </section>
     <section class="lesson-card">
       <h2>What is automatic</h2>

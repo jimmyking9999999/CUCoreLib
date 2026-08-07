@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Reflection.Emit;
@@ -12,6 +13,15 @@ using Newtonsoft.Json.Linq;
 
 namespace CUCoreLib.Networking
 {
+    internal enum KrokMpSaveScope
+    {
+        NotActive,
+        Client,
+        Shared,
+        Player,
+        Unsupported
+    }
+
     public static class MultiplayerBridge
     {
         private const string PluginGuid = "KrokoshaCasualtiesMP";
@@ -71,6 +81,57 @@ namespace CUCoreLib.Networking
         public static bool IsClient => GetNetBool("is_client");
         public static bool IsServer => GetNetBool("is_server");
         public static bool IsHost => GetNetBool("is_host");
+
+        internal static KrokMpSaveScope GetKrokMpSaveScope(out string directory)
+        {
+            directory = null;
+            if (!IsKrokMpExpected()) return KrokMpSaveScope.NotActive;
+
+            try
+            {
+                if (_krokAssembly == null)
+                    _krokAssembly = AppDomain.CurrentDomain.GetAssemblies().FirstOrDefault(assembly =>
+                        assembly.GetType(MpTypeName, false) != null);
+
+                var netType = _krokAssembly?.GetType(NetTypeName, false);
+                var running = netType?.GetProperty("running", BindingFlags.Public | BindingFlags.Static);
+                if (running?.PropertyType != typeof(bool))
+                    return KrokMpSaveScope.Unsupported;
+                if (!GetStaticBool(running))
+                    return KrokMpSaveScope.NotActive;
+
+                var isClient = netType.GetProperty("is_client", BindingFlags.Public | BindingFlags.Static);
+                if (isClient?.PropertyType == typeof(bool) && GetStaticBool(isClient))
+                    return KrokMpSaveScope.Client;
+
+                var savesType = _krokAssembly.GetType("KrokoshaCasualtiesMP.SavesystemPatch", false);
+                var replacement = savesType?.GetField("savedatapathreplacement",
+                    BindingFlags.Public | BindingFlags.Static)?.GetValue(null) as string;
+                var root = savesType?.GetProperty("mpsavefolder", BindingFlags.Public | BindingFlags.Static)
+                    ?.GetValue(null, null) as string;
+                if (string.IsNullOrWhiteSpace(replacement) || string.IsNullOrWhiteSpace(root))
+                    return KrokMpSaveScope.Unsupported;
+
+                var normalizedReplacement = Path.GetFullPath(replacement)
+                    .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+                var normalizedRoot = Path.GetFullPath(root)
+                    .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+                directory = normalizedReplacement;
+
+                if (string.Equals(normalizedReplacement, normalizedRoot, StringComparison.OrdinalIgnoreCase))
+                    return KrokMpSaveScope.Shared;
+
+                var rootPrefix = normalizedRoot + Path.DirectorySeparatorChar;
+                return normalizedReplacement.StartsWith(rootPrefix, StringComparison.OrdinalIgnoreCase)
+                    ? KrokMpSaveScope.Player
+                    : KrokMpSaveScope.Unsupported;
+            }
+            catch (Exception ex)
+            {
+                CUCoreLibPlugin.Log?.LogWarning("CUCoreLib could not resolve the KrokMP save scope.\n" + ex);
+                return KrokMpSaveScope.Unsupported;
+            }
+        }
 
         public static bool TryConfigureLocalIdentity(string username, string address)
         {
@@ -644,7 +705,12 @@ namespace CUCoreLib.Networking
             var property = _netType.GetProperty(memberName, BindingFlags.Public | BindingFlags.Static);
             if (property == null || property.PropertyType != typeof(bool)) return false;
 
-            var value = property.GetValue(null, null);
+            return GetStaticBool(property);
+        }
+
+        private static bool GetStaticBool(PropertyInfo property)
+        {
+            var value = property?.GetValue(null, null);
             return value is bool flag && flag;
         }
 

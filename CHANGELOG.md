@@ -11,9 +11,12 @@ I figured that this would be nice to have, as to easily take a look at everythin
 
 ### New Stuff!
 - Added `GunProperties` 
-- Added the built-in `bug-report [description] [bool screenshot] [severity]` command. Send quick reports to your favourite (?) modders. Multi-word descriptions can be wrapped in double quotation marks.
+- Added the built-in `bug-report [description] [bool screenshot] [severity]` command. Send quick reports to your favourite (?) modders!
+
 
 ### Fixes
+- KrokMP v4 support
+- It feels kinda weird making QoL changelogs in here, but the reason that one hasn't gotten any updates is since it's tied to mpv5, (which is in its early playtest phase) and I really don't want to navigate my tangled version control to handpick the features and remove v5 support
 - Custom tile drops are no longer tied to KrokMP compatibility (yeah.)
 - `LightProperties` now supports local `Rotation` in degrees when placing generated item lights. Its existing `Offset` (`Vector2`) support is documented alongside it
 - Added optional sync between `ModOptionsRegistry` settings and manually bound BepInEx config entries when they share the same namespaced ID or key suffix
@@ -24,16 +27,14 @@ I figured that this would be nice to have, as to easily take a look at everythin
 - Liquid registration now has an onuse field and inject field that can be used in place of the item
 
 ### Changes
-- `GunProperties` always uses the vanilla pistol prefab; `GunTemplate` has been removed. Tune the pistol's `GunScript` fields directly instead.
 - QoL settings menu compatibility
 
 ### Fixes
-- `GunProperties` firearms cannot be used by the vanilla self-harm gun event.
 - QoL Unknown-multiplayer-CUCorelib compatibility patch, may or may not work
 - Settings menu description fixes
 - Fixed a startup `InvalidProgramException`, affecting only a few people (?)
 - Mod options now fall back to their registered label/description/dropdown text when no locale overrides exist (whoops!)
-- Fixed ScaleWithCondition scaling towards 0.1f
+- Fixed ScaleWithCondition scaling towards 0.1f. Technically this is basegame, but a bit confusing to most
 - Item.stats works properly for a couple more immutable stats
 - ^ once more, do send suggestions for more body fields that might want to be added!
 - Autofills now exist for `floodfill` and `settile`

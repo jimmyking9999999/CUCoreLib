@@ -5,6 +5,8 @@ using System.Threading;
 using CUCoreLib.ContentReload;
 using CUCoreLib.Data;
 using CUCoreLib.Helpers;
+using CUCoreLib.Networking;
+using CUCoreLib.Patches;
 using CUCoreLib.Registries.Infrastructure;
 using Newtonsoft.Json.Linq;
 using UnityEngine;
@@ -34,7 +36,7 @@ namespace CUCoreLib.Registries
         {
             if (string.IsNullOrWhiteSpace(id))
             {
-                CUCoreLibPlugin.Log.LogWarning("Ignored custom liquid registration with no ID.");
+                CUCoreLibPlugin.Log?.LogWarning("Ignored custom liquid registration with no ID.");
                 return;
             }
 
@@ -42,10 +44,38 @@ namespace CUCoreLib.Registries
 
             id = id.Trim();
             RegisteredLiquids[id] = info;
-            LiquidOwners.Assign(id, ContentReloadSession.ResolveAmbientOwnerId());
+            try
+            {
+                LiquidOwners.Assign(id, ContentReloadSession.ResolveAmbientOwnerId());
+            }
+            catch
+            {
+            }
 
-            InjectSingleLiquid(id, info);
-            LogInitialInjectionSummary();
+            try
+            {
+                InjectSingleLiquid(id, info);
+            }
+            catch
+            {
+            }
+
+            KrokMpCompatibilityPatches.RefreshLiquidRegistry();
+            try
+            {
+                MultiplayerSyncRegistry.QueueHostSnapshotBroadcast();
+            }
+            catch
+            {
+            }
+
+            try
+            {
+                LogInitialInjectionSummary();
+            }
+            catch
+            {
+            }
         }
 
         public static IDisposable BeginOwnerRegistration(string ownerId)
@@ -55,9 +85,28 @@ namespace CUCoreLib.Registries
 
         internal static int InjectRegisteredLiquids(bool logSummary = false)
         {
-            var injected = RegisteredLiquids.Count(kvp => InjectSingleLiquid(kvp.Key, kvp.Value));
+            var injected = 0;
+            foreach (var entry in RegisteredLiquids.ToArray())
+            {
+                try
+                {
+                    if (InjectSingleLiquid(entry.Key, entry.Value)) injected++;
+                }
+                catch
+                {
+                }
+            }
 
-            if (logSummary) LogInitialInjectionSummary();
+            KrokMpCompatibilityPatches.RefreshLiquidRegistry();
+
+            if (logSummary)
+                try
+                {
+                    LogInitialInjectionSummary();
+                }
+                catch
+                {
+                }
 
             return injected;
         }
@@ -73,19 +122,34 @@ namespace CUCoreLib.Registries
         internal static bool EnsureLiquidInjected(string id)
         {
             if (!TryGetCustomInfo(id, out var info)) return false;
-            InjectSingleLiquid(id.Trim(), info);
+            if (Liquids.Registry == null) return false;
+
+            try
+            {
+                if (InjectSingleLiquid(id.Trim(), info)) KrokMpCompatibilityPatches.RefreshLiquidRegistry();
+            }
+            catch
+            {
+                return false;
+            }
             return true;
         }
 
         internal static bool InjectSingleLiquid(string id, CustomLiquidInfo info)
         {
-            if (string.IsNullOrWhiteSpace(id) || info == null) return false;
+            if (string.IsNullOrWhiteSpace(id) || info == null || Liquids.Registry == null) return false;
 
             if (info.onDrink == null) info.onDrink = (amount, body) => { };
 
             if (info.onHealthUse == null) info.onHealthUse = (amount, limb) => { };
 
-            LocaleRegistry.RegisterCraftingQualities(info.qualities);
+            try
+            {
+                LocaleRegistry.RegisterCraftingQualities(info.qualities);
+            }
+            catch
+            {
+            }
 
             var wasPresent = Liquids.Registry.ContainsKey(id);
             Liquids.Registry[id] = new LiquidType
@@ -102,9 +166,23 @@ namespace CUCoreLib.Registries
                 qualities = info.qualities ?? new List<CraftingQuality>()
             };
 
-            if (!string.IsNullOrEmpty(info.name)) LocaleRegistry.Register("liquid", id, info.name);
+            if (!string.IsNullOrEmpty(info.name))
+                try
+                {
+                    LocaleRegistry.Register("liquid", id, info.name);
+                }
+                catch
+                {
+                }
 
-            if (!string.IsNullOrEmpty(info.description)) LocaleRegistry.Register("liquid", id + "dsc", info.description);
+            if (!string.IsNullOrEmpty(info.description))
+                try
+                {
+                    LocaleRegistry.Register("liquid", id + "dsc", info.description);
+                }
+                catch
+                {
+                }
 
             return !wasPresent;
         }
@@ -186,6 +264,8 @@ namespace CUCoreLib.Registries
                 Liquids.Registry?.Remove(id);
             }
 
+            KrokMpCompatibilityPatches.RefreshLiquidRegistry();
+
             if (ids.Length > 0)
                 result?.AddInfo("Cleared " + ids.Length + " liquid registrations owned by '" + normalizedOwnerId + "'.");
         }
@@ -193,23 +273,29 @@ namespace CUCoreLib.Registries
         internal static JObject CaptureNetworkSnapshot()
         {
             var root = new JObject();
-            foreach (var entry in RegisteredLiquids)
+            foreach (var entry in RegisteredLiquids.ToArray())
             {
-                var info = entry.Value;
-                if (info == null) continue;
-
-                root[entry.Key] = new JObject
+                try
                 {
-                    ["name"] = info.name ?? string.Empty,
-                    ["description"] = info.description ?? string.Empty,
-                    ["color"] = NetworkSnapshotSerialization.WriteColor(info.color),
-                    ["valuePerLiter"] = info.valuePerLiter,
-                    ["healthUsable"] = info.healthUsable,
-                    ["injectable"] = info.injectable,
-                    ["injectionSickness"] = info.injectionSickness,
-                    ["localeFromItem"] = info.localeFromItem,
-                    ["qualities"] = NetworkSnapshotSerialization.WriteCraftingQualities(info.qualities)
-                };
+                    var info = entry.Value;
+                    if (info == null) continue;
+
+                    root[entry.Key] = new JObject
+                    {
+                        ["name"] = info.name ?? string.Empty,
+                        ["description"] = info.description ?? string.Empty,
+                        ["color"] = NetworkSnapshotSerialization.WriteColor(info.color),
+                        ["valuePerLiter"] = info.valuePerLiter,
+                        ["healthUsable"] = info.healthUsable,
+                        ["injectable"] = info.injectable,
+                        ["injectionSickness"] = info.injectionSickness,
+                        ["localeFromItem"] = info.localeFromItem,
+                        ["qualities"] = NetworkSnapshotSerialization.WriteCraftingQualities(info.qualities)
+                    };
+                }
+                catch
+                {
+                }
             }
 
             return root;
@@ -223,18 +309,24 @@ namespace CUCoreLib.Registries
             {
                 if (!(property.Value is JObject obj)) continue;
 
-                Register(property.Name, new CustomLiquidInfo
+                try
                 {
-                    name = obj.Value<string>("name"),
-                    description = obj.Value<string>("description"),
-                    color = NetworkSnapshotSerialization.ReadColor(obj["color"], Color.white),
-                    valuePerLiter = obj.Value<float?>("valuePerLiter") ?? 0f,
-                    healthUsable = obj.Value<bool?>("healthUsable") ?? false,
-                    injectable = obj.Value<bool?>("injectable") ?? false,
-                    injectionSickness = obj.Value<float?>("injectionSickness") ?? 1f,
-                    localeFromItem = obj.Value<bool?>("localeFromItem") ?? false,
-                    qualities = NetworkSnapshotSerialization.ReadCraftingQualities(obj["qualities"])
-                });
+                    Register(property.Name, new CustomLiquidInfo
+                    {
+                        name = obj.Value<string>("name"),
+                        description = obj.Value<string>("description"),
+                        color = NetworkSnapshotSerialization.ReadColor(obj["color"], Color.white),
+                        valuePerLiter = obj.Value<float?>("valuePerLiter") ?? 0f,
+                        healthUsable = obj.Value<bool?>("healthUsable") ?? false,
+                        injectable = obj.Value<bool?>("injectable") ?? false,
+                        injectionSickness = obj.Value<float?>("injectionSickness") ?? 1f,
+                        localeFromItem = obj.Value<bool?>("localeFromItem") ?? false,
+                        qualities = NetworkSnapshotSerialization.ReadCraftingQualities(obj["qualities"])
+                    });
+                }
+                catch
+                {
+                }
             }
         }
 
