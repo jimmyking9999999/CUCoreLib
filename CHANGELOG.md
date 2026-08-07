@@ -19,6 +19,7 @@ I figured that this would be nice to have, as to easily take a look at everythin
 - It feels kinda weird making QoL changelogs in here, but the reason that one hasn't gotten any updates is since it's tied to mpv5, (which is in its early playtest phase) and I really don't want to navigate my tangled version control to handpick the features and remove v5 support
 - Custom tile drops are no longer tied to KrokMP compatibility (yeah.)
 - `LightProperties` now supports local `Rotation` in degrees when placing generated item lights. Its existing `Offset` (`Vector2`) support is documented alongside it
+- Added `LightProperties.FalloffIntensity` for configurable 2D-light edge softness.
 - Added optional sync between `ModOptionsRegistry` settings and manually bound BepInEx config entries when they share the same namespaced ID or key suffix
 - Added `CCLBody` for formula-owned vanilla `Body` fields such as blood pressure and encumberance values, so mods can inject simple per-mod contributions without writing their own Harmony patches.
 - ^ do send suggestions for more body fields that might want to be added!

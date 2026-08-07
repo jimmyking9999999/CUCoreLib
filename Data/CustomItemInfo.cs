@@ -481,6 +481,11 @@ namespace CUCoreLib.Data
         public Color Color = Color.white;
 
         /// <summary>
+        /// Controls how softly the light fades from its inner area to its outer edge. 0 is sharp and 1 is soft.
+        /// </summary>
+        public float FalloffIntensity = 0.5f;
+
+        /// <summary>
         /// Outer radius for point/2D light falloff.
         /// </summary>
         public float PointLightOuterRadius = 7.5f;

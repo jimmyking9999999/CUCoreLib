@@ -264,6 +264,7 @@ namespace CUCoreLib.Registries
                         {
                             ["intensity"] = info.Light.Intensity,
                             ["color"] = NetworkSnapshotSerialization.WriteColor(info.Light.Color),
+                            ["falloffIntensity"] = info.Light.FalloffIntensity,
                             ["pointLightOuterRadius"] = info.Light.PointLightOuterRadius,
                             ["pointLightInnerRadius"] = info.Light.PointLightInnerRadius,
                             ["pointLightOuterAngle"] = info.Light.PointLightOuterAngle,
@@ -411,6 +412,7 @@ namespace CUCoreLib.Registries
                     {
                         Intensity = light.Value<float?>("intensity") ?? 0.75f,
                         Color = NetworkSnapshotSerialization.ReadColor(light["color"], Color.white),
+                        FalloffIntensity = light.Value<float?>("falloffIntensity") ?? 0.5f,
                         PointLightOuterRadius = light.Value<float?>("pointLightOuterRadius") ?? 0f,
                         PointLightInnerRadius = light.Value<float?>("pointLightInnerRadius") ?? 0f,
                         PointLightOuterAngle = light.Value<float?>("pointLightOuterAngle") ?? 360f,

@@ -60,16 +60,22 @@ namespace CUCoreLib.Helpers
             return vanilla != null ? vanilla : GetOrCreateTemplate(id);
         }
 
-        private static GameObject PrepareInstantiatedObject(GameObject obj, float? condition)
+        internal static GameObject PrepareInstantiatedObject(GameObject obj, float? condition = null)
         {
             if (obj == null) return null;
 
             obj.SetActive(true);
-            if (obj.GetComponent<Item>() != null) ItemRegistryPatches.MarkPendingBatteryInitialization(obj);
+            var item = obj.GetComponent<Item>();
+            if (item != null)
+            {
+                // Matches vanilla's throw path so custom sprite colliders do not tunnel through terrain.
+                if (ItemRegistry.TryGetCustomInfo(item, out _) && item.rb != null)
+                    item.rb.collisionDetectionMode = CollisionDetectionMode2D.Continuous;
+                ItemRegistryPatches.MarkPendingBatteryInitialization(obj);
+            }
 
             if (!condition.HasValue) return obj;
-            var itemComp = obj.GetComponent<Item>();
-            if (itemComp) itemComp.condition = condition.Value;
+            if (item) item.condition = condition.Value;
 
             return obj;
         }
@@ -379,6 +385,7 @@ namespace CUCoreLib.Helpers
             light.lightType = ToLight2DType(properties.LightType);
             light.intensity = properties.Intensity;
             light.color = properties.Color;
+            light.falloffIntensity = properties.FalloffIntensity;
             light.pointLightOuterRadius = properties.PointLightOuterRadius;
             light.pointLightInnerRadius = properties.PointLightInnerRadius;
             light.pointLightOuterAngle = properties.PointLightOuterAngle;

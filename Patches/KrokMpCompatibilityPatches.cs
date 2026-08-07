@@ -283,10 +283,10 @@ namespace CUCoreLib.Patches
             }
 
             var position = (Vector2)_posField.GetValue(packet);
-            var instance = Object.Instantiate(prefab, position, Quaternion.identity);
+            var instance = CustomInstantiate.PrepareInstantiatedObject(
+                Object.Instantiate(prefab, position, Quaternion.identity));
             if (instance == null) return null;
 
-            instance.SetActive(true);
             var registered = RegisterPacketObject(packet, instance);
             if (registered == null)
             {
@@ -384,14 +384,14 @@ namespace CUCoreLib.Patches
             if (!TryResolveResourcePrefab(resourceid, out var prefab) ||
                 prefab == null) return true;
 
-            var instance = Object.Instantiate(prefab, pos, Quaternion.identity);
+            var instance = CustomInstantiate.PrepareInstantiatedObject(
+                Object.Instantiate(prefab, pos, Quaternion.identity));
             if (instance == null)
             {
                 __result = null;
                 return false;
             }
 
-            instance.SetActive(true);
             __result = instance;
             return false;
         }

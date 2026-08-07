@@ -2010,6 +2010,7 @@ private void RegisterAdvancedItems()
             {
                 Intensity = 0.75f,
                 Color = Color.white,
+                FalloffIntensity = 0.5f,
                 PointLightOuterRadius = 7.5f,
                 PointLightInnerRadius = 0f,
                 PointLightOuterAngle = 360f,

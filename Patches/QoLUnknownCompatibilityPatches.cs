@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using System.Reflection.Emit;
+using BepInEx.Bootstrap;
 using CUCoreLib.Helpers;
 using HarmonyLib;
 using UnityEngine;
@@ -16,6 +17,7 @@ namespace CUCoreLib.Patches
     /// </summary>
     internal static class QoLUnknownCompatibilityPatches
     {
+        private const string QoLUnknownPluginGuid = "org.bepinex.plugins.qolunknown";
         private const string QoLMultiplayerSaveBundleTypeName = "QoL_Unknown.MultiplayerSaveBundle";
         private static bool _installed;
         private static bool _retryScheduled;
@@ -25,6 +27,12 @@ namespace CUCoreLib.Patches
             if (harmony == null || _installed) return;
 
             var bundleType = ResolveLoadedType(QoLMultiplayerSaveBundleTypeName);
+            if (bundleType == null)
+            {
+                if (Chainloader.PluginInfos.ContainsKey(QoLUnknownPluginGuid)) ScheduleRetry(harmony);
+                return;
+            }
+
             var applySavedItems = AccessTools.Method(bundleType, "ApplySavedItems");
             if (applySavedItems != null)
             {

@@ -31,7 +31,6 @@ namespace CUCoreLib.ContentReload
 
             initialized = true;
             configFile = CUCoreLibPlugin.GetOrCreateSharedConfig();
-            BindLoadedModConfigEntries();
             RestorePersistedAutoHotReloadSettings();
             ContentWatchService.Initialize();
         }
@@ -272,15 +271,6 @@ namespace CUCoreLib.ContentReload
         private static string GetAutoHotReloadEnabledKey(string modGuid)
         {
             return AutoHotReloadEnabledKeyPrefix + modGuid;
-        }
-
-        private static void BindLoadedModConfigEntries()
-        {
-            foreach (var modGuid in GetLoadedModGuids())
-            {
-                EnsureModConfigBound(modGuid);
-            }
-
         }
 
         private static void EnsureModConfigBound(string modGuid)

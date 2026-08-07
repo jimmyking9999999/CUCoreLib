@@ -22,7 +22,7 @@ namespace CUCoreLib.Patches
             var clone = Object.Instantiate(original, position, rotation);
             if (clone is GameObject obj)
             {
-                obj.SetActive(true);
+                CustomInstantiate.PrepareInstantiatedObject(obj);
 
                 // Apply registered runtime properties (container capacity etc.) immediately:
                 // TryLoadGame refills containers via Container.LoadItem in this same frame,

@@ -482,6 +482,7 @@ namespace CUCoreLib.Patches
             light.lightType = ToLight2DType(properties.LightType);
             light.intensity = properties.Intensity;
             light.color = properties.Color;
+            light.falloffIntensity = properties.FalloffIntensity;
             light.pointLightOuterRadius = properties.PointLightOuterRadius;
             light.pointLightInnerRadius = properties.PointLightInnerRadius;
             light.pointLightOuterAngle = properties.PointLightOuterAngle;
