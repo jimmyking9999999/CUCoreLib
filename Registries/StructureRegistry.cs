@@ -1287,7 +1287,8 @@ namespace CUCoreLib.Registries
 
             var renderer = backgroundObject.GetComponent<SpriteRenderer>();
             renderer.sprite = tile.sprite;
-            renderer.color = new Color(0.35f, 0.35f, 0.35f, 1f);
+            renderer.material = world.defaultMat;
+            renderer.color = world.GetBackgroundColor();
             renderer.sortingOrder = -998;
         }
 
