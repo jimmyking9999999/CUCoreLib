@@ -9,15 +9,16 @@ A definitive modding library for Casualties: Unknown.
 <div align="center">
   
 [![Latest Release](https://img.shields.io/github/v/release/jimmyking9999999/CUCoreLib?color=orange&logo=github)](https://github.com/jimmyking9999999/CUCoreLib/releases/latest)
-[![Total Downloads](https://img.shields.io/github/downloads/jimmyking9999999/CUCoreLib/total?color=blue&logo=github)](https://github.com/jimmyking9999999/CUCoreLib/releases)
-![Game Version](https://img.shields.io/badge/Game_version-v7.1.0-green)
+[![Total Github Downloads](https://img.shields.io/github/downloads/jimmyking9999999/CUCoreLib/total?color=blue&logo=github)](https://github.com/jimmyking9999999/CUCoreLib/releases)
+[![Nexus Downloads](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fjimmyking9999999%2FMetadata-generator%2Fmain%2Fbadges%2Fcucorelib.json)](https://www.nexusmods.com/scavprototype/mods/341)
+![Game Version](https://img.shields.io/badge/Game_Version-v7.1.0-green)
 [![Documentation](https://img.shields.io/badge/Documentation-blue)](https://cucorelib.web.app/#welcome)
-
 </div>
 
 
 CUCoreLib is a BepInEx-based library for Casualties: Unknown. It exists to make common modding work reusable, via custom content registration, shared helpers, patch-safe integration points, and stable save, world, UI, and other APIs for dependent mods.
 
+Download the latest (or nightly build!) in [https://github.com/jimmyking9999999/CUCoreLib/releases](https://github.com/jimmyking9999999/CUCoreLib/releases)
 
 ## Documentation
 <div align="center">
