@@ -133,7 +133,7 @@ namespace CUCoreLib.Networking
 
             RegisterModule("liquids", CaptureLiquidManifest, LiquidRegistry.ApplyNetworkSnapshot);
             RegisterModule("items", CaptureItemManifest, ItemRegistry.ApplyNetworkSnapshot);
-            RegisterModule("tiles", CaptureTileManifest, TileRegistry.ApplyNetworkSnapshot);
+            RegisterModule("tiles", TileRegistry.CaptureNetworkSnapshot, TileRegistry.ApplyNetworkSnapshot);
             RegisterModule("buildings", CaptureBuildingManifest, BuildingEntityRegistry.ApplyNetworkSnapshot);
             RegisterModule("liquidtiles", LiquidTileRegistry.CaptureNetworkSnapshot,
                 LiquidTileRegistry.ApplyNetworkSnapshot);
@@ -202,33 +202,6 @@ namespace CUCoreLib.Networking
         private static JObject CaptureItemManifest()
         {
             return ItemRegistry.CaptureNetworkSnapshot();
-        }
-
-        private static JObject CaptureTileManifest()
-        {
-            var root = new JObject();
-            foreach (var index in TileRegistry.GetRegisteredIndices())
-            {
-                if (!TileRegistry.TryGetDefinition(index, out var definition)) continue;
-
-                var tile = new JObject
-                {
-                    ["index"] = index,
-                    ["id"] = definition.ID ?? string.Empty,
-                    ["name"] = definition.Name ?? string.Empty,
-                    ["description"] = definition.Description ?? string.Empty,
-                    ["health"] = definition.Health,
-                    ["hitSound"] = definition.HitSound ?? string.Empty,
-                    ["stepSound"] = definition.StepSound ?? string.Empty,
-                    ["metallic"] = definition.Metallic,
-                    ["toxicity"] = definition.Toxicity,
-                    ["slippery"] = definition.Slippery
-                };
-
-                root[index.ToString()] = tile;
-            }
-
-            return root;
         }
 
         private static JObject CaptureBuildingManifest()

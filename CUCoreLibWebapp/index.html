@@ -16,14 +16,26 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="alternate icon" type="image/png" href="/favicon.png" />
     <title>CUCoreLib Docs</title>
+    <script>document.documentElement.classList.add("js")</script>
+    <style>html.js #app > .seo-fallback { display: none; }</style>
   </head>
   <body style="margin: 0; background: #111; color: #fff;">
-    <div id="app"></div>
-    <noscript>
-      <main>
-        <p>This docs app has a JavaScript interface. Machine-readable docs are available under <a href="/api/cucorelib-docs.v1.json">/api/</a>.</p>
+    <div id="app">
+      <main class="seo-fallback">
+        <h1>CUCoreLib Docs</h1>
+        <p>CUCoreLib modding documentation for Casualties: Unknown.</p>
+        <nav aria-label="Documentation pages">
+          <h2>Documentation</h2>
+          <section><h3>Introduction</h3><ul><li><a href="/docs/welcome/">Welcome</a></li><li><a href="/docs/unity-csharp/">Unity, C#, and BepInEx</a></li><li><a href="/docs/setup/">Setup</a></li><li><a href="/docs/harmony0/">Harmony</a></li></ul></section>
+          <section><h3>Tutorial</h3><ul><li><a href="/docs/tutorial-first-mod/">Making a first mod</a></li></ul></section>
+          <section><h3>Items / Liquids</h3><ul><li><a href="/docs/assets/">Assets</a></li><li><a href="/docs/audio/">Audio</a></li><li><a href="/docs/item/">Item API</a></li><li><a href="/docs/advanced-item/">Advanced Item API</a></li><li><a href="/docs/custom-item-scripts/">Custom Item Scripts</a></li><li><a href="/docs/recipe/">Recipe API</a></li><li><a href="/docs/liquids/">Liquid API</a></li><li><a href="/docs/liquid-tiles/">Liquid Tiles</a></li></ul></section>
+          <section><h3>Player</h3><ul><li><a href="/docs/player/">Player</a></li><li><a href="/docs/statuses/">Statuses</a></li><li><a href="/docs/moodles/">Moodles</a></li></ul></section>
+          <section><h3>World</h3><ul><li><a href="/docs/building-entities/">Building Entities</a></li><li><a href="/docs/advanced-building-entities/">Advanced Building Entities</a></li><li><a href="/docs/minigames/">Minigames</a></li><li><a href="/docs/tiles/">Tiles</a></li><li><a href="/docs/traps/">Traps</a></li><li><a href="/docs/multi-block-structures/">Multi-block Structures</a></li></ul></section>
+          <section><h3>Misc / API</h3><ul><li><a href="/docs/debug-testing/">Debugging and Testing</a></li><li><a href="/docs/utils/">CUCoreUtils</a></li><li><a href="/docs/console/">Console Commands</a></li><li><a href="/tools/">Tools</a></li><li><a href="/docs/settings/">Settings</a></li><li><a href="/docs/locale/">Locale</a></li><li><a href="/docs/saving/">Saving</a></li><li><a href="/docs/animations/">Animations</a></li><li><a href="/docs/multi-mod-compatibility/">Multi-mod Compatibility</a></li></ul></section>
+        </nav>
+        <p>Machine-readable docs are available under <a href="/api/cucorelib-docs.v1.json">/api/</a>.</p>
       </main>
-    </noscript>
+    </div>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

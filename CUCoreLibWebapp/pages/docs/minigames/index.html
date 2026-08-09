@@ -19,17 +19,22 @@
     <link rel="alternate icon" type="image/png" href="/favicon.png" />
     
     <title>Minigame API | CUCoreLib Docs</title>
+    <script>document.documentElement.classList.add("js")</script>
+    <style>html.js #app > .seo-fallback { display: none; }</style>
   </head>
   <body style="margin: 0; background: #111; color: #fff;">
-    <div id="app"></div>
-    <noscript>
-      <main>
+    <div id="app">
+      <main class="seo-fallback">
         <h1>Minigame API</h1>
         <p>Shared helpers for creating custom minigames on top of the game's vanilla Minigame base.</p>
+        <nav aria-label="Documentation pages">
+    <h2>Documentation</h2>
+    <section><h3>Introduction</h3><ul><li><a href="/docs/welcome/">Welcome</a></li><li><a href="/docs/unity-csharp/">Modding TL;DR</a></li><li><a href="/docs/setup/">Setup</a></li><li><a href="/docs/harmony0/">Harmony0</a></li></ul></section><section><h3>Items / Liquids</h3><ul><li><a href="/docs/assets/">Loading Assets</a></li><li><a href="/docs/audio/">Audio</a></li><li><a href="/docs/item/">Item API</a></li><li><a href="/docs/advanced-item/">Advanced Item API</a></li><li><a href="/docs/custom-item-scripts/">Creating Custom Item Scripts</a></li><li><a href="/docs/recipe/">Recipe API</a></li><li><a href="/docs/liquids/">Liquid API</a></li><li><a href="/docs/liquid-tiles/">Liquid Tiles</a></li></ul></section><section><h3>Player</h3><ul><li><a href="/docs/player/">Player</a></li><li><a href="/docs/statuses/">Statuses</a></li><li><a href="/docs/moodles/">Moodles</a></li></ul></section><section><h3>World</h3><ul><li><a href="/docs/building-entities/">Building Entities</a></li><li><a href="/docs/advanced-building-entities/">Advanced Buildings</a></li><li><strong>Minigames</strong></li><li><a href="/docs/tiles/">Tiles</a></li><li><a href="/docs/traps/">Traps</a></li><li><a href="/docs/multi-block-structures/">Multi-Block Structures</a></li></ul></section><section><h3>Misc / API</h3><ul><li><a href="/docs/debug-testing/">Hot Reload / Testing</a></li><li><a href="/docs/utils/">CUCoreUtils</a></li><li><a href="/docs/console/">Console and You</a></li><li><a href="/tools/">Tools</a></li><li><a href="/docs/settings/">Settings API</a></li><li><a href="/docs/locale/">Locale</a></li><li><a href="/docs/saving/">Saving</a></li><li><a href="/docs/animations/">Animations</a></li><li><a href="/docs/multi-mod-compatibility/">Multiplayer Sync</a></li></ul></section>
+  </nav>
         <p>This documentation page uses JavaScript for the interactive app interface.</p>
         <p>Machine-readable docs are available at <a href="/api/cucorelib-docs.v1.json">/api/cucorelib-docs.v1.json</a>.</p>
       </main>
-    </noscript>
+    </div>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

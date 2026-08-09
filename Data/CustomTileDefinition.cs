@@ -56,9 +56,10 @@ namespace CUCoreLib.Data
         public AudioClip HitSoundClip;
 
         /// <summary>
-        /// Stable tile id used for locale keys and setTile. Use a large number to avoid conflicts.
+        /// Effective stable tile ID used for locale keys and lookup. Set automatically when using
+        /// <c>TileRegistry.Register(string, ...)</c>; that overload returns this value after collision handling.
         /// </summary>
-        public string ID; // guh I need to change this to a string
+        public string ID;
 
         /// <summary>
         /// Enables the vanilla metallic damage behavior for the tile. Only for plasma cutter interactions.

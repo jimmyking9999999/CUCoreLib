@@ -12,7 +12,7 @@ A definitive modding library for Casualties: Unknown.
 [![Total Github Downloads](https://img.shields.io/github/downloads/jimmyking9999999/CUCoreLib/total?color=blue&logo=github)](https://github.com/jimmyking9999999/CUCoreLib/releases)
 [![Nexus Downloads](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fjimmyking9999999%2FMetadata-generator%2Fmain%2Fbadges%2Fcucorelib.json)](https://www.nexusmods.com/scavprototype/mods/341)
 ![Game Version](https://img.shields.io/badge/Game_Version-v7.1.0-green)
-[![Documentation](https://img.shields.io/badge/Documentation-blue)](https://cucorelib.web.app/#welcome)
+[![Documentation](https://img.shields.io/badge/Documentation-blue)](https://cucorelib.jimmyking.dev/docs/welcome/)
 </div>
 
 
@@ -25,10 +25,10 @@ Download the latest (or nightly build!) in [https://github.com/jimmyking9999999/
 <img width="516" height="400" alt="Webapp" src="https://github.com/user-attachments/assets/c836ede6-7aa3-4676-8051-37560beaa419" />
 </div>
 
-For developers looking to use this mod, please refer to the [Setup](https://cucorelib.web.app#setup) page in the online documentation.
+For developers looking to use this mod, please refer to the [Setup](https://cucorelib.jimmyking.dev/docs/setup/) page in the online documentation.
 
 - API documentation is in `CUCoreLibWebapp/`.
-- The live website exists at https://cucorelib.web.app
+- The live website exists at https://cucorelib.jimmyking.dev
 
 ## Discord / Support
 <div align="center">

@@ -13,8 +13,6 @@ I figured that this would be nice to have, as to easily take a look at everythin
 - Added `GunProperties` 
 - Added the built-in `bug-report [description] [bool screenshot] [severity]` command. Send quick reports to your favourite (?) modders!
 - Added `CUCoreUtils.EditVanillaItem(...)` 
-
-### Fixes
 - KrokMP v4 support
 - It feels kinda weird making QoL changelogs in here, but the reason that one hasn't gotten any updates is since it's tied to mpv5, (which is in its early playtest phase) and I really don't want to navigate my tangled version control to handpick the features and remove v5 support. Guuuh.
 - `LightProperties` supports local `Rotation` (light rotation), `Offset` (light offset), and `FalloffIntensity` (harshness/softness)
@@ -30,6 +28,7 @@ I figured that this would be nice to have, as to easily take a look at everythin
 - Fixed ScaleWithCondition scaling towards 0.1f. Technically this is basegame, but a bit confusing to most
 
 ### Fixes
+- Removed the watermark, except it wasn't there in the first place and didn't even work, erm...
 - QoL Unknown-multiplayer-CUCorelib compatibility patch, may or may not work
 - Custom tile drops are no longer tied to KrokMP compatibility (yeah.)
 - Settings menu description fixes

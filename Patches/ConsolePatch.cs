@@ -117,9 +117,11 @@ namespace CUCoreLib.Patches
                 {
                     CUCoreUtils.ConsoleCheckForWorld(__instance);
 
-                    if (args.Length < 2) throw new Exception("Usage: settile [tileIndex] [position]");
-                    if (!ushort.TryParse(args[1], out var tileIndex))
-                        throw new Exception($"'{args[1]}' is not a valid tile index.");
+                    if (args.Length < 2) throw new Exception("Usage: settile [tileIndex or tileId] [position]");
+
+                    var customTile = TileRegistry.TryGetIndex(args[1], out var tileIndex);
+                    if (!customTile && !ushort.TryParse(args[1], out tileIndex))
+                        throw new Exception($"'{args[1]}' is not a valid tile index or registered tile ID.");
 
                     Vector2 worldPosition = Camera.main.ScreenToWorldPoint(Input.mousePosition);    // maybe null
                     if (args.Length > 2 && TryParsePosition(__instance, args[2], out var parsedPosition))
@@ -127,7 +129,7 @@ namespace CUCoreLib.Patches
 
                     var blockPosition = WorldGeneration.world.WorldToBlockPos(worldPosition);
                     string tileLabel;
-                    if (tileIndex < TileRegistry.FirstCustomTileIndex)
+                    if (!customTile && tileIndex < TileRegistry.FirstCustomTileIndex)
                     {
                         WorldGeneration.world.SetBlock(blockPosition, tileIndex);
                         tileLabel = "vanilla";
@@ -145,7 +147,7 @@ namespace CUCoreLib.Patches
 
                     CUCoreUtils.ConsoleLog(__instance,
                         $"Placed tile {tileIndex} ({tileLabel}) at {blockPosition.x},{blockPosition.y}.");
-                }, BuildSetTileAutofill(), ("tileIndex", "Vanilla or registered custom tile index."),
+                }, BuildSetTileAutofill(), ("tileIndex", "Vanilla index or registered custom tile ID/index."),
                 ("position", "Tile position.")));
 
             ConsoleCommandRegistry.InjectRegisteredCommands();
@@ -292,7 +294,9 @@ namespace CUCoreLib.Patches
                     0,
                     Enumerable.Range(0, TileRegistry.FirstCustomTileIndex)
                         .Select(index => index.ToString())
+                        .Concat(TileRegistry.GetRegisteredIds())
                         .Concat(TileRegistry.GetRegisteredIndices().Select(index => index.ToString()))
+                        .Distinct(StringComparer.OrdinalIgnoreCase)
                         .ToList()
                 }
             };

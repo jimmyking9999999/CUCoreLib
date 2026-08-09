@@ -106,12 +106,12 @@ root.innerHTML = `
       </div>
       <nav class="api-picker" aria-label="API pages">
         <button class="nav-button" type="button" id="top-prev" aria-label="Previous page">&lt;</button>
-        <div class="api-menu" id="api-menu">
-          <button class="api-menu-button" type="button" id="api-menu-button" aria-haspopup="true" aria-expanded="false">
+        <details class="api-menu" id="api-menu">
+          <summary class="api-menu-button">
             <span id="api-menu-label"></span>
             <span class="api-menu-chevron" aria-hidden="true">v</span>
-          </button>
-          <div class="api-menu-panel" id="api-menu-panel" hidden>
+          </summary>
+          <div class="api-menu-panel">
             ${visibleNavGroups.map((group) => `
               <details class="api-menu-group" open>
                 <summary>${group.label}</summary>
@@ -122,13 +122,13 @@ root.innerHTML = `
                     if (!enabledPageIds.has(page.id)) {
                       return `<span class="api-menu-placeholder" aria-disabled="true">${page.label}</span>`;
                     }
-                    return `<a href="${pagePath(page.id)}" data-page="${page.id}">${page.label}</a>`;
+                    return `<a href="${pagePath(page.id)}">${page.label}</a>`;
                   }).join("")}
                 </div>
               </details>
             `).join("")}
           </div>
-        </div>
+        </details>
         <button class="nav-button" type="button" id="top-next" aria-label="Next page">&gt;</button>
         <div class="docs-search">
           <label class="search-label" for="docs-search-input">Search docs</label>
@@ -497,13 +497,6 @@ function bindGlobalNav(): void {
 
   query<HTMLButtonElement>("#top-prev").addEventListener("click", () => movePage(-1));
   query<HTMLButtonElement>("#top-next").addEventListener("click", () => movePage(1));
-  query<HTMLButtonElement>("#api-menu-button").addEventListener("click", () => {
-    const panel = query<HTMLDivElement>("#api-menu-panel");
-    const button = query<HTMLButtonElement>("#api-menu-button");
-    const isOpen = !panel.hidden;
-    panel.hidden = isOpen;
-    button.setAttribute("aria-expanded", String(!isOpen));
-  });
 }
 
 function bindSearch(): void {
@@ -632,12 +625,10 @@ function hideSearchResults(clearInput = false): void {
 }
 
 function closeApiMenu(): void {
-  const panel = document.querySelector<HTMLDivElement>("#api-menu-panel");
-  const button = document.querySelector<HTMLButtonElement>("#api-menu-button");
-  if (!panel || !button) return;
-
-  panel.hidden = true;
-  button.setAttribute("aria-expanded", "false");
+  const menu = document.querySelector<HTMLDetailsElement>("#api-menu");
+  if (menu) {
+    menu.open = false;
+  }
 }
 
 function bindCurrentPageInputs(): void {
@@ -1010,7 +1001,7 @@ function updateChrome(): void {
   const nextButton = query<HTMLButtonElement>("#top-next");
   query<HTMLSpanElement>("#api-menu-label").textContent = currentPageInfo().label;
   document.querySelectorAll<HTMLAnchorElement>(".api-menu-links a").forEach((link) => {
-    link.classList.toggle("is-active", link.dataset.page === currentPage);
+    link.classList.toggle("is-active", link.getAttribute("href") === pagePath(currentPage));
   });
   previousButton.disabled = index <= 0;
   nextButton.disabled = index === -1 || index >= navOrder.length - 1;

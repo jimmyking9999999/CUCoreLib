@@ -12,6 +12,13 @@ const machineExportModule = await import(pathToFileURL(path.join(projectRoot, "s
 
 const pages = docsPagesModule.pages;
 const enabledPageIds = machineExportModule.machineExportEnabledPageIds;
+const navGroups = [
+  { label: "Introduction", pages: ["welcome", "unity-csharp", "setup", "harmony0"] },
+  { label: "Items / Liquids", pages: ["assets", "audio", "item", "advanced-item", "custom-item-scripts", "recipe", "liquids", "liquid-tiles"] },
+  { label: "Player", pages: ["player", "statuses", "moodles"] },
+  { label: "World", pages: ["building-entities", "advanced-building-entities", "minigames", "tiles", "traps", "multi-block-structures"] },
+  { label: "Misc / API", pages: ["debug-testing", "utils", "console", "tools", "settings", "locale", "saving", "animations", "multi-mod-compatibility"] }
+];
 
 await mkdir(pagesRoot, { recursive: true });
 
@@ -68,21 +75,43 @@ function renderPage(page) {
     <link rel="alternate icon" type="image/png" href="/favicon.png" />
     ${structuredData}
     <title>${escapeHtml(title)}</title>
+    <script>document.documentElement.classList.add("js")</script>
+    <style>html.js #app > .seo-fallback { display: none; }</style>
   </head>
   <body style="margin: 0; background: #111; color: #fff;">
-    <div id="app"></div>
-    <noscript>
-      <main>
+    <div id="app">
+      <main class="seo-fallback">
         <h1>${escapeHtml(page.title)}</h1>
         <p>${escapeHtml(description)}</p>
+        ${renderNavigation(page.id)}
         <p>This documentation page uses JavaScript for the interactive app interface.</p>
         <p>Machine-readable docs are available at <a href="/api/cucorelib-docs.v1.json">/api/cucorelib-docs.v1.json</a>.</p>
       </main>
-    </noscript>
+    </div>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>
 `;
+}
+
+function renderNavigation(currentPageId) {
+  return `<nav aria-label="Documentation pages">
+    <h2>Documentation</h2>
+    ${navGroups.map((group) => {
+      const links = group.pages
+        .map((pageId) => pages.find((page) => page.id === pageId))
+        .filter(Boolean)
+        .map((page) => page.id === currentPageId
+          ? `<li><strong>${escapeHtml(page.label)}</strong></li>`
+          : `<li><a href="${pagePath(page.id)}">${escapeHtml(page.label)}</a></li>`)
+        .join("");
+      return links ? `<section><h3>${escapeHtml(group.label)}</h3><ul>${links}</ul></section>` : "";
+    }).join("")}
+  </nav>`;
+}
+
+function pagePath(pageId) {
+  return pageId === "tools" ? "/tools/" : `/docs/${encodeURIComponent(pageId)}/`;
 }
 
 function renderStructuredData(page, description, canonicalUrl) {

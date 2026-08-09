@@ -410,6 +410,11 @@ textarea,
   padding: 6px 10px;
   cursor: pointer;
   font-weight: 850;
+  list-style: none;
+}
+
+.api-menu-button::-webkit-details-marker {
+  display: none;
 }
 
 .api-menu-button:hover,
@@ -434,6 +439,10 @@ textarea,
   overflow: auto;
   border: 1px solid var(--line);
   padding: 10px 0;
+}
+
+.api-menu:not([open]) .api-menu-panel {
+  display: none;
 }
 
 .api-menu-group {

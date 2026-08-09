@@ -5,6 +5,7 @@ using System.Reflection;
 using CUCoreLib.ContentReload;
 using CUCoreLib.Data;
 using CUCoreLib.Helpers;
+using CUCoreLib.Networking;
 using CUCoreLib.Registries.Infrastructure;
 using HarmonyLib;
 using Newtonsoft.Json.Linq;
@@ -17,10 +18,9 @@ namespace CUCoreLib.Registries
     public static class TileRegistry
     {
         private const string HitSoundTokenPrefix = "CUCoreLib.TileHitSound.";
+        private const int CustomTileIndexCount = ushort.MaxValue - FirstCustomTileIndex + 1;
 
         public const ushort FirstCustomTileIndex = 36;
-        // TODO need to make this dynamic, don't want this to be based off people agreeing to use certain indices
-        // I think encoding a string ID to an int is fine
 
         private static readonly Dictionary<ushort, CustomTileDefinition> RegisteredDefinitions =
             new Dictionary<ushort, CustomTileDefinition>();
@@ -62,6 +62,48 @@ namespace CUCoreLib.Registries
             ContentReloadSession.AssertNotActive("TileRegistry.Register()",
                 "Tile registration is excluded from strict content reload.");
 
+            return RegisterAt(tileIndex, definition, definition?.ID, true);
+        }
+
+        /// <summary>
+        /// Registers a custom terrain tile under a stable ID and returns its effective ID.
+        /// </summary>
+        /// <remarks>
+        /// CUCoreLib allocates the runtime block index. If another tile already uses <paramref name="id"/>,
+        /// the returned value and <see cref="CustomTileDefinition.ID"/> become <c>id~1</c>, <c>id~2</c>, and so on.
+        /// </remarks>
+        public static string Register(string id, CustomTileDefinition definition)
+        {
+            ContentReloadSession.AssertNotActive("TileRegistry.Register()",
+                "Tile registration is excluded from strict content reload.");
+
+            if (string.IsNullOrWhiteSpace(id))
+            {
+                CUCoreLibPlugin.Log?.LogWarning("Tile registration ignored with no stable ID.");
+                return null;
+            }
+
+            id = id.Trim();
+            if (!id.All(char.IsLetterOrDigit))
+            {
+                CUCoreLibPlugin.Log?.LogWarning($"Tile registration ignored for invalid stable ID '{id}'. Stable IDs must be alphanumeric.");
+                return null;
+            }
+
+            var effectiveId = GetAvailableId(id);
+            if (!TryAllocateIndex(effectiveId, out var tileIndex))
+            {
+                CUCoreLibPlugin.Log?.LogWarning("Tile registration ignored because no custom tile indices remain.");
+                return null;
+            }
+
+            return RegisterAt(tileIndex, definition, id, true) ? definition.ID : null;
+        }
+
+        private static bool RegisterAt(ushort tileIndex, CustomTileDefinition definition, string requestedId,
+            bool queueNetworkSnapshot)
+        {
+
             if (tileIndex < FirstCustomTileIndex)
             {
                 CUCoreLibPlugin.Log?.LogWarning(
@@ -88,9 +130,10 @@ namespace CUCoreLib.Registries
                 return false;
             }
 
-            definition.ID = string.IsNullOrWhiteSpace(definition.ID)
+            definition.ID = string.IsNullOrWhiteSpace(requestedId)
                 ? "customtile" + tileIndex
-                : definition.ID.Trim();
+                : requestedId.Trim();
+            definition.ID = GetAvailableId(definition.ID);
 
             RegisteredDefinitions.Add(tileIndex, definition);
             RegisteredDefinitionIds[definition.ID] = tileIndex;
@@ -103,7 +146,48 @@ namespace CUCoreLib.Registries
                 LocaleRegistry.Register("title", definition.ID + "dsc", definition.Description);
 
             InjectRegisteredTiles(WorldGeneration.world);
+            if (queueNetworkSnapshot) MultiplayerSyncRegistry.QueueHostSnapshotBroadcast();
             return true;
+        }
+
+        private static bool TryAllocateIndex(string id, out ushort tileIndex)
+        {
+            var index = (int)(GetStableHash(id) % CustomTileIndexCount);
+            for (var offset = 0; offset < CustomTileIndexCount; offset++)
+            {
+                var candidate = (ushort)(FirstCustomTileIndex + (index + offset) % CustomTileIndexCount);
+                if (!RegisteredDefinitions.ContainsKey(candidate))
+                {
+                    tileIndex = candidate;
+                    return true;
+                }
+            }
+
+            tileIndex = 0;
+            return false;
+        }
+
+        private static uint GetStableHash(string id)
+        {
+            var hash = 2166136261u;
+            foreach (var character in id)
+            {
+                hash ^= char.ToUpperInvariant(character);
+                hash *= 16777619u;
+            }
+
+            return hash;
+        }
+
+        private static string GetAvailableId(string requestedId)
+        {
+            if (!RegisteredDefinitionIds.ContainsKey(requestedId)) return requestedId;
+
+            for (var suffix = 1;; suffix++)
+            {
+                var candidate = requestedId + "~" + suffix;
+                if (!RegisteredDefinitionIds.ContainsKey(candidate)) return candidate;
+            }
         }
 
         public static bool TryGetDefinition(ushort tileIndex, out CustomTileDefinition definition)
@@ -111,14 +195,37 @@ namespace CUCoreLib.Registries
             return RegisteredDefinitions.TryGetValue(tileIndex, out definition);
         }
 
+        public static bool TryGetDefinition(string id, out CustomTileDefinition definition)
+        {
+            definition = null;
+            return TryGetIndex(id, out var tileIndex) && TryGetDefinition(tileIndex, out definition);
+        }
+
         public static bool TryGetTile(ushort tileIndex, out TileBase tile)
         {
             return RegisteredTiles.TryGetValue(tileIndex, out tile);
         }
 
+        public static bool TryGetTile(string id, out TileBase tile)
+        {
+            tile = null;
+            return TryGetIndex(id, out var tileIndex) && TryGetTile(tileIndex, out tile);
+        }
+
+        public static bool TryGetIndex(string id, out ushort tileIndex)
+        {
+            tileIndex = 0;
+            return !string.IsNullOrWhiteSpace(id) && RegisteredDefinitionIds.TryGetValue(id.Trim(), out tileIndex);
+        }
+
         public static IEnumerable<ushort> GetRegisteredIndices()
         {
             return RegisteredDefinitions.Keys.OrderBy(index => index).ToArray();
+        }
+
+        public static IEnumerable<string> GetRegisteredIds()
+        {
+            return RegisteredDefinitionIds.Keys.OrderBy(id => id, StringComparer.OrdinalIgnoreCase).ToArray();
         }
 
         public static int LayerToMask(int layerNumber)
@@ -164,7 +271,7 @@ namespace CUCoreLib.Registries
                     ["spawnAmount"] = definition.SpawnAmount,
                     ["spawnLayers"] = definition.SpawnLayers,
                     ["generationStyle"] = (byte)definition.GenerationStyle,
-                    ["drops"] = JArray.FromObject(definition.Drops),
+                    ["drops"] = definition.Drops != null ? JArray.FromObject(definition.Drops) : new JArray(),
                     ["customData"] = definition.CustomData != null
                         ? JObject.FromObject(definition.CustomData)
                         : new JObject()
@@ -178,12 +285,38 @@ namespace CUCoreLib.Registries
         {
             if (snapshot == null) return;
 
-            foreach (var property in snapshot.Properties())
-            {
-                if (!ushort.TryParse(property.Name, out var tileIndex)) continue;
+            var localHitSounds = RegisteredDefinitions.Values
+                .Where(definition => definition != null && !string.IsNullOrWhiteSpace(definition.ID))
+                .GroupBy(definition => definition.ID, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(group => group.Key, group => group.First().HitSoundClip, StringComparer.OrdinalIgnoreCase);
+            var entries = snapshot.Properties()
+                .Select(property =>
+                {
+                    ushort tileIndex;
+                    return new
+                    {
+                        HasIndex = ushort.TryParse(property.Name, out tileIndex),
+                        TileIndex = tileIndex,
+                        Definition = property.Value as JObject
+                    };
+                })
+                .Where(entry => entry.HasIndex && entry.Definition != null)
+                .OrderBy(entry => entry.TileIndex)
+                .ToArray();
 
-                var obj = property.Value as JObject;
-                if (obj == null) continue;
+            // A client can have registered the same stable IDs in a different plugin order. The host's snapshot is
+            // authoritative for both sides of that mapping, so remove all affected local entries before replaying it.
+            foreach (var entry in entries) RemoveRegistration(entry.TileIndex);
+            foreach (var entry in entries)
+            {
+                var id = entry.Definition.Value<string>("id");
+                if (TryGetIndex(id, out var localTileIndex)) RemoveRegistration(localTileIndex);
+            }
+
+            foreach (var entry in entries)
+            {
+                var obj = entry.Definition;
+                localHitSounds.TryGetValue(obj.Value<string>("id") ?? string.Empty, out var localHitSound);
 
                 var definition = new CustomTileDefinition
                 {
@@ -205,7 +338,8 @@ namespace CUCoreLib.Registries
                     SpawnAmount = obj.Value<float?>("spawnAmount") ?? 0f,
                     SpawnLayers = obj.Value<int?>("spawnLayers") ?? AllSpawnLayersMask,
                     GenerationStyle =
-                        (TileGenerationStyle)(obj.Value<byte?>("generationStyle") ?? (byte)TileGenerationStyle.Vein)
+                        (TileGenerationStyle)(obj.Value<byte?>("generationStyle") ?? (byte)TileGenerationStyle.Vein),
+                    HitSoundClip = localHitSound
                 };
 
                 if (obj["drops"] is JArray drops) definition.Drops = drops.ToObject<ItemDrop[]>();
@@ -213,7 +347,7 @@ namespace CUCoreLib.Registries
                     definition.CustomData = customData.ToObject<Dictionary<string, object>>() ??
                                             new Dictionary<string, object>();
 
-                Register(tileIndex, definition);
+                RegisterAt(entry.TileIndex, definition, definition.ID, false);
             }
         }
 
@@ -228,6 +362,12 @@ namespace CUCoreLib.Registries
 
             value = typedValue;
             return true;
+        }
+
+        public static bool TryGetCustomData<T>(string id, string key, out T value)
+        {
+            value = default;
+            return TryGetIndex(id, out var tileIndex) && TryGetCustomData(tileIndex, key, out value);
         }
 
         internal static bool WillBreak(WorldGeneration world, Vector2Int position, float damage, bool bonusMetal)
@@ -290,6 +430,11 @@ namespace CUCoreLib.Registries
             return true;
         }
 
+        public static bool SetBlock(WorldGeneration world, Vector2Int position, string id)
+        {
+            return TryGetIndex(id, out var tileIndex) && SetBlock(world, position, tileIndex);
+        }
+
         public static bool SetBlockNoUpdate(WorldGeneration world, Vector2Int position, ushort tileIndex)
         {
             if (world == null || !RegisteredDefinitions.ContainsKey(tileIndex)) return false;
@@ -297,6 +442,26 @@ namespace CUCoreLib.Registries
             InjectRegisteredTiles(world);
             world.SetBlockNoUpdate(position, tileIndex);
             return true;
+        }
+
+        public static bool SetBlockNoUpdate(WorldGeneration world, Vector2Int position, string id)
+        {
+            return TryGetIndex(id, out var tileIndex) && SetBlockNoUpdate(world, position, tileIndex);
+        }
+
+        private static void RemoveRegistration(ushort tileIndex)
+        {
+            if (!RegisteredDefinitions.TryGetValue(tileIndex, out var definition)) return;
+
+            RegisteredDefinitions.Remove(tileIndex);
+            RegisteredTiles.Remove(tileIndex);
+            ResolvedHitSounds.Remove(tileIndex);
+            if (definition != null && !string.IsNullOrWhiteSpace(definition.ID))
+                RegisteredDefinitionIds.Remove(definition.ID);
+
+            var world = WorldGeneration.world;
+            if (world?.tiles != null && tileIndex < world.tiles.Length)
+                world.tiles[tileIndex] = GetReservedTile(tileIndex);
         }
 
         internal static void InjectRegisteredTiles(WorldGeneration world)
