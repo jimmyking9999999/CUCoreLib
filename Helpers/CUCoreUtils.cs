@@ -1199,6 +1199,55 @@ namespace CUCoreLib.Helpers
         }
 
         /// <summary>
+        /// Splits an equal-cell sprite sheet into independent sprites. Frames are ordered from the top-left cell,
+        /// left-to-right across each row, then top-to-bottom.
+        /// </summary>
+        /// <param name="spriteSheet">Sprite covering the full sprite-sheet area to split.</param>
+        /// <param name="columns">Number of equal-width cells in the sheet.</param>
+        /// <param name="rows">Number of equal-height cells in the sheet.</param>
+        /// <returns>One sprite per cell, or an empty array when the sheet is invalid or cannot be divided evenly.</returns>
+        public static Sprite[] SplitSpriteSheet(Sprite spriteSheet, int columns, int rows)
+        {
+            if (spriteSheet == null || columns <= 0 || rows <= 0) return Array.Empty<Sprite>();
+
+            Texture2D texture = spriteSheet.texture;
+            Rect sheetRect = spriteSheet.rect;
+            int sheetWidth = Mathf.RoundToInt(sheetRect.width);
+            int sheetHeight = Mathf.RoundToInt(sheetRect.height);
+            float pixelsPerUnit = spriteSheet.pixelsPerUnit;
+            if (texture == null || sheetWidth <= 0 || sheetHeight <= 0 ||
+                !Mathf.Approximately(sheetRect.width, sheetWidth) ||
+                !Mathf.Approximately(sheetRect.height, sheetHeight) ||
+                sheetRect.xMin < 0f || sheetRect.yMin < 0f || sheetRect.xMax > texture.width ||
+                sheetRect.yMax > texture.height || sheetWidth % columns != 0 || sheetHeight % rows != 0 ||
+                pixelsPerUnit <= 0f || float.IsNaN(pixelsPerUnit) || float.IsInfinity(pixelsPerUnit))
+                return Array.Empty<Sprite>();
+
+            int cellWidth = sheetWidth / columns;
+            int cellHeight = sheetHeight / rows;
+            Vector2 pivot = new Vector2(spriteSheet.pivot.x / sheetRect.width,
+                spriteSheet.pivot.y / sheetRect.height);
+            var frames = new Sprite[columns * rows];
+
+            texture.filterMode = FilterMode.Point;
+            texture.wrapMode = TextureWrapMode.Clamp;
+
+            for (int row = 0; row < rows; row++)
+            for (int column = 0; column < columns; column++)
+            {
+                var frameRect = new Rect(sheetRect.x + column * cellWidth,
+                    sheetRect.y + (rows - row - 1) * cellHeight, cellWidth, cellHeight);
+                var frame = Sprite.Create(texture, frameRect, pivot, pixelsPerUnit, 0, SpriteMeshType.FullRect);
+                frame.name = string.IsNullOrEmpty(spriteSheet.name)
+                    ? "sprite_" + row + "_" + column
+                    : spriteSheet.name + "_" + row + "_" + column;
+                frames[row * columns + column] = frame;
+            }
+
+            return frames;
+        }
+
+        /// <summary>
         /// Opens a readable stream for an embedded resource resolved from the calling assembly or an explicit assembly override.
         /// The caller owns the returned stream and should dispose it when finished.
         /// </summary>

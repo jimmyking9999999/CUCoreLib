@@ -1666,6 +1666,9 @@ private void Awake()
     bool finite = mousePos.IsFinite();
     Sprite keySprite = CUCoreUtils.GetKeySprite(KeyCode.E);
     Sprite embedded = CUCoreUtils.LoadEmbeddedSprite("Images.icon.png");
+    Sprite radioSheet = AssetLoader.LoadEmbeddedSprite("Images.radio-frames.png");
+    Sprite[] radioFrames = CUCoreUtils.SplitSpriteSheet(radioSheet, columns: 4, rows: 2);
+    AssetLoader.RegisterFrameAnimation("mymod.radio", radioFrames, framesPerSecond: 8f);
     using (var embeddedStream = CUCoreUtils.LoadEmbeddedStream("Data.default-loot.json"))
     {
         if (embeddedStream != null)

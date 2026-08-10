@@ -14,6 +14,10 @@ I figured that this would be nice to have, as to easily take a look at everythin
 - Custom liquids can set `unobtainable = true` to exclude themselves from random minibarrel contents.
 - Added the built-in `bug-report [description] [bool screenshot] [severity]` command. Send quick reports to your favourite (?) modders!
 - Added `CUCoreUtils.EditVanillaItem(...)` 
+- You can now have your entire mod's items in one image with `CUCoreUtils.SplitSpriteSheet(...)`, if you want that for some reason 
+- You'd be better off using ^ for animations, of which now works with LiquidMasks and 
+
+### Fixes
 - KrokMP v4 support
 - It feels kinda weird making QoL changelogs in here, but the reason that one hasn't gotten any updates is since it's tied to mpv5, (which is in its early playtest phase) and I really don't want to navigate my tangled version control to handpick the features and remove v5 support. Guuuh.
 - `LightProperties` supports local `Rotation` (light rotation), `Offset` (light offset), and `FalloffIntensity` (harshness/softness)

@@ -3811,6 +3811,17 @@ function utilsPage(): string {
       </div>
     </section>
 
+    <section class="lesson-card">
+      <h2>Sprite-sheet frames</h2>
+      <p>Use <span class="inline-code">SplitSpriteSheet</span> after loading a full sheet through <span class="inline-code">AssetLoader</span>. It returns separate regular Unity sprites, so individual frames work directly as item icons, worn sprites, or <span class="inline-code">AssetLoader.RegisterFrameAnimation</span> frames.</p>
+      <pre><code>Sprite sheet = AssetLoader.LoadEmbeddedSprite("Images.radio-frames.png");
+Sprite[] frames = CUCoreUtils.SplitSpriteSheet(sheet, columns: 4, rows: 2);
+
+// frames[0] is the top-left cell; frames[7] is the bottom-right cell.
+AssetLoader.RegisterFrameAnimation("mymod.radio", frames, framesPerSecond: 8f);</code></pre>
+      <p>Cells must divide the input sprite evenly. Frames are ordered top-left to right, then down each row; invalid input returns an empty array. The generated frames keep the input sprite's pixels-per-unit and normalized pivot, and use point filtering with clamp wrapping.</p>
+    </section>
+
   `;
 }
 
