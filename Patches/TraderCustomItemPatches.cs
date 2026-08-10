@@ -369,6 +369,10 @@ namespace CUCoreLib.Patches
             fillImage.color = liquidType.color;
             fillImage.GetComponent<RectTransform>().sizeDelta =
                 PlayerCamera.ImageSizeDelta(fillSprite.texture, 8f, 64f);
+
+            if (info is CustomItemInfo customInfo &&
+                !string.IsNullOrWhiteSpace(customInfo.LiquidMaskAnimationId))
+                AssetLoader.TryApplyAnimation(fillImage, customInfo.LiquidMaskAnimationId);
         }
 
         private static void ApplyItemSprite(GameObject panel, Sprite sprite)

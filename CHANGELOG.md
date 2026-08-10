@@ -12,6 +12,8 @@ I figured that this would be nice to have, as to easily take a look at everythin
 ### New Stuff!
 - Added `GunProperties` 
 - Custom liquids can set `unobtainable = true` to exclude themselves from random minibarrel contents.
+- Added `AssetLoader.LoadFrameAnimationFromEmbeddedResources(...)` for ordered embedded sprite-frame animations, with hot-reload cache invalidation.
+- Added `CustomItemInfo.LiquidMaskAnimationId` so container fill masks can use registered sprite animations while `LiquidMask` remains supported for static masks.
 - Added the built-in `bug-report [description] [bool screenshot] [severity]` command. Send quick reports to your favourite (?) modders!
 - Added `CUCoreUtils.EditVanillaItem(...)` 
 - You can now have your entire mod's items in one image with `CUCoreUtils.SplitSpriteSheet(...)`, if you want that for some reason 

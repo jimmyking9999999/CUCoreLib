@@ -84,6 +84,12 @@ namespace CUCoreLib.Data
         public Sprite LiquidMask;
 
         /// <summary>
+        /// Optional registered sprite animation id applied to the contained-liquid mask. Its first frame is used as
+        /// the normal <see cref="LiquidMask"/> fallback when the animation is unavailable.
+        /// </summary>
+        public string LiquidMaskAnimationId;
+
+        /// <summary>
         /// Component type names resolved and attached when the item spawns.
         /// </summary>
         public List<string> SpawnComponents = new List<string>();

@@ -36,6 +36,12 @@ namespace CUCoreLib.Helpers
         internal static Dictionary<string, RegisteredSpriteAnimation> SpriteAnimationCache =
             new Dictionary<string, RegisteredSpriteAnimation>(StringComparer.OrdinalIgnoreCase);
 
+        private static readonly Dictionary<string, string> SpriteAnimationOwnerAssemblyKeys =
+            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+        private static readonly Dictionary<string, HashSet<string>> AssemblySpriteAnimationIds =
+            new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
+
         private static readonly Dictionary<string, string[]> ResourceNameCache =
             new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase);
 
@@ -176,6 +182,7 @@ namespace CUCoreLib.Helpers
             var normalizedId = NormalizeCacheKey(id);
             if (string.IsNullOrEmpty(normalizedId)) return;
 
+            RemoveSpriteAnimationOwnership(normalizedId);
             animation.Id = normalizedId;
             SpriteAnimationCache[normalizedId] = animation;
             CacheSprite(normalizedId, animation.Frames[0]);
@@ -329,6 +336,8 @@ namespace CUCoreLib.Helpers
                          .Where(key => key.StartsWith(resolutionPrefix, StringComparison.OrdinalIgnoreCase)).ToArray())
                 ResolvedResourceNameCache.Remove(cacheKey);
             LoggedMissingResources.RemoveWhere(key => key.IndexOf(assemblyKey, StringComparison.OrdinalIgnoreCase) >= 0);
+
+            InvalidateSpriteAnimationsForAssembly(assemblyKey);
         }
 
         internal static void InvalidateBundlesForAssembly(Assembly assembly, bool unregister = false)
@@ -580,6 +589,32 @@ namespace CUCoreLib.Helpers
             return string.IsNullOrEmpty(fullPath)
                 ? null
                 : LoadFrameAnimationFromFolder(id, fullPath, pixelsPerUnit, framesPerSecond, loop, prefix);
+        }
+
+        /// <summary>
+        /// Loads an ordered list of embedded image resources as a registered frame animation. Frame order is exactly
+        /// the order supplied by <paramref name="frameResourcePaths"/>; missing frames are skipped.
+        /// </summary>
+        public static RegisteredSpriteAnimation LoadFrameAnimationFromEmbeddedResources(string id,
+            IEnumerable<string> frameResourcePaths, float pixelsPerUnit = PPU_WORLD, float framesPerSecond = 12f,
+            bool loop = true, Assembly sourceAssembly = null)
+        {
+            if (frameResourcePaths == null) return null;
+
+            if (sourceAssembly == null)
+                sourceAssembly = ContentReloadSession.GetSourceAssemblyOverride() ?? Assembly.GetCallingAssembly();
+
+            if (sourceAssembly == null) return null;
+
+            var frames = frameResourcePaths
+                .Where(path => !string.IsNullOrWhiteSpace(path))
+                .Select(path => LoadSpriteInternal(path, pixelsPerUnit, sourceAssembly))
+                .Where(sprite => sprite != null)
+                .ToArray();
+            var animation = RegisterFrameAnimation(id, frames, framesPerSecond, loop);
+            if (animation != null) TrackSpriteAnimationOwnership(animation.Id, sourceAssembly);
+
+            return animation;
         }
 
         public static object LoadAnimationAsVideoClip(string pathOrResource, Assembly sourceAssembly = null)
@@ -971,6 +1006,63 @@ namespace CUCoreLib.Helpers
             embeddedSpritePreloadCoroutine = null;
             embeddedSpritePreloadCompleted = false;
             embeddedSpritePreloadDiscovered = false;
+        }
+
+        private static void TrackSpriteAnimationOwnership(string animationId, Assembly sourceAssembly)
+        {
+            var assemblyKey = GetAssemblyCacheKey(sourceAssembly);
+            if (string.IsNullOrWhiteSpace(animationId) || string.IsNullOrWhiteSpace(assemblyKey)) return;
+
+            RemoveSpriteAnimationOwnership(animationId);
+            SpriteAnimationOwnerAssemblyKeys[animationId] = assemblyKey;
+
+            if (!AssemblySpriteAnimationIds.TryGetValue(assemblyKey, out var animationIds) || animationIds == null)
+            {
+                animationIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                AssemblySpriteAnimationIds[assemblyKey] = animationIds;
+            }
+
+            animationIds.Add(animationId);
+        }
+
+        private static void InvalidateSpriteAnimationsForAssembly(string assemblyKey)
+        {
+            if (string.IsNullOrWhiteSpace(assemblyKey) ||
+                !AssemblySpriteAnimationIds.TryGetValue(assemblyKey, out var animationIds) || animationIds == null)
+                return;
+
+            foreach (var animationId in animationIds.ToArray())
+            {
+                if (!SpriteAnimationOwnerAssemblyKeys.TryGetValue(animationId, out var ownerAssemblyKey) ||
+                    !string.Equals(ownerAssemblyKey, assemblyKey, StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                if (SpriteAnimationCache.TryGetValue(animationId, out var animation) && animation?.Frames?.Length > 0 &&
+                    SpriteCache.TryGetValue(animationId, out var cachedSprite) &&
+                    ReferenceEquals(cachedSprite, animation.Frames[0]))
+                {
+                    SpriteCache.Remove(animationId);
+                    ClearCachedSpriteVariants(animationId);
+                }
+
+                SpriteAnimationCache.Remove(animationId);
+                SpriteAnimationOwnerAssemblyKeys.Remove(animationId);
+            }
+
+            AssemblySpriteAnimationIds.Remove(assemblyKey);
+        }
+
+        private static void RemoveSpriteAnimationOwnership(string animationId)
+        {
+            if (string.IsNullOrWhiteSpace(animationId) ||
+                !SpriteAnimationOwnerAssemblyKeys.TryGetValue(animationId, out var assemblyKey))
+                return;
+
+            SpriteAnimationOwnerAssemblyKeys.Remove(animationId);
+            if (!AssemblySpriteAnimationIds.TryGetValue(assemblyKey, out var animationIds) || animationIds == null) return;
+
+            animationIds.Remove(animationId);
+            if (animationIds.Count == 0) AssemblySpriteAnimationIds.Remove(assemblyKey);
         }
 
         private static bool IsSupportedEmbeddedImageResource(string resourceName)

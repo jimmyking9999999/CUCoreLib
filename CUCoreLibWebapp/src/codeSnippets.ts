@@ -1391,6 +1391,13 @@ private void LoadModAssets()
     // Embedded assets live inside the DLL.
     Sprite embeddedIcon = AssetLoader.LoadEmbeddedSprite("Assets.sunpear.png");
 
+    // Frame order is the order written here. Every image must be an Embedded Resource.
+    AssetLoader.LoadFrameAnimationFromEmbeddedResources(
+        "glassworks.bottle-fill",
+        new[] { "Images.bottle-fill-0.png", "Images.bottle-fill-1.png", "Images.bottle-fill-2.png" },
+        pixelsPerUnit: 8f,
+        framesPerSecond: 6f);
+
     // Loose files live next to your plugin DLL.
     Sprite externalIcon = AssetLoader.LoadSpriteFromPluginFolder(this, "Assets/sunpear.png");
 
@@ -1841,6 +1848,7 @@ private void RegisterPineappleJuiceContent()
             weight = 1.25f,
             scaleWeightWithCondition = true,
             capacity = 500f,
+            LiquidMaskAnimationId = "glassworks.bottle-fill",
             defaultContents = new List<LiquidStack>
             {
                 new LiquidStack("pineapplejuice", 500f) 

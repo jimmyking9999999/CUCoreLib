@@ -146,7 +146,7 @@ namespace CUCoreLib.Helpers
                 ItemRegistryPatches.ApplyGunProperties(item, info);
 
             var waterContainer = obj.GetComponent<WaterContainerItem>();
-            if (waterContainer != null) waterContainer.fillSprite = info.LiquidMask;
+            if (waterContainer != null) ItemRegistryPatches.ApplyLiquidMask(waterContainer, info);
 
             var sr = obj.GetComponent<SpriteRenderer>();
             var icon = ItemRegistry.GetIcon(info);

@@ -105,7 +105,19 @@ namespace CUCoreLib.Patches
             var item = __instance.GetComponent<Item>();
             if (!ItemRegistry.TryGetCustomInfo(item, out var def)) return;
 
-            __instance.fillSprite = def.LiquidMask;
+            ApplyLiquidMask(__instance, def);
+        }
+
+        [HarmonyPatch(typeof(WaterContainerItem), "Start")]
+        [HarmonyPostfix]
+        private static void ApplyCustomLiquidMaskAnimationAfterWaterContainerStart(WaterContainerItem __instance)
+        {
+            if (__instance == null) return;
+
+            var item = __instance.GetComponent<Item>();
+            if (!ItemRegistry.TryGetCustomInfo(item, out var def)) return;
+
+            ApplyLiquidMaskAnimation(__instance, def);
         }
 
         [HarmonyPatch(typeof(WaterContainerItem), nameof(WaterContainerItem.ApplyToLimb))]
@@ -404,7 +416,7 @@ namespace CUCoreLib.Patches
                 var createdWaterContainer = wat == null;
                 if (wat == null) wat = item.gameObject.AddComponent<WaterContainerItem>();
 
-                wat.fillSprite = def.LiquidMask;
+                ApplyLiquidMask(wat, def);
 
                 if (createdWaterContainer && (wat.stack == null || wat.stack.Count == 0))
                     wat.stack = CopyLiquidStacks(def.defaultContents);
@@ -420,7 +432,7 @@ namespace CUCoreLib.Patches
                 var createdWaterContainer = wat == null;
                 if (wat == null) wat = item.gameObject.AddComponent<WaterContainerItem>();
 
-                wat.fillSprite = def.LiquidMask;
+                ApplyLiquidMask(wat, def);
 
                 if (!createdWaterContainer || (wat.stack != null && wat.stack.Count != 0)) return;
                 wat.stack = new List<LiquidStack>();
@@ -431,6 +443,53 @@ namespace CUCoreLib.Patches
                 if (def.Syringe.Capacity > 0f)
                     item.condition = Mathf.Clamp01(wat.stack.Sum(liquid => liquid.amount) / def.Syringe.Capacity);
             }
+        }
+
+        internal static void ApplyLiquidMask(WaterContainerItem waterContainer, CustomItemInfo def)
+        {
+            if (waterContainer == null || def == null) return;
+
+            var animation = string.IsNullOrWhiteSpace(def.LiquidMaskAnimationId)
+                ? null
+                : AssetLoader.GetCachedSpriteAnimation(def.LiquidMaskAnimationId);
+            var fillSprite = animation?.Frames != null && animation.Frames.Length > 0
+                ? animation.Frames[0]
+                : def.LiquidMask;
+            waterContainer.fillSprite = fillSprite;
+
+            var fillRenderer = FindLiquidFillRenderer(waterContainer);
+            if (fillRenderer == null) return;
+
+            if (animation != null)
+            {
+                AssetLoader.TryApplyAnimation(fillRenderer, def.LiquidMaskAnimationId);
+                return;
+            }
+
+            fillRenderer.sprite = fillSprite;
+            var player = fillRenderer.GetComponent<AnimatedSpriteRenderer>();
+            if (player != null) Object.Destroy(player);
+        }
+
+        private static void ApplyLiquidMaskAnimation(WaterContainerItem waterContainer, CustomItemInfo def)
+        {
+            if (waterContainer == null || def == null || string.IsNullOrWhiteSpace(def.LiquidMaskAnimationId)) return;
+
+            var animation = AssetLoader.GetCachedSpriteAnimation(def.LiquidMaskAnimationId);
+            if (animation?.Frames == null || animation.Frames.Length == 0) return;
+
+            var fillRenderer = FindLiquidFillRenderer(waterContainer);
+            if (fillRenderer != null) AssetLoader.TryApplyAnimation(fillRenderer, def.LiquidMaskAnimationId);
+        }
+
+        private static SpriteRenderer FindLiquidFillRenderer(WaterContainerItem waterContainer)
+        {
+            return waterContainer == null
+                ? null
+                : waterContainer.GetComponentsInChildren<SpriteRenderer>(true)
+                    .FirstOrDefault(renderer => renderer != null && renderer.transform.parent == waterContainer.transform &&
+                                                string.Equals(renderer.gameObject.name, "LiquidFill",
+                                                    StringComparison.Ordinal));
         }
 
         internal static void ApplyContainerProperties(Item item, CustomItemInfo def)

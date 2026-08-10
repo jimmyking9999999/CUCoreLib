@@ -293,6 +293,7 @@ namespace CUCoreLib.Registries
                             : JValue.CreateNull(),
                         ["multiWornSprites"] = NetworkSnapshotSerialization.WriteSpriteDictionary(info.MultiWornSprites),
                         ["liquidMask"] = NetworkSnapshotSerialization.WriteSprite(info.LiquidMask),
+                        ["liquidMaskAnimationId"] = info.LiquidMaskAnimationId ?? string.Empty,
                         ["visualOffsetX"] = info.VisualOffset.x,
                         ["visualOffsetY"] = info.VisualOffset.y,
                         ["heldSpriteOffsetX"] = info.HeldSpriteOffset.x,
@@ -436,6 +437,7 @@ namespace CUCoreLib.Registries
                         : obj.Value<int?>("wearableSortingOrder"),
                     MultiWornSprites = NetworkSnapshotSerialization.ReadSpriteDictionary(obj["multiWornSprites"]),
                     LiquidMask = NetworkSnapshotSerialization.ReadSprite(obj["liquidMask"]),
+                    LiquidMaskAnimationId = obj.Value<string>("liquidMaskAnimationId"),
                     SpriteScale = obj.Value<float?>("spriteScale") ?? 1f,
                     SpriteScaleDimensions = new SpriteScaleDimensions(
                         obj.Value<float?>("spriteScaleWidth") ?? 0f,
