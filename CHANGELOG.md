@@ -11,6 +11,7 @@ I figured that this would be nice to have, as to easily take a look at everythin
 
 ### New Stuff!
 - Added `GunProperties` 
+- Custom liquids can set `unobtainable = true` to exclude themselves from random minibarrel contents.
 - Added the built-in `bug-report [description] [bool screenshot] [severity]` command. Send quick reports to your favourite (?) modders!
 - Added `CUCoreUtils.EditVanillaItem(...)` 
 - KrokMP v4 support

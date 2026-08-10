@@ -39,6 +39,11 @@ namespace CUCoreLib.Data
         public bool localeFromItem;
 
         /// <summary>
+        /// Whether this liquid is excluded from random minibarrel contents.
+        /// </summary>
+        public bool unobtainable;
+
+        /// <summary>
         /// Display name for the liquid.
         /// </summary>
         public string name;

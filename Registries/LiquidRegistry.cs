@@ -290,6 +290,7 @@ namespace CUCoreLib.Registries
                         ["injectable"] = info.injectable,
                         ["injectionSickness"] = info.injectionSickness,
                         ["localeFromItem"] = info.localeFromItem,
+                        ["unobtainable"] = info.unobtainable,
                         ["qualities"] = NetworkSnapshotSerialization.WriteCraftingQualities(info.qualities)
                     };
                 }
@@ -321,6 +322,7 @@ namespace CUCoreLib.Registries
                         injectable = obj.Value<bool?>("injectable") ?? false,
                         injectionSickness = obj.Value<float?>("injectionSickness") ?? 1f,
                         localeFromItem = obj.Value<bool?>("localeFromItem") ?? false,
+                        unobtainable = obj.Value<bool?>("unobtainable") ?? false,
                         qualities = NetworkSnapshotSerialization.ReadCraftingQualities(obj["qualities"])
                     });
                 }
@@ -334,6 +336,17 @@ namespace CUCoreLib.Registries
         {
             info = null;
             return !string.IsNullOrWhiteSpace(id) && RegisteredLiquids.TryGetValue(id.Trim(), out info);
+        }
+
+        internal static Dictionary<string, LiquidType> GetMiniBarrelLiquids()
+        {
+            var registry = Liquids.Registry;
+            if (registry == null || !RegisteredLiquids.Values.Any(info => info != null && info.unobtainable))
+                return registry;
+
+            return registry
+                .Where(entry => !TryGetCustomInfo(entry.Key, out var info) || info == null || !info.unobtainable)
+                .ToDictionary(entry => entry.Key, entry => entry.Value, StringComparer.Ordinal);
         }
 
     }
