@@ -2914,7 +2914,7 @@ function advancedItemPage(): string {
           <tbody>
             <tr><td><span class="inline-code">Intensity</span></td><td><span class="inline-code">float</span></td><td>Brightness of the generated <span class="inline-code">Light2D</span>.</td></tr>
             <tr><td><span class="inline-code">Color</span></td><td><span class="inline-code">Color</span></td><td>Light tint. Defaults to white.</td></tr>
-            <tr><td><span class="inline-code">FalloffIntensity</span></td><td><span class="inline-code">float</span></td><td>Edge softness from <span class="inline-code">0f</span> (sharp) to <span class="inline-code">1f</span> (soft). Defaults to <span class="inline-code">0.5f</span>.</td></tr>
+            <tr><td><span class="inline-code">FalloffIntensity</span></td><td><span class="inline-code">float</span></td><td>Radial falloff, including for point/cone lights: <span class="inline-code">0f</span> is sharp and <span class="inline-code">1f</span> is soft. For cone-edge softness, set <span class="inline-code">PointLightInnerAngle</span> below <span class="inline-code">PointLightOuterAngle</span>. Defaults to <span class="inline-code">0.5f</span>.</td></tr>
             <tr><td><span class="inline-code">PointLightOuterRadius</span></td><td><span class="inline-code">float</span></td><td>Outer radius for point lights.</td></tr>
             <tr><td><span class="inline-code">PointLightInnerRadius</span></td><td><span class="inline-code">float</span></td><td>Inner radius for point lights.</td></tr>
             <tr><td><span class="inline-code">PointLightOuterAngle</span></td><td><span class="inline-code">float</span></td><td>Outer cone angle for point lights. Defaults to <span class="inline-code">360f</span>.</td></tr>

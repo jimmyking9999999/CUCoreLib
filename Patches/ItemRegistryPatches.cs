@@ -22,6 +22,9 @@ namespace CUCoreLib.Patches
         private static readonly FieldInfo NotSpawnWithBatteryField =
             AccessTools.Field(typeof(BatteryItem), "notSpawnWithBattery");
 
+        private static readonly MethodInfo MarkLightForUpdateMethod =
+            AccessTools.Method(typeof(Light2D), "MarkForUpdate");
+
         private static readonly Dictionary<int, int> NextLightLookupFrameByInstance =
             new Dictionary<int, int>();
 
@@ -481,6 +484,22 @@ namespace CUCoreLib.Patches
                 light = lightObject.GetComponent<Light2D>();
             }
 
+            ApplyLightProperties(light, properties);
+
+            if (lightItem == null) return;
+            lightItem.light = light;
+            lightItem.shouldEnable = true;
+        }
+
+        /// <summary>
+        /// Applies the complete Light2D state from one shared seam.  Point/cone
+        /// lights are explicitly marked after all shape fields are assigned so
+        /// URP consumes the new cone state on its next LateUpdate.
+        /// </summary>
+        internal static void ApplyLightProperties(Light2D light, LightProperties properties)
+        {
+            if (light == null || properties == null) return;
+
             light.transform.localPosition = properties.Offset;
             light.transform.localRotation = Quaternion.Euler(0f, 0f, properties.Rotation);
             light.lightType = ToLight2DType(properties.LightType);
@@ -492,9 +511,18 @@ namespace CUCoreLib.Patches
             light.pointLightOuterAngle = properties.PointLightOuterAngle;
             light.pointLightInnerAngle = properties.PointLightInnerAngle;
 
-            if (lightItem == null) return;
-            lightItem.light = light;
-            lightItem.shouldEnable = true;
+            if (properties.LightType == CustomLightType.Point &&
+                (properties.PointLightInnerAngle < 360f || properties.PointLightOuterAngle < 360f))
+            {
+                try
+                {
+                    MarkLightForUpdateMethod?.Invoke(light, null);
+                }
+                catch
+                {
+                    // Older URP versions may not expose the internal refresh hook.
+                }
+            }
         }
 
         internal static void ApplyGunProperties(Item item, CustomItemInfo def)

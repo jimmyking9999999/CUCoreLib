@@ -381,16 +381,7 @@ namespace CUCoreLib.Helpers
                 light = lightObject.GetComponent<Light2D>();
             }
 
-            light.transform.localPosition = properties.Offset;
-            light.transform.localRotation = Quaternion.Euler(0f, 0f, properties.Rotation);
-            light.lightType = ToLight2DType(properties.LightType);
-            light.intensity = properties.Intensity;
-            light.color = properties.Color;
-            light.falloffIntensity = properties.FalloffIntensity;
-            light.pointLightOuterRadius = properties.PointLightOuterRadius;
-            light.pointLightInnerRadius = properties.PointLightInnerRadius;
-            light.pointLightOuterAngle = properties.PointLightOuterAngle;
-            light.pointLightInnerAngle = properties.PointLightInnerAngle;
+            ItemRegistryPatches.ApplyLightProperties(light, properties);
 
             if (lightItem == null) return;
             lightItem.light = light;
