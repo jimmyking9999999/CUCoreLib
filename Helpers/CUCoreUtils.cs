@@ -514,6 +514,16 @@ namespace CUCoreLib.Helpers
             return ItemRegistry.TryGetCustomInfo(id, out info);
         }
 
+        /// <summary>
+        /// Converts a vanilla item definition to <see cref="CustomItemInfo"/> so CUCoreLib-only fields can be configured.
+        /// </summary>
+        /// <param name="info">The item definition to convert. May be <c>null</c>.</param>
+        /// <returns>The original definition when it is already custom; otherwise a shallow custom copy.</returns>
+        public static CustomItemInfo ToCustomItemInfo(ItemInfo info)
+        {
+            return ItemRegistry.ToCustomItemInfo(info);
+        }
+
         public static bool tryGetCustomItemInfo(string id, out CustomItemInfo info)
         {
             return TryGetCustomItemInfo(id, out info);

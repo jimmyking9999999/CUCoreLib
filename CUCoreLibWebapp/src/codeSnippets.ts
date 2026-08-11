@@ -1653,6 +1653,13 @@ private void Awake()
     CUCoreUtils.SetWornSprite("glassworks.apron", alternateWorn);
     bool isModded = CUCoreUtils.IsModdedItem("glassworks.someitem");
 
+    // Start with vanilla stats, then set CUCoreLib-only fields before registration.
+    CustomItemInfo customInfo = CUCoreUtils.ToCustomItemInfo(new ItemInfo
+    {
+        fullName = "Custom glass"
+    });
+    customInfo.WornSprite = alternateWorn;
+
     // Vanilla item definition edits are deferred until the game creates its item table.
     CUCoreUtils.EditVanillaItem("flimsyknife", info =>
     {

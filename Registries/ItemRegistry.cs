@@ -824,7 +824,13 @@ namespace CUCoreLib.Registries
             InjectSingleItem(info.ID, info, replaceExisting);
         }
 
-        private static CustomItemInfo ToCustomItemInfo(ItemInfo info)
+        /// <summary>
+        /// Returns a <see cref="CustomItemInfo"/> view of an item definition.
+        /// Existing custom definitions are returned unchanged; vanilla <see cref="ItemInfo"/> instances are shallow-copied.
+        /// </summary>
+        /// <param name="info">The item definition to convert. May be <c>null</c>.</param>
+        /// <returns>A custom item definition containing the source's public fields, or an empty definition for <c>null</c>.</returns>
+        public static CustomItemInfo ToCustomItemInfo(ItemInfo info)
         {
             if (info is CustomItemInfo customInfo) return customInfo;
 

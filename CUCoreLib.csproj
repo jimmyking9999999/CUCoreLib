@@ -146,10 +146,6 @@
             <HintPath>$(GameManagedDir)\UnityEngine.InputLegacyModule.dll</HintPath>
             <Private>False</Private>
         </Reference>
-        <Reference Include="UnityEngine.PlayablesModule">
-            <HintPath>$(GameManagedDir)\UnityEngine.PlayablesModule.dll</HintPath>
-            <Private>False</Private>
-        </Reference>
         <Reference Include="UnityEngine.InputModule">
             <HintPath>$(GameManagedDir)\UnityEngine.InputModule.dll</HintPath>
             <Private>False</Private>
