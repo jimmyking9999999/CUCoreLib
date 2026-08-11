@@ -163,6 +163,10 @@ namespace CUCoreLib.Registries
             // Store or replace the registry entry, apply defaults and inject into runtime tables.
             var replacingExisting = RegisteredItems.ContainsKey(id);
             RegisteredItems[id] = info;
+            
+            if (replacingExisting)
+                CustomInstantiate.ClearTemplateCache(id);
+            
             TryRun(() => ItemOwners.Assign(id, ContentReloadSession.ResolveAmbientOwnerId()));
 
             TryRun(() => DropPoolRegistry.RegisterItem(id, info));
