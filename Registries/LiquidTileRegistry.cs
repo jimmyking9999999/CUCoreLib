@@ -587,12 +587,12 @@ namespace CUCoreLib.Registries
             WorldByteToTileId[4] = "oil";
             WorldByteToTileId[5] = "sap";
             WorldByteToTileId[6] = "dirtywater";
-            FluidManager.WorldFluidToLiquidID[1] = "water";
-            FluidManager.WorldFluidToLiquidID[2] = "groundwater";
-            FluidManager.WorldFluidToLiquidID[3] = "lumalgae";
-            FluidManager.WorldFluidToLiquidID[4] = "oil";
-            FluidManager.WorldFluidToLiquidID[5] = "sap";
-            FluidManager.WorldFluidToLiquidID[6] = "dirtywater";
+            FluidManager.WorldFluidToLiquidID[0] = "water";
+            FluidManager.WorldFluidToLiquidID[1] = "groundwater";
+            FluidManager.WorldFluidToLiquidID[2] = "lumalgae";
+            FluidManager.WorldFluidToLiquidID[3] = "oil";
+            FluidManager.WorldFluidToLiquidID[4] = "sap";
+            FluidManager.WorldFluidToLiquidID[5] = "dirtywater";
         }
 
         private static void EnsureFluidMappings()
@@ -638,8 +638,11 @@ namespace CUCoreLib.Registries
                 return 0;
 
             var requestedByte = info.ExistingVisualLiquidByte <= 0 ? (byte)1 : info.ExistingVisualLiquidByte;
-            if (requestedByte >= FirstCustomWorldByte && TryGetTileInfo(requestedByte, out var chainedInfo) && chainedInfo != null)
-                requestedByte = chainedInfo.ExistingVisualLiquidByte <= 0 ? (byte)1 : chainedInfo.ExistingVisualLiquidByte;
+            if (requestedByte >= FirstCustomWorldByte && TryGetTileInfo(requestedByte, out var chainedInfo) &&
+                chainedInfo != null)
+                requestedByte = chainedInfo.ExistingVisualLiquidByte <= 0
+                    ? (byte)1
+                    : chainedInfo.ExistingVisualLiquidByte;
 
             var prefabIndex = Mathf.Clamp(requestedByte - 1, 0, manager.LiquidParticlePrefabs.Count - 1);
             return prefabIndex;
@@ -686,7 +689,8 @@ namespace CUCoreLib.Registries
         private static Color ResolveDisplayColor(byte worldByte, CustomLiquidTileInfo info)
         {
             var baseColor = Color.white;
-            if (!string.IsNullOrWhiteSpace(info.LiquidId) && Liquids.Registry.TryGetValue(info.LiquidId, out var liquid))
+            if (!string.IsNullOrWhiteSpace(info.LiquidId) &&
+                Liquids.Registry.TryGetValue(info.LiquidId, out var liquid))
                 baseColor = liquid.color;
 
             return new Color(
@@ -750,9 +754,9 @@ namespace CUCoreLib.Registries
             if (fluid == null) return;
 
             for (var x = 0; x < fluid.GetLength(0); x++)
-                for (var y = 0; y < fluid.GetLength(1); y++)
-                    if (IsCustomWorldByte(fluid[x, y]))
-                        fluid[x, y] = 0;
+            for (var y = 0; y < fluid.GetLength(1); y++)
+                if (IsCustomWorldByte(fluid[x, y]))
+                    fluid[x, y] = 0;
         }
 
         private static void WarnUnknownLogicalLiquid(string tileId, string liquidId, string field)

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using CUCoreLib.Data;
 using CUCoreLib.Patches;
@@ -18,6 +18,13 @@ namespace CUCoreLib.Helpers
 
         // Shared buffer avoids per-shape allocations (physics)
         private static readonly List<Vector2> SharedPhysicsShapeBuffer = new List<Vector2>();
+
+        internal static void ClearTemplateCache(string id)
+        {
+            if (string.IsNullOrWhiteSpace(id)) return;
+            id = SpawnIdHelpers.NormalizeSpawnId(id);
+            _templateCache.Remove(id);
+        }
 
         public static GameObject InstantiateReturn(string id, Vector3 position, Quaternion rotation,
             float? condition = null)
@@ -182,9 +189,11 @@ namespace CUCoreLib.Helpers
 
             // Preserve current collider settings
             var existingCollider = obj.GetComponent<Collider2D>();
-            if (TryApplyPolygonCollider(obj, sprite, existingCollider, trimmedCollider)) return;
-
-            ApplyBoxCollider(obj, existingCollider, trimmedCollider);
+            
+            // For some reason the first time items are spawned existingCollider gives us the incorrect collider data
+            // sloppiest fix ever but without this items just dont have collision on first spawn
+            if (TryApplyPolygonCollider(obj, sprite, null, trimmedCollider)) return;
+            ApplyBoxCollider(obj, null, trimmedCollider);
         }
 
         private static bool TryApplyPolygonCollider(GameObject obj, Sprite sprite, Collider2D existingCollider,
