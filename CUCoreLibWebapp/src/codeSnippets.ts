@@ -924,8 +924,7 @@ using CUCoreLib.Helpers;
 using CUCoreLib.Registries;
 using UnityEngine;
 
-private const ushort GalenaTileIndex = 36;
-private const ushort AuricTileIndex = 37;
+private static string galenaTileId;
 private const string LeadToxicityKey = "leadToxicity";
 
 private void RegisterTiles()
@@ -939,9 +938,8 @@ private void RegisterTiles()
         value = 45
     }, AssetLoader.LoadEmbeddedSprite("Images.auricfragment.png", 8f));
 
-    TileRegistry.Register(AuricTileIndex, new CustomTileDefinition
+    TileRegistry.Register("auric", new CustomTileDefinition
     {
-        ID = "auric",
         Name = "Auric",
         Sprite = AssetLoader.LoadEmbeddedSprite("Images.auric.png", 8f),
         Health = 777f,
@@ -958,16 +956,15 @@ private void RegisterTiles()
         }
     });
     
-    TileRegistry.Register(GalenaTileIndex, new CustomTileDefinition
+    galenaTileId = TileRegistry.Register("galena", new CustomTileDefinition
     {
-    ID = "galena",
-    Name = "Galena",
-    // Technically a description field can be set, but tiles will never use the description in-game
-    Sprite = AssetLoader.LoadEmbeddedSprite("Images.galena.png", 8f),
-    Health = 300f,
-    HitSound = "rock",
-    StepSound = "Gravel",
-    SleepQuality = Body.SleepQuality.Mediocre,
+        Name = "Galena",
+        // Technically a description field can be set, but tiles will never use the description in-game
+        Sprite = AssetLoader.LoadEmbeddedSprite("Images.galena.png", 8f),
+        Health = 300f,
+        HitSound = "rock",
+        StepSound = "Gravel",
+        SleepQuality = Body.SleepQuality.Mediocre,
         Metallic = false,
         SpawnAmount = 0.5f,
         SpawnLayers = TileRegistry.AllLayersExcept(1, 3),
@@ -986,7 +983,8 @@ private static class GalenaLeadToxicityPatch
     {
 
         ushort block = WorldGeneration.world.GetBlock(__instance.transform.position);
-        if (!TileRegistry.TryGetCustomData<float>(block, LeadToxicityKey, out float leadToxicity)) return;
+        if (!TileRegistry.TryGetDefinition(block, out CustomTileDefinition tile) || tile.ID != galenaTileId) return;
+        if (!TileRegistry.TryGetCustomData<float>(galenaTileId, LeadToxicityKey, out float leadToxicity)) return;
 
         __instance.sicknessAmount += leadToxicity * Time.deltaTime * 0.1f;
     }
@@ -2157,15 +2155,7 @@ private static void ConfigureBodyFormula(Body body)
     CCLBody.MaxEncumberance += 1.5f;
     CCLBody.BloodPressure -= 10f;
 }
-
-[StatusOptions(Key = "com.yourname.sunstroke", SaveEnabled = true)]
-public sealed class SunstrokeStatus : BodyStatus
-{
-    public float ExposureSeconds;
-    public float CoolingGraceSeconds;
-    public bool WarnedPlayer;
-}
-
+    
 [HarmonyPatch(typeof(Body), "Update")]
 public static class BodyUpdateStatusPatch
 {

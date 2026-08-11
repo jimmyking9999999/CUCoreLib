@@ -2,7 +2,7 @@
   "version": "1.0",
   "library": "CUCoreLib",
   "description": "Machine-readable CUCoreLib web docs generated from the interactive docs sources.",
-  "generatedAt": "2026-08-11T00:08:17.405Z",
+  "generatedAt": "2026-08-11T01:57:23.232Z",
   "baseUrl": "/",
   "topics": [
     {
@@ -181,7 +181,7 @@
       "label": "Tiles",
       "crumb": "World",
       "title": "Tile API",
-      "lead": "Register terrain tiles with stable block indices, vanilla block behavior, and normal world or Tilemap placement.",
+      "lead": "Register terrain tiles with stable names, vanilla block behavior, and normal world or Tilemap placement.",
       "appUrl": "/docs/tiles/",
       "machineUrl": "/api/topics/tiles.json"
     },

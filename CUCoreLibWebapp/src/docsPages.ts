@@ -153,7 +153,7 @@ export const pages: Page[] = [
     label: "Tiles",
     crumb: "World",
     title: "Tile API",
-    lead: "Register terrain tiles with stable block indices, vanilla block behavior, and normal world or Tilemap placement."
+    lead: "Register terrain tiles with stable names, vanilla block behavior, and normal world or Tilemap placement."
   },
   {
     id: "traps",
@@ -549,8 +549,7 @@ function multiBlockStructuresPage(): string {
   return `
     <section class="lesson-card">
       <h2>What this API is for</h2>
-      <p><span class="inline-code">StructureRegistry</span> is for authored multi-block structures exported from the CU Structure Editor / More Structures webapp as v2 JSON. This is not a replacement for <span class="inline-code">BuildingEntityRegistry</span>; it is the bigger worldgen-oriented sibling for whole prefabs made of many blocks, liquids, items, and placed world objects.</p>
-      <p>CUCoreLib v1 optimizes for deterministic world generation. It parses the JSON once, compiles the structure once, caches the result, and reuses that compiled payload during world generation instead of reparsing the file every placement.</p>
+      <p><span class="inline-code">StructureRegistry</span> is for authored multi-block structures exported from the CU Structure Editor / More Structures webapp as v2 JSON. This won't work to replace <span class="inline-code">BuildingEntityRegistry</span>, designed for structures instead.</p>
     </section>
 
     <section class="lesson-card">
@@ -573,27 +572,6 @@ StructureRegistry.RegisterFromFile(
     "crashsite",
     Path.Combine(Paths.PluginPath, "MyMod", "Structures", "crashsite.json"));</code></pre>
       <p>The structure ID is the stable runtime key. The exported JSON keeps ownership of the actual block/object/item layout and the default five-depth <span class="inline-code">spawnCounts</span> values.</p>
-    </section>
-
-    <section class="lesson-card">
-      <h2>Imported fields</h2>
-      <div class="table-wrap">
-        <table class="field-table">
-          <thead>
-            <tr><th>Payload field</th><th>Status in v1</th><th>Notes</th></tr>
-          </thead>
-          <tbody>
-            <tr><td><span class="inline-code">layers</span></td><td>Supported</td><td>Visible foreground and background layers are composed once during import.</td></tr>
-            <tr><td><span class="inline-code">objectsByCell</span></td><td>Supported</td><td>Object markers are flattened onto the visible foreground layer and spawned during placement.</td></tr>
-            <tr><td><span class="inline-code">itemsByCell</span></td><td>Supported</td><td>Only deterministic single-entry item assignments are accepted in v1.</td></tr>
-            <tr><td><span class="inline-code">customPropertiesByCell</span></td><td>Supported</td><td>Imported for item/object placements and simple runtime overrides like condition or health.</td></tr>
-            <tr><td><span class="inline-code">precisePlacements</span></td><td>Supported</td><td>Rotation, scale, flip, and per-cell offsets are compiled into the cached placement data.</td></tr>
-            <tr><td><span class="inline-code">metadata.spawnCounts</span></td><td>Supported</td><td>Used as the default per-depth worldgen counts.</td></tr>
-            <tr><td><span class="inline-code">terrainGenAreas</span></td><td>Imported, not executed</td><td>CUCoreLib keeps compatibility with the webapp payload shape, but terrain sub-generation is deferred past v1.</td></tr>
-            <tr><td><span class="inline-code">lootRules</span> / <span class="inline-code">lootPools</span></td><td>Supported</td><td>Compiled into a second-pass seeded loot-marker roll path so the static structure still stays precompiled.</td></tr>
-          </tbody>
-        </table>
-      </div>
     </section>
 
     <section class="lesson-card">
@@ -682,9 +660,8 @@ function tilesPage(): string {
     <section class="lesson-card">
       <h2>Register a terrain tile</h2>
       <p><span class="inline-code">TileRegistry.Register</span> adds a Unity <span class="inline-code">Tile</span> to every <span class="inline-code">WorldGeneration.tiles</span> palette, supplies the matching vanilla <span class="inline-code">BlockInfo</span>, and can optionally hook the tile into vanilla-style ore generation.</p>
-      <pre><code>TileRegistry.Register(36, new CustomTileDefinition
+      <pre><code>string galenaTileId = TileRegistry.Register("galena", new CustomTileDefinition
 {
-    ID = "galena",
     Name = "Galena",
     Sprite = AssetLoader.LoadEmbeddedSprite("Images.galena.png", 8f),
     Health = 300f,
@@ -696,21 +673,19 @@ function tilesPage(): string {
     GenerationStyle = TileGenerationStyle.Vein | TileGenerationStyle.Outskirt
 });</code></pre>
       <img src="images/galena-tile-ingame.png" alt="In-game screenshot of the galena tile, with its sprite and health bar." class="screenshot" scale="0.5">
-      <p>Tile indices are written into the world's block array and saves. Pick an unused index of <span class="inline-code">36</span> or higher, keep it assigned to the same tile forever, and coordinate indices with other mods you expect players to combine. CUCoreLib rejects vanilla indices and duplicate custom registrations instead of changing an existing block's meaning.</p>
+      <p>Note, CUCoreLib does this a bit differently then the base game. CUCoreLib assigns its internal block index automatically, rather then using the normal int ID system the game has.
+      <p>You may still choose to use the numeric system, but collisions with other mods are more likely :) <p>
     </section>
 
     <section class="lesson-card">
       <h2>Place the registered tile</h2>
-      <p>Registration makes the tile available; your mod still decides where it appears. For live world terrain, use <span class="inline-code">TileRegistry.SetBlock</span> or vanilla <span class="inline-code">WorldGeneration.SetBlock</span> with the registered index.</p>
+      <p>Registration makes the tile available; your mod still decides where it appears. For live world terrain, use the returned stable name with <span class="inline-code">TileRegistry.SetBlock</span>.</p>
       <pre><code>Vector2Int blockPosition = WorldGeneration.world.WorldToBlockPos(transform.position);
-TileRegistry.SetBlock(WorldGeneration.world, blockPosition, 36);
-
-// The vanilla equivalent after registration:
-WorldGeneration.world.SetBlock(blockPosition, 36);</code></pre>
-      <p>The built-in <span class="inline-code">settile</span> console command can place both vanilla and custom tile indices. Vanilla indices go straight through the game's normal <span class="inline-code">WorldGeneration.SetBlock</span> path, while custom indices still need to be registered first.</p>
+TileRegistry.SetBlock(WorldGeneration.world, blockPosition, galenaTileId);</code></pre>
+      <p>The built-in <span class="inline-code">settile</span> console command accepts a registered custom tile name such as <span class="inline-code">settile galena</span>. Vanilla tile indices still work for vanilla blocks; custom indices remain accepted for compatibility, but names are the normal custom-tile API.</p>
       <p><span class="inline-code">Tilemap.SetTile()</span> is one of the ways of adding the tile into the game. Use <span class="inline-code">TileRegistry.TryGetTile</span> to retrieve the registered <span class="inline-code">TileBase</span>, then place it into a structure or another Unity <span class="inline-code">Tilemap</span>. When the game imports that tilemap through its normal structure generation methods, it resolves the tile back to the registered block index.</p>
       <p>For now, you'll have to swap into Unity for this. (Eventually I'll have the Custom Structures webapp support it though ^^)</p>
-      <pre><code>if (TileRegistry.TryGetTile(36, out TileBase galenaTile))
+      <pre><code>if (TileRegistry.TryGetTile(galenaTileId, out TileBase galenaTile))
 {
     structureTilemap.SetTile(new Vector3Int(4, -2, 0), galenaTile);
 }</code></pre>
@@ -724,7 +699,7 @@ WorldGeneration.world.SetBlock(blockPosition, 36);</code></pre>
           <tr><th>Field</th><th>Type</th><th>Purpose</th></tr>
         </thead>
         <tbody>
-          <tr><td><span class="inline-code">ID</span></td><td><span class="inline-code">string</span></td><td>Stable locale key and default Unity tile name.</td></tr>
+          <tr><td><span class="inline-code">ID</span></td><td><span class="inline-code">string</span></td><td>Effective stable ID assigned by <span class="inline-code">Register(string, ...)</span>. Do not set it yourself; use the method's return value if you need to refer to the tile later.</td></tr>
           <tr><td><span class="inline-code">Name</span></td><td><span class="inline-code">string</span></td><td>Registered as <span class="inline-code">other.ID</span>.</td></tr>
           <tr><td><span class="inline-code">Sprite</span></td><td><span class="inline-code">Sprite</span></td><td>Required tile artwork, usually loaded through <span class="inline-code">AssetLoader</span>.</td></tr>
           <tr><td><span class="inline-code">TileName</span></td><td><span class="inline-code">string</span></td><td>Optional Unity object name. Defaults to <span class="inline-code">ID</span>.</td></tr>
@@ -753,9 +728,8 @@ WorldGeneration.world.SetBlock(blockPosition, 36);</code></pre>
       <p>Set <span class="inline-code">SpawnAmount</span> above <span class="inline-code">0f</span> and CUCoreLib will distribute the tile during <span class="inline-code">WorldGeneration.GenerateOres()</span> using the same vein-walk pattern vanilla copper uses. The value is a multiplier on copper's own spawn count, and the current run's <span class="inline-code">oreamount</span> setting still scales the density.</p>
       <p><span class="inline-code">SpawnLayers</span> uses 1-based layer numbers for mod authors. Layer 1 means the first playable layer, layer 4 means biome depth 3, and so on. Leave it alone for all layers, or use the helper masks when you want exclusions.</p>
       <p><span class="inline-code">GenerationStyle</span> is a byte flag enum with these presets: <span class="inline-code">Vein</span>, <span class="inline-code">HeavyVeins</span>, <span class="inline-code">Singular</span>, <span class="inline-code">Stripe</span>, <span class="inline-code">Inner</span>, and <span class="inline-code">Outskirt</span>. If you combine more than one, CUCoreLib splits the spawn budget across the selected presets so <span class="inline-code">SpawnAmount</span> stays predictable.</p>
-      <pre><code>TileRegistry.Register(37, new CustomTileDefinition
+      <pre><code>TileRegistry.Register("auric", new CustomTileDefinition
 {
-    ID = "auric",
     Name = "Auric",
     Sprite = AssetLoader.LoadEmbeddedSprite("Images.auric.png", 8f),
     Health = 777f,
@@ -1705,14 +1679,13 @@ ItemRegistry.Register(
     </section>
     <section class="lesson-card">
       <h2>Editing a vanilla item</h2>
-      <p>Use <span class="inline-code">CUCoreUtils.EditVanillaItem</span> when you want to alter an existing game item instead of registering a new one. Call it from your plugin's <span class="inline-code">Awake()</span>; CUCoreLib applies the edit after the game creates its item table, then reapplies it whenever that table is rebuilt.</p>
+      <p>Use <span class="inline-code">CUCoreUtils.EditVanillaItem</span> when you wish to modify an existing vanilla (or other CUCoreLib modded!) item instead.</p>
       <pre><code>CUCoreUtils.EditVanillaItem("flimsyknife", info =&gt;
 {
     info.weight = 0.15f;
     info.rec.min = 2;
     info.tags = info.tags + ",myTag";
 });</code></pre>
-      <p>You may change any <span class="inline-code">ItemInfo</span> field. After the callback, CUCoreLib refreshes the item's parsed tags and its vanilla loot category. The edit changes the shared definition, so newly spawned items use it; avoid changing a field repeatedly after items have spawned because some item-side values are cached on spawn.</p>
     </section>
     <section class="lesson-card">
       <h2>Fields</h2>
@@ -3387,12 +3360,7 @@ function assetPage(): string {
       <p><span class="inline-code">AssetLoader.LoadEmbeddedSprite</span> and <span class="inline-code">LoadEmbeddedText</span> search the calling assembly by suffix, so you can usually pass only the unique tail of the manifest resource name.</p>
       <pre><code>Sprite icon = AssetLoader.LoadEmbeddedSprite("Images.sunpear.png");
 string json = AssetLoader.LoadEmbeddedText("Data.default-loot.json");</code></pre>
-      <p>For embedded sprite-frame animations, pass frame resource names in the exact order they should play. CUCoreLib reuses the normal <span class="inline-code">RegisteredSpriteAnimation</span> cache; hot reload invalidates animations registered from the reloaded assembly with its other embedded sprite caches.</p>
-      <pre><code>AssetLoader.LoadFrameAnimationFromEmbeddedResources(
-    "my-mod.bottle-fill",
-    new[] { "Images.bottle-fill-0.png", "Images.bottle-fill-1.png", "Images.bottle-fill-2.png" },
-    pixelsPerUnit: 8f,
-    framesPerSecond: 6f);</code></pre>
+      
     </section>
     
     <section class="lesson-card">
@@ -3439,6 +3407,16 @@ if (AssetLoader.TryLoadBundleAsset("glassworks.minigames", "WireSpliceScreen", o
 {
     Logger.LogInfo("Loaded bundled screen prefab: " + screenPrefab.name);
 }</code></pre>
+    </section>
+
+    <section class="lesson-card">
+      <h2>Animations</h2>
+      <p>For embedded sprite-frame animations, pass frame resource names in the exact order they should play. CUCoreLib reuses the normal <span class="inline-code">RegisteredSpriteAnimation</span> cache; hot reload invalidates animations registered from the reloaded assembly with its other embedded sprite caches.</p>
+      <pre><code>AssetLoader.LoadFrameAnimationFromEmbeddedResources( // Loose file method is LoadFrameAnimationFromFiles
+    "my-mod.bottle-fill",
+    new[] { "Images.bottle-fill-0.png", "Images.bottle-fill-1.png", "Images.bottle-fill-2.png" },
+    pixelsPerUnit: 8f,
+    framesPerSecond: 6f);</code></pre>
     </section>
   
   `;
@@ -3491,7 +3469,7 @@ BuildingEntityRegistry.Register("centrifuge", new CustomBuildingEntityDefinition
 
     <section class="lesson-card">
       <h2>Stopping a sound</h2>
-      <p><span class="inline-code">Sound.Play()</span> returns the <span class="inline-code">AudioSource</span> it created. Keep that return value, then call <span class="inline-code">Stop()</span> on the same source when the sound should end. The game's <span class="inline-code">PlayedSound</span> component cleans up the stopped source automatically.</p>
+      <p><span class="inline-code">Sound.Play()</span> returns the <span class="inline-code">AudioSource</span> it created. Keep that return value, then call <span class="inline-code">Stop()</span> on the same source when the sound should end. Simple!</p>
       <pre><code>private AudioSource activeSound;
 
 private void StartSound()
@@ -3501,13 +3479,8 @@ private void StartSound()
 
 private void StopSound()
 {
-    if (activeSound != null)
-    {
-        activeSound.Stop();
-        activeSound = null;
-    }
+  activeSound.Stop();
 }</code></pre>
-      <p><span class="inline-code">Sound.Play()</span> uses one-shot playback. For a repeating loop, create and keep your own <span class="inline-code">AudioSource</span>, set its <span class="inline-code">clip</span> and <span class="inline-code">loop</span> fields, call <span class="inline-code">Play()</span>, then stop that source with <span class="inline-code">Stop()</span>.</p>
     </section>
 
     <details open>
@@ -3654,6 +3627,7 @@ function debugTestingPage(): string {
 
     <section class="lesson-card">
       <h2>Testing in multiplayer</h2>
+      <p>By default, the game has a limitation of one instance, making testing in multiplayer difficult. However, there is a workaround:</p>
       <ul>
         <li>In <span class="inline-code">Casualties Unknown Demo\\CasualtiesUnknown_Data\\boot.config</span>, remove the entire <span class="inline-code">forceSingleInstance: 1</span> line.</li>
         <li>Open the multiplayer mod on two instances and swap from Steam to IP hosting.</li>
@@ -3826,7 +3800,7 @@ Sprite[] frames = CUCoreUtils.SplitSpriteSheet(sheet, columns: 4, rows: 2);
 
 // frames[0] is the top-left cell; frames[7] is the bottom-right cell.
 AssetLoader.RegisterFrameAnimation("mymod.radio", frames, framesPerSecond: 8f);</code></pre>
-      <p>Cells must divide the input sprite evenly. Frames are ordered top-left to right, then down each row; invalid input returns an empty array. The generated frames keep the input sprite's pixels-per-unit and normalized pivot, and use point filtering with clamp wrapping.</p>
+      <p>Cells must divide the input sprite evenly, ordered top-left to right, then down each row (like a typewriter!).</p>
     </section>
 
   `;

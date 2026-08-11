@@ -593,7 +593,7 @@ namespace CUCoreLib.Helpers
 
         /// <summary>
         /// Loads an ordered list of embedded image resources as a registered frame animation. Frame order is exactly
-        /// the order supplied by <paramref name="frameResourcePaths"/>; missing frames are skipped.
+        /// the order supplied by <paramref name="frameResourcePaths"/>.
         /// </summary>
         public static RegisteredSpriteAnimation LoadFrameAnimationFromEmbeddedResources(string id,
             IEnumerable<string> frameResourcePaths, float pixelsPerUnit = PPU_WORLD, float framesPerSecond = 12f,

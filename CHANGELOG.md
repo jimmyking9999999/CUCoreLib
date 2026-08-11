@@ -17,7 +17,14 @@ I figured that this would be nice to have, as to easily take a look at everythin
 - Added the built-in `bug-report [description] [bool screenshot] [severity]` command. Send quick reports to your favourite (?) modders!
 - Added `CUCoreUtils.EditVanillaItem(...)` 
 - You can now have your entire mod's items in one image with `CUCoreUtils.SplitSpriteSheet(...)`, if you want that for some reason 
-- You'd be better off using ^ for animations, of which now works with LiquidMasks and 
+- You'd be better off using ^ for animations, of which now works with LiquidMasks and can be imported from embedded assets!
+- Cool missing item textures now for missing sprites, thanks @comradefoxx!
+- Spritesheet support (very basic)
+
+### Changes
+- QoL settings menu compatibility
+- Fixed ScaleWithCondition scaling towards 0.1f. Technically this is basegame, but a bit confusing to most
+- Tiles now can use alphanumeric IDs `TileRegistry.Register("auric", ... )` (o7 calamity)
 
 ### Fixes
 - KrokMP v4 support
@@ -29,12 +36,6 @@ I figured that this would be nice to have, as to easily take a look at everythin
 - `StatusMoodleDefinition` can now carry a direct sprite icon instead of requiring a pre-existing vanilla icon ID.
 - Tiles? Liquids? Why not both? Added early liquid tile support
 - Liquid registration now has an onuse field and inject field that can be used in place of the item
-
-### Changes
-- QoL settings menu compatibility
-- Fixed ScaleWithCondition scaling towards 0.1f. Technically this is basegame, but a bit confusing to most
-
-### Fixes
 - Removed the watermark, except it wasn't there in the first place and didn't even work, erm...
 - QoL Unknown-multiplayer-CUCorelib compatibility patch, may or may not work
 - Custom tile drops are no longer tied to KrokMP compatibility (yeah.)
