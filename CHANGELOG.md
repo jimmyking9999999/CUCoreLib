@@ -48,6 +48,8 @@ I figured that this would be nice to have, as to easily take a look at everythin
 - Autofills now exist for `floodfill` and `settile`
 - Documentation, bleh...
 - Moved a bunch of stuff around, really sorry for your forks if you touched the hot reload code
+- Fixed custom items spawning without box colliders for the first instance. Thanks, @Sylviebbq!
+- Sorry, germs are now present in the ground water again (fixed liquid tile wrappings). Thanks again, @Sylviebbq!
 
 ## v1.0.3
 
