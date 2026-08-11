@@ -438,7 +438,7 @@ namespace CUCoreLib.Patches
         private static Sprite GetItemSprite(string id, GameObject template)
         {
             CustomItemInfo customInfo;
-            if (ItemRegistry.TryGetCustomInfo(id, out customInfo) && customInfo.Icon != null) return customInfo.Icon;
+            if (ItemRegistry.TryGetCustomInfo(id, out customInfo)) return ItemRegistry.GetIcon(customInfo);
 
             var renderer = template != null ? template.GetComponent<SpriteRenderer>() : null;
             return renderer != null ? renderer.sprite : null;

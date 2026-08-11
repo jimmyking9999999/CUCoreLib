@@ -202,17 +202,19 @@ namespace CUCoreLib.Patches
 
         internal static Sprite GetInventorySprite(Item item, CustomItemInfo def)
         {
-            if (TryGetRuntimeIconOverride(item, out var runtimeOverride) && runtimeOverride != null)
+            if (TryGetRuntimeIconOverride(item, out var runtimeOverride) && ItemRegistry.IsValidIcon(runtimeOverride))
                 return runtimeOverride;
 
             if (def != null && !string.IsNullOrWhiteSpace(def.IconAnimationId))
             {
                 var animation = AssetLoader.GetCachedSpriteAnimation(def.IconAnimationId);
-                if (animation != null && animation.Frames != null && animation.Frames.Length > 0)
+                if (animation != null && animation.Frames != null && animation.Frames.Length > 0 &&
+                    ItemRegistry.IsValidIcon(animation.Frames[0]))
                     return animation.Frames[0];
             }
 
-            if (def != null && def.Icon != null) return def.Icon;
+            var icon = ItemRegistry.GetIcon(def);
+            if (icon != null) return icon;
 
             var sr = item != null ? item.GetComponent<SpriteRenderer>() : null;
             return sr != null ? sr.sprite : null;
@@ -521,13 +523,14 @@ namespace CUCoreLib.Patches
             if (properties.CustomRack != null) gun.customRack = properties.CustomRack;
             if (properties.CustomUnrack != null) gun.customUnrack = properties.CustomUnrack;
 
-            var baseSprite = properties.NormalSprite ?? def.Icon;
-            if (def.Icon != null)
+            var icon = ItemRegistry.GetIcon(def);
+            var baseSprite = properties.NormalSprite ?? icon;
+            if (icon != null)
             {
-                gun.normalSprite = properties.NormalSprite ?? def.Icon;
-                gun.rackedSprite = properties.RackedSprite ?? def.Icon;
-                gun.normalSpriteNoMag = properties.NormalSpriteNoMag ?? def.Icon;
-                gun.rackedSpriteNoMag = properties.RackedSpriteNoMag ?? def.Icon;
+                gun.normalSprite = properties.NormalSprite ?? icon;
+                gun.rackedSprite = properties.RackedSprite ?? icon;
+                gun.normalSpriteNoMag = properties.NormalSpriteNoMag ?? icon;
+                gun.rackedSpriteNoMag = properties.RackedSpriteNoMag ?? icon;
             }
             else
             {

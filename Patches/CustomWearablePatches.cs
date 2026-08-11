@@ -57,8 +57,9 @@ namespace CUCoreLib.Patches
 
             if (!IsWorn(item))
             {
-                if (__state && def.Icon != null)
-                    ApplySprite(item, def.Icon);
+                var icon = ItemRegistry.GetIcon(def);
+                if (__state && icon != null)
+                    ApplySprite(item, icon);
 
                 ItemRegistryPatches.ApplyCustomItemRuntime(item);
                 return;
@@ -84,9 +85,10 @@ namespace CUCoreLib.Patches
         [HarmonyPostfix]
         private static void RestoreIconAfterDropWearable(Item item)
         {
-            if (item == null || !ItemRegistry.TryGetCustomInfo(item, out var def) || def.Icon == null) return;
+            if (item == null || !ItemRegistry.TryGetCustomInfo(item, out var def)) return;
 
-            ApplySprite(item, def.Icon);
+            var icon = ItemRegistry.GetIcon(def);
+            if (icon != null) ApplySprite(item, icon);
             ItemRegistryPatches.ApplyCustomItemRuntime(item);
         }
 
@@ -137,8 +139,9 @@ namespace CUCoreLib.Patches
             if (!__state) return;
             if (item == null || !ItemRegistry.TryGetCustomInfo(item, out var def)) return;
 
-            if (def.Icon != null)
-                ApplySprite(item, def.Icon);
+            var icon = ItemRegistry.GetIcon(def);
+            if (icon != null)
+                ApplySprite(item, icon);
 
             ItemRegistryPatches.ApplyCustomItemRuntime(item);
         }

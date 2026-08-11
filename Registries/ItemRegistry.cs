@@ -17,8 +17,12 @@ namespace CUCoreLib.Registries
 {
     public static class ItemRegistry
     {
+        private const string MissingItemIconResourcePath = "Data.MissingItem.png";
+
         internal static Dictionary<string, CustomItemInfo> RegisteredItems =
             new Dictionary<string, CustomItemInfo>(StringComparer.OrdinalIgnoreCase);
+
+        private static Sprite missingItemIcon;
 
         private static readonly Dictionary<string, List<Action<ItemInfo>>> VanillaItemEdits =
             new Dictionary<string, List<Action<ItemInfo>>>(StringComparer.OrdinalIgnoreCase);
@@ -141,6 +145,7 @@ namespace CUCoreLib.Registries
             id = id.Trim();
             info.ID = id;
             info.tags = info.tags ?? string.Empty;
+            NormalizeIcon(info);
             var normalizedId = SpawnIdHelpers.NormalizeSpawnId(id);
             WarnedMissingIconIds.Remove(normalizedId);
             WarnedMissingCustomIconIds.Remove(normalizedId);
@@ -280,7 +285,7 @@ namespace CUCoreLib.Registries
                         ["capacity"] = info.capacity,
                         ["autoFill"] = info.autoFill,
                         ["defaultContents"] = NetworkSnapshotSerialization.WriteLiquidStacks(info.defaultContents),
-                        ["icon"] = NetworkSnapshotSerialization.WriteSprite(info.Icon),
+                        ["icon"] = NetworkSnapshotSerialization.WriteSprite(GetIcon(info)),
                         ["inventoryIconScale"] = info.InventoryIconScale,
                         ["wornSprite"] = NetworkSnapshotSerialization.WriteSprite(info.WornSprite),
                         ["wearableSortingOrder"] = info.WearableSortingOrder.HasValue
@@ -691,14 +696,16 @@ namespace CUCoreLib.Registries
             if (string.IsNullOrWhiteSpace(id)) return false;
 
             var normalizedId = SpawnIdHelpers.NormalizeSpawnId(id);
-            if (IgnoredMissingIconIds.Contains(normalizedId)) return false;
 
             // explicit registry icon -> cached sprite -> building definition -> prefab sprite
-            if (RegisteredItems.TryGetValue(normalizedId, out var info) && info.Icon != null)
+            if (RegisteredItems.TryGetValue(normalizedId, out var info))
             {
-                sprite = info.Icon;
+                sprite = GetIcon(info);
+                if (sprite == null) return false;
                 return true;
             }
+
+            if (IgnoredMissingIconIds.Contains(normalizedId)) return false;
 
             sprite = AssetLoader.GetCachedSprite(normalizedId);
             if (sprite != null) return true;
@@ -738,6 +745,46 @@ namespace CUCoreLib.Registries
             return false;
         }
 
+        internal static Sprite GetIcon(CustomItemInfo info)
+        {
+            if (info == null) return null;
+
+            NormalizeIcon(info);
+            return info.Icon;
+        }
+
+        private static void NormalizeIcon(CustomItemInfo info)
+        {
+            if (info == null || IsValidIcon(info.Icon)) return;
+
+            info.Icon = GetMissingItemIcon();
+        }
+
+        internal static bool IsValidIcon(Sprite sprite)
+        {
+            if (sprite == null) return false;
+
+            try
+            {
+                var texture = sprite.texture;
+                return texture != null && texture.width > 0 && texture.height > 0 &&
+                       sprite.rect.width > 0f && sprite.rect.height > 0f;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private static Sprite GetMissingItemIcon()
+        {
+            if (IsValidIcon(missingItemIcon)) return missingItemIcon;
+
+            missingItemIcon = AssetLoader.LoadEmbeddedSprite(MissingItemIconResourcePath, AssetLoader.PPU_WORLD,
+                typeof(ItemRegistry).Assembly);
+            return missingItemIcon;
+        }
+
         internal static void InjectSingleItem(string id, CustomItemInfo info, bool replaceExisting = false)
         {
             if (string.IsNullOrWhiteSpace(id) || info == null || Item.GlobalItems == null) return;
@@ -745,6 +792,7 @@ namespace CUCoreLib.Registries
 
             info.ID = id;
             info.tags = info.tags ?? string.Empty;
+            NormalizeIcon(info);
             TryRun(info.SetTags);
             if (!string.IsNullOrEmpty(info.fullName))
                 TryRun(() => info.fullName = LocaleRegistry.Get("item", id, info.fullName));
@@ -758,7 +806,7 @@ namespace CUCoreLib.Registries
 
             Item.GlobalItems[id] = info;
 
-            if (info.Icon != null) TryRun(() => AssetLoader.CacheSprite(id, info.Icon));
+            if (GetIcon(info) != null) TryRun(() => AssetLoader.CacheSprite(id, info.Icon));
             if (info.WornSprite != null) TryRun(() => AssetLoader.CacheSprite(id + "_worn", info.WornSprite));
             if (info.MultiWornSprites != null)
                 foreach (var entry in info.MultiWornSprites)
@@ -902,7 +950,7 @@ namespace CUCoreLib.Registries
 
             CUCoreLibPlugin.Log?.LogWarning(
                 "Custom item '" + normalizedId +
-                "' has no icon sprite. Runtime will fall back to the base template sprite until you assign one.");
+                "' has no valid icon sprite. Runtime will use CUCoreLib's missing-item fallback until you assign one.");
         }
 
         private static IEnumerable<FieldInfo> GetPublicInstanceFields(Type type)

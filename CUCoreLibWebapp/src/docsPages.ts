@@ -3478,7 +3478,28 @@ BuildingEntityRegistry.Register("centrifuge", new CustomBuildingEntityDefinition
     delay: 0.1f,
     position: (Vector2)transform.position,
     pitch: 1.1f
-);
+);</code></pre>
+    </section>
+
+    <section class="lesson-card">
+      <h2>Stopping a sound</h2>
+      <p><span class="inline-code">Sound.Play()</span> returns the <span class="inline-code">AudioSource</span> it created. Keep that return value, then call <span class="inline-code">Stop()</span> on the same source when the sound should end. The game's <span class="inline-code">PlayedSound</span> component cleans up the stopped source automatically.</p>
+      <pre><code>private AudioSource activeSound;
+
+private void StartSound()
+{
+    activeSound = Sound.Play("machineHum", transform.position);
+}
+
+private void StopSound()
+{
+    if (activeSound != null)
+    {
+        activeSound.Stop();
+        activeSound = null;
+    }
+}</code></pre>
+      <p><span class="inline-code">Sound.Play()</span> uses one-shot playback. For a repeating loop, create and keep your own <span class="inline-code">AudioSource</span>, set its <span class="inline-code">clip</span> and <span class="inline-code">loop</span> fields, call <span class="inline-code">Play()</span>, then stop that source with <span class="inline-code">Stop()</span>.</p>
     </section>
 
     <details open>

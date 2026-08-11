@@ -302,6 +302,7 @@
         <Compile Include="Helpers\FileLoader.cs"/>
     </ItemGroup>
     <ItemGroup>
+        <EmbeddedResource Include="Data\MissingItem.png" />
         <None Include="Helpers\app.config"/>
         <None Include="packages.config"/>
     </ItemGroup>

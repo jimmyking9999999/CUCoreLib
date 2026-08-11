@@ -149,10 +149,11 @@ namespace CUCoreLib.Helpers
             if (waterContainer != null) waterContainer.fillSprite = info.LiquidMask;
 
             var sr = obj.GetComponent<SpriteRenderer>();
-            if (sr && info.Icon != null)
+            var icon = ItemRegistry.GetIcon(info);
+            if (sr && icon != null)
             {
-                sr.sprite = info.Icon;
-                ApplySpriteCollision(obj, info.Icon);
+                sr.sprite = icon;
+                ApplySpriteCollision(obj, icon);
             }
 
             if (item == null) return obj;
