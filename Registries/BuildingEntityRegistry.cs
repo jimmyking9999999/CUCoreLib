@@ -101,6 +101,14 @@ namespace CUCoreLib.Registries
             return TryGetDefinition(id, out definition);
         }
 
+        public static bool TryGetOwnerModGuid(string id, out string modGuid)
+        {
+            modGuid = null;
+            if (string.IsNullOrWhiteSpace(id)) return false;
+            return DefinitionOwners.TryGetOwner(SpawnIdHelpers.NormalizeSpawnId(id), out modGuid) &&
+                   !string.IsNullOrWhiteSpace(modGuid);
+        }
+
         public static bool TryGetPrefab(string id, out GameObject prefab)
         {
             prefab = GetOrCreatePrefab(id);

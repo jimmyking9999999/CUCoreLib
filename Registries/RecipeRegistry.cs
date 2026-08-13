@@ -59,6 +59,14 @@ namespace CUCoreLib.Registries
             return RecipeOwners.BeginScope(ownerId);
         }
 
+        public static bool TryGetOwnerModGuid(Recipe recipe, out string modGuid)
+        {
+            modGuid = null;
+            if (recipe == null) return false;
+            return RecipeOwners.TryGetOwner(BuildRecipeKey(recipe), out modGuid) &&
+                   !string.IsNullOrWhiteSpace(modGuid);
+        }
+
         internal static string BuildRecipeKey(Recipe recipe)
         {
             if (recipe?.result == null) return string.Empty;

@@ -64,6 +64,11 @@ namespace CUCoreLib.Registries.Infrastructure
                    string.Equals(registeredOwnerId, normalizedOwnerId, StringComparison.OrdinalIgnoreCase);
         }
 
+        internal bool TryGetOwner(TKey key, out string ownerId)
+        {
+            return ownerByKey.TryGetValue(key, out ownerId);
+        }
+
         internal void Remove(TKey key)
         {
             if (!ownerByKey.TryGetValue(key, out var ownerId)) return;

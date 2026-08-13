@@ -10,7 +10,10 @@ I figured that this would be nice to have, as to easily take a look at everythin
 ## v1.0.4
 
 ### New Stuff!
-- Added `GunProperties`. Super basic fields for now, might think about custom stuff later down the line
+- The good part about making a library mod is that whenever I want a new feature for one of my other mods, I can share it with the rest of the world :)
+- Well, you can, too. It's open source!
+- Potentially related, added `TryGetOwnerModGuid` queries to the item, liquid, building, tile, and recipe registries
+- Not related, added `GunProperties`. Super basic fields for now, might think about custom stuff later down the line
 - Custom liquids can set `unobtainable = true` to exclude themselves from random minibarrel contents.
 - Added `AssetLoader.LoadFrameAnimationFromEmbeddedResources(...)` for ordered embedded sprite-frame animations, with hot-reload cache invalidation.
 - Added `CustomItemInfo.LiquidMaskAnimationId` so container fill masks can use registered sprite animations while `LiquidMask` remains supported for static masks.
@@ -147,7 +150,7 @@ I figured that this would be nice to have, as to easily take a look at everythin
 - Improved webapp, added sitemap
 - V4.0.0.0 mp compatibility
 - DestroyAtZeroCondition fixes
-- We recovered the changelogs from within the great time catastrophe! Yay!
+- Recovered the changelogs from the great time catastrophe! Not so great now, huh?
 
 ## v1.0
 - Release!

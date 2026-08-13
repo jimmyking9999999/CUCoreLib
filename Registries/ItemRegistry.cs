@@ -193,6 +193,15 @@ namespace CUCoreLib.Registries
             return RegisteredItems.Keys.ToArray();
         }
 
+        public static bool TryGetOwnerModGuid(string id, out string modGuid)
+        {
+            modGuid = null;
+            if (string.IsNullOrWhiteSpace(id)) return false;
+
+            var normalizedId = SpawnIdHelpers.NormalizeSpawnId(id);
+            return ItemOwners.TryGetOwner(normalizedId, out modGuid) && !string.IsNullOrWhiteSpace(modGuid);
+        }
+
         internal static IEnumerable<string> GetRegisteredItemIdsForOwner(string ownerId)
         {
             if (string.IsNullOrWhiteSpace(ownerId)) return Array.Empty<string>();

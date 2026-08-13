@@ -83,6 +83,13 @@ namespace CUCoreLib.Registries
             return LiquidOwners.BeginScope(ownerId);
         }
 
+        public static bool TryGetOwnerModGuid(string id, out string modGuid)
+        {
+            modGuid = null;
+            if (string.IsNullOrWhiteSpace(id)) return false;
+            return LiquidOwners.TryGetOwner(id.Trim(), out modGuid) && !string.IsNullOrWhiteSpace(modGuid);
+        }
+
         internal static int InjectRegisteredLiquids(bool logSummary = false)
         {
             var injected = 0;

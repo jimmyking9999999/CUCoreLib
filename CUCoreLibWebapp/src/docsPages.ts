@@ -1599,6 +1599,7 @@ function itemPage(): string {
 
     <section class="lesson-card">
       <h2>ItemRegistry.Register</h2>
+      <p>Use the read-only <span class="inline-code">TryGetOwnerModGuid</span> queries on <span class="inline-code">ItemRegistry</span>, <span class="inline-code">LiquidRegistry</span>, <span class="inline-code">BuildingEntityRegistry</span>, <span class="inline-code">TileRegistry</span>, and <span class="inline-code">RecipeRegistry</span> when a tool or UI needs to identify the CUCoreLib-owning plugin. Resolve the returned GUID through BepInEx metadata for the mod's full display name; the query returns false for vanilla or otherwise unowned content.</p>
       <p>CUCoreLib's item API wraps the game's normal <span class="inline-code">ItemInfo</span>. Give the item a stable lowercase ID, fill the vanilla stat block, then pass a sprite loaded through <span class="inline-code">AssetLoader</span>.</p>
       <p>The item ID is the value that recipes, console spawning, save/load fallback, and locale lookup will use. Changing it later is a breaking change for saves and dependent recipes.</p>
       <pre><code>Sprite sunpearSprite = AssetLoader.LoadEmbeddedSprite("Images.sunpear.png");

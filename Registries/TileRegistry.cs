@@ -28,6 +28,9 @@ namespace CUCoreLib.Registries
         private static readonly Dictionary<string, ushort> RegisteredDefinitionIds =
             new Dictionary<string, ushort>(StringComparer.OrdinalIgnoreCase);
 
+        private static readonly RegistrationOwnershipIndex<ushort> DefinitionOwners =
+            new RegistrationOwnershipIndex<ushort>();
+
         private static readonly Dictionary<ushort, AudioClip> ResolvedHitSounds =
             new Dictionary<ushort, AudioClip>();
 
@@ -137,6 +140,7 @@ namespace CUCoreLib.Registries
 
             RegisteredDefinitions.Add(tileIndex, definition);
             RegisteredDefinitionIds[definition.ID] = tileIndex;
+            DefinitionOwners.Assign(tileIndex, ContentReloadSession.ResolveAmbientOwnerId());
             RegisteredTiles.Add(tileIndex, CreateTile(definition));
 
             if (!string.IsNullOrEmpty(definition.Name))
@@ -193,6 +197,18 @@ namespace CUCoreLib.Registries
         public static bool TryGetDefinition(ushort tileIndex, out CustomTileDefinition definition)
         {
             return RegisteredDefinitions.TryGetValue(tileIndex, out definition);
+        }
+
+        public static bool TryGetOwnerModGuid(ushort tileIndex, out string modGuid)
+        {
+            modGuid = null;
+            return DefinitionOwners.TryGetOwner(tileIndex, out modGuid) && !string.IsNullOrWhiteSpace(modGuid);
+        }
+
+        public static bool TryGetOwnerModGuid(string id, out string modGuid)
+        {
+            modGuid = null;
+            return TryGetIndex(id, out var tileIndex) && TryGetOwnerModGuid(tileIndex, out modGuid);
         }
 
         public static bool TryGetDefinition(string id, out CustomTileDefinition definition)
@@ -454,6 +470,7 @@ namespace CUCoreLib.Registries
             if (!RegisteredDefinitions.TryGetValue(tileIndex, out var definition)) return;
 
             RegisteredDefinitions.Remove(tileIndex);
+            DefinitionOwners.Remove(tileIndex);
             RegisteredTiles.Remove(tileIndex);
             ResolvedHitSounds.Remove(tileIndex);
             if (definition != null && !string.IsNullOrWhiteSpace(definition.ID))
