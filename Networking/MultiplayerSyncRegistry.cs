@@ -1,9 +1,11 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using CUCoreLib.ContentReload;
 using CUCoreLib.Helpers;
 using CUCoreLib.Registries;
 using Newtonsoft.Json.Linq;
+using UnityEngine;
 
 namespace CUCoreLib.Networking
 {
@@ -14,7 +16,9 @@ namespace CUCoreLib.Networking
         internal const string EventKind = "event";
 
         private const string SnapshotChannel = "cucorelib.sync.snapshot";
+        private const string PlayerStatusSnapshotChannel = "cucorelib.sync.statuses.player";
         private const string SnapshotModuleKey = "modules";
+        private const float PlayerStatusSyncSeconds = 1f;
 
         private static readonly Dictionary<string, Func<JObject>> CaptureModules =
             new Dictionary<string, Func<JObject>>(StringComparer.Ordinal);
@@ -28,6 +32,7 @@ namespace CUCoreLib.Networking
         private static JObject _cachedSnapshot;
         private static bool _retryScheduled;
         private static bool _hostSnapshotBroadcastQueued;
+        private static bool _playerStatusSyncScheduled;
 
         public static void RegisterModule(string key, Func<JObject> capture, Action<JObject> apply = null)
         {
@@ -137,12 +142,17 @@ namespace CUCoreLib.Networking
             RegisterModule("buildings", CaptureBuildingManifest, BuildingEntityRegistry.ApplyNetworkSnapshot);
             RegisterModule("liquidtiles", LiquidTileRegistry.CaptureNetworkSnapshot,
                 LiquidTileRegistry.ApplyNetworkSnapshot);
-            RegisterModule("statuses", StatusRegistry.CaptureNetworkSnapshot, StatusRegistry.ApplyNetworkSnapshot);
             RegisterModule("moodles", MoodleRegistry.CaptureNetworkSnapshot, MoodleRegistry.ApplyNetworkSnapshot);
             RegisterModule("settings", ModOptionsRegistry.CaptureNetworkSnapshot,
                 ModOptionsRegistry.ApplyNetworkSnapshot);
 
             MultiplayerBridge.RegisterServerHandler(SnapshotChannel, _ => CaptureSnapshot());
+            MultiplayerBridge.RegisterServerHandler(PlayerStatusSnapshotChannel, (senderClientId, _) =>
+            {
+                return MultiplayerApi.TryGetBodyFromClientId(senderClientId, out var body)
+                    ? StatusRegistry.CaptureBodyNetworkSnapshot(body)
+                    : new JObject();
+            });
             MultiplayerBridge.RegisterClientHandler(SnapshotChannel, payload =>
             {
                 if (payload is JObject snapshotObject) ApplySnapshot(snapshotObject);
@@ -158,6 +168,7 @@ namespace CUCoreLib.Networking
                 () => MultiplayerBridge.IsAvailable && MultiplayerBridge.IsClient,
                 RequestInitialSnapshot,
                 1f);
+            SchedulePlayerStatusSync();
         }
 
         public static void RequestInitialSnapshot()
@@ -172,6 +183,33 @@ namespace CUCoreLib.Networking
                 {
                     if (snapshot is JObject snapshotObject) ApplySnapshot(snapshotObject);
                 });
+        }
+
+        private static void SchedulePlayerStatusSync()
+        {
+            if (_playerStatusSyncScheduled) return;
+
+            _playerStatusSyncScheduled = true;
+            CUCoreUtils.CallWhen(
+                () => MultiplayerBridge.IsAvailable && MultiplayerBridge.IsClient && CUCoreUtils.IsInWorld(),
+                () => CUCoreUtils.StartCoroutine(SyncLocalPlayerStatuses()),
+                1f);
+        }
+
+        private static IEnumerator SyncLocalPlayerStatuses()
+        {
+            // KrokMP has no status-changed event, so each client refreshes only its own authoritative body.
+            while (MultiplayerBridge.IsAvailable && MultiplayerBridge.IsClient && CUCoreUtils.IsInWorld())
+            {
+                MultiplayerBridge.RequestServer(PlayerStatusSnapshotChannel, null, payload =>
+                {
+                    if (payload is JObject snapshot) StatusRegistry.ApplyNetworkSnapshot(snapshot);
+                });
+                yield return new WaitForSeconds(PlayerStatusSyncSeconds);
+            }
+
+            _playerStatusSyncScheduled = false;
+            SchedulePlayerStatusSync();
         }
 
         public static bool BroadcastSnapshot(bool includeHost = false)

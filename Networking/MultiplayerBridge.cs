@@ -43,6 +43,9 @@ namespace CUCoreLib.Networking
         private static readonly Dictionary<string, Func<JToken, JToken>> ServerHandlers =
             new Dictionary<string, Func<JToken, JToken>>(StringComparer.Ordinal);
 
+        private static readonly Dictionary<string, Func<uint, JToken, JToken>> ServerHandlersWithSender =
+            new Dictionary<string, Func<uint, JToken, JToken>>(StringComparer.Ordinal);
+
         private static readonly Dictionary<string, Action<JToken>> ClientHandlers =
             new Dictionary<string, Action<JToken>>(StringComparer.Ordinal);
 
@@ -198,6 +201,12 @@ namespace CUCoreLib.Networking
             if (!string.IsNullOrWhiteSpace(channel) && handler != null) ServerHandlers[channel.Trim()] = handler;
         }
 
+        internal static void RegisterServerHandler(string channel, Func<uint, JToken, JToken> handler)
+        {
+            if (!string.IsNullOrWhiteSpace(channel) && handler != null)
+                ServerHandlersWithSender[channel.Trim()] = handler;
+        }
+
         public static void RegisterClientHandler(string channel, Action<JToken> handler)
         {
             if (!string.IsNullOrWhiteSpace(channel) && handler != null) ClientHandlers[channel.Trim()] = handler;
@@ -214,7 +223,9 @@ namespace CUCoreLib.Networking
             var requestId = Guid.NewGuid().ToString("N");
             if (onResponse != null) PendingResponses[requestId] = onResponse;
 
-            return SendMessage(RequestMessageId, channel, "request", payload, reliable, requestId, 0u, null);
+            var sent = SendMessage(RequestMessageId, channel, "request", payload, reliable, requestId, 0u, null);
+            if (!sent) PendingResponses.Remove(requestId);
+            return sent;
         }
 
         public static bool SendToClient(uint clientId, string channel, object payload = null, bool reliable = true)
@@ -238,14 +249,14 @@ namespace CUCoreLib.Networking
             return payload is JToken token ? token : JToken.FromObject(payload);
         }
 
-        internal static void HandleServerMessageObject(uint senderClientId, object reader)
+        internal static void HandleServerMessageObject(object senderClientId, object reader)
         {
-            HandleEnvelope(senderClientId, reader, true);
+            HandleEnvelope(ConvertClientIdToUInt(senderClientId), reader, true);
         }
 
-        internal static void HandleClientMessageObject(uint senderClientId, object reader)
+        internal static void HandleClientMessageObject(object senderClientId, object reader)
         {
-            HandleEnvelope(senderClientId, reader, false);
+            HandleEnvelope(ConvertClientIdToUInt(senderClientId), reader, false);
         }
 
         private static void HandleEnvelope(uint senderClientId, object reader, bool serverSide)
@@ -271,11 +282,16 @@ namespace CUCoreLib.Networking
 
             if (serverSide)
             {
-                if (!ServerHandlers.TryGetValue(channel, out var handler)) return;
-
                 try
                 {
-                    var response = handler(payload);
+                    JToken response;
+                    if (ServerHandlersWithSender.TryGetValue(channel, out var senderHandler))
+                        response = senderHandler(senderClientId, payload);
+                    else if (ServerHandlers.TryGetValue(channel, out var handler))
+                        response = handler(payload);
+                    else
+                        return;
+
                     if (response != null && !string.IsNullOrWhiteSpace(requestId))
                         SendEnvelopeToClient(senderClientId, channel, "response", response, requestId, true);
                 }
@@ -524,12 +540,15 @@ namespace CUCoreLib.Networking
             var method = new DynamicMethod(
                 "CUCoreLib_MP_Receiver_" + helperMethod.Name,
                 typeof(void),
-                new[] { typeof(uint), readerRefType },
+                new[] { invokeParams[0].ParameterType, readerRefType },
                 typeof(MultiplayerBridge).Module,
                 true);
 
             var il = method.GetILGenerator();
             il.Emit(OpCodes.Ldarg_0);
+            var senderType = invokeParams[0].ParameterType;
+            if (senderType.IsValueType)
+                il.Emit(OpCodes.Box, senderType);
             il.Emit(OpCodes.Ldarg_1);
             il.Emit(OpCodes.Ldind_Ref);
             il.Emit(OpCodes.Call, helperMethod);
@@ -650,7 +669,11 @@ namespace CUCoreLib.Networking
             if (method == null) return null;
 
             var parameters = method.GetParameters();
-            return parameters.Length > 0 ? parameters[0].ParameterType : null;
+            return parameters.Length > 0
+                ? (parameters[0].ParameterType.IsByRef
+                    ? parameters[0].ParameterType.GetElementType()
+                    : parameters[0].ParameterType)
+                : null;
         }
 
         private static MethodInfo ResolveStringPutMethod()
@@ -720,27 +743,60 @@ namespace CUCoreLib.Networking
 
             if (actualType == expectedType) return true;
 
-            if (expectedType == typeof(IEnumerable)) return typeof(IEnumerable).IsAssignableFrom(actualType);
-
             var normalizedActual = actualType.IsByRef ? actualType.GetElementType() : actualType;
             var normalizedExpected = expectedType.IsByRef ? expectedType.GetElementType() : expectedType;
             if (normalizedActual == null || normalizedExpected == null) return false;
 
             if (normalizedActual == normalizedExpected) return true;
 
+            if (normalizedExpected == typeof(IEnumerable)) return typeof(IEnumerable).IsAssignableFrom(normalizedActual);
+
             if (normalizedExpected.IsAssignableFrom(normalizedActual)) return true;
 
-            return IsUnsignedIntegerLike(normalizedExpected) && IsUnsignedIntegerLike(normalizedActual);
+            return IsUnsignedIntegerLike(normalizedExpected) && IsClientIdType(normalizedActual);
         }
 
-        private static object ConvertClientId(uint clientId, Type targetType)
+        internal static object ConvertClientId(uint clientId, Type targetType)
         {
             var normalizedType = targetType.IsByRef ? targetType.GetElementType() : targetType;
             if (normalizedType == null || normalizedType == typeof(uint)) return clientId;
 
-            return normalizedType.IsEnum 
-                ? Enum.ToObject(normalizedType, clientId) 
-                : Convert.ChangeType(clientId, normalizedType);
+            if (normalizedType.IsEnum) return Enum.ToObject(normalizedType, clientId);
+            if (IsUnsignedIntegerLike(normalizedType)) return Convert.ChangeType(clientId, normalizedType);
+
+            var idField = normalizedType.GetField("id", BindingFlags.Public | BindingFlags.NonPublic |
+                                                        BindingFlags.Instance);
+            if (idField != null && IsUnsignedIntegerLike(idField.FieldType))
+            {
+                var value = Activator.CreateInstance(normalizedType);
+                idField.SetValue(value, Convert.ChangeType(clientId, idField.FieldType));
+                return value;
+            }
+
+            return Convert.ChangeType(clientId, normalizedType);
+        }
+
+        internal static bool IsClientIdType(Type type)
+        {
+            var normalizedType = type.IsByRef ? type.GetElementType() : type;
+            if (normalizedType == null) return false;
+            if (IsUnsignedIntegerLike(normalizedType)) return true;
+
+            var idField = normalizedType.GetField("id", BindingFlags.Public | BindingFlags.NonPublic |
+                                                        BindingFlags.Instance);
+            return idField != null && IsUnsignedIntegerLike(idField.FieldType);
+        }
+
+        private static uint ConvertClientIdToUInt(object clientId)
+        {
+            if (clientId == null) return 0u;
+            if (IsUnsignedIntegerLike(clientId.GetType())) return Convert.ToUInt32(clientId);
+
+            var idField = clientId.GetType().GetField("id", BindingFlags.Public | BindingFlags.NonPublic |
+                                                        BindingFlags.Instance);
+            return idField != null && IsUnsignedIntegerLike(idField.FieldType)
+                ? Convert.ToUInt32(idField.GetValue(clientId))
+                : 0u;
         }
 
         private static bool IsUnsignedIntegerLike(Type type)

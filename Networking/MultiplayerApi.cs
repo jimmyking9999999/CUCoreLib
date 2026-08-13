@@ -162,12 +162,13 @@ namespace CUCoreLib.Networking
             });
         }
 
-        private static bool TryGetBodyFromClientId(uint clientId, out Body body)
+        internal static bool TryGetBodyFromClientId(uint clientId, out Body body)
         {
             body = null;
             if (!TryResolveNetPlayerReflection()) return false;
 
-            var args = new object[] { clientId, null, null };
+            var clientIdType = _tryGetNetPlayerAndBodyFromClientIdMethod.GetParameters()[0].ParameterType;
+            var args = new object[] { MultiplayerBridge.ConvertClientId(clientId, clientIdType), null, null };
             var found = _tryGetNetPlayerAndBodyFromClientIdMethod.Invoke(null, args) is bool flag && flag;
             if (!found) return false;
 
@@ -191,21 +192,13 @@ namespace CUCoreLib.Networking
 
                     var parameters = method.GetParameters();
                     return parameters.Length == 3 &&
-                           IsClientIdType(parameters[0].ParameterType) &&
+                           MultiplayerBridge.IsClientIdType(parameters[0].ParameterType) &&
                            parameters[1].IsOut &&
                            parameters[2].IsOut &&
                            parameters[2].ParameterType == typeof(Body).MakeByRefType();
                 });
 
             return _tryGetNetPlayerAndBodyFromClientIdMethod != null;
-        }
-
-        private static bool IsClientIdType(Type type)
-        {
-            return type == typeof(byte) ||
-                   type == typeof(ushort) ||
-                   type == typeof(uint) ||
-                   type == typeof(ulong);
         }
 
         private static Type ResolveLoadedType(string fullName)

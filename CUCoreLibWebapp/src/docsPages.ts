@@ -762,6 +762,11 @@ float hunger = body.hunger;
       <pre><code>CCLBody.TotalEncumberance += 10f;
 CCLBody.BloodPressure = -25f;
 CCLBody.HeartRate += 15f;</code></pre>
+      <p>When a callback gives you a <span class="inline-code">Body</span> (for example, an item use action or <span class="inline-code">Body.Update</span> patch), scope the change to that body so it remains with the correct player in multiplayer:</p>
+      <pre><code>using (CCLBody.Use(body))
+{
+    CCLBody.TotalEncumberance += 10f;
+}</code></pre>
       <p>The live value still ends up on the normal vanilla field, so you keep reading <span class="inline-code">body.totalEncumberance</span>, <span class="inline-code">body.bloodPressure</span>, and so on.</p>
       <p>These fields are listed below:</p>
       </section>
@@ -1030,6 +1035,7 @@ function statusesPage(): string {
 SunstrokeStatus status = body.GetStatus&lt;SunstrokeStatus&gt;();
 
 status.ExposureSeconds += Time.deltaTime;</code></pre>
+      <p>In KrokMP, body and limb statuses synchronize back to the client that owns the body. Update the <span class="inline-code">Body</span> supplied by your callback rather than reading another player's state through <span class="inline-code">PlayerCamera.main</span>.</p>
     </section>
 
     <section class="lesson-card">
@@ -2405,7 +2411,7 @@ function multiplayerPage(): string {
     <section class="lesson-card">
       <h2>Setup for normal content</h2>
       <p>For normal CUCoreLib registries, everything is automatic. All you need is the content (mod) with stable IDs on every machine.</p>
-      <p>CUCoreLib registers built-in snapshot modules during startup for <span class="inline-code">items</span>, <span class="inline-code">tiles</span>, <span class="inline-code">buildings</span>, <span class="inline-code">liquids</span>, <span class="inline-code">statuses</span>, <span class="inline-code">moodles</span>, and <span class="inline-code">settings</span>.</p>
+      <p>CUCoreLib registers built-in shared snapshot modules during startup for <span class="inline-code">items</span>, <span class="inline-code">tiles</span>, <span class="inline-code">buildings</span>, <span class="inline-code">liquids</span>, <span class="inline-code">moodles</span>, and <span class="inline-code">settings</span>. Statuses synchronize separately to their owning client, so one player's effects never overwrite another's.</p>
       <p>You do not need to add dedicated multiplayer support for these.</p>
       <img src="images/mp-integration-ingame.png" alt="In-game screenshot of registered content working in multiplayer. Look, ma! No mp code." class="screenshot">
       <pre><code>ItemRegistry.Register("conicalFlask", flaskInfo, flaskSprite);
@@ -3670,6 +3676,9 @@ function utilsPage(): string {
             <tr><td><span class="inline-code">CallWhen</span></td><td><span class="inline-code">Func&lt;bool&gt; condition, Action action, float checkRepeatTimeSeconds = 0f</span></td><td>Polls until the condition is true, then runs the action.</td></tr>
             <tr><td><span class="inline-code">AwaitMainMenu</span> / <span class="inline-code">awaitMainMenu</span></td><td><span class="inline-code">float checkRepeatTimeSeconds = 0f</span></td><td>Coroutine wait helper for the main menu becoming available.</td></tr>
             <tr><td><span class="inline-code">AwaitWorldGeneration</span> / <span class="inline-code">awaitWorldGeneration</span></td><td><span class="inline-code">float checkRepeatTimeSeconds = 0f</span></td><td>Coroutine wait helper for the runtime world finishing generation.</td></tr>
+            <tr><td><span class="inline-code">OnHeal</span></td><td><span class="inline-code">event Action</span></td><td>Runs subscribers after the <span class="inline-code">heal</span> console command heals a player. In KrokMP, it runs once on the host for the affected player.</td></tr>
+            <tr><td><span class="inline-code">OnLastStand</span></td><td><span class="inline-code">event Action</span></td><td>Runs subscribers when a player successfully enters last stand. In KrokMP, it runs once on the host for the affected player.</td></tr>
+            <tr><td><span class="inline-code">EventPlayer</span></td><td><span class="inline-code">Body</span></td><td>The affected player while either event callback is running; otherwise <span class="inline-code">null</span>. <span class="inline-code">GiveItem</span> automatically gives to this player.</td></tr>
             <tr><td><span class="inline-code">IsMainMenuReady</span></td><td>None</td><td>Returns whether the game is currently at a usable main-menu state.</td></tr>
             <tr><td><span class="inline-code">IsWorldGenerationReady</span></td><td>None</td><td>Returns whether the world exists and is no longer generating.</td></tr>
           </tbody>

@@ -94,6 +94,21 @@ namespace CUCoreLib.Helpers
         private static FieldInfo KrokMpChatFocusedField;
         private static bool KrokMpChatFocusFieldResolved;
 
+        /// <summary>
+        /// Invoked after the <c>heal</c> console command heals a player.
+        /// </summary>
+        public static event Action OnHeal;
+
+        /// <summary>
+        /// Invoked when the player successfully enters last stand.
+        /// </summary>
+        public static event Action OnLastStand;
+
+        /// <summary>
+        /// The player whose event is currently invoking a CUCoreUtils player-event callback.
+        /// </summary>
+        public static Body EventPlayer { get; internal set; }
+
         // TODO allow for keybind support with FriendyKeyNames as a relay
         private static readonly Dictionary<KeyCode, string> FriendlyKeyNames = new Dictionary<KeyCode, string>
         {
@@ -120,6 +135,30 @@ namespace CUCoreLib.Helpers
             return routine == null 
                 ? null 
                 : CoroutineRunner.Instance.StartCoroutine(routine);
+        }
+
+        internal static void RaiseOnHeal(Body player = null)
+        {
+            RaisePlayerEvent(OnHeal, player);
+        }
+
+        internal static void RaiseOnLastStand(Body player = null)
+        {
+            RaisePlayerEvent(OnLastStand, player);
+        }
+
+        private static void RaisePlayerEvent(Action callback, Body player)
+        {
+            var previousPlayer = EventPlayer;
+            EventPlayer = player;
+            try
+            {
+                callback?.Invoke();
+            }
+            finally
+            {
+                EventPlayer = previousPlayer;
+            }
         }
 
         public static Coroutine StartCoroutine(Func<IEnumerator> routineFactory)
@@ -455,10 +494,8 @@ namespace CUCoreLib.Helpers
 
         public static void GiveItem(string id, int count)
         {
-            if (!IsInWorld() || string.IsNullOrWhiteSpace(id) || count <= 0) return;
-
-            var body = PlayerCamera.main.body;
-            if (body == null) return;
+            var body = EventPlayer != null ? EventPlayer : PlayerCamera.main?.body;
+            if (!IsWorldGenerationReady() || string.IsNullOrWhiteSpace(id) || count <= 0 || body == null) return;
 
             var normalizedId = id.Trim();
             for (var i = 0; i < count; i++)
@@ -472,6 +509,7 @@ namespace CUCoreLib.Helpers
                     return;
                 }
 
+                KrokMpCompatibilityPatches.EnsureItemNetworkRegistered(spawned);
                 body.AutoPickUpItem(spawnedItem);
             }
         }

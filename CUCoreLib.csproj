@@ -257,6 +257,7 @@
         <Compile Include="Patches\LiquidTileRegistryPatches.cs"/>
         <Compile Include="Patches\ModOptionsPatches.cs"/>
         <Compile Include="Patches\MoodleManagerPatches.cs"/>
+        <Compile Include="Patches\PlayerEventPatches.cs"/>
         <Compile Include="Patches\ItemLootPoolPatch.cs"/>
         <Compile Include="Patches\RecipeRegistryPatches.cs"/>
         <Compile Include="Patches\SaveSystemPatches.cs"/>

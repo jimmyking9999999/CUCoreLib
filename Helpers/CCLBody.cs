@@ -10,6 +10,30 @@ namespace CUCoreLib.Helpers
 {
     public static class CCLBody
     {
+        [ThreadStatic]
+        private static Body _scopedBody;
+
+        public static BodyScope Use(Body body)
+        {
+            return new BodyScope(body);
+        }
+
+        public struct BodyScope : IDisposable
+        {
+            private readonly Body _previousBody;
+
+            internal BodyScope(Body body)
+            {
+                _previousBody = _scopedBody;
+                _scopedBody = body;
+            }
+
+            public void Dispose()
+            {
+                _scopedBody = _previousBody;
+            }
+        }
+
         public static float BloodPressure
         {
             get => GetValue(data => data.BloodPressure);
@@ -52,7 +76,7 @@ namespace CUCoreLib.Helpers
             set
             {
                 SetValue(value, data => data.JumpSpeed);
-                BodyFormulaPatches.ApplyJumpSpeedContribution(PlayerCamera.main != null ? PlayerCamera.main.body : null);
+                BodyFormulaPatches.ApplyJumpSpeedContribution(GetBody());
             }
         }
 
@@ -92,12 +116,19 @@ namespace CUCoreLib.Helpers
 
         private static BodyFormulaData GetData()
         {
-            if (PlayerCamera.main == null || PlayerCamera.main.body == null)
+            Body body = GetBody();
+            if (body == null)
             {
                 return null;
             }
 
-            return PlayerCamera.main.body.GetBodyFormulaData();
+            return body.GetBodyFormulaData();
+        }
+
+        private static Body GetBody()
+        {
+            if (_scopedBody != null) return _scopedBody;
+            return PlayerCamera.main != null ? PlayerCamera.main.body : null;
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]

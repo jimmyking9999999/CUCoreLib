@@ -4,6 +4,7 @@ using System.Linq;
 using CUCoreLib.ContentReload;
 using CUCoreLib.Data;
 using CUCoreLib.Helpers;
+using CUCoreLib.Networking;
 using CUCoreLib.Registries;
 using HarmonyLib;
 using UnityEngine;
@@ -15,6 +16,8 @@ namespace CUCoreLib.Patches
     {
         private static readonly System.Reflection.FieldInfo RegisteredSpawnEntitiesField =
             AccessTools.Field(typeof(ConsoleScript), "registeredSpawnEntities");
+
+        private static Command healCommand;
 
         internal static void RefreshRuntimeAutofill()
         {
@@ -152,6 +155,32 @@ namespace CUCoreLib.Patches
 
             ConsoleCommandRegistry.InjectRegisteredCommands();
             RefreshRuntimeAutofill();
+            HookHealCommand();
+        }
+
+        [HarmonyPatch(typeof(ConsoleScript), "TryExecuteCommand")]
+        [HarmonyPostfix]
+        private static void NotifyMultiplayerHeal(string[] args)
+        {
+            if (args == null || args.Length == 0 || !string.Equals(args[0], "heal", StringComparison.OrdinalIgnoreCase) ||
+                !MultiplayerBridge.IsRunning || !MultiplayerBridge.IsServer || args.Length > 1) return;
+
+            PlayerEventPatches.NotifyHeal(PlayerCamera.main != null ? PlayerCamera.main.body : null);
+        }
+
+        private static void HookHealCommand()
+        {
+            var command = ConsoleScript.SearchExact("heal");
+            if (command == null || ReferenceEquals(command, healCommand)) return;
+
+            var originalAction = command.action;
+            command.action = args =>
+            {
+                originalAction?.Invoke(args);
+                if (!MultiplayerBridge.IsRunning)
+                    PlayerEventPatches.NotifyHeal(PlayerCamera.main != null ? PlayerCamera.main.body : null);
+            };
+            healCommand = command;
         }
 
         private static Dictionary<int, List<string>> BuildSpawnAutofill()

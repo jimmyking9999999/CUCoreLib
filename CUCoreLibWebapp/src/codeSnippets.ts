@@ -2158,9 +2158,12 @@ public sealed class SunstrokeStatus : BodyStatus
 
 private static void ConfigureBodyFormula(Body body)
 {
-    CCLBody.TotalEncumberance += 5f;
-    CCLBody.MaxEncumberance += 1.5f;
-    CCLBody.BloodPressure -= 10f;
+    using (CCLBody.Use(body))
+    {
+        CCLBody.TotalEncumberance += 5f;
+        CCLBody.MaxEncumberance += 1.5f;
+        CCLBody.BloodPressure -= 10f;
+    }
 }
     
 [HarmonyPatch(typeof(Body), "Update")]

@@ -19,6 +19,7 @@ I figured that this would be nice to have, as to easily take a look at everythin
 - Added `CustomItemInfo.LiquidMaskAnimationId` so container fill masks can use registered sprite animations while `LiquidMask` remains supported for static masks.
 - Added the built-in `bug-report [description] [bool screenshot] [severity]` command. Send quick reports to your favourite (?) modders!
 - Added `CUCoreUtils.EditVanillaItem(...)` 
+- Added `CUCoreUtils.OnHeal` and `CUCoreUtils.OnLastStand` callbacks, yay!
 - Added `ItemRegistry.ToCustomItemInfo(...)` and `CUCoreUtils.ToCustomItemInfo(...)` for converting vanilla item definitions
 - You can now have your entire mod's items in one image with `CUCoreUtils.SplitSpriteSheet(...)`, if you want that for some reason 
 - You'd be better off using ^ for animations, of which now works with LiquidMasks and can be imported from embedded assets!
@@ -32,6 +33,7 @@ I figured that this would be nice to have, as to easily take a look at everythin
 
 ### Fixes
 - KrokMP v4 support
+- Fixed multiplayer statuses and `CCLBody` contributions leaking from a client body onto the host player.
 - It feels kinda weird making QoL changelogs in here, but the reason that one hasn't gotten any updates is since it's tied to mpv5, (which is in its early playtest phase) and I really don't want to navigate my tangled version control to handpick the features and remove v5 support. Guuuh.
 - `LightProperties` supports local `Rotation` (light rotation), `Offset` (light offset), and `FalloffIntensity` (harshness/softness)
 - Added optional sync between `ModOptionsRegistry` settings and manually bound BepInEx config entries when they share the same namespaced ID or key suffix

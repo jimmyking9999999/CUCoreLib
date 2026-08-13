@@ -5,6 +5,7 @@ using System.Reflection.Emit;
 using System.Collections.Generic;
 using BepInEx.Bootstrap;
 using CUCoreLib.Helpers;
+using CUCoreLib.Networking;
 using CUCoreLib.Registries;
 using HarmonyLib;
 using MonoMod.RuntimeDetour;
@@ -31,6 +32,7 @@ namespace CUCoreLib.Patches
         private static Type _netObjectRegistryType;
         private static MethodInfo _getSyncInfoMethod;
         private static MethodInfo _registerGoMethod;
+        private static MethodInfo _serverEnsureItemNetworkRegisteredMethod;
         private static MethodInfo _unregisterGoMethod;
         private static MethodInfo _clientGetRequestedExistenceObjFromIdMethod;
         private static FieldInfo _netSyncIdField;
@@ -156,6 +158,26 @@ namespace CUCoreLib.Patches
             }
         }
 
+        internal static void EnsureItemNetworkRegistered(GameObject item)
+        {
+            if (item == null || !MultiplayerBridge.IsRunning || !MultiplayerBridge.IsServer) return;
+
+            try
+            {
+                if (_serverEnsureItemNetworkRegisteredMethod == null)
+                {
+                    var registryType = ResolveLoadedType(NetObjectRegistryTypeName);
+                    _serverEnsureItemNetworkRegisteredMethod = AccessTools.Method(registryType,
+                        "Server_EnsureItemIsNetworkRegistered", new[] { typeof(GameObject) });
+                }
+
+                _serverEnsureItemNetworkRegisteredMethod?.Invoke(null, new object[] { item });
+            }
+            catch
+            {
+            }
+        }
+
         private static void RefreshLiquidRegistry_AfterItemSetup()
         {
             RefreshLiquidRegistry();
@@ -201,6 +223,8 @@ namespace CUCoreLib.Patches
             _getSyncInfoMethod = AccessTools.Method(packetType, "GetSyncInfo");
             _registerGoMethod = AccessTools.Method(_netObjectRegistryType, "_RegisterGO",
                 new[] { typeof(GameObject), typeof(uint) });
+            _serverEnsureItemNetworkRegisteredMethod = AccessTools.Method(_netObjectRegistryType,
+                "Server_EnsureItemIsNetworkRegistered", new[] { typeof(GameObject) });
             _unregisterGoMethod = AccessTools.Method(_netObjectRegistryType, "_UnregisterGO", new[] { typeof(uint) });
             _clientGetRequestedExistenceObjFromIdMethod = AccessTools.Method(_netObjectRegistryType,
                 "Client_GetRequestedExistenceObjFromId", new[] { typeof(uint) });
