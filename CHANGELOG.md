@@ -7,6 +7,16 @@ I figured that this would be nice to have, as to easily take a look at everythin
 
 **Fixes** refers to bugfixes that will not or are very unlikely to break your mod
 
+## v1.0.5
+
+### New Stuff!
+- Added `CustomItemInfo.scaleConditionToward` to choose the weight to scale to. E.g. you can now have something that goes up in weight when lower condition
+
+### Changes
+- 
+### Fixes
+- 
+
 ## v1.0.4
 
 ### New Stuff!

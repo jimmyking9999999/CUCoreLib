@@ -85,14 +85,14 @@ namespace CUCoreLib.Patches
         [HarmonyPrefix]
         private static bool OverrideCustomScaledWeight(Item __instance, ref float __result)
         {
-            if (__instance == null || !ItemRegistry.TryGetCustomInfo(__instance, out _))
+            if (__instance == null || !ItemRegistry.TryGetCustomInfo(__instance, out var def))
                 return true;
 
             var stats = __instance.Stats;
             if (stats == null || !stats.scaleWeightWithCondition)
                 return true;
 
-            __result = Mathf.Max(0f, stats.weight * Mathf.Clamp01(__instance.condition));
+            __result = Mathf.Max(0f, Mathf.Lerp(def.scaleConditionToward, stats.weight, Mathf.Clamp01(__instance.condition)));
             return false;
         }
 

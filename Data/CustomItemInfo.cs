@@ -34,6 +34,11 @@ namespace CUCoreLib.Data
         public Dictionary<string, object> CustomData = new Dictionary<string, object>();
 
         /// <summary>
+        /// Weight at zero condition when <see cref="ItemInfo.scaleWeightWithCondition"/> is enabled. Defaults to <c>0f</c>.
+        /// </summary>
+        public float scaleConditionToward;
+
+        /// <summary>
         /// Local position offset applied only while the item is held in an inventory hand slot.
         /// </summary>
         public Vector2 VisualOffset;
