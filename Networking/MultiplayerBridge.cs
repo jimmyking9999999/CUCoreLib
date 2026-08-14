@@ -84,6 +84,7 @@ namespace CUCoreLib.Networking
         public static bool IsClient => GetNetBool("is_client");
         public static bool IsServer => GetNetBool("is_server");
         public static bool IsHost => GetNetBool("is_host");
+        public static bool IsConnected => GetNetBool("is_connected");
 
         internal static KrokMpSaveScope GetKrokMpSaveScope(out string directory)
         {
@@ -373,6 +374,7 @@ namespace CUCoreLib.Networking
                     return true;
                 }
 
+                if (!IsClient || !IsConnected) return false;
                 _clientSendMethod.Invoke(null, new[] { delivery, writer });
                 return true;
             }

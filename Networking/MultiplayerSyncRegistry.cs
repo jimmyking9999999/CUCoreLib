@@ -165,7 +165,8 @@ namespace CUCoreLib.Networking
 
             _initialSnapshotScheduled = true;
             CUCoreUtils.CallWhen(
-                () => MultiplayerBridge.IsAvailable && MultiplayerBridge.IsClient,
+                () => MultiplayerBridge.IsAvailable && MultiplayerBridge.IsRunning && MultiplayerBridge.IsClient &&
+                      MultiplayerBridge.IsConnected,
                 RequestInitialSnapshot,
                 1f);
             SchedulePlayerStatusSync();
@@ -173,10 +174,10 @@ namespace CUCoreLib.Networking
 
         public static void RequestInitialSnapshot()
         {
-            if (_initialSnapshotRequested || !MultiplayerBridge.IsAvailable || !MultiplayerBridge.IsClient) return;
+            if (_initialSnapshotRequested || !MultiplayerBridge.IsAvailable || !MultiplayerBridge.IsRunning ||
+                !MultiplayerBridge.IsClient || !MultiplayerBridge.IsConnected) return;
 
-            _initialSnapshotRequested = true;
-            MultiplayerBridge.RequestServer(
+            _initialSnapshotRequested = MultiplayerBridge.RequestServer(
                 SnapshotChannel,
                 null,
                 snapshot =>
@@ -191,7 +192,8 @@ namespace CUCoreLib.Networking
 
             _playerStatusSyncScheduled = true;
             CUCoreUtils.CallWhen(
-                () => MultiplayerBridge.IsAvailable && MultiplayerBridge.IsClient && CUCoreUtils.IsInWorld(),
+                () => MultiplayerBridge.IsAvailable && MultiplayerBridge.IsRunning && MultiplayerBridge.IsClient &&
+                      MultiplayerBridge.IsConnected && CUCoreUtils.IsInWorld(),
                 () => CUCoreUtils.StartCoroutine(SyncLocalPlayerStatuses()),
                 1f);
         }
@@ -199,7 +201,8 @@ namespace CUCoreLib.Networking
         private static IEnumerator SyncLocalPlayerStatuses()
         {
             // KrokMP has no status-changed event, so each client refreshes only its own authoritative body.
-            while (MultiplayerBridge.IsAvailable && MultiplayerBridge.IsClient && CUCoreUtils.IsInWorld())
+            while (MultiplayerBridge.IsAvailable && MultiplayerBridge.IsRunning && MultiplayerBridge.IsClient &&
+                   MultiplayerBridge.IsConnected && CUCoreUtils.IsInWorld())
             {
                 MultiplayerBridge.RequestServer(PlayerStatusSnapshotChannel, null, payload =>
                 {

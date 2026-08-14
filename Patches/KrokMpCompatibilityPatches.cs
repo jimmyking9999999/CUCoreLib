@@ -141,7 +141,8 @@ namespace CUCoreLib.Patches
                 var ids = new Dictionary<string, byte>(count, StringComparer.Ordinal);
                 var reverseIds = new string[count];
                 var index = 0;
-                foreach (var liquid in Liquids.Registry.OrderBy(entry => entry.Key, StringComparer.Ordinal))
+                // KrokMP assigns byte IDs in this exact enumeration order; sorting breaks legacy peers.
+                foreach (var liquid in Liquids.Registry)
                 {
                     if (index == count) break;
 
