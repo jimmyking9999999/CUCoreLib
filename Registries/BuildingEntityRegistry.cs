@@ -235,6 +235,7 @@ namespace CUCoreLib.Registries
                     ["colliderIsTrigger"] = definition.ColliderIsTrigger,
                     ["layer"] = ResolveAssignedLayer(definition),
                     ["addRigidbody2D"] = definition.AddRigidbody2D,
+                    ["damagePlayerOnImpact"] = definition.DamagePlayerOnImpact,
                     ["rigidbodyBodyType"] = (int)definition.RigidbodyBodyType,
                     ["rigidbodyGravityScale"] = definition.RigidbodyGravityScale,
                     ["health"] = definition.Health,
@@ -315,8 +316,10 @@ namespace CUCoreLib.Registries
                     ColliderIsTrigger = obj.Value<bool?>("colliderIsTrigger") ?? false,
                     Layer = obj.Value<int?>("layer"),
                     AddRigidbody2D = obj.Value<bool?>("addRigidbody2D") ?? false,
-                    RigidbodyBodyType = (RigidbodyType2D)(obj.Value<int?>("rigidbodyBodyType") ?? 0),
-                    RigidbodyGravityScale = obj.Value<float?>("rigidbodyGravityScale") ?? 0f,
+                    DamagePlayerOnImpact = obj.Value<bool?>("damagePlayerOnImpact") ?? false,
+                    RigidbodyBodyType = (RigidbodyType2D)(obj.Value<int?>("rigidbodyBodyType") ??
+                                                          (int)RigidbodyType2D.Dynamic),
+                    RigidbodyGravityScale = obj.Value<float?>("rigidbodyGravityScale") ?? 1f,
                     Health = obj.Value<float?>("health") ?? 250f,
                     RequireGround = obj.Value<bool?>("requireGround") ?? true,
                     Metallic = obj.Value<bool?>("metallic") ?? false,
@@ -548,6 +551,7 @@ namespace CUCoreLib.Registries
             var building = instance.GetComponent<BuildingEntity>();
             if (building != null)
             {
+                ApplyRigidbody2D(instance, definition);
                 ApplyBuildingFields(building, definition);
                 if (!string.IsNullOrEmpty(definition.Name))
                     building.fullName = LocaleRegistry.Get("building", id, definition.Name);
@@ -593,12 +597,7 @@ namespace CUCoreLib.Registries
 
             collider.isTrigger = definition.ColliderIsTrigger;
 
-            if (definition.AddRigidbody2D)
-            {
-                var rb = go.AddComponent<Rigidbody2D>();
-                rb.bodyType = definition.RigidbodyBodyType;
-                rb.gravityScale = definition.RigidbodyGravityScale;
-            }
+            ApplyRigidbody2D(go, definition);
 
             var building = go.AddComponent<BuildingEntity>();
             ApplyBuildingFields(building, definition);
@@ -617,6 +616,19 @@ namespace CUCoreLib.Registries
             return go;
         }
 
+        private static void ApplyRigidbody2D(GameObject instance, CustomBuildingEntityDefinition definition)
+        {
+            if (!definition.AddRigidbody2D) return;
+
+            var rb = instance.GetComponent<Rigidbody2D>() ?? instance.AddComponent<Rigidbody2D>();
+            rb.bodyType = definition.RigidbodyBodyType;
+            rb.mass = 10f;
+            rb.gravityScale = definition.RigidbodyGravityScale;
+
+            var damagingCrate = instance.GetComponent<DamagingCrate>() ?? instance.AddComponent<DamagingCrate>();
+            damagingCrate.type = definition.DamagePlayerOnImpact ? 1 : 0;
+        }
+
         private static void ApplyBuildingFields(BuildingEntity building, CustomBuildingEntityDefinition definition)
         {
             building.id = definition.ID;
@@ -625,7 +637,7 @@ namespace CUCoreLib.Registries
             building.metallic = definition.Metallic;
             building.cantHit = definition.CantHit;
             building.animal = definition.Animal;
-            building.ignoreBodyOptimize = definition.IgnoreBodyOptimize;
+            building.ignoreBodyOptimize = definition.IgnoreBodyOptimize || definition.AddRigidbody2D;
             building.dropChanceMultiplier = definition.DropChanceMultiplier;
             building.guaranteedDropAmount = 0;
             building.itemsDropOnDestroy = EmptyDrops;
@@ -722,9 +734,9 @@ namespace CUCoreLib.Registries
             if (definition == null) return null;
             if (definition.Layer.HasValue) return definition.Layer.Value;
 
-            return definition.LayerEnum.HasValue
-                ? (int?)definition.LayerEnum.Value
-                : null;
+            if (definition.LayerEnum.HasValue) return (int)definition.LayerEnum.Value;
+
+            return definition.AddRigidbody2D ? (int?)GroundLayer : null;
         }
 
         private static bool CanSpawnInLayer(CustomBuildingEntityDefinition definition, int biomeDepth)

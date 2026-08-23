@@ -1386,31 +1386,25 @@ using UnityEngine;
 
 private void LoadModAssets()
 {
-    // Embedded assets live inside the DLL.
+    // Embedded image assets
     Sprite embeddedIcon = AssetLoader.LoadEmbeddedSprite("Assets.sunpear.png");
 
-    // Frame order is the order written here. Every image must be an Embedded Resource.
+    // Embedded animations, from many images!
     AssetLoader.LoadFrameAnimationFromEmbeddedResources(
         "glassworks.bottle-fill",
         new[] { "Images.bottle-fill-0.png", "Images.bottle-fill-1.png", "Images.bottle-fill-2.png" },
         pixelsPerUnit: 8f,
         framesPerSecond: 6f);
 
-    // Loose files live next to your plugin DLL.
+    // Loose image assets
     Sprite externalIcon = AssetLoader.LoadSpriteFromPluginFolder(this, "Assets/sunpear.png");
 
-    // Cache shared sprites when multiple systems should resolve them by ID later.
+    // Cache images if needed
     AssetLoader.CacheSprite("sunpear", embeddedIcon);
 
-    // Bundle registration stays explicit in v1.
+    // Embedded/loose bundles
     AssetLoader.RegisterBundleFromPluginFolder(this, "glassworks.minigames", "Bundles/glassworks-minigames");
     AssetLoader.RegisterEmbeddedBundle("glassworks.curves", "Bundles.glassworks-curves");
-
-    // Bundled prefabs still resolve through the generic helper.
-    if (AssetLoader.TryLoadBundleAsset("glassworks.minigames", "WireSpliceScreen", out GameObject screenPrefab))
-    {
-        Logger.LogInfo("Loaded bundled prefab: " + screenPrefab.name);
-    }
 }`;
 }
 
@@ -1758,14 +1752,14 @@ public sealed class Plugin : BaseUnityPlugin
 public sealed class StormMantleScript : MonoBehaviour
 {
     private Item item;
-    private float warmthBonus = 0.25f;
+    private float warmthBonus = 2.5f;
 
     private void Awake()
     {
         item = GetComponent<Item>();
 
         if (item != null)
-            warmthBonus = ItemRegistry.GetCustomData(item, "warmthBonus", 0.25f);
+            warmthBonus = ItemRegistry.GetCustomData(item, "warmthBonus", 2.5f);
     }
 
     private void Update()
@@ -1773,12 +1767,9 @@ public sealed class StormMantleScript : MonoBehaviour
         Limb wornLimb = item != null && item.transform.parent != null
             ? item.transform.parent.GetComponent<Limb>()
             : null;
-        if (wornLimb == null) return;
-
         Body body = wornLimb.body;
-        if (body == null) return;
 
-        body.clothingTemperature += warmthBonus * Time.deltaTime;
+        body.Temperature += warmthBonus * Time.deltaTime;
     }
 }`;
 }

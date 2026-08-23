@@ -10,6 +10,8 @@ namespace CUCoreLib.Patches
     [HarmonyPatch]
     internal static class RecipeRegistryPatches
     {
+        private static int selectedRecipeRefreshCount;
+
         internal static void RefreshCraftingUi()
         {
             var camera = PlayerCamera.main;
@@ -20,8 +22,10 @@ namespace CUCoreLib.Patches
                 ? 0
                 : Mathf.Clamp(camera.selectedRecipe, 0, recipeCount - 1);
 
+            var refreshCount = selectedRecipeRefreshCount;
             camera.RefreshRecipeList();
-            camera.RefreshCurrentlySelectedRecipe();
+            if (selectedRecipeRefreshCount == refreshCount)
+                camera.RefreshCurrentlySelectedRecipe();
         }
 
         [HarmonyPatch(typeof(Recipes), "SetUpRecipes")]
@@ -39,14 +43,26 @@ namespace CUCoreLib.Patches
         {
             if (__instance?.result == null || string.IsNullOrWhiteSpace(__instance.result.id))
             {
-                __result = (null, Color.white);
+                __result = (ItemRegistry.GetMissingItemIcon(), Color.white);
                 return false;
             }
 
             if (__instance.result.isLiquid)
             {
                 LiquidRegistry.EnsureLiquidInjected(__instance.result.id);
+                if (!RecipeRegistry.IsKnownRecipeResult(__instance.result))
+                {
+                    __result = (ItemRegistry.GetMissingItemIcon(), Color.white);
+                    return false;
+                }
+
                 return true;
+            }
+
+            if (!RecipeRegistry.IsKnownRecipeResult(__instance.result))
+            {
+                __result = (ItemRegistry.GetMissingItemIcon(), Color.white);
+                return false;
             }
 
             var customSprite = AssetLoader.GetCachedSprite(__instance.result.id);
@@ -81,6 +97,13 @@ namespace CUCoreLib.Patches
                 var image = recipeBox.GetChild(2).GetComponent<Image>();
                 AssetLoader.TryApplyAnimation(image, animationId);
             }
+        }
+
+        [HarmonyPatch(typeof(PlayerCamera), "RefreshCurrentlySelectedRecipe")]
+        [HarmonyPostfix]
+        private static void TrackSelectedRecipeRefresh()
+        {
+            selectedRecipeRefreshCount++;
         }
 
         [HarmonyPatch(typeof(PlayerCamera), "RefreshCurrentlySelectedRecipe")]

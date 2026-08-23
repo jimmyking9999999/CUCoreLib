@@ -793,7 +793,7 @@ namespace CUCoreLib.Registries
             }
         }
 
-        private static Sprite GetMissingItemIcon()
+        internal static Sprite GetMissingItemIcon()
         {
             if (IsValidIcon(missingItemIcon)) return missingItemIcon;
 

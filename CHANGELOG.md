@@ -7,17 +7,30 @@ I figured that this would be nice to have, as to easily take a look at everythin
 
 **Fixes** refers to bugfixes that will not or are very unlikely to break your mod
 
+## v1.0.6
+
+### New Stuff!
+- Added `DamagePlayerOnImpact` for `AddRigidbody2D` buildingEntites
+
+### Changes
+
+### Fixes
+- Fixed `AddRigidbody2D` (t'was a layer issue)
+
+
 ## v1.0.5
 
 ### New Stuff!
 - Added `CustomItemInfo.scaleConditionToward` to choose the weight to scale to. E.g. you can now have something that goes up in weight when lower condition
 
 ### Changes
-- 
-### Fixes
-- 
+- I guess the mod's v1.0.5 now? I pushed a hotfix, but that had the v1.0.5 version. I guess the stable is v1.0.5 now and next nightly is v1.0.6 then :p
 
-## v1.0.4
+### Fixes
+- Invalid recipe item or result IDs are rejected with an error instead of breaking the crafting menu.
+- Liquid track hotfixes for client multiplayer
+
+## v1.0.4 
 
 ### New Stuff!
 - The good part about making a library mod is that whenever I want a new feature for one of my other mods, I can share it with the rest of the world :)

@@ -33,17 +33,17 @@ namespace CUCoreLib.Registries
         {
             if (recipe?.result == null || string.IsNullOrWhiteSpace(recipe.result.id))
             {
-                CUCoreLibPlugin.Log.LogError("Recipe registration failed: Result ID is missing.");
+                CUCoreLibPlugin.Log?.LogError("Recipe registration failed: Result ID is missing.");
                 return;
             }
 
             NormalizeRecipeIngredients(recipe);
-            ValidateRecipeReferences(recipe);
+            if (!ValidateRecipeReferences(recipe)) return;
 
             var key = BuildRecipeKey(recipe);
             if (!RegisteredRecipeKeys.Add(key))
             {
-                CUCoreLibPlugin.Log.LogWarning(
+                CUCoreLibPlugin.Log?.LogWarning(
                     $"Recipe registration ignored duplicate recipe for '{recipe.result.id}'.");
                 return;
             }
@@ -81,7 +81,7 @@ namespace CUCoreLib.Registries
             if (Recipes.recipes == null || recipe?.result == null) return false;
             EnsureCurrentRecipeList();
             NormalizeRecipeIngredients(recipe);
-            ValidateRecipeReferences(recipe, deferVanillaValidation: false);
+            if (!ValidateRecipeReferences(recipe, deferVanillaValidation: false)) return false;
 
             var recipeKey = BuildRecipeKey(recipe);
             if (InjectedRecipeKeys.Contains(recipeKey)) return false;
@@ -124,7 +124,7 @@ namespace CUCoreLib.Registries
                 return added;
             }
 
-            CUCoreLibPlugin.Log.LogInfo($"Recipes: Added {added} recipes.");
+            CUCoreLibPlugin.Log?.LogInfo($"Recipes: Added {added} recipes.");
 
             return added;
         }
@@ -133,7 +133,7 @@ namespace CUCoreLib.Registries
         {
             if (PendingHotReloadInjectedRecipeCount <= 0) return;
 
-            CUCoreLibPlugin.Log.LogInfo($"Recipes: Added {PendingHotReloadInjectedRecipeCount} recipes.");
+            CUCoreLibPlugin.Log?.LogInfo($"Recipes: Added {PendingHotReloadInjectedRecipeCount} recipes.");
             PendingHotReloadInjectedRecipeCount = 0;
         }
 
@@ -190,12 +190,18 @@ namespace CUCoreLib.Registries
 
         private static void NormalizeRecipeIngredients(Recipe recipe)
         {
-            if (recipe?.items == null) return;
+            if (recipe == null) return;
+
+            recipe.items = recipe.items ?? new List<RecipeItem>();
+
+            if (recipe.result != null && !string.IsNullOrWhiteSpace(recipe.result.id))
+                recipe.result.id = recipe.result.id.Trim();
 
             foreach (var item in recipe.items)
             {
                 if (item == null || string.IsNullOrWhiteSpace(item.specificId)) continue;
 
+                item.specificId = item.specificId.Trim();
                 item.specific = true;
             }
         }
@@ -207,45 +213,87 @@ namespace CUCoreLib.Registries
             InjectedRecipeKeys.Clear();
         }
 
-        private static void ValidateRecipeReferences(Recipe recipe, bool deferVanillaValidation = true)
+        internal static bool IsKnownRecipeResult(RecipeResult result)
         {
-            if (recipe?.items == null) return;
+            return result != null && TryResolveRecipeItemId(result.id, result.isLiquid, deferVanillaValidation: false);
+        }
+
+        private static bool ValidateRecipeReferences(Recipe recipe, bool deferVanillaValidation = true)
+        {
+            if (recipe?.result == null || string.IsNullOrWhiteSpace(recipe.result.id))
+            {
+                CUCoreLibPlugin.Log?.LogError("Recipe registration failed: Result ID is missing.");
+                return false;
+            }
 
             var recipeKey = BuildRecipeKey(recipe);
+            var isValid = true;
+            var resultId = recipe.result.id.Trim();
+
+            if (!TryResolveRecipeItemId(resultId, recipe.result.isLiquid, deferVanillaValidation))
+            {
+                var warningKey = BuildInvalidIngredientWarningKey(recipeKey, -1, recipe.result.isLiquid, resultId);
+                if (WarnedInvalidRecipeIngredientKeys.Add(warningKey))
+                    CUCoreLibPlugin.Log?.LogError(
+                        $"Recipe '{recipe.result.id}' was ignored because its result references unknown " +
+                        $"{(recipe.result.isLiquid ? "liquid" : "item")} '{resultId}'.");
+                isValid = false;
+            }
 
             for (var i = 0; i < recipe.items.Count; i++)
             {
                 var item = recipe.items[i];
                 if (item == null)
                 {
-                    CUCoreLibPlugin.Log?.LogWarning($"Recipe '{recipe.result.id}' has a null ingredient at index {i}.");
+                    CUCoreLibPlugin.Log?.LogError($"Recipe '{recipe.result.id}' was ignored because ingredient {i} is null.");
+                    isValid = false;
                     continue;
                 }
 
-                if (!item.specific) continue;
+                if (!item.specific)
+                {
+                    if (item.quality != null) continue;
+
+                    CUCoreLibPlugin.Log?.LogError(
+                        $"Recipe '{recipe.result.id}' was ignored because ingredient {i} has no item ID or quality.");
+                    isValid = false;
+                    continue;
+                }
+
                 if (string.IsNullOrWhiteSpace(item.specificId))
                 {
-                    CUCoreLibPlugin.Log?.LogWarning(
-                        $"Recipe '{recipe.result.id}' has a specific ingredient without a specificId at index {i}.");
+                    CUCoreLibPlugin.Log?.LogError(
+                        $"Recipe '{recipe.result.id}' was ignored because specific ingredient {i} has no item ID.");
+                    isValid = false;
                     continue;
                 }
 
                 var normalizedId = item.specificId.Trim();
                 if (TryResolveRecipeItemId(normalizedId, item.isLiquid, deferVanillaValidation)) continue;
 
+                isValid = false;
                 var warningKey = BuildInvalidIngredientWarningKey(recipeKey, i, item.isLiquid, normalizedId);
                 if (!WarnedInvalidRecipeIngredientKeys.Add(warningKey)) continue;
 
-                CUCoreLibPlugin.Log?.LogWarning(
-                    $"Recipe '{recipe.result.id}' references unknown {(item.isLiquid ? "liquid" : "item")} '{normalizedId}' at ingredient index {i}.");
+                CUCoreLibPlugin.Log?.LogError(
+                    $"Recipe '{recipe.result.id}' was ignored because ingredient {i} references unknown " +
+                    $"{(item.isLiquid ? "liquid" : "item")} '{normalizedId}'.");
             }
+
+            return isValid;
         }
 
         private static bool TryResolveRecipeItemId(string id, bool isLiquid, bool deferVanillaValidation)
         {
             if (string.IsNullOrWhiteSpace(id)) return false;
 
-            if (isLiquid) return LiquidRegistry.TryGetCustomInfo(id, out _) || Liquids.Registry.ContainsKey(id);
+            if (isLiquid)
+            {
+                if (LiquidRegistry.TryGetCustomInfo(id, out _)) return true;
+                return Liquids.Registry != null
+                    ? Liquids.Registry.ContainsKey(id)
+                    : deferVanillaValidation;
+            }
 
             if (ItemRegistry.TryGetCustomInfo(id, out _)) return true;
 

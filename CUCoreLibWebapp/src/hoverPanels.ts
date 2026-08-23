@@ -535,7 +535,7 @@ export const hoverPanels: Record<string, HoverPanel> = {
   },
   wearableIsolation: {
     title: "wearableIsolation",
-    body: "Insulation contribution from a wearable. The game uses this for body temperature behavior."
+    body: "Not misspelled, it's still spelt 'isolation' in the original code :p. Insulation contribution from a wearable. The game uses this for body temperature behavior."
   },
   wearableHitDurabilityLossMultiplier: {
     title: "wearableHitDurabilityLossMultiplier",

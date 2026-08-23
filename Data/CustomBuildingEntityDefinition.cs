@@ -88,9 +88,15 @@ namespace CUCoreLib.Data
     public sealed class CustomBuildingEntityDefinition
     {
         /// <summary>
-        /// Adds a <c>Rigidbody2D</c> to spawned instances, for custom physics behavior. Default uses vanilla rigitbody settings.
+        /// Adds a falling <c>Rigidbody2D</c> and vanilla <c>DamagingCrate</c> behavior to spawned instances.
+        /// Defaults the instance to the vanilla crate Ground layer unless <see cref="Layer"/> or <see cref="LayerEnum"/> is set.
         /// </summary>
         public bool AddRigidbody2D;
+
+        /// <summary>
+        /// Makes an added <c>Rigidbody2D</c> damage player limbs on sufficiently fast impacts, using vanilla stalactite behavior.
+        /// </summary>
+        public bool DamagePlayerOnImpact;
 
         /// <summary>
         /// Drops always spawned when the entity is destroyed, regardless of chance-based drop logic. Added to match game internal behaviour, but not really needed. Just set a drop chance to 1f.
@@ -264,14 +270,14 @@ namespace CUCoreLib.Data
         public bool RequireGround = true;
 
         /// <summary>
-        /// Body type assigned to an added <c>Rigidbody2D</c>.
+        /// Body type assigned to an added <c>Rigidbody2D</c>. Defaults to Dynamic.
         /// </summary>
-        public RigidbodyType2D RigidbodyBodyType = RigidbodyType2D.Static;
+        public RigidbodyType2D RigidbodyBodyType = RigidbodyType2D.Dynamic;
 
         /// <summary>
-        /// Gravity scale assigned to an added <c>Rigidbody2D</c>.
+        /// Gravity scale assigned to an added <c>Rigidbody2D</c>. Defaults to 1.
         /// </summary>
-        public float RigidbodyGravityScale;
+        public float RigidbodyGravityScale = 1f;
 
         /// <summary>
         /// Local scale applied to the generated object.

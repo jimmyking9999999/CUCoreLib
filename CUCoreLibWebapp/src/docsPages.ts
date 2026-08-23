@@ -396,7 +396,7 @@ function buildingEntitiesPage(): string {
             <tr><td><span class="inline-code">Sprite</span></td><td><span class="inline-code">Sprite</span></td><td>Required artwork for the custom building prefab.</td></tr>
             <tr><td><span class="inline-code">SortingOrder</span></td><td><span class="inline-code">int</span></td><td>Sprite render order. Defaults to <span class="inline-code">5</span>. Higher in front.</td></tr>
             <tr><td><span class="inline-code">Scale</span></td><td><span class="inline-code">Vector3</span></td><td>Local scale applied to the prefab root. Defaults to <span class="inline-code">Vector3.one</span>.</td></tr>
-            <tr><td><span class="inline-code">Layer</span></td><td><span class="inline-code">int?</span></td><td>Optional raw Unity layer override. Defaults to the render reference layer.</td></tr>
+            <tr><td><span class="inline-code">Layer</span></td><td><span class="inline-code">int?</span></td><td>Optional raw Unity layer override. Defaults to the render reference layer, except <span class="inline-code">AddRigidbody2D</span> uses vanilla crate Ground layer (6).</td></tr>
             <tr><td><span class="inline-code">LayerEnum</span></td><td><span class="inline-code">BuildingLayer?</span></td><td>Optional named layer helper for <span class="inline-code">Default</span>, <span class="inline-code">TransparentFix</span>, <span class="inline-code">IgnoreRaycast</span>, <span class="inline-code">Layer3</span>, <span class="inline-code">Water</span>, <span class="inline-code">UI</span>, and <span class="inline-code">Ground</span>. Used only when <span class="inline-code">Layer</span> is unset.</td></tr>
             <tr><td><span class="inline-code">RenderReferenceId</span></td><td><span class="inline-code">string</span></td><td>Resource ID used for the render reference. Defaults to <span class="inline-code">stoneplant</span>.</td></tr>
             <tr><td><span class="inline-code">Health</span></td><td><span class="inline-code">float</span></td><td>Building health. Defaults to <span class="inline-code">250f</span>.</td></tr>
@@ -526,6 +526,17 @@ function advancedBuildingEntitiesPage(): string {
     }
 });</code></pre>
     </section>
+
+    <section class="lesson-card">
+      <h2>Falling buildings</h2>
+      <p>Set <span class="inline-code">AddRigidbody2D = true</span> for a falling building. CUCoreLib adds a dynamic <span class="inline-code">Rigidbody2D</span> with mass <span class="inline-code">10f</span>, gravity scale <span class="inline-code">1f</span>, vanilla <span class="inline-code">DamagingCrate</span> behavior, and the Ground layer used by vanilla crates, so it collides with terrain and characters. Set <span class="inline-code">DamagePlayerOnImpact = true</span> to use vanilla stalactite limb damage on impacts faster than 6 units per second. Override <span class="inline-code">RigidbodyBodyType</span>, <span class="inline-code">RigidbodyGravityScale</span>, or <span class="inline-code">Layer</span> only when the default falling setup is not what you need.</p>
+      <pre><code>BuildingEntityRegistry.Register("fallingrock", new CustomBuildingEntityDefinition
+{
+    Sprite = rockSprite,
+    AddRigidbody2D = true,
+    DamagePlayerOnImpact = true
+});</code></pre>
+    </section>
     
     <section class="lesson-card">
       <h2>Keypad and lockpick minigames</h2>
@@ -554,7 +565,8 @@ function multiBlockStructuresPage(): string {
 
     <section class="lesson-card">
       <h2>Structure editor</h2>
-      <p>Author the layout in the hosted <a href="https://cu-custom-structures.jimmyking.dev/index.html" target="_blank">CU Custom Structures editor</a>, export the compact v2 JSON, then register that exported payload through <span class="inline-code">StructureRegistry</span>.</p>
+      <p>Create the structure layout in the sister webtool <a href="https://cu-custom-structures.jimmyking.dev/index.html" target="_blank">CU-Custom-Structures editor</a>, export the compact v2 JSON, then register that exported payload through <span class="inline-code">StructureRegistry</span>.</p>
+      <p>Whilst the structure editor awaits its own update, you may choose to edit the .json file by hand to include custom tiles/buildingentites/etc, which will work.<p>
       <img src="images/custom-structure-editor.png" alt="CU Custom Structures editor showing a multi-block structure authoring layout." class="screenshot">
     </section>
 
@@ -1030,12 +1042,11 @@ function statusesPage(): string {
   return `
     <section class="lesson-card">
       <h2>What statuses are for</h2>
-      <p>Use CUCoreLib statuses when your mod wants new per-instance fields on a vanilla <span class="inline-code">Body</span> or <span class="inline-code">Limb</span> without editing the game's classes. The storage is backed by <span class="inline-code">ConditionalWeakTable</span>, but the supported consumer surface is the one-line extension call <span class="inline-code">body.GetStatus&lt;TStatus&gt;()</span> or <span class="inline-code">limb.GetStatus&lt;TStatus&gt;()</span>.</p>
+      <p>Use CUCoreLib statuses when your mod wants new per-instance fields on a vanilla <span class="inline-code">Body</span> or <span class="inline-code">Limb</span> without editing the game's classes. The storage a <span class="inline-code">ConditionalWeakTable</span>, but the supported consumer surface is the one-line extension call <span class="inline-code">body.GetStatus&lt;TStatus&gt;()</span> or <span class="inline-code">limb.GetStatus&lt;TStatus&gt;()</span>.</p>
       <pre><code>Body body = PlayerCamera.main.body;
 SunstrokeStatus status = body.GetStatus&lt;SunstrokeStatus&gt;();
 
 status.ExposureSeconds += Time.deltaTime;</code></pre>
-      <p>In KrokMP, body and limb statuses synchronize back to the client that owns the body. Update the <span class="inline-code">Body</span> supplied by your callback rather than reading another player's state through <span class="inline-code">PlayerCamera.main</span>.</p>
     </section>
 
     <section class="lesson-card">
@@ -1516,7 +1527,7 @@ using CUCoreLib.Saving;</code></pre>
           </tbody>
         </table>
       </div>
-      <p>For most beginner item/recipe mods, <span class="inline-code">Helpers</span> and <span class="inline-code">Registries</span> are the important two. Avoid depending on patch classes or undocumented helper internals, because those are free to change as CUCoreLib evolves.</p>
+      <p>For most beginner item/recipe mods, <span class="inline-code">Helpers</span> and <span class="inline-code">Registries</span> are the important two.</p>
     </section>
     
   `;
@@ -1548,6 +1559,9 @@ private static void Prefix(Body __instance)
       <h2>Postfix patches</h2>
       <p>A <span class="inline-code">Postfix</span> runs after the original game method finishes. Use it when vanilla should do its normal work first and your mod only needs to react to the final state.</p>
       <p>Postfixes are usually safer for additive behavior: logging, registering extra content after vanilla setup, refreshing UI after a list rebuild, or changing a result after the original method calculated it.</p>
+      <p>Note that postfixes are not delayed by one frame. Rather, you should think of Postfixes as concatenations of the original game's functions.</p>
+      <p>For instance, if the game calculates TotalBleedAmount via a long process and you want to add your mod's own additions to the body's bleed (e.g. eels), you could add a Postfix to HandleBody(), and append TotalBleedAmount += EelBleedAmount;</p>
+      <p>This can likewise replace the entire bleed amount (e.g. if you add a mod that adds a drug that prevents bleeding), by setting TotalBleedAmount = 0;</p> 
       <pre><code>[HarmonyPostfix]
 private static void Postfix(Body __instance)
 {
@@ -1643,7 +1657,7 @@ ItemRegistry.Register(
           </thead>
           <tbody>
             <tr><td><span class="inline-code">id</span></td><td><span class="inline-code">string</span></td><td>Stable item ID, usually lowercase with no spaces. Recipes, console spawn, save/load fallback, locale keys, and sprite cache lookup use this value.</td></tr>
-            <tr><td><span class="inline-code">info</span></td><td><span class="inline-code">ItemInfo</span></td><td>The vanilla stat block. Fill fields like <span class="inline-code">fullName</span>, <span class="inline-code">description</span>, <span class="inline-code">category</span>, <span class="inline-code">weight</span>, <span class="inline-code">value</span>, <span class="inline-code">tags</span>, and use actions here.</td></tr>
+            <tr><td><span class="inline-code">info</span></td><td><span class="inline-code">ItemInfo</span> OR <span class="inline-code">CustomItemInfo</span></td><td>The stat block. Fill fields like <span class="inline-code">fullName</span>, <span class="inline-code">description</span>, <span class="inline-code">category</span>, <span class="inline-code">weight</span>, <span class="inline-code">value</span>, <span class="inline-code">tags</span>, and use actions here.</td></tr>
             <tr><td><span class="inline-code">icon</span></td><td><span class="inline-code">Sprite</span></td><td>Inventory/item icon. Load it with <span class="inline-code">AssetLoader.LoadEmbeddedSprite</span> or <span class="inline-code">LoadSpriteFromPluginFolder</span>.</td></tr>
             <tr><td><span class="inline-code">spawnFrequency</span></td><td><span class="inline-code">int</span></td><td>Optional pooled spawn weight for this item. CUCoreLib uses it for vanilla <span class="inline-code">category</span> fallback and for fixed <span class="inline-code">DropPool</span> sources. <span class="inline-code">0</span> means no pooled injection. Direct world-spawn counts use <span class="inline-code">WorldSpawnPerChunk</span>.</td></tr>
           </tbody>
@@ -1664,15 +1678,14 @@ ItemRegistry.Register(
         decayMinutes = 180f,
         rec = new Recognition(2),
 
-        // CUCoreLib-only extras live next to the vanilla fields.
+        // CUCoreLib-only extras, requiring CustomItemInfo
         SpriteScale = 1.0f,
         SpriteScaleDimensions = (14f, 14f, true),
         SpawnFrequency = 1,
         DropPool = DropPool.FoodCrate | DropPool.AllTraders,
-        CustomData =
-        {
-            ["sourceMod"] = "My First Mod"
-        }
+
+        // Etc...
+        // See the 'Fields' section for more fields you can use below!
     },
     sunpearSprite
 );</code></pre>
@@ -1680,7 +1693,7 @@ ItemRegistry.Register(
     <section class="lesson-card">
       <h2>Finding values from game code</h2>
       <p>To find values for vanilla game items, open the decompiled <span class="inline-code">Item.cs</span> file and look inside <span class="inline-code">SetupItems()</span>. The game creates its normal <span class="inline-code">ItemInfo</span> entries there.</p>
-      <p>For a larger, real game-style sample of <span class="inline-code">ItemInfo</span> and <span class="inline-code">CustomItemInfo</span> usage, view the raw file: <a href="#" data-code-source="item-setup">item-setup.cs</a>.</p>
+      <p>For a larger, real game-style sample of <span class="inline-code">ItemInfo</span> and <span class="inline-code">CustomItemInfo</span> usage, view the raw file by clicking <a href="#" data-code-source="item-setup">here!</a>.</p>
       <p>You can usually copy the <span class="inline-code">new ItemInfo { ... }</span> block from <span class="inline-code">SetupItems()</span> into your own <span class="inline-code">ItemRegistry.Register(...)</span> call 1:1, and it will work. After that, adjust the fields you want to change for your modded item.</p>
       <img src="images/decompiled-item-cs.png" alt="Decompiled Item.cs SetupItems method showing vanilla ItemInfo values." class="screenshot">
     </section>
@@ -1696,9 +1709,9 @@ ItemRegistry.Register(
     </section>
     <section class="lesson-card">
       <h2>Fields</h2>
-      <p>A field is a named value stored on an object. When you write <span class="inline-code">new ItemInfo { weight = 0.4f }</span>, you are setting the <span class="inline-code">weight</span> field on that <span class="inline-code">ItemInfo</span> instance before CUCoreLib registers it.</p>
+      <p>A field is a named value stored on an object. When you write <span class="inline-code">new ItemInfo { weight = 0.4f }</span>, you are setting the <span class="inline-code">weight</span> field on that <span class="inline-code">ItemInfo</span> instance.</p>
       <p>In the decompiled game, <span class="inline-code">Item.cs</span> builds <span class="inline-code">Item.GlobalItems</span> from <span class="inline-code">ItemInfo</span> objects. The table below is based on the decompiled <span class="inline-code">ItemInfo.cs</span> fields that those vanilla items use.</p>
-      <p>For more context, recall the <span class="inline-code">DnSpyEX</span> guide a few sections back to decompile the game.</p>
+      <p>For more context, recall the <span class="inline-code">DnSpyEX</span> guide <a href="../unity-csharp">a few sections back</a> to decompile the game.</p>
       <div class="table-wrap">
         <table class="field-table">
           <thead>
@@ -1770,7 +1783,7 @@ useLimbAction = (limb, item) =>
 </section>
     <section class="lesson-card">
       <h2>Spawning registered items</h2>
-      <p>After an item is registered, CUCoreLib can spawn it through <span class="inline-code">CustomInstantiate.InstantiateReturn</span>. This helper first checks vanilla/cached prefabs, then falls back to registered CUCoreLib items and builds a runtime item template when needed.</p>
+      <p>After an item is registered, CUCoreLib can spawn it through <span class="inline-code">CustomInstantiate.InstantiateReturn</span> via code, also returning a <span class="inline-code">GameObject</span> if needed.</p>
       <p>Use this when a console command, event, recipe side effect, or debug tool needs a real in-world <span class="inline-code">GameObject</span> for your custom item. The returned object can be inspected for its <span class="inline-code">Item</span> component, dropped into the world, or force-picked into a body slot.</p>
       <pre><code>GameObject obj = CustomInstantiate.InstantiateReturn(
     "sunpear",
@@ -1850,7 +1863,7 @@ function customItemScriptsPage(): string {
       <h2>When to use a custom item script</h2>
       <p>Use a custom item script when plain <span class="inline-code">useAction</span>, <span class="inline-code">useLimbAction</span>, <span class="inline-code">ToolProperties</span>, or wearable stats are not enough. A script is the right tool when the item needs its own runtime state, periodic logic, event-style reactions, or behavior that depends on whether it is lying in the world, held, or worn.</p>
       <p>CUCoreLib adds item scripts through <span class="inline-code">CustomItemInfo.AddSpawnComponent&lt;T&gt;()</span>. That helper stores the correct assembly-qualified type name in <span class="inline-code">SpawnComponents</span>, and CUCoreLib attaches the <span class="inline-code">MonoBehaviour</span> to each spawned item instance the first time the item appears.</p>
-      <p>If you have not read the broader custom-item surface yet, keep the <a href="/docs/advanced-item/" data-page="advanced-item">Advanced Item API</a> page open beside this one. That page covers the item fields and built-in modules; this page is specifically about the script side.</p>
+      <p>If you have not read the broader custom-item surface yet, keep the <a href="/docs/advanced-item/" data-page="advanced-item">Advanced Item API</a> page open beside this one. That page covers the item fields and built-in modules. This page is specifically about the script side.</p>
     </section>
 
     <section class="lesson-card">
@@ -1898,7 +1911,7 @@ private void Awake()
     new CustomItemInfo
     {
         fullName = "Storm Mantle",
-        description = "A lined mantle that steadies the body in cold weather.",
+        description = "A lined mantle that steadies the body in cold weather. It reminds you of electric sheep for some reason...",
         category = "tool",
         wearable = true,
         wearableCanBeHeld = true,
@@ -1956,7 +1969,7 @@ private void Awake()
         <li>For vanilla item stats such as <span class="inline-code">wearableIsolation</span> or <span class="inline-code">wearableArmor</span>, mutate <span class="inline-code">item.Stats</span>, not the <span class="inline-code">Item</span> component itself.</li>
         <li>If your script needs save data, use CUCoreLib's save/status systems. A <span class="inline-code">MonoBehaviour</span> field alone is not a save format.</li>
         <li>Use plain <span class="inline-code">useAction</span> or built-in item modules first when they already solve the problem. Scripts are for the cases that actually need runtime behavior.</li>
-        <li>To access item fields, (e.g setting item condition), use <span class="inline-code">item.Stats</span> (item.Stats.condition).</li>
+        <li>Again, to access item fields, (e.g setting item condition), use <span class="inline-code">item.Stats</span> (item.Stats.condition).</li>
       </ul>
     </section>
   `;
@@ -3232,6 +3245,7 @@ function recipePage(): string {
       <h2>RecipeRegistry.Register</h2>
       <p>CUCoreLib registers normal vanilla <span class="inline-code">Recipe</span> objects. The recipe uses the game's existing crafting visibility, ingredient matching, item consumption, and result spawning flow.</p>
       <p>Recipe visibility follows vanilla rules: if <span class="inline-code">specialKnown</span> is false, the recipe only appears when the player's INT is at least <span class="inline-code">INT - 3</span>. Keep early test recipes low, such as <span class="inline-code">INT = 10</span>, or they can look like they failed to register.</p>
+      <p>Every specific item or liquid ID, including the result ID, must exist. CUCoreLib rejects an invalid recipe and logs the exact ingredient instead of allowing it to break the crafting menu.</p>
       <pre><code>RecipeRegistry.Register(new Recipe
 {
     INT = 6,
@@ -3357,8 +3371,7 @@ function assetPage(): string {
     <section class="lesson-card">
       <h2>Embedded assets</h2>
       <p>Use embedded assets for core art, default sounds, and data that should always ship with your mod. In Visual Studio, add the file to your project and set its Build Action to <span class="inline-code">Embedded Resource</span>.</p>
-      <p>Tip: keep assets in folders such as <span class="inline-code">Images</span>, <span class="inline-code">Audio</span>, or <span class="inline-code">Data</span> so the manifest names stay predictable.</p>
-      <p>Embedded images are now auto-warmed in memory while the main menu is open, so most first-use sprite loads after that reuse the already decoded texture data. If a sprite is requested before warmup finishes, CUCoreLib still falls back to the normal synchronous load path.</p>
+      <p>If using CCL's ScavTemplate fork in <a href=../setup/>setup</a>, the <span class="inline-code">.csproj</span> will automatically embed any files in the <span class="inline-code">images</span> or <span class="inline-code">assets</span> folders.</p>
       <ul>
         <li>To embed a file, add it to your project and open its properties.</li>
         <li>Set the build action to <span class="inline-code">Embedded Resource</span>.</li>
@@ -3385,8 +3398,8 @@ Sprite icon = AssetLoader.LoadEmbeddedSprite("MyMod.Images.sunpear.png");
     <section class="lesson-card">
       <h2>Loose files</h2>
       <p>Use loose files when the asset should be user-editable, optional, or replaceable without recompiling the mod. For paths relative to your plugin DLL, use <span class="inline-code">LoadSpriteFromPluginFolder()</span>.</p>
-      <p>Main-menu warmup only covers embedded image resources in v1. Loose plugin-folder images still load on demand when you first request them.</p>
       <p>Both embedded and loose sprites are converted to Unity sprites with point filtering and clamp wrapping, which is friendly for pixel-art item sprites.</p>
+      <p>If you do not want this, <span class="inline-code">LoadSprite()</span> and its derivatives have optional overloads :)</p>
       <pre><code>Sprite icon = AssetLoader.LoadSpriteFromPluginFolder(this, "Images/sunpear.png");</code></pre>
       <p>In this example, the file would be located at <span class="inline-code">BepInEx/plugins/MyMod/Images/sunpear.png</span>.</p>
       </section>
@@ -3398,11 +3411,12 @@ Sprite icon = AssetLoader.LoadEmbeddedSprite("MyMod.Images.sunpear.png");
 AssetLoader.CacheSprite("sunpear", icon);
 
 Sprite cachedIcon = AssetLoader.GetCachedSprite("sunpear");</code></pre>
-      <p>Audio loading, caching, and playback patterns now have their own dedicated page so they are easier to find when you are wiring loops, hit sounds, or sound packs.</p>
+      <p><a href="../audio">Audio</a> loading, caching, and playback patterns have their own dedicated pages, for more info on those!</p>
+
       </section>
     <section class="lesson-card">
       <h2>AssetBundles</h2>
-      <p>AssetBundles are a more advanced way to create and load assets directly from Unity, used in CUCoreLib for animations and minigames.</p>
+      <p>AssetBundles are a more advanced way to create and load assets directly from Unity, intended for use in CUCoreLib for animations and minigames.</p>
       <p>As per usual, you can choose to either embed the assetbundle or have it as a loose file.</p>
       <pre><code>// Loose bundle next to your plugin DLL:
 AssetLoader.RegisterBundleFromPluginFolder(this, "glassworks.minigames", "Bundles/glassworks-minigames");
@@ -3410,7 +3424,7 @@ AssetLoader.RegisterBundleFromPluginFolder(this, "glassworks.minigames", "Bundle
 // Embedded bundle packed into the DLL as an Embedded Resource:
 AssetLoader.RegisterEmbeddedBundle("glassworks.default", "Bundles.glassworks-default");
 
-// Generic resolution stays available for advanced mods:
+// Generic resolution works too!
 if (AssetLoader.TryLoadBundleAsset("glassworks.minigames", "WireSpliceScreen", out GameObject screenPrefab))
 {
     Logger.LogInfo("Loaded bundled screen prefab: " + screenPrefab.name);
@@ -3418,12 +3432,11 @@ if (AssetLoader.TryLoadBundleAsset("glassworks.minigames", "WireSpliceScreen", o
     </section>
 
     <section class="lesson-card">
-      <h2>Animations</h2>
-      <p>For embedded sprite-frame animations, pass frame resource names in the exact order they should play. CUCoreLib reuses the normal <span class="inline-code">RegisteredSpriteAnimation</span> cache; hot reload invalidates animations registered from the reloaded assembly with its other embedded sprite caches.</p>
+      <h2>Animated Image Sprites</h2>
+      <p>For embedded sprite-frame animations, pass frame resource names in the exact order they should play.</p>
       <pre><code>AssetLoader.LoadFrameAnimationFromEmbeddedResources( // Loose file method is LoadFrameAnimationFromFiles
     "my-mod.bottle-fill",
     new[] { "Images.bottle-fill-0.png", "Images.bottle-fill-1.png", "Images.bottle-fill-2.png" },
-    pixelsPerUnit: 8f,
     framesPerSecond: 6f);</code></pre>
     </section>
   
@@ -3434,25 +3447,17 @@ function audioPage(): string {
   return `
     <section class="lesson-card">
       <h2>Embedded audio</h2>
-      <p>Use embedded audio when the clip is required for your mod to function: hit sounds, machine loops, voice lines, or other shipped defaults. Set the audio file's Build Action to <span class="inline-code">Embedded Resource</span>, then load it by suffix from the calling assembly.</p>
+      <p>CUCoreLib also supports audio! When you need hit sounds, machine loops, voice lines, etc, you can likewise embed or keep them as loose files besides your .dll.</p>
+      <p>To use, set the audio file's Build Action to <span class="inline-code">Embedded Resource</span>, then load it by suffix from the calling assembly.</p>
       <pre><code>AudioClip centrifugeHit = AssetLoader.LoadEmbeddedAudio("Audio.centrifuge-hit.wav");</code></pre>
-      <p><span class="inline-code">AssetLoader</span> caches embedded audio by assembly plus normalized resource path, so repeating the same load call returns the same clip instead of decoding it again.</p>
+      <p><span class="inline-code">AssetLoader</span> caches embedded audio by assembly plus normalized resource path, so repeating the same load call returns the same clip instead of decoding it again. No need to cache it seperately! ^^</p>
     </section>
 
     <section class="lesson-card">
       <h2>Loose audio files</h2>
       <p>Use loose files when players should be able to swap clips without rebuilding your DLL, such as sound packs or optional ambience. <span class="inline-code">LoadAudioFromPluginFolder()</span> resolves a path relative to your plugin DLL.</p>
       <pre><code>AudioClip loop = AssetLoader.LoadAudioFromPluginFolder(this, "Audio/centrifuge-loop.wav");</code></pre>
-      <p>The plugin-folder example points at <span class="inline-code">BepInEx/plugins/MyMod/Audio/centrifuge-loop.wav</span>. Loose file loads are cached by full file path so later calls reuse the same clip object.</p>
-    </section>
-
-    <section class="lesson-card">
-      <h2>Shared audio cache</h2>
-      <p>Please cache your audio. Loading audio every time you want to use it is inefficient.</p>
-      <p>Luckily, there is a built-in way:</p>
-      <pre><code>AudioClip embeddedLoop = AssetLoader.LoadEmbeddedAudio("Audio.centrifuge-loop.wav");
-AssetLoader.CacheAudioClip("modname.centrifuge.loop", embeddedLoop);
-AudioClip cachedLoop = AssetLoader.GetCachedAudioClip("modname.centrifuge.loop");</code></pre>
+      <p>The plugin-folder example points at <span class="inline-code">BepInEx/plugins/MyMod/Audio/centrifuge-loop.wav</span>. Loose file loads are also cached by full file path so later calls reuse the same clip object.</p>
     </section>
 
     <section class="lesson-card">
@@ -3544,15 +3549,14 @@ function consolePage(): string {
     </section>
     <section class="lesson-card">
       <h2>Built-in bug reports</h2>
-      <p>Players can send a diagnostic report to the configured Discord webhook from anywhere in the game:</p>
+      <p>Players can send a diagnostic report for any bugs with your mods from anywhere in the game!</p>
+      <p>The bug report will be posted on discord, then forwarded to the mod author (or in cases where the mod author is unreachable on discord, hosted online and sent privately via the nexusmods bug-report system) </p>
       <pre><code>bug-report
 bug-report inventory-crash
 bug-report "Inventory crashes when opened"
 bug-report inventory-crash true high</code></pre>
-      <p>The syntax is <span class="inline-code">bug-report ["description text"] [bool screenshot] [severity]</span>. All arguments are optional. Wrap a multi-word description in double quotation marks; existing one-token descriptions remain supported, and their hyphens or underscores display as spaces in Discord. Screenshots default to <span class="inline-code">false</span>, and severity defaults to <span class="inline-code">medium</span>. Valid severities are <span class="inline-code">low</span>, <span class="inline-code">medium</span>, <span class="inline-code">high</span>, and <span class="inline-code">critical</span>.</p>
-      <p>Every report includes the loaded mod list and runtime metadata. By default it also attaches the newest 1 MiB of <span class="inline-code">BepInEx/LogOutput.log</span> and the in-game console history. A screenshot is captured only when the player explicitly passes <span class="inline-code">true</span>; it captures the screen as it appears, including an open console.</p>
-      <p>CUCoreLib contains a lightly obfuscated built-in webhook destination. Bug reporting has no configuration entries: reports always include the available BepInEx and console logs, and attempts have a fixed 60-second cooldown. Logs and screenshots can contain player names, paths, chat, or other visible information, so only send them to the trusted built-in destination.</p>
-      <p>Uploads are capped, screenshots are compressed or omitted when necessary, only one report can send at a time, and Discord rate-limit or server failures receive one bounded retry.</p>
+      <p>The syntax is <span class="inline-code">bug-report ["description text"] [bool screenshot] [severity]</span>. All arguments are optional.  Valid severities are <span class="inline-code">low</span>, <span class="inline-code">medium</span>, <span class="inline-code">high</span>, and <span class="inline-code">critical</span>.</p>
+      <p>Every report includes the loaded mod list and runtime metadata. By default it also attaches the newest 1 MiB of <span class="inline-code">BepInEx/LogOutput.log</span> and the in-game console history. A screenshot is captured only when you explicitly tell the command to :). It captures the screen as it appears upon making the report.</p>
     </section>
     <details open>
       <summary>Autofill and argument descriptions</summary>
@@ -3587,8 +3591,7 @@ function debugTestingPage(): string {
   return `
     <section class="lesson-card">
       <h2>Fast mod-testing loop</h2>
-      <p>Most CUCoreLib iteration gets faster when you separate startup-only work from content registration. Keep console commands, Harmony patches, and other one-time setup in <span class="inline-code">Awake()</span>, but move reloadable content into a dedicated host class or explicit replay methods.</p>
-      <p>That split still helps, but the default hot reload mode is now more forgiving. CUCoreLib reruns broad post-marker code, blocks known startup-only APIs during reload with warnings, and only asks you to restructure when replay still cannot safely discover the content work.</p>
+      <p>Most CUCoreLib iteration gets faster when you separate startup-only work from content registration. Keep console commands, Harmony patches, and other one-time setup in <span class="inline-code">Awake()</span>, but move reloadable content into a dedicated host class or explicit replay methods and apply hot reloading.</p>
     </section>
 
     <section class="lesson-card">
@@ -3605,8 +3608,7 @@ function debugTestingPage(): string {
     FantasyGameplayHooks.PatchAll(harmony, Logger);
 }</code></pre>
       <p>Everything before <span class="inline-code">EnableHotReload(GUID)</span> is startup-only and never replayed. The marker call must use the plugin's literal GUID string constant so the scanner can verify it against <span class="inline-code">[BepInPlugin]</span>.</p>
-      <p>In the default flexible guarded mode, CUCoreLib scans calls that appear after the marker, follows local helper-to-helper chains, discovers replayable registration leaves, and suppresses known startup-only APIs such as Harmony setup during replay with a warning instead of failing the whole reload.</p>
-      <p>If you want stricter behavior, use the options overload and opt into <span class="inline-code">HotReloadMode.Strict</span>. Strict mode preserves the old fail-fast behavior for unsupported startup-only APIs.</p>
+      <p>In the default flexible guarded mode, CUCoreLib scans calls that appear after the marker, follows local helper-to-helper chains, discovers replayable registration leaves, and suppresses some startup-only APIs such as Harmony setup during replay.</p>
       ${docsVideo(externalVideoUrls.hotReload, "/videos/hot-reload.mp4", "screenshot docs-video")}
 
       <h2>Commands</h2>
@@ -3621,7 +3623,7 @@ function debugTestingPage(): string {
         <li><span class="inline-code">autohotreload &lt;modGuid&gt; false</span> disables the saved watch mode for that mod.</li>
       </ul>
       <p>By default, the hot reload source is still the deployed plugin DLL that BepInEx loaded. If Windows refuses to overwrite that file while the game is open, set <span class="inline-code">[Hot Reload]</span> -&gt; <span class="inline-code">&lt;modGuid&gt;.overridePath</span> in <span class="inline-code">CUCoreLib.cfg</span> to an alternate rebuilt DLL path such as your project's <span class="inline-code">bin\\Debug</span> output.</p>
-      <p>Watch mode polls the selected source DLL every few seconds, waits for the file hash to settle, then runs the same reload flow automatically. That means it can watch either the deployed plugin DLL or your configured override path.</p>
+      <p>Watch mode automatically polls the selected source DLL, then runs the same reload flow automatically instead of you having to run <span class="inline-code">reloadcontent</span>.</p>
 
       <h2>Automatic discovery rules</h2>
       <ul>
@@ -3634,7 +3636,7 @@ function debugTestingPage(): string {
       </section>
 
     <section class="lesson-card">
-      <h2>Testing in multiplayer</h2>
+      <h2>Testing your mod in multiplayer</h2>
       <p>By default, the game has a limitation of one instance, making testing in multiplayer difficult. However, there is a workaround:</p>
       <ul>
         <li>In <span class="inline-code">Casualties Unknown Demo\\CasualtiesUnknown_Data\\boot.config</span>, remove the entire <span class="inline-code">forceSingleInstance: 1</span> line.</li>
@@ -3660,7 +3662,6 @@ function utilsPage(): string {
     <section class="lesson-card">
       <h2>CUCoreUtils surface map</h2>
       <p>This page documents the current public surface in <span class="inline-code">Helpers/CUCoreUtils.cs</span>.</p>
-      <p>Where CUCoreLib exposes both PascalCase and camelCase names, both are listed below.</p>
     </section>
 
     <section class="lesson-card">
