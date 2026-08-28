@@ -171,10 +171,14 @@ namespace CUCoreLib.Patches
         {
             if (Item.allItems == null || Item.allItems.Count == 0) return;
 
-            var filteredIds = itemIds != null
-                ? new HashSet<string>(itemIds.Where(id => !string.IsNullOrWhiteSpace(id)).Select(id => id.Trim()),
-                    StringComparer.OrdinalIgnoreCase)
-                : null;
+            HashSet<string> filteredIds = null;
+            if (itemIds != null)
+            {
+                filteredIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                foreach (var rawId in itemIds)
+                    if (!string.IsNullOrWhiteSpace(rawId))
+                        filteredIds.Add(rawId.Trim());
+            }
 
             foreach (var item in Item.allItems.ToArray())
             {
@@ -422,7 +426,13 @@ namespace CUCoreLib.Patches
                     wat.stack = CopyLiquidStacks(def.defaultContents);
 
                 if (def.capacity > 0f)
-                    item.condition = Mathf.Clamp01(wat.stack.Sum(liquid => liquid.amount) / def.capacity);
+                {
+                    var totalAmount = 0f;
+                    for (var si = 0; si < wat.stack.Count; si++)
+                        if (wat.stack[si] != null)
+                            totalAmount += wat.stack[si].amount;
+                    item.condition = Mathf.Clamp01(totalAmount / def.capacity);
+                }
             }
 
             // Injectables (Syringes)
@@ -441,7 +451,13 @@ namespace CUCoreLib.Patches
                         wat.stack.Add(new LiquidStack(liquid.liquidId, liquid.amount));
 
                 if (def.Syringe.Capacity > 0f)
-                    item.condition = Mathf.Clamp01(wat.stack.Sum(liquid => liquid.amount) / def.Syringe.Capacity);
+                {
+                    var totalAmount = 0f;
+                    for (var si = 0; si < wat.stack.Count; si++)
+                        if (wat.stack[si] != null)
+                            totalAmount += wat.stack[si].amount;
+                    item.condition = Mathf.Clamp01(totalAmount / def.Syringe.Capacity);
+                }
             }
         }
 
@@ -484,12 +500,17 @@ namespace CUCoreLib.Patches
 
         private static SpriteRenderer FindLiquidFillRenderer(WaterContainerItem waterContainer)
         {
-            return waterContainer == null
-                ? null
-                : waterContainer.GetComponentsInChildren<SpriteRenderer>(true)
-                    .FirstOrDefault(renderer => renderer != null && renderer.transform.parent == waterContainer.transform &&
-                                                string.Equals(renderer.gameObject.name, "LiquidFill",
-                                                    StringComparison.Ordinal));
+            if (waterContainer == null) return null;
+
+            var renderers = waterContainer.GetComponentsInChildren<SpriteRenderer>(true);
+            for (var i = 0; i < renderers.Length; i++)
+            {
+                var renderer = renderers[i];
+                if (renderer != null && renderer.transform.parent == waterContainer.transform &&
+                    string.Equals(renderer.gameObject.name, "LiquidFill", StringComparison.Ordinal))
+                    return renderer;
+            }
+            return null;
         }
 
         internal static void ApplyContainerProperties(Item item, CustomItemInfo def)
@@ -515,9 +536,12 @@ namespace CUCoreLib.Patches
             var copy = new List<LiquidStack>();
             if (source == null) return copy;
 
-            copy.AddRange(from liquid in source
-                where liquid != null
-                select new LiquidStack(liquid.liquidId, liquid.amount));
+            for (var i = 0; i < source.Count; i++)
+            {
+                var liquid = source[i];
+                if (liquid != null)
+                    copy.Add(new LiquidStack(liquid.liquidId, liquid.amount));
+            }
 
             return copy;
         }
