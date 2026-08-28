@@ -41,6 +41,8 @@ namespace CUCoreLib.Registries
         private static readonly FieldInfo LiquidParticlesField =
             AccessTools.Field(typeof(FluidManager), "liquidParticles");
 
+        private static List<ParticleSystem.Particle>[] _renderParticleBuffers;
+
         private static bool _summaryLogged;
 
         static LiquidTileRegistry()
@@ -300,9 +302,18 @@ namespace CUCoreLib.Registries
             if (particles == null || particles.Count == 0) return false;
 
             var range = manager.SimulationRange();
-            var byType = new List<ParticleSystem.Particle>[particles.Count];
-            for (var i = 0; i < byType.Length; i++)
-                byType[i] = new List<ParticleSystem.Particle>();
+            if (_renderParticleBuffers == null || _renderParticleBuffers.Length != particles.Count)
+            {
+                _renderParticleBuffers = new List<ParticleSystem.Particle>[particles.Count];
+                for (var i = 0; i < _renderParticleBuffers.Length; i++)
+                    _renderParticleBuffers[i] = new List<ParticleSystem.Particle>();
+            }
+            else
+            {
+                for (var i = 0; i < _renderParticleBuffers.Length; i++)
+                    _renderParticleBuffers[i].Clear();
+            }
+            var byType = _renderParticleBuffers;
 
             for (var x = range.Item1.min; x < range.Item1.max; x++)
             {
