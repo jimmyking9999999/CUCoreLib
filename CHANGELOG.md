@@ -11,6 +11,7 @@ I figured that this would be nice to have, as to easily take a look at everythin
 
 ### New Stuff!
 - Added `DamagePlayerOnImpact` for `AddRigidbody2D` buildingEntites
+- `setbodyfield` and `setlimbfield` can now change fields on attached CUCoreLib statuses with `StatusType.Field`.
 
 ### Changes
 

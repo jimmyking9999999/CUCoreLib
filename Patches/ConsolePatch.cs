@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Linq;
+using System.Reflection;
 using CUCoreLib.ContentReload;
 using CUCoreLib.Data;
 using CUCoreLib.Helpers;
@@ -18,6 +20,8 @@ namespace CUCoreLib.Patches
             AccessTools.Field(typeof(ConsoleScript), "registeredSpawnEntities");
 
         private static Command healCommand;
+        private static Command setBodyFieldCommand;
+        private static Command setLimbFieldCommand;
 
         internal static void RefreshRuntimeAutofill()
         {
@@ -156,6 +160,7 @@ namespace CUCoreLib.Patches
             ConsoleCommandRegistry.InjectRegisteredCommands();
             RefreshRuntimeAutofill();
             HookHealCommand();
+            HookStatusFieldCommands(__instance);
         }
 
         [HarmonyPatch(typeof(ConsoleScript), "TryExecuteCommand")]
@@ -181,6 +186,104 @@ namespace CUCoreLib.Patches
                     PlayerEventPatches.NotifyHeal(PlayerCamera.main != null ? PlayerCamera.main.body : null);
             };
             healCommand = command;
+        }
+
+        private static void HookStatusFieldCommands(ConsoleScript console)
+        {
+            var bodyCommand = ConsoleScript.SearchExact("setbodyfield");
+            if (bodyCommand != null && !ReferenceEquals(bodyCommand, setBodyFieldCommand))
+            {
+                var originalAction = bodyCommand.action;
+                bodyCommand.action = args =>
+                {
+                    if (TrySetBodyStatusField(console, args)) return;
+                    originalAction?.Invoke(args);
+                };
+                setBodyFieldCommand = bodyCommand;
+            }
+
+            var limbCommand = ConsoleScript.SearchExact("setlimbfield");
+            if (limbCommand != null && !ReferenceEquals(limbCommand, setLimbFieldCommand))
+            {
+                var originalAction = limbCommand.action;
+                limbCommand.action = args =>
+                {
+                    if (TrySetLimbStatusField(console, args)) return;
+                    originalAction?.Invoke(args);
+                };
+                setLimbFieldCommand = limbCommand;
+            }
+        }
+
+        private static bool TrySetBodyStatusField(ConsoleScript console, string[] args)
+        {
+            if (args == null || args.Length < 3 || typeof(Body).GetField(args[1]) != null) return false;
+
+            var body = PlayerCamera.main != null ? PlayerCamera.main.body : null;
+            if (body == null || !TrySetStatusField(StatusRegistry.EnumerateBodyStatuses(body), args[1], args[2],
+                    out var value)) return false;
+
+            CUCoreUtils.ConsoleLog(console, "Set player body field \"" + args[1] + "\" to \"" + value + "\".");
+            return true;
+        }
+
+        private static bool TrySetLimbStatusField(ConsoleScript console, string[] args)
+        {
+            if (args == null || args.Length < 4 || typeof(Limb).GetField(args[2]) != null) return false;
+
+            var body = PlayerCamera.main != null ? PlayerCamera.main.body : null;
+            var limb = body != null ? body.LimbByName(args[1]) : null;
+            if (limb == null || !TrySetStatusField(StatusRegistry.EnumerateLimbStatuses(limb), args[2], args[3],
+                    out var value)) return false;
+
+            CUCoreUtils.ConsoleLog(console,
+                "Set \"" + limb.fullName + "\" field \"" + args[2] + "\" to \"" + value + "\".");
+            return true;
+        }
+
+        private static bool TrySetStatusField<TStatus>(IEnumerable<KeyValuePair<Type, TStatus>> statuses,
+            string fieldQuery, string rawValue, out object value) where TStatus : StatusBase
+        {
+            value = null;
+            if (statuses == null || string.IsNullOrWhiteSpace(fieldQuery)) return false;
+
+            var separator = fieldQuery.LastIndexOf('.');
+            var statusName = separator > 0 ? fieldQuery.Substring(0, separator) : null;
+            var fieldName = separator > 0 ? fieldQuery.Substring(separator + 1) : fieldQuery;
+            FieldInfo matchedField = null;
+            TStatus matchedStatus = null;
+
+            foreach (var entry in statuses)
+            {
+                if (entry.Value == null || (statusName != null && !StatusNameMatches(entry.Key, statusName))) continue;
+
+                var field = entry.Key.GetField(fieldName, BindingFlags.Instance | BindingFlags.Public);
+                if (field == null) continue;
+
+                if (matchedField != null)
+                    throw new Exception("Status field \"" + fieldQuery +
+                                        "\" is ambiguous. Use StatusType.Field to choose one.");
+
+                matchedField = field;
+                matchedStatus = entry.Value;
+            }
+
+            if (matchedField == null) return false;
+
+            value = TypeDescriptor.GetConverter(matchedField.FieldType).ConvertFromInvariantString(rawValue);
+            matchedField.SetValue(matchedStatus, value);
+            return true;
+        }
+
+        private static bool StatusNameMatches(Type statusType, string statusName)
+        {
+            if (statusType == null) return false;
+
+            if (string.Equals(statusType.Name, statusName, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(statusType.FullName, statusName, StringComparison.OrdinalIgnoreCase)) return true;
+
+            var options = statusType.GetCustomAttribute<StatusOptionsAttribute>();
+            return options != null && string.Equals(options.Key, statusName, StringComparison.OrdinalIgnoreCase);
         }
 
         private static Dictionary<int, List<string>> BuildSpawnAutofill()

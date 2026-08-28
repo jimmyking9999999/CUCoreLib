@@ -1061,6 +1061,7 @@ status.ExposureSeconds += Time.deltaTime;</code></pre>
           public bool WarnedPlayer;
       }</code></pre>
       <p>These fields are ordinary C# fields. Think of them as extra body data for your mod.</p>
+      <p>For quick testing, the vanilla <span class="inline-code">setbodyfield</span> and <span class="inline-code">setlimbfield</span> commands can set fields on statuses already attached through <span class="inline-code">GetStatus&lt;T&gt;()</span>. Use <span class="inline-code">StatusType.Field</span> to avoid collisions: <span class="inline-code">setbodyfield SunstrokeStatus.ExposureSeconds 60</span> or <span class="inline-code">setlimbfield foreleg FrostbiteStatus.ExposureSeconds 60</span>. A bare field name also works when only one attached status has it.</p>
     </section>
 
     <section class="lesson-card">
