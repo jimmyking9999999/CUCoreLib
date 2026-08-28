@@ -41,7 +41,8 @@ namespace CUCoreLib.Registries
         private static readonly FieldInfo LiquidParticlesField =
             AccessTools.Field(typeof(FluidManager), "liquidParticles");
 
-        private static List<ParticleSystem.Particle>[] _renderParticleBuffers;
+        private static ParticleSystem.Particle[][] _renderParticleBuffers;
+        private static int[] _renderParticleCounts;
 
         private static bool _summaryLogged;
 
@@ -302,18 +303,18 @@ namespace CUCoreLib.Registries
             if (particles == null || particles.Count == 0) return false;
 
             var range = manager.SimulationRange();
+
             if (_renderParticleBuffers == null || _renderParticleBuffers.Length != particles.Count)
             {
-                _renderParticleBuffers = new List<ParticleSystem.Particle>[particles.Count];
+                _renderParticleBuffers = new ParticleSystem.Particle[particles.Count][];
+                _renderParticleCounts = new int[particles.Count];
                 for (var i = 0; i < _renderParticleBuffers.Length; i++)
-                    _renderParticleBuffers[i] = new List<ParticleSystem.Particle>();
+                    _renderParticleBuffers[i] = new ParticleSystem.Particle[64];
             }
-            else
-            {
-                for (var i = 0; i < _renderParticleBuffers.Length; i++)
-                    _renderParticleBuffers[i].Clear();
-            }
+            for (var i = 0; i < _renderParticleCounts.Length; i++)
+                _renderParticleCounts[i] = 0;
             var byType = _renderParticleBuffers;
+            var counts = _renderParticleCounts;
 
             for (var x = range.Item1.min; x < range.Item1.max; x++)
             {
@@ -328,7 +329,16 @@ namespace CUCoreLib.Registries
                     var openTop = manager.GetLiquid(x, y + 1) == 0 &&
                                   (manager.GetLiquid(x + 1, y) == 0 || manager.GetLiquid(x - 1, y) == 0);
                     var color = TryGetDisplayColor(worldByte, out var customColor) ? customColor : Color.white;
-                    byType[index].Add(new ParticleSystem.Particle
+
+                    var list = byType[index];
+                    if (counts[index] >= list.Length)
+                    {
+                        var enlarged = new ParticleSystem.Particle[list.Length * 2];
+                        Array.Copy(list, enlarged, list.Length);
+                        list = enlarged;
+                        byType[index] = list;
+                    }
+                    list[counts[index]++] = new ParticleSystem.Particle
                     {
                         position = WorldGeneration.world.BlockToWorldPos(new Vector2Int(x, y)) +
                                    (openTop ? new Vector2(0f, -0.3125f) : Vector2.zero),
@@ -336,12 +346,12 @@ namespace CUCoreLib.Registries
                         remainingLifetime = 999f,
                         startColor = color,
                         startSize3D = new Vector2(1.25f, openTop ? 0.625f : 1.25f)
-                    });
+                    };
                 }
             }
 
             for (var i = 0; i < particles.Count; i++)
-                particles[i].SetParticles(byType[i].ToArray());
+                particles[i].SetParticles(byType[i], counts[i]);
 
             return true;
         }
