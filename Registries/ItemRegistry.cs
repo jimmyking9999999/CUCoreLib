@@ -64,6 +64,9 @@ namespace CUCoreLib.Registries
         private static readonly ConditionalWeakTable<Item, ItemCustomDataState> ItemCustomDataStates =
             new ConditionalWeakTable<Item, ItemCustomDataState>();
 
+        private static readonly Dictionary<Type, FieldInfo[]> PublicInstanceFieldCache =
+            new Dictionary<Type, FieldInfo[]>();
+
         public static void Register(string id, ItemInfo info, Sprite icon, int spawnFrequency = 1)
         {
             if (string.IsNullOrWhiteSpace(id))
@@ -604,7 +607,7 @@ namespace CUCoreLib.Registries
 
         private static string BuildInvalidLiquidStackWarningKey(string itemId, string sourceName, int index, string liquidId)
         {
-            return (itemId ?? string.Empty) + "|" + sourceName + "|" + index + "|" + liquidId;
+            return string.Concat(itemId ?? string.Empty, "|", sourceName, "|", index.ToString(), "|", liquidId);
         }
 
         public static bool TryGetCustomInfo(string id, out CustomItemInfo info)
@@ -765,6 +768,7 @@ namespace CUCoreLib.Registries
         internal static Sprite GetIcon(CustomItemInfo info)
         {
             if (info == null) return null;
+            if (info.Icon != null && IsValidIcon(info.Icon)) return info.Icon;
 
             NormalizeIcon(info);
             return info.Icon;
@@ -976,16 +980,24 @@ namespace CUCoreLib.Registries
                 "' has no valid icon sprite. Runtime will use CUCoreLib's missing-item fallback until you assign one.");
         }
 
-        private static IEnumerable<FieldInfo> GetPublicInstanceFields(Type type)
+        private static FieldInfo[] GetPublicInstanceFields(Type type)
         {
+            if (PublicInstanceFieldCache.TryGetValue(type, out var cached))
+                return cached;
+
             var seen = new HashSet<string>();
+            var fields = new List<FieldInfo>();
             for (var current = type;
                  current != null && typeof(ItemInfo).IsAssignableFrom(current);
                  current = current.BaseType)
                 foreach (var field in current.GetFields(BindingFlags.Public | BindingFlags.Instance |
                                                         BindingFlags.DeclaredOnly))
                     if (seen.Add(field.Name))
-                        yield return field;
+                        fields.Add(field);
+
+            var result = fields.ToArray();
+            PublicInstanceFieldCache[type] = result;
+            return result;
         }
 
         private static void ApplyDefaultOverrides(CustomItemInfo info)
