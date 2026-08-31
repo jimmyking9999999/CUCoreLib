@@ -718,7 +718,7 @@ namespace CUCoreLib.Helpers
 
             if (createdProxy)
             {
-                DelayCall(0f, () => talker.Talk(dialogue));
+                talker.TalkDelayed(0f, dialogue);
                 return;
             }
 
