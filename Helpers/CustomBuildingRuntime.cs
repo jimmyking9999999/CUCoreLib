@@ -79,6 +79,12 @@ namespace CUCoreLib.Helpers
             _isQuitting = true;
         }
 
+        internal void DestroyForWorldClear()
+        {
+            _isQuitting = true;
+            Destroy(gameObject);
+        }
+
         private void ApplyHeatAura(Body body, float elapsed)
         {
             var distance = Vector2.Distance(transform.position, body.transform.position);

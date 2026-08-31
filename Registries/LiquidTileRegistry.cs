@@ -748,6 +748,11 @@ namespace CUCoreLib.Registries
             return worldByte >= FirstCustomWorldByte && WorldByteToTileId.ContainsKey(worldByte);
         }
 
+        internal static void ClearWorldState()
+        {
+            BodyTouchStates.Clear();
+        }
+
         private static void ClearCustomWorldBytes()
         {
             var fluid = FluidManager.main != null ? FluidManager.main.fluid : null;

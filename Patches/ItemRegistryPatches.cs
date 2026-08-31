@@ -34,6 +34,11 @@ namespace CUCoreLib.Patches
         private static readonly HashSet<string> WarnedInvalidSpawnComponents =
             new HashSet<string>();
 
+        internal static void ClearWorldState()
+        {
+            NextLightLookupFrameByInstance.Clear();
+        }
+
         [ThreadStatic]
         private static LiquidRegistry.HealthUseMode previousLiquidApplyMode;
 

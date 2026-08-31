@@ -4,6 +4,18 @@ using HarmonyLib;
 
 namespace CUCoreLib.Patches
 {
+    [HarmonyPatch(typeof(WorldGeneration), "Clear")]
+    internal static class WorldGenerationCleanupPatches
+    {
+        [HarmonyPrefix]
+        private static void ClearCUCoreLibWorldState()
+        {
+            BuildingEntityRegistry.ClearWorldInstances();
+            LiquidTileRegistry.ClearWorldState();
+            ItemRegistryPatches.ClearWorldState();
+        }
+    }
+
     [HarmonyPatch(typeof(WorldGeneration), "PlaceCrystals")]
     internal static class WorldGenerationBuildingPatches
     {

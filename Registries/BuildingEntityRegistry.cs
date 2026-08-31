@@ -155,6 +155,12 @@ namespace CUCoreLib.Registries
             return ActiveRuntimes.Where(runtime => runtime != null && runtime.isActiveAndEnabled).ToArray();
         }
 
+        internal static void ClearWorldInstances()
+        {
+            foreach (var runtime in ActiveRuntimes.Where(runtime => runtime != null).ToArray())
+                runtime.DestroyForWorldClear();
+        }
+
         internal static Dictionary<string, CustomBuildingEntityDefinition> CaptureOwnerEntries(string ownerId)
         {
             if (string.IsNullOrWhiteSpace(ownerId))
