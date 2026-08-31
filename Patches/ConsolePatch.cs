@@ -32,6 +32,50 @@ namespace CUCoreLib.Patches
             RefreshDebugWatchAutofill();
             RefreshReloadContentAutofill();
             RefreshSetTileAutofill();
+            RefreshStatusFieldAutofill();
+        }
+
+        internal static void RefreshStatusFieldAutofill()
+        {
+            var body = PlayerCamera.main != null ? PlayerCamera.main.body : null;
+            if (body == null) return;
+
+            var bodyCommand = ConsoleScript.SearchExact("setbodyfield");
+            if (bodyCommand != null)
+                AppendAutofill(bodyCommand, 0, BuildStatusFieldAutofill(StatusRegistry.EnumerateBodyStatuses(body)));
+
+            var limbCommand = ConsoleScript.SearchExact("setlimbfield");
+            if (limbCommand == null || body.limbs == null) return;
+
+            foreach (var limb in body.limbs)
+                if (limb != null)
+                    AppendAutofill(limbCommand, 1, BuildStatusFieldAutofill(StatusRegistry.EnumerateLimbStatuses(limb)));
+        }
+
+        private static void AppendAutofill(Command command, int argumentIndex, IEnumerable<string> values)
+        {
+            if (command == null || values == null) return;
+            if (command.argAutofill == null) command.argAutofill = new Dictionary<int, List<string>>();
+            if (!command.argAutofill.TryGetValue(argumentIndex, out var entries))
+                command.argAutofill[argumentIndex] = entries = new List<string>();
+
+            foreach (var value in values)
+                if (!entries.Contains(value, StringComparer.OrdinalIgnoreCase)) entries.Add(value);
+        }
+
+        private static IEnumerable<string> BuildStatusFieldAutofill<TStatus>(
+            IEnumerable<KeyValuePair<Type, TStatus>> statuses) where TStatus : StatusBase
+        {
+            if (statuses == null) yield break;
+
+            foreach (var entry in statuses)
+            {
+                if (entry.Key == null || entry.Value == null || entry.Key == typeof(BodyFormulaData)) continue;
+
+                foreach (var field in entry.Key.GetFields(BindingFlags.Instance | BindingFlags.Public))
+                    if (field.FieldType.IsPrimitive)
+                        yield return entry.Key.Name + "." + field.Name;
+            }
         }
 
         [HarmonyPostfix]
@@ -1006,6 +1050,7 @@ namespace CUCoreLib.Patches
             private static void Postfix()
             {
                 RefreshSpawnCategoryAutofill();
+                RefreshStatusFieldAutofill();
             }
         }
 

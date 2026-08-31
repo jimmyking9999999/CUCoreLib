@@ -253,6 +253,7 @@ namespace CUCoreLib.Registries
                 if (type == null || status == null) return;
 
                 _entries[type] = (BodyStatus)status;
+                ConsolePatch.RefreshStatusFieldAutofill();
             }
 
             public TStatus Get<TStatus>() where TStatus : BodyStatus, new()
@@ -263,6 +264,7 @@ namespace CUCoreLib.Registries
                 var created = new TStatus();
                 _entries[type] = created;
                 StatusMetadata.TryCreate(type, out _);
+                ConsolePatch.RefreshStatusFieldAutofill();
                 return created;
             }
         }
@@ -278,6 +280,7 @@ namespace CUCoreLib.Registries
                 if (type == null || status == null) return;
 
                 _entries[type] = (LimbStatus)status;
+                ConsolePatch.RefreshStatusFieldAutofill();
             }
 
             public TStatus Get<TStatus>() where TStatus : LimbStatus, new()
@@ -288,6 +291,7 @@ namespace CUCoreLib.Registries
                 var created = new TStatus();
                 _entries[type] = created;
                 StatusMetadata.TryCreate(type, out _);
+                ConsolePatch.RefreshStatusFieldAutofill();
                 return created;
             }
         }

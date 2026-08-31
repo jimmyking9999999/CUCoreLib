@@ -736,6 +736,14 @@ namespace CUCoreLib.Registries
 
             if (definition.LayerEnum.HasValue) return (int)definition.LayerEnum.Value;
 
+            // Vanilla glowplants use Descriptor (layer 10): it remains visible
+            // to hover/attack queries without becoming a player platform.
+            if (definition.CopyGlowPlantLayer)
+            {
+                var glowplant = Resources.Load<GameObject>("glowplant");
+                if (glowplant != null) return glowplant.layer;
+            }
+
             return definition.AddRigidbody2D ? (int?)GroundLayer : null;
         }
 
