@@ -8,9 +8,9 @@ using System.Reflection.Emit;
 using System.Text;
 using BepInEx.Bootstrap;
 using CUCoreLib.Helpers;
+using HarmonyLib;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
-using UnityEngine;
 
 namespace CUCoreLib.Networking
 {
@@ -99,12 +99,14 @@ namespace CUCoreLib.Networking
 
         // KrokMP's Net.ShutdownReset() clears the SERVER_MESSAGE_HANDLERS /
         // CLIENT_MESSAGE_HANDLERS tables where CUCoreLib registers its 56420/56421
-        // receivers. KrokMP does not re-run any third-party registration when the
-        // next transport starts, so CUCoreLib re-installs its receivers itself:
-        // every send goes through EnsureReceiversForActiveSession, and a watchdog
-        // coroutine covers the receiver side (e.g. a host that has not sent
-        // anything yet when the first client request arrives).
-        private static bool _sessionWatchdogStarted;
+        // receivers, and KrokMP does not re-run any third-party registration when
+        // the next transport is created. Net.TransportCreated is therefore hooked
+        // with Harmony (the same proven approach KrokMpCucorelibBridgeFix used) so
+        // CUCoreLib can re-install its receivers right when every new session
+        // starts; otherwise the bridge silently stops receiving every message from
+        // the second session onward.
+        private static Harmony _harmony;
+        private static bool _transportHookInstalled;
 
         public static bool IsAvailable { get; private set; }
 
@@ -209,15 +211,16 @@ namespace CUCoreLib.Networking
             }
         }
 
-        public static void Initialize()
+        public static void Initialize(Harmony harmony = null)
         {
             if (_initialized) return;
 
             _initialized = true;
+            _harmony = harmony;
             if (TryResolveRuntime())
             {
                 InstallReceivers();
-                StartSessionWatchdog();
+                InstallKrokMpTransportHook();
                 IsAvailable = true;
                 CUCoreLibPlugin.Log?.LogInfo("CUCoreLib multiplayer bridge is ready.");
                 return;
@@ -381,12 +384,6 @@ namespace CUCoreLib.Networking
         private static bool SendEnvelope(ushort messageId, JObject envelope, bool reliable, uint clientId,
             object targets)
         {
-            // KrokMP's ShutdownReset() wipes our 56420/56421 receivers when a
-            // session ends. Make sure they exist again for the active session
-            // BEFORE sending, so that the response to this very message cannot be
-            // dropped by the local side.
-            EnsureReceiversForActiveSession();
-
             if (!TryBuildWriter(messageId, envelope, out var writer)) return false;
 
             var delivery = reliable ? _reliableOrdered : _reliableUnordered;
@@ -564,56 +561,64 @@ namespace CUCoreLib.Networking
             return handlers.Contains(messageId);
         }
 
-        private static void StartSessionWatchdog()
+        private static void InstallKrokMpTransportHook()
         {
-            if (_sessionWatchdogStarted) return;
+            if (_transportHookInstalled || _harmony == null || _netType == null || _netModeType == null) return;
 
-            _sessionWatchdogStarted = true;
-            CUCoreUtils.StartCoroutine(SessionWatchdogRoutine());
-        }
-
-        private static IEnumerator SessionWatchdogRoutine()
-        {
-            // KrokMP's ShutdownReset() clears the handler tables that hold our
-            // receivers, so after every session restart the receivers are missing
-            // until re-installed. Sending paths self-heal through
-            // EnsureReceiversForActiveSession, but a host that only ever RECEIVES
-            // (a client request arriving before the host sends anything) would
-            // drop messages forever without a periodic check. One realtime second
-            // is enough: clients reconnect on a much slower timescale, and the
-            // initial snapshot request has its own retry as a further backstop.
-            while (true)
+            try
             {
-                try
-                {
-                    EnsureReceiversForActiveSession();
-                }
-                catch (Exception ex)
-                {
-                    CUCoreLibPlugin.Log?.LogWarning("CUCoreLib multiplayer session watchdog tick failed.\n" + ex);
-                }
+                // Same proven approach as KrokMpCucorelibBridgeFix: hook KrokMP's
+                // Net.TransportCreated with a Harmony postfix so the receivers are
+                // re-registered exactly when every new session's transport starts,
+                // immediately after KrokMP's ShutdownReset has wiped them.
+                var transportCreated = AccessTools.Method(_netType, "TransportCreated",
+                    new[] { _netModeType, typeof(bool) });
+                if (transportCreated == null) return;
 
-                yield return new WaitForSecondsRealtime(1f);
+                _harmony.Patch(transportCreated,
+                    postfix: new HarmonyMethod(typeof(MultiplayerBridge).GetMethod(
+                        nameof(HandleKrokMpTransportCreated), BindingFlags.NonPublic | BindingFlags.Static)));
+                _transportHookInstalled = true;
+            }
+            catch (Exception ex)
+            {
+                CUCoreLibPlugin.Log?.LogWarning("CUCoreLib could not hook KrokMP transport creation; " +
+                                                "multiplayer receivers will not be re-installed after a session restart.\n" +
+                                                ex);
+                return;
+            }
+
+            // If a transport was already created before this hook could be
+            // installed (for example while the bridge was still waiting for the
+            // KrokMP assembly to load), run the same recovery path once now so the
+            // receivers are present for the session that is already active.
+            try
+            {
+                if (IsRunning) HandleKrokMpTransportCreated();
+            }
+            catch (Exception ex)
+            {
+                CUCoreLibPlugin.Log?.LogWarning("CUCoreLib failed to restore receivers for an active KrokMP session.\n" +
+                                                ex);
             }
         }
 
-        private static void EnsureReceiversForActiveSession()
+        private static void HandleKrokMpTransportCreated()
         {
-            if (!IsAvailable || !IsRunning || _netType == null) return;
+            if (!IsAvailable) return;
 
-            // A session is running but our message ids are missing from KrokMP's
-            // handler tables: ShutdownReset wiped them and the session was
-            // recreated afterwards. InstallReceivers is idempotent (it checks
-            // IsReceiverRegistered before registering), so re-running it is safe
-            // at any time. Only when receivers actually had to be re-installed do
-            // we tell the sync registry about the new session, which guarantees
-            // its one-shot snapshot guards are reset exactly once per session.
-            if (!IsReceiverRegistered(_netType, "SERVER_MESSAGE_HANDLERS", RequestMessageId) ||
-                !IsReceiverRegistered(_netType, "CLIENT_MESSAGE_HANDLERS", ResponseMessageId))
-            {
-                InstallReceivers();
-                MultiplayerSyncRegistry.HandleNewKrokMpSessionDetected();
-            }
+            // Re-register the 56420/56421 receivers that KrokMP's ShutdownReset()
+            // wiped from the handler tables. InstallReceivers is idempotent: it
+            // checks whether each message id is already registered before
+            // registering it, so running it on every transport creation is safe.
+            InstallReceivers();
+
+            // A client may have already consumed its one-shot initial snapshot
+            // guards in a previous session; re-arm them and pull a fresh snapshot
+            // for the newly created transport after a short delay (the connection
+            // handshake usually completes within that window).
+            if (IsClient)
+                CUCoreUtils.DelayCall(3f, MultiplayerSyncRegistry.RequestInitialSnapshotForNewSession);
         }
 
         private static Delegate CreateReceiverDelegate(MethodInfo registerMethod, MethodInfo helperMethod)
@@ -665,7 +670,7 @@ namespace CUCoreLib.Networking
         {
             if (!TryResolveRuntime()) return;
             InstallReceivers();
-            StartSessionWatchdog();
+            InstallKrokMpTransportHook();
             IsAvailable = true;
             CUCoreLibPlugin.Log?.LogInfo("CUCoreLib multiplayer bridge is ready.");
         }
