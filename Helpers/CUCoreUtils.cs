@@ -445,6 +445,9 @@ namespace CUCoreLib.Helpers
 
         public static Vector2 GetMousePosition()
         {
+            if (ConsoleScript.instance != null && ConsoleScript.instance.active && Camera.main != null)
+                return Camera.main.ScreenToWorldPoint(Input.mousePosition);
+
             if (PlayerCamera.main != null)
                 return PlayerCamera.main.body != null
                     ? (Vector2)PlayerCamera.main.body.targetLookPos
