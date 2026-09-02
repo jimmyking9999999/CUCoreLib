@@ -19,6 +19,7 @@ namespace CUCoreLib.Networking
         private const string PlayerStatusSnapshotChannel = "cucorelib.sync.statuses.player";
         private const string SnapshotModuleKey = "modules";
         private const float PlayerStatusSyncSeconds = 1f;
+        private const float InitialSnapshotRetrySeconds = 5f;
 
         private static readonly Dictionary<string, Func<JObject>> CaptureModules =
             new Dictionary<string, Func<JObject>>(StringComparer.Ordinal);
@@ -29,6 +30,7 @@ namespace CUCoreLib.Networking
         private static bool _builtInsRegistered;
         private static bool _initialSnapshotRequested;
         private static bool _initialSnapshotScheduled;
+        private static bool _initialSnapshotReceived;
         private static JObject _cachedSnapshot;
         private static bool _retryScheduled;
         private static bool _hostSnapshotBroadcastQueued;
@@ -177,13 +179,54 @@ namespace CUCoreLib.Networking
             if (_initialSnapshotRequested || !MultiplayerBridge.IsAvailable || !MultiplayerBridge.IsRunning ||
                 !MultiplayerBridge.IsClient || !MultiplayerBridge.IsConnected) return;
 
-            _initialSnapshotRequested = MultiplayerBridge.RequestServer(
+            _initialSnapshotRequested = true;
+            _initialSnapshotReceived = false;
+            MultiplayerBridge.RequestServer(
                 SnapshotChannel,
                 null,
                 snapshot =>
                 {
+                    _initialSnapshotReceived = true;
                     if (snapshot is JObject snapshotObject) ApplySnapshot(snapshotObject);
                 });
+
+            // The request races with the host re-installing its receivers after a
+            // session restart (the host may drop the first request if nothing on
+            // its side has sent a message yet). If no response arrives within the
+            // retry window, re-arm the guard and try again; the marker above keeps
+            // successful requests from being repeated.
+            CUCoreUtils.DelayCall(InitialSnapshotRetrySeconds, RetryInitialSnapshotIfUnanswered);
+        }
+
+        private static void RetryInitialSnapshotIfUnanswered()
+        {
+            if (_initialSnapshotReceived || !MultiplayerBridge.IsAvailable || !MultiplayerBridge.IsRunning ||
+                !MultiplayerBridge.IsClient) return;
+
+            _initialSnapshotRequested = false;
+            RequestInitialSnapshot();
+        }
+
+        internal static void HandleNewKrokMpSessionDetected()
+        {
+            // Called by MultiplayerBridge when it detects that a new KrokMP
+            // session is running but CUCoreLib's receivers were missing (wiped by
+            // ShutdownReset). The one-shot snapshot guards below are scoped to a
+            // session: a client that already requested the initial snapshot in a
+            // previous session would never request it again after a rejoin, and
+            // the old request's response was very likely dropped when KrokMP
+            // cleared its message-handler tables. Reset the guards and re-arm the
+            // normal scheduling so the freshly re-registered receivers actually
+            // pull a new snapshot once the transport reports itself connected.
+            // RequestInitialSnapshot's own guard makes a duplicate call (for
+            // example from a still-pending scheduler of a previous session)
+            // harmless: only the first invocation actually sends the request.
+            if (!MultiplayerBridge.IsAvailable || !MultiplayerBridge.IsClient) return;
+
+            _initialSnapshotRequested = false;
+            _initialSnapshotReceived = false;
+            _initialSnapshotScheduled = false;
+            ScheduleInitialSnapshot();
         }
 
         private static void SchedulePlayerStatusSync()
