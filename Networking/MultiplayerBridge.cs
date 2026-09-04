@@ -8,6 +8,7 @@ using System.Reflection.Emit;
 using System.Text;
 using BepInEx.Bootstrap;
 using CUCoreLib.Helpers;
+using HarmonyLib;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
@@ -77,6 +78,35 @@ namespace CUCoreLib.Networking
         private static MethodInfo _serverAnnounceGameStartMethod;
         private static object _reliableOrdered;
         private static object _reliableUnordered;
+
+        // KrokMP's Net.Server_SendToClients overloads take `in` (byref) parameters.
+        // Mono's reflection invoke requires every byref argument in the argument
+        // array to be the EXACT parameter type (it must be able to write the value
+        // back through the pointer), while CUCoreLib passes the AllClientIds /
+        // AllClientIdsExceptHost collections whose runtime type is List<knetid>.
+        // That never matches the byref IEnumerable<knetid> parameter exactly, so a
+        // plain _serverSendToClientsMethod.Invoke(...) throws ArgumentException and
+        // every server-side Broadcast silently fails. _serverSendToClientsInvoker is
+        // a DynamicMethod with plain (non-byref) parameters that forwards the call
+        // with proper managed pointers; because all of its parameters are value
+        // parameters, MethodInfo.Invoke only performs a normal assignability check.
+        // _serverSendToClientsInvokerSource tracks which MethodInfo the invoker was
+        // built for, because TryResolveRuntime re-resolves the field on its retry
+        // schedule and the invoker must be rebuilt whenever the source changes.
+        private static MethodInfo _serverSendToClientsInvoker;
+        private static MethodInfo _serverSendToClientsInvokerSource;
+        private static int _dynamicMethodCounter;
+
+        // KrokMP's Net.ShutdownReset() clears the SERVER_MESSAGE_HANDLERS /
+        // CLIENT_MESSAGE_HANDLERS tables where CUCoreLib registers its 56420/56421
+        // receivers, and KrokMP does not re-run any third-party registration when
+        // the next transport is created. Net.TransportCreated is therefore hooked
+        // with Harmony (the same proven approach KrokMpCucorelibBridgeFix used) so
+        // CUCoreLib can re-install its receivers right when every new session
+        // starts; otherwise the bridge silently stops receiving every message from
+        // the second session onward.
+        private static Harmony _harmony;
+        private static bool _transportHookInstalled;
 
         public static bool IsAvailable { get; private set; }
 
@@ -181,14 +211,16 @@ namespace CUCoreLib.Networking
             }
         }
 
-        public static void Initialize()
+        public static void Initialize(Harmony harmony = null)
         {
             if (_initialized) return;
 
             _initialized = true;
+            _harmony = harmony;
             if (TryResolveRuntime())
             {
                 InstallReceivers();
+                InstallKrokMpTransportHook();
                 IsAvailable = true;
                 CUCoreLibPlugin.Log?.LogInfo("CUCoreLib multiplayer bridge is ready.");
                 return;
@@ -359,7 +391,15 @@ namespace CUCoreLib.Networking
             {
                 if (targets != null)
                 {
-                    _serverSendToClientsMethod.Invoke(null, new[] { delivery, writer, targets });
+                    // Never invoke _serverSendToClientsMethod directly: KrokMP
+                    // declares it with `in` parameters, and Mono's reflection
+                    // invoke requires exact types for byref arguments, which the
+                    // List<knetid> targets collection can never satisfy. The
+                    // invoker wraps the call with plain value parameters.
+                    var invoker = GetSendToClientsInvoker();
+                    if (invoker == null) return false;
+
+                    invoker.Invoke(null, new[] { delivery, writer, targets });
                     return true;
                 }
 
@@ -521,6 +561,66 @@ namespace CUCoreLib.Networking
             return handlers.Contains(messageId);
         }
 
+        private static void InstallKrokMpTransportHook()
+        {
+            if (_transportHookInstalled || _harmony == null || _netType == null || _netModeType == null) return;
+
+            try
+            {
+                // Same proven approach as KrokMpCucorelibBridgeFix: hook KrokMP's
+                // Net.TransportCreated with a Harmony postfix so the receivers are
+                // re-registered exactly when every new session's transport starts,
+                // immediately after KrokMP's ShutdownReset has wiped them.
+                var transportCreated = AccessTools.Method(_netType, "TransportCreated",
+                    new[] { _netModeType, typeof(bool) });
+                if (transportCreated == null) return;
+
+                _harmony.Patch(transportCreated,
+                    postfix: new HarmonyMethod(typeof(MultiplayerBridge).GetMethod(
+                        nameof(HandleKrokMpTransportCreated), BindingFlags.NonPublic | BindingFlags.Static)));
+                _transportHookInstalled = true;
+            }
+            catch (Exception ex)
+            {
+                CUCoreLibPlugin.Log?.LogWarning("CUCoreLib could not hook KrokMP transport creation; " +
+                                                "multiplayer receivers will not be re-installed after a session restart.\n" +
+                                                ex);
+                return;
+            }
+
+            // If a transport was already created before this hook could be
+            // installed (for example while the bridge was still waiting for the
+            // KrokMP assembly to load), run the same recovery path once now so the
+            // receivers are present for the session that is already active.
+            try
+            {
+                if (IsRunning) HandleKrokMpTransportCreated();
+            }
+            catch (Exception ex)
+            {
+                CUCoreLibPlugin.Log?.LogWarning("CUCoreLib failed to restore receivers for an active KrokMP session.\n" +
+                                                ex);
+            }
+        }
+
+        private static void HandleKrokMpTransportCreated()
+        {
+            if (!IsAvailable) return;
+
+            // Re-register the 56420/56421 receivers that KrokMP's ShutdownReset()
+            // wiped from the handler tables. InstallReceivers is idempotent: it
+            // checks whether each message id is already registered before
+            // registering it, so running it on every transport creation is safe.
+            InstallReceivers();
+
+            // A client may have already consumed its one-shot initial snapshot
+            // guards in a previous session; re-arm them and pull a fresh snapshot
+            // for the newly created transport after a short delay (the connection
+            // handshake usually completes within that window).
+            if (IsClient)
+                CUCoreUtils.DelayCall(3f, MultiplayerSyncRegistry.RequestInitialSnapshotForNewSession);
+        }
+
         private static Delegate CreateReceiverDelegate(MethodInfo registerMethod, MethodInfo helperMethod)
         {
             if (registerMethod == null || helperMethod == null) return null;
@@ -570,6 +670,7 @@ namespace CUCoreLib.Networking
         {
             if (!TryResolveRuntime()) return;
             InstallReceivers();
+            InstallKrokMpTransportHook();
             IsAvailable = true;
             CUCoreLibPlugin.Log?.LogInfo("CUCoreLib multiplayer bridge is ready.");
         }
@@ -613,8 +714,7 @@ namespace CUCoreLib.Networking
                 new[] { _deliveryMethodType, _writerType });
             _serverSendToMethod = ResolveMethod(_netType, new[] { "Server_SendTo" },
                 new[] { _deliveryMethodType, _writerType, typeof(uint) });
-            _serverSendToClientsMethod = ResolveMethod(_netType, new[] { "Server_SendToClients" },
-                new[] { _deliveryMethodType, _writerType, typeof(IEnumerable) });
+            _serverSendToClientsMethod = ResolveSendToClientsMethod(_netType, _deliveryMethodType, _writerType);
             _registerServerReceiverMethod = ResolveMethod(_netType,
                 new[] { "RegisterServerReceiver", "RegisterServerReciever" }, new[] { typeof(ushort), null });
             _registerClientReceiverMethod = ResolveMethod(_netType,
@@ -663,6 +763,145 @@ namespace CUCoreLib.Networking
             }
 
             return null;
+        }
+
+        private static MethodInfo ResolveSendToClientsMethod(Type netType, Type deliveryMethodType,
+            Type writerType)
+        {
+            // KrokMP ships several Server_SendToClients overloads:
+            //   (in DeliveryMethod, in NetDataWriter, in knetid)
+            //   (in DeliveryMethod, in NetDataWriter, in IReadOnlyList<NetPlayer>)
+            //   (in DeliveryMethod, in NetDataWriter, in IEnumerable<knetid>)
+            // A loose typeof(IEnumerable) filter matches every one of them, and the
+            // enumeration order of GetMethods is not contractual, so the generic
+            // ResolveMethod call could pick the IReadOnlyList<NetPlayer> overload
+            // even though Broadcast passes a List<knetid>. Pick the overload whose
+            // target collection is an IEnumerable<T> of a client-id-like element
+            // type (knetid is a struct carrying a public "id" field) - that is the
+            // overload CUCoreLib actually needs, and it makes the runtime cast
+            // inside the DynamicMethod invoker succeed for the real target lists.
+            var candidates = netType
+                .GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static)
+                .Where(candidate => string.Equals(candidate.Name, "Server_SendToClients", StringComparison.Ordinal))
+                .Select(candidate => new { Method = candidate, Parameters = candidate.GetParameters() })
+                .Where(candidate => candidate.Parameters.Length == 3 &&
+                                    ParameterMatches(deliveryMethodType, candidate.Parameters[0].ParameterType) &&
+                                    ParameterMatches(writerType, candidate.Parameters[1].ParameterType))
+                .ToArray();
+
+            foreach (var candidate in candidates)
+            {
+                var targetsType = UnwrapByRef(candidate.Parameters[2].ParameterType);
+                if (targetsType == null || !targetsType.IsGenericType) continue;
+                if (targetsType.GetGenericTypeDefinition() != typeof(IEnumerable<>)) continue;
+
+                var elementType = targetsType.GetGenericArguments()[0];
+                if (IsClientIdType(elementType)) return candidate.Method;
+            }
+
+            foreach (var candidate in candidates)
+            {
+                var targetsType = UnwrapByRef(candidate.Parameters[2].ParameterType);
+                if (targetsType == null || !targetsType.IsGenericType) continue;
+                if (targetsType.GetGenericTypeDefinition() != typeof(IEnumerable<>)) continue;
+
+                var elementType = targetsType.GetGenericArguments()[0];
+                if (elementType.IsValueType) return candidate.Method;
+            }
+
+            // Fall back to the legacy loose resolution so a future KrokMP
+            // signature change degrades to the previous behaviour instead of
+            // failing the whole bridge resolution outright.
+            return ResolveMethod(netType, new[] { "Server_SendToClients" },
+                new[] { deliveryMethodType, writerType, typeof(IEnumerable) });
+        }
+
+        private static MethodInfo GetSendToClientsInvoker()
+        {
+            // TryResolveRuntime re-runs on the retry schedule and re-resolves the
+            // field every time, so the invoker must be rebuilt whenever the
+            // underlying MethodInfo reference changes.
+            if (_serverSendToClientsInvoker != null &&
+                ReferenceEquals(_serverSendToClientsInvokerSource, _serverSendToClientsMethod))
+                return _serverSendToClientsInvoker;
+
+            _serverSendToClientsInvoker = BuildSendToClientsInvoker(_serverSendToClientsMethod);
+            _serverSendToClientsInvokerSource = _serverSendToClientsMethod;
+            return _serverSendToClientsInvoker;
+        }
+
+        private static MethodInfo BuildSendToClientsInvoker(MethodInfo method)
+        {
+            if (method == null) return null;
+
+            var parameters = method.GetParameters();
+            if (parameters.Length != 3) return method;
+
+            // If the resolved overload is already declared with plain value
+            // parameters, MethodInfo.Invoke performs a standard assignability
+            // check on each argument and no wrapper is needed.
+            if (!parameters.Any(parameter => parameter.ParameterType.IsByRef)) return method;
+
+            var deliveryType = UnwrapByRef(parameters[0].ParameterType);
+            var writerType = UnwrapByRef(parameters[1].ParameterType);
+            var targetsType = UnwrapByRef(parameters[2].ParameterType);
+            // The wrapper narrows the boxed targets object with a castclass, which
+            // is only legal for reference types. If a future KrokMP signature ever
+            // used a value type here, fall back to the raw method (the old
+            // behaviour) rather than emitting invalid IL.
+            if (deliveryType == null || writerType == null || targetsType == null || targetsType.IsValueType)
+                return method;
+
+            // The wrapper forwards to the original `in` signature. C# `in`
+            // parameters are emitted as byref parameters carrying a
+            // modreq(IsReadOnlyAttribute); Mono's JIT ignores custom modifiers
+            // when verifying call sites, so pushing the addresses of locals is
+            // sufficient and the wrapper verifies fine.
+            //
+            // IL:
+            //   ldarg.0                -> stloc.0 (delivery)
+            //   ldarg.1                -> stloc.1 (writer)
+            //   ldarg.2 (object)       -> castclass targetsType -> stloc.2
+            //   ldloca.0, ldloca.1, ldloca.2
+            //   call Server_SendToClients
+            //   ret
+            //
+            // The third wrapper parameter is deliberately declared as `object`
+            // (instead of the unknown IEnumerable<knetid> type) so that
+            // MethodInfo.Invoke accepts the List<knetid> argument via its normal
+            // assignability check; the castclass in the IL then narrows it to the
+            // exact interface type the original method expects.
+            var invoker = new DynamicMethod(
+                "CUCoreLib_MP_SendToClients_Invoker_" + _dynamicMethodCounter++,
+                typeof(void),
+                new[] { deliveryType, writerType, typeof(object) },
+                typeof(MultiplayerBridge).Module,
+                true);
+
+            var il = invoker.GetILGenerator();
+            var deliveryLocal = il.DeclareLocal(deliveryType);
+            var writerLocal = il.DeclareLocal(writerType);
+            var targetsLocal = il.DeclareLocal(targetsType);
+
+            il.Emit(OpCodes.Ldarg_0);
+            il.Emit(OpCodes.Stloc, deliveryLocal);
+            il.Emit(OpCodes.Ldarg_1);
+            il.Emit(OpCodes.Stloc, writerLocal);
+            il.Emit(OpCodes.Ldarg_2);
+            il.Emit(OpCodes.Castclass, targetsType);
+            il.Emit(OpCodes.Stloc, targetsLocal);
+
+            il.Emit(OpCodes.Ldloca, deliveryLocal);
+            il.Emit(OpCodes.Ldloca, writerLocal);
+            il.Emit(OpCodes.Ldloca, targetsLocal);
+            il.Emit(OpCodes.Call, method);
+            il.Emit(OpCodes.Ret);
+            return invoker;
+        }
+
+        private static Type UnwrapByRef(Type type)
+        {
+            return type != null && type.IsByRef ? type.GetElementType() : type;
         }
 
         private static Type ResolveDeliveryMethodType()

@@ -186,6 +186,18 @@ namespace CUCoreLib.Networking
                 });
         }
 
+        internal static void RequestInitialSnapshotForNewSession()
+        {
+            // Mirrors KrokMpCucorelibBridgeFix's "snapshot re-request" recovery:
+            // every time a new KrokMP transport is created, the one-shot guard is
+            // cleared and the request re-issued so a client that already consumed
+            // the snapshot in a previous session (where the response may have been
+            // dropped when KrokMP's ShutdownReset cleared its handler tables)
+            // still pulls a fresh snapshot for this session.
+            _initialSnapshotRequested = false;
+            RequestInitialSnapshot();
+        }
+
         private static void SchedulePlayerStatusSync()
         {
             if (_playerStatusSyncScheduled) return;
