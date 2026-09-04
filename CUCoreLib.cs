@@ -171,7 +171,7 @@ namespace CUCoreLib
             KrokMpCompatibilityPatches.Install(harmony);
             QoLUnknownCompatibilityPatches.Install(harmony);
 
-            MultiplayerBridge.Initialize();
+            MultiplayerBridge.Initialize(harmony);
             MultiplayerSyncRegistry.ScheduleInitialSnapshot();
 
             Logger.LogInfo("CUCoreLib is ready to sit in the background.");

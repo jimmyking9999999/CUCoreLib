@@ -210,7 +210,11 @@ namespace CUCoreLib.Registries
                 var limb = body.limbs[limbIndex];
                 if (limb == null) continue;
 
-                ApplySnapshotToken(Get(limb), obj["payload"], false);
+                // Pass the WHOLE per-limb entry ({ slot, type, payload }) rather
+                // than only obj["payload"]. The outer "type" carries the
+                // assembly-qualified type name while the inner envelope's "type"
+                // is merely the registry key, which Type.GetType cannot resolve.
+                ApplySnapshotToken(Get(limb), obj, false);
             }
         }
 
@@ -219,21 +223,50 @@ namespace CUCoreLib.Registries
             var obj = token as JObject;
             if (collection == null || obj == null) return;
 
+            // The token is the per-slot entry written by CaptureBodyStatusArray /
+            // CaptureLimbStatusArray:
+            //   { "slot": <index or "body">,
+            //     "type": <assembly-qualified type name>,
+            //     "payload": <TryCapture envelope> }
+            // and the TryCapture envelope inside it is:
+            //   { "type": <registry key>, "data": <JObject snapshot of the status> }
+            //
+            // 1.0.4-alpha only unwrapped ONE layer here and then fed the inner
+            // envelope itself to JObject.ToObject(statusType). None of the
+            // envelope keys ("type"/"data"/"slot"/"payload") match any status
+            // property, so every networked status arrived with all fields at
+            // their defaults (e.g. SomeStatus = 0) and each sync pass
+            // effectively wiped the local status ~1s after it appeared. Unwrap
+            // both layers before deserializing.
+            var envelope = obj["payload"] as JObject ?? obj["data"] as JObject ?? obj;
+            var data = envelope["data"] as JObject ?? envelope;
+
             var typeName = obj.Value<string>("type");
-            var payload = obj["payload"] as JObject ?? obj["data"] as JObject;
-            if (string.IsNullOrWhiteSpace(typeName) || payload == null) return;
+            var statusType = typeName == null ? null : Type.GetType(typeName, false);
+            if (statusType == null)
+            {
+                // Tolerate legacy tokens that only carry the registry key inside
+                // the inner envelope (e.g. when an older peer sent the payload
+                // without the outer per-slot wrapper): resolve it through the
+                // metadata index instead of a type name lookup.
+                var key = envelope.Value<string>("type");
+                if (key == null || !StatusMetadata.TryResolve(key, out var metadata)) return;
 
-            var statusType = Type.GetType(typeName, false);
-            if (statusType == null || !StatusMetadata.TryCreate(statusType, out var metadata)) return;
+                statusType = metadata.StatusType;
+            }
+            else if (!StatusMetadata.TryCreate(statusType, out _))
+            {
+                return;
+            }
 
-            if (isBody && !typeof(BodyStatus).IsAssignableFrom(metadata.StatusType)) return;
+            if (isBody && !typeof(BodyStatus).IsAssignableFrom(statusType)) return;
 
-            if (!isBody && !typeof(LimbStatus).IsAssignableFrom(metadata.StatusType)) return;
+            if (!isBody && !typeof(LimbStatus).IsAssignableFrom(statusType)) return;
 
             try
             {
-                var restored = (StatusBase)payload.ToObject(metadata.StatusType);
-                if (restored != null) collection.Set(metadata.StatusType, restored);
+                var restored = (StatusBase)data.ToObject(statusType);
+                if (restored != null) collection.Set(statusType, restored);
             }
             catch (Exception ex)
             {
@@ -253,7 +286,6 @@ namespace CUCoreLib.Registries
                 if (type == null || status == null) return;
 
                 _entries[type] = (BodyStatus)status;
-                ConsolePatch.RefreshStatusFieldAutofill();
             }
 
             public TStatus Get<TStatus>() where TStatus : BodyStatus, new()
@@ -264,7 +296,6 @@ namespace CUCoreLib.Registries
                 var created = new TStatus();
                 _entries[type] = created;
                 StatusMetadata.TryCreate(type, out _);
-                ConsolePatch.RefreshStatusFieldAutofill();
                 return created;
             }
         }
@@ -280,7 +311,6 @@ namespace CUCoreLib.Registries
                 if (type == null || status == null) return;
 
                 _entries[type] = (LimbStatus)status;
-                ConsolePatch.RefreshStatusFieldAutofill();
             }
 
             public TStatus Get<TStatus>() where TStatus : LimbStatus, new()
@@ -291,7 +321,6 @@ namespace CUCoreLib.Registries
                 var created = new TStatus();
                 _entries[type] = created;
                 StatusMetadata.TryCreate(type, out _);
-                ConsolePatch.RefreshStatusFieldAutofill();
                 return created;
             }
         }
