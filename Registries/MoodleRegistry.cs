@@ -10,7 +10,7 @@ namespace CUCoreLib.Registries
 {
     public static class MoodleRegistry
     {
-        private const float DefaultHoldSeconds = 0.75f;
+        private const float DefaultHoldSeconds = 0.5f;
         private const float VanillaMoodlePixelsPerUnit = 33.33f;
         private static readonly List<IBodyMoodleContributor> BodyContributors = new List<IBodyMoodleContributor>();
         private static readonly List<ILimbMoodleContributor> LimbContributors = new List<ILimbMoodleContributor>();
@@ -75,7 +75,7 @@ namespace CUCoreLib.Registries
         /// </param>
         /// <param name="holdSeconds">
         /// How long the queued moodle remains active without being refreshed.
-        /// Defaults to <c>0.75f</c>.
+        /// Defaults to <c>0.5f</c>, matching vanilla's UI refresh interval.
         /// </param>
         public static void AddMoodle(int intensity, Sprite icon, string name, string description, bool critical = false,
             bool chippedOnly = false, bool important = true, string key = null, float holdSeconds = DefaultHoldSeconds)
@@ -120,7 +120,7 @@ namespace CUCoreLib.Registries
         /// </param>
         /// <param name="holdSeconds">
         /// How long the queued moodle remains active without being refreshed.
-        /// Defaults to <c>0.75f</c>.
+        /// Defaults to <c>0.5f</c>, matching vanilla's UI refresh interval.
         /// </param>
         public static void AddMoodle(int intensity, string iconId, string name, string description,
             bool critical = false, bool chippedOnly = false, bool important = true, string key = null,
@@ -161,7 +161,7 @@ namespace CUCoreLib.Registries
         /// </param>
         /// <param name="holdSeconds">
         /// How long the queued moodle remains active without being refreshed.
-        /// Defaults to <c>0.75f</c>.
+        /// Defaults to <c>0.5f</c>, matching vanilla's UI refresh interval.
         /// </param>
         public static void AddAnimatedMoodle(int intensity, string animationId, string name, string description,
             bool critical = false, bool chippedOnly = false, bool important = true, string key = null,
@@ -214,7 +214,7 @@ namespace CUCoreLib.Registries
             List<string> expiredKeys = null;
             foreach (var entry in QueuedMoodles)
             {
-                if (entry.Value.ExpiresAt < Time.unscaledTime)
+                if (entry.Value.ExpiresAt <= Time.unscaledTime)
                 {
                     if (expiredKeys == null) expiredKeys = new List<string>();
 
@@ -348,6 +348,7 @@ namespace CUCoreLib.Registries
         private static void AddMoodle(MoodleManager manager, StatusMoodleDefinition moodle, bool important)
         {
             if (manager == null || moodle == null || string.IsNullOrWhiteSpace(moodle.Name)) return;
+            if (moodle.Important != important) return;
 
             if (moodle.IconSprite != null)
             {

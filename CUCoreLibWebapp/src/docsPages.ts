@@ -566,7 +566,7 @@ function multiBlockStructuresPage(): string {
     <section class="lesson-card">
       <h2>Structure editor</h2>
       <p>Create the structure layout in the sister webtool <a href="https://cu-custom-structures.jimmyking.dev/index.html" target="_blank">CU-Custom-Structures editor</a>, export the compact v2 JSON, then register that exported payload through <span class="inline-code">StructureRegistry</span>.</p>
-      <p>Registered CUCoreLib tile and building-entity IDs are interchangeable in structure markers. Numbered markers <span class="inline-code">1</span> through <span class="inline-code">9</span> prefer a registered tile and fall back to a building entity; object marker <span class="inline-code">0</span> prefers a building entity and falls back to a tile. Item marker <span class="inline-code">*</span> remains item-only.</p>
+      <p>Reminder to go into the settings and enable the I'm a modder! setting.</p>
       <img src="images/custom-structure-editor.png" alt="CU Custom Structures editor showing a multi-block structure authoring layout." class="screenshot">
     </section>
 
@@ -1145,8 +1145,8 @@ function moodlesPage(): string {
   return `
     <section class="lesson-card">
       <h2>Status moodle bridge</h2>
-      <p>CUCoreLib appends <span class="inline-code">MoodleRegistry</span> and queues custom entries and feeds them into the real vanilla <span class="inline-code">MoodleManager</span> during its normal update pass.</p>
-      <p>That means your custom moodle should behave like any other moodle. It'll needs a valid icon name, a display name, a description, an intensity that matches one of the background slots the game expects, and an <span class="inline-code">important</span> choice that decides whether it belongs in the main row or the side row.</p>
+      <p><span class="inline-code">MoodleRegistry</span> feeds custom entries into vanilla's <span class="inline-code">MoodleManager</span> during its normal refresh pass.</p>
+      <p>Supply a sprite or an existing vanilla icon ID, a display name, a description, a valid background intensity, and an <span class="inline-code">important</span> choice for the main or side row. Resolve localized text before passing it in; vanilla uses these strings directly.</p>
     </section>
 
     <section class="lesson-card">
@@ -1160,9 +1160,36 @@ function moodlesPage(): string {
         "Lead Poisoning",
         "You're feeling a bit woozy and fatigued...",
         critical: false,
-        chippedOnly: false,
+        chippedOnly: false
     );</code></pre>
     <img src="/images/moodle-ingame.png" alt="Example custom moodle with a custom icon" class="screenshot">
+    </section>
+
+    <section class="lesson-card">
+      <h2>Disappear together with a vanilla moodle</h2>
+      <p>Vanilla rebuilds its moodles every <span class="inline-code">0.5</span> unscaled seconds and reevaluates each condition. It does not give each moodle an expiration timer. Queued entries instead expire after their last refresh, so matching the interval alone cannot guarantee simultaneous disappearance.</p>
+      <p>For a moodle tied to another condition, register a callback once during plugin startup and evaluate the same condition there. Return <span class="inline-code">null</span> when inactive. Both entries are then evaluated in the same vanilla refresh, with no queued hold time. Keep these callbacks free of gameplay changes; they are evaluated for both rows.</p>
+      <pre><code>// Declare in your mod, then call RegisterMoodles() once from Awake().
+public sealed class FocusMoodleStatus : BodyStatus { }
+
+private static void RegisterMoodles()
+{
+    MoodleRegistry.RegisterBody&lt;FocusMoodleStatus&gt;((body, status) =&gt;
+    {
+        // The same condition used by vanilla's focused moodle.
+        if (!body.alive || body.focusedLevel &lt;= 0f) return null;
+
+        return new StatusMoodleDefinition
+        {
+            Intensity = 8,
+            Icon = "focused",
+            Name = "Custom focus effect",
+            Description = "Active while the vanilla focused moodle is active.",
+            Important = true
+        };
+    });
+}</code></pre>
+      <p>Import <span class="inline-code">CUCoreLib.Data</span> and <span class="inline-code">CUCoreLib.Registries</span>. For limb-specific conditions, use <span class="inline-code">RegisterLimb&lt;TStatus&gt;</span> with a <span class="inline-code">LimbStatus</span>. The definition also accepts <span class="inline-code">IconSprite</span> for custom images.</p>
     </section>
 
     <section class="lesson-card">
@@ -1182,7 +1209,7 @@ function moodlesPage(): string {
             <tr><td><span class="inline-code">chippedOnly</span></td><td><span class="inline-code">bool</span></td><td>If <span class="inline-code">true</span>, the moodle will only be displayed when the player has a chip.</td></tr>
             <tr><td><span class="inline-code">important</span></td><td><span class="inline-code">bool</span></td><td>If <span class="inline-code">false</span>, the moodle will be displayed in the unimportant hidden-ish section to the right.</td></tr>
             <tr><td><span class="inline-code">key</span></td><td><span class="inline-code">string</span></td><td>Optional stable queue key. Supply this when a moodle changes severity over time. (Where you only want one moodle with the same key active at a time.)</td></tr>
-            <tr><td><span class="inline-code">holdSeconds</span></td><td><span class="inline-code">float</span></td><td>How long the queued moodle stays visible without being refreshed. The default is <span class="inline-code">0.75f</span>.</td></tr>
+            <tr><td><span class="inline-code">holdSeconds</span></td><td><span class="inline-code">float</span></td><td>Unscaled seconds before a queued entry expires after its last refresh. The default is <span class="inline-code">0.5f</span>, matching vanilla's refresh interval; removal occurs on the next UI rebuild. Explicit values remain supported (minimum <span class="inline-code">0.05f</span>). Rebuild dependent mods to pick up the new optional-argument default.</td></tr>
           </tbody>
         </table>
       </div>

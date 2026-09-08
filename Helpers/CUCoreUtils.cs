@@ -93,6 +93,8 @@ namespace CUCoreLib.Helpers
         private static Talker ElectronicTalkerProxy;
         private static FieldInfo KrokMpChatFocusedField;
         private static bool KrokMpChatFocusFieldResolved;
+        private static string LastDialogueId;
+        private static string LastDialogueText;
 
         /// <summary>
         /// Invoked after the <c>heal</c> console command heals a player.
@@ -704,6 +706,23 @@ namespace CUCoreLib.Helpers
             if (PlayerCamera.main == null || PlayerCamera.main.body == null || PlayerCamera.main.body.talker == null) return;
 
             PlayerCamera.main.body.talker.Talk(dialogue);
+        }
+
+        /// <summary>
+        /// Gets the most recently triggered dialogue ID, or the selected raw text when <paramref name="id"/> is false.
+        /// Direct text passed to <c>Talker.Talk(string)</c> has no ID and returns null when <paramref name="id"/> is true.
+        /// </summary>
+        /// <param name="id">True to return the locale dialogue ID; false to return the selected text.</param>
+        /// <returns>The last dialogue value, or null before any dialogue has been triggered.</returns>
+        public static string GetLastDialogue(bool id = true)
+        {
+            return id ? LastDialogueId : LastDialogueText;
+        }
+
+        internal static void SetLastDialogue(string dialogueId, string dialogueText)
+        {
+            LastDialogueId = dialogueId;
+            LastDialogueText = dialogueText;
         }
 
         public static void talk(string dialogue)
