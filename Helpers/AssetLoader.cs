@@ -738,6 +738,13 @@ namespace CUCoreLib.Helpers
             return CreateSpriteFromBytes(data, pixelsPerUnit);
         }
 
+        public static Sprite LoadSpriteFromBytes(byte[] data, float pixelsPerUnit, Vector2 pivot)
+        {
+            if (data == null || data.Length == 0) return null;
+
+            return CreateSpriteFromBytes(data, pixelsPerUnit, pivot);
+        }
+
         public static Sprite LoadSpriteFromPluginFolder(BaseUnityPlugin plugin, string relativePath,
             float pixelsPerUnit = PPU_WORLD)
         {
@@ -848,13 +855,13 @@ namespace CUCoreLib.Helpers
             return texture.LoadImage(data) ? texture : null;
         }
 
-        private static Sprite CreateSpriteFromBytes(byte[] data, float ppu)
+        private static Sprite CreateSpriteFromBytes(byte[] data, float ppu, Vector2? pivot = null)
         {
             var texture = CreateTextureFromBytes(data, string.Empty, FilterMode.Point);
             if (texture == null) return null;
 
-            return Sprite.Create(texture, new Rect(0, 0, texture.width, texture.height), new Vector2(0.5f, 0.5f),
-                ppu);
+            return Sprite.Create(texture, new Rect(0, 0, texture.width, texture.height),
+                pivot ?? new Vector2(0.5f, 0.5f), ppu);
         }
 
         private static Sprite CreateSpriteVariant(Sprite sourceSprite, float pixelsPerUnit)

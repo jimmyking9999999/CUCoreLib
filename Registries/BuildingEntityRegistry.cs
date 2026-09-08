@@ -300,6 +300,8 @@ namespace CUCoreLib.Registries
                 var obj = property.Value as JObject;
                 if (string.IsNullOrWhiteSpace(id) || obj == null) continue;
 
+                RegisteredDefinitions.TryGetValue(id, out var localDefinition);
+
                 var definition = new CustomBuildingEntityDefinition
                 {
                     Name = obj.Value<string>("name"),
@@ -311,11 +313,11 @@ namespace CUCoreLib.Registries
                         obj.Value<float?>("scaleX") ?? 1f,
                         obj.Value<float?>("scaleY") ?? 1f,
                         obj.Value<float?>("scaleZ") ?? 1f),
-                    ColliderSize = obj["colliderSizeX"] != null || obj["colliderSizeY"] != null
+                    ColliderSize = HasValue(obj["colliderSizeX"]) || HasValue(obj["colliderSizeY"])
                         ? new Vector2?(new Vector2(obj.Value<float?>("colliderSizeX") ?? 0f,
                             obj.Value<float?>("colliderSizeY") ?? 0f))
                         : null,
-                    ColliderOffset = obj["colliderOffsetX"] != null || obj["colliderOffsetY"] != null
+                    ColliderOffset = HasValue(obj["colliderOffsetX"]) || HasValue(obj["colliderOffsetY"])
                         ? new Vector2?(new Vector2(obj.Value<float?>("colliderOffsetX") ?? 0f,
                             obj.Value<float?>("colliderOffsetY") ?? 0f))
                         : null,
@@ -333,8 +335,8 @@ namespace CUCoreLib.Registries
                     Animal = obj.Value<bool?>("animal") ?? false,
                     IgnoreBodyOptimize = obj.Value<bool?>("ignoreBodyOptimize") ?? false,
                     DropChanceMultiplier = obj.Value<float?>("dropChanceMultiplier") ?? 1f,
-                    Placement = (BuildingPlacementType)(obj.Value<int?>("placement") ?? 0),
-                    GenerationStyle = (BuildingGenerationStyle)(obj.Value<int?>("generationStyle") ?? 0),
+                    Placement = ReadEnum(obj["placement"], BuildingPlacementType.Floor),
+                    GenerationStyle = ReadEnum(obj["generationStyle"], BuildingGenerationStyle.None),
                     SpawnMinPerChunk = obj.Value<float?>("spawnMinPerChunk") ?? 0f,
                     SpawnMaxPerChunk = obj.Value<float?>("spawnMaxPerChunk") ?? 0f,
                     SpawnLayers = obj.Value<int?>("spawnLayers") ?? AllSpawnLayersMask,
@@ -348,8 +350,10 @@ namespace CUCoreLib.Registries
                     HeatRadius = obj.Value<float?>("heatRadius") ?? 0f,
                     HeatPerSecond = obj.Value<float?>("heatPerSecond") ?? 0f,
                     MaxHeatBodyTemperature = obj.Value<float?>("maxHeatBodyTemperature") ?? 0f,
-                    SpawnComponents = new List<string>(),
-                    Components = NetworkSnapshotSerialization.ReadTypeNames(obj["components"])
+                    SpawnComponents = localDefinition?.SpawnComponents ?? new List<string>(),
+                    Components = localDefinition?.Components ?? NetworkSnapshotSerialization.ReadTypeNames(obj["components"]),
+                    ConfigurePrefab = localDefinition?.ConfigurePrefab,
+                    ConfigureInstance = localDefinition?.ConfigureInstance
                 };
 
                 if (obj["spawnComponents"] is JArray)
@@ -620,6 +624,27 @@ namespace CUCoreLib.Registries
 
             definition.ConfigurePrefab?.Invoke(go);
             return go;
+        }
+
+        private static bool HasValue(JToken token)
+        {
+            return token != null && token.Type != JTokenType.Null;
+        }
+
+        private static T ReadEnum<T>(JToken token, T fallback) where T : struct
+        {
+            if (!HasValue(token)) return fallback;
+            if (token.Type == JTokenType.Integer)
+            {
+                try { return (T)Enum.ToObject(typeof(T), token.Value<int>()); }
+                catch (Exception) { return fallback; }
+            }
+
+            var text = token.Value<string>();
+            if (string.Equals(text, "Ground", StringComparison.OrdinalIgnoreCase) &&
+                typeof(T) == typeof(BuildingPlacementType))
+                return (T)(object)BuildingPlacementType.Floor;
+            return Enum.TryParse(text, true, out T value) ? value : fallback;
         }
 
         private static void ApplyRigidbody2D(GameObject instance, CustomBuildingEntityDefinition definition)

@@ -25,6 +25,7 @@ namespace CUCoreLib.Patches
         private const string ItemSetupListenerTypeName = "KrokoshaCasualtiesMP.Item_SetupItems_Listener";
         private static bool _installed;
         private static bool _retryScheduled;
+        private static bool _chunkRetryScheduled;
         private static Hook _applyHook;
         private static bool _newLoaderPatched;
         private static bool _liquidRegistryPatched;
@@ -50,6 +51,13 @@ namespace CUCoreLib.Patches
 
         internal static void Install(Harmony harmony)
         {
+            if (harmony != null)
+            {
+                var chunkType = ResolveLoadedType("KrokoshaCasualtiesMP.WorldChunkSync");
+                KrokMpWorldChunkPatches.Install(harmony, chunkType);
+                if (!KrokMpWorldChunkPatches.IsInstalled && chunkType == null && IsKrokMpExpected())
+                    ScheduleChunkRetry(harmony);
+            }
             if (harmony == null || _installed) return;
 
             var patchedAnything = false;
@@ -442,6 +450,21 @@ namespace CUCoreLib.Patches
                 if (_installed) return;
 
                 Install(harmony);
+            });
+        }
+
+        private static void ScheduleChunkRetry(Harmony harmony)
+        {
+            if (_chunkRetryScheduled) return;
+
+            _chunkRetryScheduled = true;
+            CUCoreUtils.DelayCall(1f, () =>
+            {
+                _chunkRetryScheduled = false;
+                if (!KrokMpWorldChunkPatches.IsInstalled)
+                    KrokMpWorldChunkPatches.Install(harmony, ResolveLoadedType("KrokoshaCasualtiesMP.WorldChunkSync"));
+                if (!KrokMpWorldChunkPatches.IsInstalled && IsKrokMpExpected())
+                    ScheduleChunkRetry(harmony);
             });
         }
 

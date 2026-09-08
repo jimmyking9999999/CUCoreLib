@@ -305,6 +305,12 @@ namespace CUCoreLib.Registries
                 .Where(definition => definition != null && !string.IsNullOrWhiteSpace(definition.ID))
                 .GroupBy(definition => definition.ID, StringComparer.OrdinalIgnoreCase)
                 .ToDictionary(group => group.Key, group => group.First().HitSoundClip, StringComparer.OrdinalIgnoreCase);
+            var localOwners = RegisteredDefinitions
+                .Where(entry => entry.Value != null && !string.IsNullOrWhiteSpace(entry.Value.ID))
+                .GroupBy(entry => entry.Value.ID, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(group => group.Key,
+                    group => DefinitionOwners.TryGetOwner(group.First().Key, out var owner) ? owner : null,
+                    StringComparer.OrdinalIgnoreCase);
             var entries = snapshot.Properties()
                 .Select(property =>
                 {
@@ -363,7 +369,9 @@ namespace CUCoreLib.Registries
                     definition.CustomData = customData.ToObject<Dictionary<string, object>>() ??
                                             new Dictionary<string, object>();
 
-                RegisterAt(entry.TileIndex, definition, definition.ID, false);
+                localOwners.TryGetValue(definition.ID ?? string.Empty, out var localOwner);
+                using (DefinitionOwners.BeginScope(localOwner))
+                    RegisterAt(entry.TileIndex, definition, definition.ID, false);
             }
         }
 

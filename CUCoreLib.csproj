@@ -242,6 +242,9 @@
         <Compile Include="Networking\MultiplayerApi.cs"/>
         <Compile Include="Networking\MultiplayerBridge.cs"/>
         <Compile Include="Networking\MultiplayerSyncRegistry.cs"/>
+        <Compile Include="Networking\MultiplayerPlayerStatusSync.cs"/>
+        <Compile Include="Networking\MultiplayerPayloadFrame.cs"/>
+        <Compile Include="Networking\MultiplayerTileChunk.cs"/>
         <Compile Include="Patches\BodyFormulaPatches.cs"/>
         <Compile Include="Patches\BuildingEntityPatches.cs"/>
         <Compile Include="Patches\CorpsePatches.cs"/>
@@ -249,6 +252,7 @@
         <Compile Include="Patches\CustomWearablePatches.cs"/>
         <Compile Include="Patches\CustomItemSerializationPatches.cs"/>
         <Compile Include="Patches\KrokMpCompatibilityPatches.cs"/>
+        <Compile Include="Patches\KrokMpWorldChunkPatches.cs"/>
         <Compile Include="Patches\QoLUnknownCompatibilityPatches.cs"/>
         <Compile Include="Patches\LaunchOverridePatches.cs"/>
         <Compile Include="Patches\ItemRegistryPatches.cs"/>

@@ -1,5 +1,4 @@
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using CUCoreLib.ContentReload;
 using CUCoreLib.Helpers;
@@ -16,9 +15,8 @@ namespace CUCoreLib.Networking
         internal const string EventKind = "event";
 
         private const string SnapshotChannel = "cucorelib.sync.snapshot";
-        private const string PlayerStatusSnapshotChannel = "cucorelib.sync.statuses.player";
+        internal const string PlayerStatusSnapshotChannel = "cucorelib.sync.statuses.player";
         private const string SnapshotModuleKey = "modules";
-        private const float PlayerStatusSyncSeconds = 1f;
 
         private static readonly Dictionary<string, Func<JObject>> CaptureModules =
             new Dictionary<string, Func<JObject>>(StringComparer.Ordinal);
@@ -32,7 +30,6 @@ namespace CUCoreLib.Networking
         private static JObject _cachedSnapshot;
         private static bool _retryScheduled;
         private static bool _hostSnapshotBroadcastQueued;
-        private static bool _playerStatusSyncScheduled;
 
         public static void RegisterModule(string key, Func<JObject> capture, Action<JObject> apply = null)
         {
@@ -55,16 +52,19 @@ namespace CUCoreLib.Networking
             };
 
             var modules = new JObject();
-            foreach (var entry in CaptureModules)
-                try
-                {
-                    modules[entry.Key] = entry.Value?.Invoke() ?? new JObject();
-                }
-                catch (Exception ex)
-                {
-                    CUCoreLibPlugin.Log?.LogWarning("CUCoreLib multiplayer snapshot capture failed for module '" +
-                                                    entry.Key + "'.\n" + ex);
-                }
+            using (NetworkSnapshotSerialization.BeginSpriteDedupeScope())
+            {
+                foreach (var entry in CaptureModules)
+                    try
+                    {
+                        modules[entry.Key] = entry.Value?.Invoke() ?? new JObject();
+                    }
+                    catch (Exception ex)
+                    {
+                        CUCoreLibPlugin.Log?.LogWarning("CUCoreLib multiplayer snapshot capture failed for module '" +
+                                                        entry.Key + "'.\n" + ex);
+                    }
+            }
 
             root[SnapshotModuleKey] = modules;
             return root;
@@ -99,6 +99,12 @@ namespace CUCoreLib.Networking
                                                     property.Name + "'.\n" + ex);
                 }
             }
+
+            // WorldGeneration can resize/rebuild its tile array while a join is
+            // being applied. Restore the authoritative registry after every module
+            // pass so custom block indices cannot fall back to vanilla/air tiles.
+            if (CUCoreUtils.IsInWorld())
+                TileRegistry.InjectRegisteredTiles(WorldGeneration.world);
         }
 
         private static void ScheduleReplayIfNeeded()
@@ -147,12 +153,7 @@ namespace CUCoreLib.Networking
                 ModOptionsRegistry.ApplyNetworkSnapshot);
 
             MultiplayerBridge.RegisterServerHandler(SnapshotChannel, _ => CaptureSnapshot());
-            MultiplayerBridge.RegisterServerHandler(PlayerStatusSnapshotChannel, (senderClientId, _) =>
-            {
-                return MultiplayerApi.TryGetBodyFromClientId(senderClientId, out var body)
-                    ? StatusRegistry.CaptureBodyNetworkSnapshot(body)
-                    : new JObject();
-            });
+            MultiplayerPlayerStatusSync.RegisterServerHandler();
             MultiplayerBridge.RegisterClientHandler(SnapshotChannel, payload =>
             {
                 if (payload is JObject snapshotObject) ApplySnapshot(snapshotObject);
@@ -169,7 +170,7 @@ namespace CUCoreLib.Networking
                       MultiplayerBridge.IsConnected,
                 RequestInitialSnapshot,
                 1f);
-            SchedulePlayerStatusSync();
+            MultiplayerPlayerStatusSync.Schedule();
         }
 
         public static void RequestInitialSnapshot()
@@ -196,35 +197,6 @@ namespace CUCoreLib.Networking
             // still pulls a fresh snapshot for this session.
             _initialSnapshotRequested = false;
             RequestInitialSnapshot();
-        }
-
-        private static void SchedulePlayerStatusSync()
-        {
-            if (_playerStatusSyncScheduled) return;
-
-            _playerStatusSyncScheduled = true;
-            CUCoreUtils.CallWhen(
-                () => MultiplayerBridge.IsAvailable && MultiplayerBridge.IsRunning && MultiplayerBridge.IsClient &&
-                      MultiplayerBridge.IsConnected && CUCoreUtils.IsInWorld(),
-                () => CUCoreUtils.StartCoroutine(SyncLocalPlayerStatuses()),
-                1f);
-        }
-
-        private static IEnumerator SyncLocalPlayerStatuses()
-        {
-            // KrokMP has no status-changed event, so each client refreshes only its own authoritative body.
-            while (MultiplayerBridge.IsAvailable && MultiplayerBridge.IsRunning && MultiplayerBridge.IsClient &&
-                   MultiplayerBridge.IsConnected && CUCoreUtils.IsInWorld())
-            {
-                MultiplayerBridge.RequestServer(PlayerStatusSnapshotChannel, null, payload =>
-                {
-                    if (payload is JObject snapshot) StatusRegistry.ApplyNetworkSnapshot(snapshot);
-                });
-                yield return new WaitForSeconds(PlayerStatusSyncSeconds);
-            }
-
-            _playerStatusSyncScheduled = false;
-            SchedulePlayerStatusSync();
         }
 
         public static bool BroadcastSnapshot(bool includeHost = false)
@@ -259,32 +231,7 @@ namespace CUCoreLib.Networking
 
         private static JObject CaptureBuildingManifest()
         {
-            var root = new JObject();
-            var buildings = new JArray();
-
-            foreach (var entry in BuildingEntityRegistry.GetRegisteredDefinitions())
-            {
-                var definition = entry.Value;
-                if (definition == null) continue;
-
-                var building = new JObject
-                {
-                    ["id"] = entry.Key,
-                    ["name"] = definition.Name ?? string.Empty,
-                    ["description"] = definition.Description ?? string.Empty,
-                    ["health"] = definition.Health,
-                    ["placement"] = definition.Placement.ToString(),
-                    ["generationStyle"] = definition.GenerationStyle.ToString(),
-                    ["dropChanceMultiplier"] = definition.DropChanceMultiplier,
-                    ["surfaceOffset"] = definition.SurfaceOffset,
-                    ["spawnMinPerChunk"] = definition.SpawnMinPerChunk,
-                    ["spawnMaxPerChunk"] = definition.SpawnMaxPerChunk
-                };
-
-                root[entry.Key] = building;
-            }
-
-            return root;
+            return BuildingEntityRegistry.CaptureNetworkSnapshot();
         }
 
         private static JObject CaptureLiquidManifest()

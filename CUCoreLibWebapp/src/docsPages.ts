@@ -566,7 +566,7 @@ function multiBlockStructuresPage(): string {
     <section class="lesson-card">
       <h2>Structure editor</h2>
       <p>Create the structure layout in the sister webtool <a href="https://cu-custom-structures.jimmyking.dev/index.html" target="_blank">CU-Custom-Structures editor</a>, export the compact v2 JSON, then register that exported payload through <span class="inline-code">StructureRegistry</span>.</p>
-      <p>Whilst the structure editor awaits its own update, you may choose to edit the .json file by hand to include custom tiles/buildingentites/etc, which will work.<p>
+      <p>Registered CUCoreLib tile and building-entity IDs are interchangeable in structure markers. Numbered markers <span class="inline-code">1</span> through <span class="inline-code">9</span> prefer a registered tile and fall back to a building entity; object marker <span class="inline-code">0</span> prefers a building entity and falls back to a tile. Item marker <span class="inline-code">*</span> remains item-only.</p>
       <img src="images/custom-structure-editor.png" alt="CU Custom Structures editor showing a multi-block structure authoring layout." class="screenshot">
     </section>
 

@@ -74,6 +74,14 @@ namespace CUCoreLib.Networking
         private static MethodInfo _registerClientReceiverMethod;
         private static MethodInfo _writerPutStringMethod;
         private static MethodInfo _readerGetStringMethod;
+        private static MethodInfo _writerPutUShortMethod;
+        private static MethodInfo _writerPutUIntMethod;
+        private static MethodInfo _writerPutBytesWithLengthMethod;
+        private static MethodInfo _readerGetUShortMethod;
+        private static MethodInfo _readerGetUIntMethod;
+        private static MethodInfo _readerGetBytesSegmentMethod;
+        private static MethodInfo _readerGetBytesWithLengthMethod;
+        private static PropertyInfo _readerAvailableBytesProperty;
         private static MethodInfo _liteNetConnectMethod;
         private static MethodInfo _serverAnnounceGameStartMethod;
         private static object _reliableOrdered;
@@ -438,18 +446,8 @@ namespace CUCoreLib.Networking
                 var json = JsonConvert.SerializeObject(envelope, Formatting.None);
                 var encoded = Convert.ToBase64String(CUCoreUtils.CompressGZip(Encoding.UTF8.GetBytes(json)));
 
-                if (_writerPutStringMethod != null)
-                {
-                    _writerPutStringMethod.Invoke(null, new[] { writer, encoded, true });
-                    return true;
-                }
-
-                var putString = writer.GetType().GetMethod("Put", new[] { typeof(string) });
-                if (putString != null)
-                {
-                    putString.Invoke(writer, new object[] { encoded });
-                    return true;
-                }
+                return MultiplayerPayloadFrame.Write(writer, encoded, _writerPutStringMethod,
+                    _writerPutUShortMethod, _writerPutUIntMethod, _writerPutBytesWithLengthMethod);
             }
             catch (Exception ex)
             {
@@ -488,6 +486,12 @@ namespace CUCoreLib.Networking
         private static string ReadString(object reader)
         {
             if (reader == null) return null;
+
+            if (_readerGetUShortMethod != null && _readerGetUIntMethod != null &&
+                _readerGetBytesSegmentMethod != null && _readerGetBytesWithLengthMethod != null)
+                return MultiplayerPayloadFrame.Read(reader, _readerGetStringMethod, _readerGetUShortMethod,
+                    _readerGetUIntMethod, _readerGetBytesSegmentMethod, _readerGetBytesWithLengthMethod,
+                    _readerAvailableBytesProperty);
 
             if (_readerGetStringMethod != null)
             {
@@ -721,6 +725,14 @@ namespace CUCoreLib.Networking
                 new[] { "RegisterClientReceiver", "RegisterClientReciever" }, new[] { typeof(ushort), null });
             _writerPutStringMethod = ResolveStringPutMethod();
             _readerGetStringMethod = ResolveStringGetMethod();
+            _writerPutUShortMethod = _writerType.GetMethod("Put", new[] { typeof(ushort) });
+            _writerPutUIntMethod = _writerType.GetMethod("Put", new[] { typeof(uint) });
+            _writerPutBytesWithLengthMethod = _writerType.GetMethod("PutBytesWithLength", new[] { typeof(byte[]) });
+            _readerGetUShortMethod = _readerType.GetMethod("GetUShort", Type.EmptyTypes);
+            _readerGetUIntMethod = _readerType.GetMethod("GetUInt", Type.EmptyTypes);
+            _readerGetBytesSegmentMethod = _readerType.GetMethod("GetBytesSegment", new[] { typeof(int) });
+            _readerGetBytesWithLengthMethod = _readerType.GetMethod("GetBytesWithLength", Type.EmptyTypes);
+            _readerAvailableBytesProperty = _readerType.GetProperty("AvailableBytes");
             _liteNetConnectMethod = ResolveMethod(_liteNetTransportType, new[] { "OnWantToConnect" },
                 new[] { typeof(string), _netModeType });
             _serverAnnounceGameStartMethod = ResolveMethod(_serverMainType, new[] { "Server_Announce_GAME_START" },

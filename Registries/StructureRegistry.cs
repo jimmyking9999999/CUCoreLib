@@ -972,13 +972,20 @@ namespace CUCoreLib.Registries
                     var worldY = heightMinusOne - y;
                     string mappedEntityId = null;
                     var hasMappedEntity = hasEntityMap && entityMap.TryGetValue(marker, out mappedEntityId);
+                    ushort mappedTileId = 0;
+                    var isItemMarker = marker == '*';
+                    var isObjectMarker = marker == '0';
+                    var hasMappedTile = !isItemMarker && !isObjectMarker && hasMappedEntity &&
+                        TileRegistry.TryGetIndex(mappedEntityId, out mappedTileId);
 
                     var blockId = -1;
                     var liquidId = 0;
-                    var isItemMarker = marker == '*';
-                    var isObjectMarker = marker == '0';
 
-                    if (hasMappedEntity || isItemMarker || isObjectMarker)
+                    if (hasMappedTile)
+                    {
+                        blockId = mappedTileId;
+                    }
+                    else if (hasMappedEntity || isItemMarker || isObjectMarker)
                     {
                         blockId = 0;
                     }
@@ -1037,7 +1044,7 @@ namespace CUCoreLib.Registries
                             entityId = itemQueue.Dequeue();
                         }
                     }
-                    else if (hasMappedEntity)
+                    else if (hasMappedEntity && !hasMappedTile)
                     {
                         entityId = mappedEntityId;
                         if (objectCustomPropertiesByCell != null &&

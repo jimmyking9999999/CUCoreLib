@@ -8,18 +8,65 @@ namespace CUCoreLib.Helpers
 {
     internal static class NetworkSnapshotSerialization
     {
+        private static readonly Dictionary<SpritePayloadKey, string> SpritePayloadCache =
+            new Dictionary<SpritePayloadKey, string>();
+
+        private static int _spriteDedupeDepth;
+
+        // Wraps a snapshot capture so sprites sliced from one shared texture (tile
+        // variants, animation frames) encode their sheet region once and reuse the
+        // base64 payload for every entry. Scopes may nest; the cache lives exactly
+        // as long as the outermost scope so no Texture2D references are held between
+        // captures.
+        internal static IDisposable BeginSpriteDedupeScope()
+        {
+            if (_spriteDedupeDepth++ == 0) SpritePayloadCache.Clear();
+            return new SpriteDedupeScope();
+        }
+
+        private sealed class SpriteDedupeScope : IDisposable
+        {
+            public void Dispose()
+            {
+                if (_spriteDedupeDepth > 0 && --_spriteDedupeDepth == 0) SpritePayloadCache.Clear();
+            }
+        }
+
         internal static JObject WriteSprite(Sprite sprite)
         {
             if (sprite == null || sprite.texture == null) return null;
 
-            var png = WriteTexture(sprite.texture);
+            var key = SpritePayloadKey.From(sprite);
+            string cachedData;
+            if (_spriteDedupeDepth > 0 && SpritePayloadCache.TryGetValue(key, out cachedData))
+                return BuildSpritePayload(sprite, cachedData);
+
+            var png = WriteTextureRegion(sprite);
             if (png == null || png.Length == 0) return null;
+
+            var data = Convert.ToBase64String(png);
+            if (_spriteDedupeDepth > 0) SpritePayloadCache[key] = data;
+
+            return BuildSpritePayload(sprite, data);
+        }
+
+        private static JObject BuildSpritePayload(Sprite sprite, string data)
+        {
+            // Sprite pivots are normalized against the sprite rect, so store them
+            // normalized too; readers rebuild the sprite from the (possibly cropped)
+            // PNG with the same normalized pivot.
+            var rectSize = sprite.rect.size;
+            var pivot = rectSize.x > 0f && rectSize.y > 0f
+                ? new Vector2(sprite.pivot.x / rectSize.x, sprite.pivot.y / rectSize.y)
+                : new Vector2(0.5f, 0.5f);
 
             return new JObject
             {
                 ["name"] = sprite.name,
                 ["ppu"] = sprite.pixelsPerUnit,
-                ["data"] = Convert.ToBase64String(png)
+                ["px"] = pivot.x,
+                ["py"] = pivot.y,
+                ["data"] = data
             };
         }
 
@@ -33,7 +80,8 @@ namespace CUCoreLib.Helpers
             if (!TryDecodeBase64(encoded, out var data) || data == null || data.Length == 0) return null;
 
             var ppu = obj.Value<float?>("ppu") ?? AssetLoader.PPU_WORLD;
-            var sprite = AssetLoader.LoadSpriteFromBytes(data, ppu);
+            var pivot = new Vector2(obj.Value<float?>("px") ?? 0.5f, obj.Value<float?>("py") ?? 0.5f);
+            var sprite = AssetLoader.LoadSpriteFromBytes(data, ppu, pivot);
             if (sprite == null) return sprite;
             var name = obj.Value<string>("name");
             if (!string.IsNullOrWhiteSpace(name)) sprite.name = name;
@@ -243,6 +291,78 @@ namespace CUCoreLib.Helpers
             return value ?? string.Empty;
         }
 
+        private static byte[] WriteTextureRegion(Sprite sprite)
+        {
+            var texture = sprite.texture;
+            if (texture == null) return null;
+
+            // Sprites are frequently sliced from shared sheets, so encode only the
+            // sprite's own rect; encoding sprite.texture would re-embed the whole
+            // sheet once per slice. A full-texture or unusable rect falls back to
+            // the legacy whole-texture path.
+            var rect = sprite.rect;
+            var x = Mathf.Clamp(Mathf.FloorToInt(rect.x), 0, texture.width);
+            var y = Mathf.Clamp(Mathf.FloorToInt(rect.y), 0, texture.height);
+            var width = Mathf.Clamp(Mathf.RoundToInt(rect.width), 0, texture.width - x);
+            var height = Mathf.Clamp(Mathf.RoundToInt(rect.height), 0, texture.height - y);
+            if (width <= 0 || height <= 0 || (x == 0 && y == 0 && width == texture.width && height == texture.height))
+                return WriteTexture(texture);
+
+            try
+            {
+                if (texture.isReadable)
+                {
+                    var cropped = new Texture2D(width, height, TextureFormat.RGBA32, false);
+                    try
+                    {
+                        cropped.SetPixels(texture.GetPixels(x, y, width, height));
+                        cropped.Apply();
+                        return cropped.EncodeToPNG();
+                    }
+                    finally
+                    {
+                        UnityEngine.Object.DestroyImmediate(cropped);
+                    }
+                }
+            }
+            catch
+            {
+                // fall through to the render-texture path
+            }
+
+            RenderTexture renderTexture = null;
+            var previous = RenderTexture.active;
+            try
+            {
+                renderTexture = RenderTexture.GetTemporary(texture.width, texture.height, 0,
+                    RenderTextureFormat.Default, RenderTextureReadWrite.Linear);
+                Graphics.Blit(texture, renderTexture);
+                RenderTexture.active = renderTexture;
+
+                var readable = new Texture2D(width, height, TextureFormat.RGBA32, false);
+                try
+                {
+                    readable.ReadPixels(new Rect(x, y, width, height), 0, 0);
+                    readable.Apply();
+                    return readable.EncodeToPNG();
+                }
+                finally
+                {
+                    UnityEngine.Object.DestroyImmediate(readable);
+                }
+            }
+            catch
+            {
+                // Last resort: the un-cropped texture still round-trips, just larger.
+                return WriteTexture(texture);
+            }
+            finally
+            {
+                RenderTexture.active = previous;
+                if (renderTexture != null) RenderTexture.ReleaseTemporary(renderTexture);
+            }
+        }
+
         private static byte[] WriteTexture(Texture2D texture)
         {
             if (texture == null) return null;
@@ -292,6 +412,70 @@ namespace CUCoreLib.Helpers
             {
                 data = null;
                 return false;
+            }
+        }
+
+        // Identifies the pixel payload of a sprite: same texture, rect, pixels-per-
+        // unit and pivot produce an identical wire payload, so one entry can serve
+        // every sprite sharing them. Sprite names are deliberately excluded (they
+        // are cosmetic and the first writer wins).
+        private readonly struct SpritePayloadKey : IEquatable<SpritePayloadKey>
+        {
+            private SpritePayloadKey(int textureId, float x, float y, float width, float height, float ppu,
+                float pivotX, float pivotY)
+            {
+                TextureId = textureId;
+                X = x;
+                Y = y;
+                Width = width;
+                Height = height;
+                Ppu = ppu;
+                PivotX = pivotX;
+                PivotY = pivotY;
+            }
+
+            private int TextureId { get; }
+            private float X { get; }
+            private float Y { get; }
+            private float Width { get; }
+            private float Height { get; }
+            private float Ppu { get; }
+            private float PivotX { get; }
+            private float PivotY { get; }
+
+            public static SpritePayloadKey From(Sprite sprite)
+            {
+                return new SpritePayloadKey(sprite.texture.GetInstanceID(), sprite.rect.x, sprite.rect.y,
+                    sprite.rect.width, sprite.rect.height, sprite.pixelsPerUnit,
+                    sprite.pivot.x, sprite.pivot.y);
+            }
+
+            public bool Equals(SpritePayloadKey other)
+            {
+                return TextureId == other.TextureId && X == other.X && Y == other.Y &&
+                       Width == other.Width && Height == other.Height && Ppu == other.Ppu &&
+                       PivotX == other.PivotX && PivotY == other.PivotY;
+            }
+
+            public override bool Equals(object obj)
+            {
+                return obj is SpritePayloadKey other && Equals(other);
+            }
+
+            public override int GetHashCode()
+            {
+                unchecked
+                {
+                    var hash = TextureId;
+                    hash = (hash * 397) ^ X.GetHashCode();
+                    hash = (hash * 397) ^ Y.GetHashCode();
+                    hash = (hash * 397) ^ Width.GetHashCode();
+                    hash = (hash * 397) ^ Height.GetHashCode();
+                    hash = (hash * 397) ^ Ppu.GetHashCode();
+                    hash = (hash * 397) ^ PivotX.GetHashCode();
+                    hash = (hash * 397) ^ PivotY.GetHashCode();
+                    return hash;
+                }
             }
         }
     }

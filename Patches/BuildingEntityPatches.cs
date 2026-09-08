@@ -29,7 +29,39 @@ namespace CUCoreLib.Patches
     }
 
     // BuildingEntity's vanilla destruction path loads each drop directly from Resources.
-    // CUCoreLib items are runtime templates, so they need the same fallback used by save loading.
+    // CUCoreLib items are runtime templates, so they need the same fallback used by save loading
+    [HarmonyPatch(typeof(BuildingEntity), "Update")]
+    internal static class BuildingEntityBodyTypePatch
+    {
+        private static readonly MethodInfo BodyTypeSetter = AccessTools.PropertySetter(
+            typeof(Rigidbody2D), nameof(Rigidbody2D.bodyType));
+
+        private static readonly MethodInfo SetBodyTypeIfChangedMethod = AccessTools.Method(
+            typeof(BuildingEntityBodyTypePatch), nameof(SetBodyTypeIfChanged));
+
+        [HarmonyTranspiler]
+        private static IEnumerable<CodeInstruction> AvoidRedundantBodyTypeWrites(
+            IEnumerable<CodeInstruction> instructions)
+        {
+            foreach (var instruction in instructions)
+            {
+                if (instruction.Calls(BodyTypeSetter))
+                {
+                    instruction.opcode = OpCodes.Call;
+                    instruction.operand = SetBodyTypeIfChangedMethod;
+                }
+
+                yield return instruction;
+            }
+        }
+
+        private static void SetBodyTypeIfChanged(Rigidbody2D rigidbody, RigidbodyType2D bodyType)
+        {
+            if (rigidbody != null && rigidbody.bodyType != bodyType)
+                rigidbody.bodyType = bodyType;
+        }
+    }
+
     [HarmonyPatch(typeof(BuildingEntity), "Update")]
     internal static class BuildingEntityCustomDropResolutionPatch
     {
