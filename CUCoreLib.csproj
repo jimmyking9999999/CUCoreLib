@@ -12,6 +12,10 @@
         <BepInExDir Condition="'$(BepInExDir)' == '' and '$(BaseGamePath)' != ''">$(BaseGamePath)\BepInEx</BepInExDir>
     </PropertyGroup>
     <PropertyGroup>
+        <RestoreAdditionalProjectSources>
+          https://api.nuget.org/v3/index.json;
+          https://nuget.bepinex.dev/v3/index.json
+        </RestoreAdditionalProjectSources>
         <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
         <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
         <ProjectGuid>{DC5A5587-6134-4087-BABE-7AD67496E316}</ProjectGuid>
