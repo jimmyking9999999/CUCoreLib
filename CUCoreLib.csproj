@@ -301,8 +301,8 @@
         <None Include="Helpers\app.config"/>
     </ItemGroup>
     <ItemGroup>
-        <Analyzer Include="packages\BepInEx.Analyzers.1.0.8\analyzers\dotnet\cs\BepInEx.Analyzers.CodeFixes.dll"/>
-        <Analyzer Include="packages\BepInEx.Analyzers.1.0.8\analyzers\dotnet\cs\BepInEx.Analyzers.dll"/>
+        <Analyzer Include="$(PkgBepInEx_Analyzers)\analyzers\dotnet\cs\BepInEx.Analyzers.CodeFixes.dll"/>
+        <Analyzer Include="$(PkgBepInEx_Analyzers)\analyzers\dotnet\cs\BepInEx.Analyzers.dll"/>
     </ItemGroup>
     <Target Name="CopyOutputDllsToPlaytestPluginsFolder" AfterTargets="AfterBuild" Condition="'$(BepInExDir)' != ''">
         <MakeDir Directories="$(BepInExDir)\plugins"/>
@@ -321,9 +321,9 @@
             <ErrorText>This project references NuGet package(s) that are missing on this computer. Use NuGet Package Restore to download them. For more information, see http://go.microsoft.com/fwlink/?LinkID=322105. The missing file is {0}.</ErrorText>
         </PropertyGroup>
         <Error Condition="!Exists('$(AssemblyCSharpPath)')" Text="Assembly-CSharp.dll was not found. Set BaseGamePath, GameManagedDir, or AssemblyCSharpPath in CUCoreLib.Local.props or define CUCORELIB_BASE_GAME_PATH / CUCORELIB_ASSEMBLY_CSHARP_PATH before building."/>
-        <Error Condition="!Exists('packages\Fody.6.9.3\build\Fody.targets')" Text="$([System.String]::Format('$(ErrorText)', 'packages\Fody.6.9.3\build\Fody.targets'))"/>
-        <Error Condition="!Exists('packages\Costura.Fody.6.0.0\build\Costura.Fody.props')" Text="$([System.String]::Format('$(ErrorText)', 'packages\Costura.Fody.6.0.0\build\Costura.Fody.props'))"/>
-        <Error Condition="!Exists('packages\Costura.Fody.6.0.0\build\Costura.Fody.targets')" Text="$([System.String]::Format('$(ErrorText)', 'packages\Costura.Fody.6.0.0\build\Costura.Fody.targets'))"/>
-        <Error Condition="!Exists('packages\BepInEx.Core.5.4.21\build\BepInEx.Core.targets')" Text="$([System.String]::Format('$(ErrorText)', 'packages\BepInEx.Core.5.4.21\build\BepInEx.Core.targets'))"/>
+        <Error Condition="!Exists('$(PkgFody)\build\Fody.targets')" Text="$([System.String]::Format('$(ErrorText)', '$(PkgFody)\build\Fody.targets'))"/>
+        <Error Condition="!Exists('$(PkgCostura_Fody)\build\Costura.Fody.props')" Text="$([System.String]::Format('$(ErrorText)', '$(PkgCostura_Fody)\build\Costura.Fody.props'))"/>
+        <Error Condition="!Exists('$(PkgCostura_Fody)\build\Costura.Fody.targets')" Text="$([System.String]::Format('$(ErrorText)', '$(PkgCostura_Fody)\build\Costura.Fody.targets'))"/>
+        <Error Condition="!Exists('$(PkgBepInEx_Core)\build\BepInEx.Core.targets')" Text="$([System.String]::Format('$(ErrorText)', '$(PkgBepInEx_Core)\build\BepInEx.Core.targets'))"/>
     </Target>
 </Project>
