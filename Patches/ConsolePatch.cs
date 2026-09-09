@@ -427,7 +427,9 @@ namespace CUCoreLib.Patches
             var spawnCategoryCommand = ConsoleScript.SearchExact("spawncategory");
             if (spawnCategoryCommand == null) return;
 
-            spawnCategoryCommand.argAutofill = BuildSpawnCategoryAutofill();
+            // Preserve position autofill supplied by the Command constructor.
+            foreach (var entry in BuildSpawnCategoryAutofill())
+                spawnCategoryCommand.argAutofill[entry.Key] = entry.Value;
         }
 
         private static bool HasRegisteredSpawnEntities(ConsoleScript console)

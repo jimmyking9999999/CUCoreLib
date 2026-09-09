@@ -6,11 +6,14 @@ using System.IO.Compression;
 using System.Linq;
 using System.Reflection;
 using System.Text;
+using BepInEx.Bootstrap;
 using CUCoreLib.Data;
 using CUCoreLib.Patches;
 using CUCoreLib.Registries;
+using Newtonsoft.Json.Linq;
 using TMPro;
 using UnityEngine;
+using UnityEngine.Networking;
 using CompressionLevel = System.IO.Compression.CompressionLevel;
 using Object = UnityEngine.Object;
 using UnityEngine.EventSystems;
@@ -19,6 +22,70 @@ namespace CUCoreLib.Helpers
 {
     public static class CUCoreUtils
     {
+        private const string ModVersionsUrl = "https://jimmyking9999999.github.io/Metadata-generator/nexusmods-versions.json";
+        private static readonly HashSet<string> VersionWarnings = new HashSet<string>(StringComparer.Ordinal);
+
+        /// <summary>Checks a loaded mod against the published Nexus metadata and invokes <paramref name="onOutdated"/> when newer.</summary>
+        public static Coroutine CheckModVersion(string modGuid, Action<string, string> onOutdated = null)
+        {
+            return StartCoroutine(CheckModVersionRoutine(modGuid, ModVersionsUrl, onOutdated));
+        }
+
+        /// <summary>Checks a loaded plugin against a raw JSON object or plain version response.</summary>
+        public static Coroutine CheckModVersion(string modGuid, string rawUrl)
+        {
+            return StartCoroutine(CheckModVersionRoutine(modGuid, rawUrl, null));
+        }
+
+        private static IEnumerator CheckModVersionRoutine(string modGuid, string url, Action<string, string> onOutdated)
+        {
+            if (string.IsNullOrWhiteSpace(modGuid) ||
+                !Chainloader.PluginInfos.TryGetValue(modGuid, out var plugin) ||
+                plugin?.Metadata?.Version == null)
+                yield break;
+
+            if (string.IsNullOrWhiteSpace(url)) yield break;
+            using (var request = UnityWebRequest.Get(url))
+            {
+                yield return request.SendWebRequest();
+                if (request.result != UnityWebRequest.Result.Success) yield break;
+
+                var raw = request.downloadHandler.text?.Trim();
+                string latest = raw;
+                try
+                {
+                    if (raw != null && raw.StartsWith("{")) latest = JObject.Parse(raw).Value<string>(modGuid);
+                }
+                catch { yield break; }
+
+                var current = plugin.Metadata.Version.ToString();
+                if (!Version.TryParse(current.TrimStart('v', 'V'), out var currentVersion) ||
+                    !Version.TryParse((latest ?? string.Empty).TrimStart('v', 'V'), out var latestVersion) ||
+                    latestVersion <= currentVersion)
+                    yield break;
+
+                if (onOutdated != null)
+                {
+                    onOutdated(current, latest);
+                    yield break;
+                }
+
+                var message = $"Mod {modGuid} is out of date! Version {current} -> Version {latest}";
+                Debug.LogWarning(message);
+                var console = ConsoleScript.instance;
+                var warningKey = modGuid + "\n" + current + "\n" + latest;
+                if (console != null && VersionWarnings.Add(warningKey))
+                {
+                    var name = string.IsNullOrWhiteSpace(plugin.Metadata.Name) ? modGuid : plugin.Metadata.Name;
+                    var hash = 2166136261u;
+                    foreach (var character in modGuid) hash = (hash ^ character) * 16777619u;
+                    var color = Color.HSVToRGB((hash % 1000) / 1000f, 0.8f, 1f);
+                    var hex = ColorUtility.ToHtmlStringRGB(color);
+                    ConsoleLog(console, $"Mod <color=#{hex}>{name}</color> is out of date! (Version {current} -> Version {latest})");
+                }
+            }
+        }
+
         public sealed class FriendlyKeybind
         {
             private readonly FriendlyKeybindEntry entry;

@@ -3717,6 +3717,24 @@ function utilsPage(): string {
     </section>
 
     <section class="lesson-card">
+      <h2>Mod version checks</h2>
+      <p><span class="inline-code">CheckModVersion</span> compares a loaded plugin against the published Nexus metadata. The default form logs <span class="inline-code">Mod x is out of date! Version old -&gt; Version new</span> to both Unity's debug log and the in-game console.</p>
+      <p>Note that this uses BepInEx's mod versioning, meaning NexusMod version number does not affect the comparison.</p>
+      <pre><code>// Default notification
+CUCoreUtils.CheckModVersion("com.example.mymod");</code></pre>
+      <p>Provide a callback when you want to handle the update yourself. It receives the current and latest version strings.</p>
+      <pre><code>// Custom notification or update action
+CUCoreUtils.CheckModVersion("com.example.mymod", (oldVersion, newVersion) =&gt;
+{
+    Logger.LogWarning($"Please update Custom Structures! Your version: {oldVersion}. New version: {newVersion}");
+});</code></pre>
+      <p>Use the URL overload for a mod-owned raw GitHub, Pastebin, or similar endpoint. The response can be in the form of a json <span class="inline-code">{"your.mod.guid": "1.0.3"}</span>, raw number <span class="inline-code">1.0.3.2</span>, or inline number <span class="inline-code">v1.0.3.5</span>.</p>
+      <pre><code>CUCoreUtils.CheckModVersion(
+    "com.example.mymod",
+    "https://raw.githubusercontent.com/example/mymod/main/version.txt");</code></pre>
+    </section>
+
+    <section class="lesson-card">
       <h2>PlayerPrefsUtils</h2>
       <div class="table-wrap">
         <table class="field-table">
