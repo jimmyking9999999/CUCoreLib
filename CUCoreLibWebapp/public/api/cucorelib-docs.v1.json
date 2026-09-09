@@ -2,7 +2,7 @@
   "version": "1.0",
   "library": "CUCoreLib",
   "description": "Machine-readable CUCoreLib web docs generated from the interactive docs sources.",
-  "generatedAt": "2026-08-28T05:08:12.781Z",
+  "generatedAt": "2026-09-09T07:04:16.404Z",
   "baseUrl": "/",
   "topics": [
     {
@@ -226,7 +226,7 @@
       "label": "Console and You",
       "crumb": "Debug APIs",
       "title": "The Console and You",
-      "lead": "...and the many comcurmands for the few~. Register development commands that can be ran via the game's console.",
+      "lead": "...and the many commands for the few~. Register development commands that can be ran via the game's console.",
       "appUrl": "/docs/console/",
       "machineUrl": "/api/topics/console.json"
     },

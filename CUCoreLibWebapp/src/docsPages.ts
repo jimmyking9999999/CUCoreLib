@@ -230,7 +230,7 @@ export const pages: Page[] = [
     label: "Console and You",
     crumb: "Debug APIs",
     title: "The Console and You",
-    lead: "...and the many comcurmands for the few~. Register development commands that can be ran via the game's console."
+    lead: "...and the many commands for the few~. Register development commands that can be ran via the game's console."
   },
   {
     id: "debug-testing",
@@ -527,21 +527,11 @@ function advancedBuildingEntitiesPage(): string {
 });</code></pre>
     </section>
 
-    <section class="lesson-card">
-      <h2>Falling buildings</h2>
-      <p>Set <span class="inline-code">AddRigidbody2D = true</span> for a falling building. CUCoreLib adds a dynamic <span class="inline-code">Rigidbody2D</span> with mass <span class="inline-code">10f</span>, gravity scale <span class="inline-code">1f</span>, vanilla <span class="inline-code">DamagingCrate</span> behavior, and the Ground layer used by vanilla crates, so it collides with terrain and characters. Set <span class="inline-code">DamagePlayerOnImpact = true</span> to use vanilla stalactite limb damage on impacts faster than 6 units per second. Override <span class="inline-code">RigidbodyBodyType</span>, <span class="inline-code">RigidbodyGravityScale</span>, or <span class="inline-code">Layer</span> only when the default falling setup is not what you need.</p>
-      <pre><code>BuildingEntityRegistry.Register("fallingrock", new CustomBuildingEntityDefinition
-{
-    Sprite = rockSprite,
-    AddRigidbody2D = true,
-    DamagePlayerOnImpact = true
-});</code></pre>
-    </section>
     
     <section class="lesson-card">
       <h2>Keypad and lockpick minigames</h2>
       <p>Vanilla buildings use an <span class="inline-code">Openable</span> component for these interactions. If <span class="inline-code">isKeypad</span> is true, <span class="inline-code">Openable.OnUse()</span> launches <span class="inline-code">KeypadMinigame</span>. Otherwise it launches <span class="inline-code">LockpingMinigame</span> with <span class="inline-code">lockpickAnglePrecision</span> scaled by the run setting <span class="inline-code">lockpickprecision</span>.</p>
-      <p><span class="inline-code">instantOpen</span> bypasses the minigame and just zeroes the building's health. That is the simplest pattern if you want a locked or coded building that still fits the normal game flow.</p>
+      <p><span class="inline-code">instantOpen</span> bypasses the minigame and just zeroes the building's health. For instance, foodcrates.</p>
       <pre><code>public sealed class SafeDoorScript : MonoBehaviour
 {
     private void Awake()
@@ -560,13 +550,13 @@ function multiBlockStructuresPage(): string {
   return `
     <section class="lesson-card">
       <h2>What this API is for</h2>
-      <p><span class="inline-code">StructureRegistry</span> is for authored multi-block structures exported from the CU Structure Editor / More Structures webapp as v2 JSON. This won't work to replace <span class="inline-code">BuildingEntityRegistry</span>, designed for structures instead.</p>
+      <p><span class="inline-code">StructureRegistry</span> is for authored multi-block structures exported from the Custom Structures webapp! This won't work to replace <span class="inline-code">BuildingEntityRegistry</span>, and is designed for structures instead.</p>
     </section>
 
     <section class="lesson-card">
       <h2>Structure editor</h2>
       <p>Create the structure layout in the sister webtool <a href="https://cu-custom-structures.jimmyking.dev/index.html" target="_blank">CU-Custom-Structures editor</a>, export the compact v2 JSON, then register that exported payload through <span class="inline-code">StructureRegistry</span>.</p>
-      <p>Registered CUCoreLib tile and building-entity IDs are interchangeable in structure markers. Numbered markers <span class="inline-code">1</span> through <span class="inline-code">9</span> prefer a registered tile and fall back to a building entity; object marker <span class="inline-code">0</span> prefers a building entity and falls back to a tile. Item marker <span class="inline-code">*</span> remains item-only.</p>
+      <p>Reminder to go into the settings and enable the I'm a modder! setting.</p>
       <img src="images/custom-structure-editor.png" alt="CU Custom Structures editor showing a multi-block structure authoring layout." class="screenshot">
     </section>
 
@@ -610,36 +600,10 @@ function minigamesPage(): string {
       <p>It is advised to either create your own minigame with raw code, or wait until the dedicated tool is released. Thanks! </p>
       <p>Information below is retained for reference, but will soon be mostly outdated and unsupported.</p>
 
-      <p>Some important vanilla hooks are <span class="inline-code">Start()</span>, <span class="inline-code">Update()</span>, <span class="inline-code">PhysicsUpdate()</span>, <span class="inline-code">HandType()</span>, <span class="inline-code">GuideLocaleString()</span>, <span class="inline-code">NeedsItem()</span>, and <span class="inline-code">CanExit()</span>.</p>
-      <p>For quick visual wiring, the session layer exposes the live hand sprite, hand state, spawned minigame root, session-scoped state storage, and the shared screen factory so custom minigames can swap art or grab child GameObjects without repeating reflection code everywhere.</p>
+      <p>Some important vanilla hooks for minigames (for your own implementation) are <span class="inline-code">Start()</span>, <span class="inline-code">Update()</span>, <span class="inline-code">PhysicsUpdate()</span>, <span class="inline-code">HandType()</span>, <span class="inline-code">GuideLocaleString()</span>, <span class="inline-code">NeedsItem()</span>, and <span class="inline-code">CanExit()</span>.</p>
     </section>
 
-    <section class="lesson-card">
-      <h2>CUCoreLib helper surface</h2>
-      <div class="table-wrap">
-        <table class="field-table">
-          <thead>
-            <tr><th>Helper</th><th>What it does</th></tr>
-          </thead>
-          <tbody>
-            <tr><td><span class="inline-code">CUCoreMinigames</span></td><td>Static runner facade that starts or ends minigames and exposes the current live session.</td></tr>
-            <tr><td><span class="inline-code">CUCoreMinigameSession</span></td><td>Live wrapper around the shared runner with access to body, current item, hand state, spawned UI, session-scoped state, and screen/hand helpers.</td></tr>
-            <tr><td><span class="inline-code">CUCoreMinigameConfig</span></td><td>Cached policy object returned from <span class="inline-code">Configure(...)</span> for hand type, guide key, item requirement, rotation offset, and exit behavior.</td></tr>
-            <tr><td><span class="inline-code">CUCoreMinigameDefinition</span></td><td>Composable definition layer for new minigames. Override <span class="inline-code">Configure</span>, <span class="inline-code">Start</span>, <span class="inline-code">Update</span>, and optional <span class="inline-code">End</span> hooks.</td></tr>
-            <tr><td><span class="inline-code">CUCoreMinigames.TryStart(...)</span> / <span class="inline-code">TryStartDefinition(...)</span></td><td>Starts either a vanilla <span class="inline-code">Minigame</span> or a definition-based CUCoreLib minigame only when the shared runner is idle.</td></tr>
-            <tr><td><span class="inline-code">session.TryCreateScreen(...)</span></td><td>Loads a minigame screen prefab through the game's existing UI system.</td></tr>
-            <tr><td><span class="inline-code">session.TryCreateBundledScreen(bundleId, assetName)</span></td><td>Instantiates a bundled screen prefab under the live minigame canvas using the same parenting and <span class="inline-code">spawnedMiniGame</span> bookkeeping as the vanilla screen factory.</td></tr>
-            <tr><td><span class="inline-code">cclbundle://bundleId/assetName</span></td><td>Reserved screen-resource prefix that lets existing <span class="inline-code">TryCreateScreen(...)</span> style code route through a bundled prefab without inventing a second user-facing identifier format.</td></tr>
-            <tr><td><span class="inline-code">session.Complete()</span> / <span class="inline-code">Fail()</span> / <span class="inline-code">Cancel()</span></td><td>Ends the active minigame through the shared runner and reports an explicit end reason into the definition lifecycle.</td></tr>
-            <tr><td><span class="inline-code">session.TrySetHandSprite(...)</span></td><td>Swaps the current hand sprite immediately, either from a sprite asset or one of the game's existing hand slots.</td></tr>
-            <tr><td><span class="inline-code">session.GetOrCreateState&lt;T&gt;(...)</span></td><td>Stores modular per-run state without inventing extra globals or singleton managers.</td></tr>
-            <tr><td><span class="inline-code">session.TryGetSpawnedMiniGameObject(...)</span></td><td>Gets a child GameObject from the spawned minigame root by index or by name.</td></tr>
-            <tr><td><span class="inline-code">CUCoreMinigameTimer</span> / <span class="inline-code">CUCoreMinigameProgress</span></td><td>Optional small helper objects for countdowns and progress-based minigame state.</td></tr>
-            <tr><td><span class="inline-code">CUCoreMinigame</span></td><td>Legacy-compatible abstract wrapper for mods that still prefer direct inheritance from a <span class="inline-code">Minigame</span>-style base.</td></tr>
-          </tbody>
-        </table>
-      </div>
-    </section>
+    
 
     
     <section class="lesson-card">
@@ -806,7 +770,7 @@ CCLBody.HeartRate += 15f;</code></pre>
 
     <section class="lesson-card">
       <h2>Normal player fields</h2>
-      <p>The vanilla <span class="inline-code">Body</span> class exposes a lot of public fields. The normal player fields below are split by topic so you can scan for health, references, animation, and similar seams faster.</p>
+      <p>The vanilla <span class="inline-code">Body</span> class exposes a lot of public fields. The normal player fields below are split by topic.</p>
     </section>
 
     <section class="lesson-card">
@@ -1042,7 +1006,7 @@ function statusesPage(): string {
   return `
     <section class="lesson-card">
       <h2>What statuses are for</h2>
-      <p>Use CUCoreLib statuses when your mod wants new per-instance fields on a vanilla <span class="inline-code">Body</span> or <span class="inline-code">Limb</span> without editing the game's classes. The storage a <span class="inline-code">ConditionalWeakTable</span>, but the supported consumer surface is the one-line extension call <span class="inline-code">body.GetStatus&lt;TStatus&gt;()</span> or <span class="inline-code">limb.GetStatus&lt;TStatus&gt;()</span>.</p>
+      <p>Use CUCoreLib statuses when your mod wants new per-instance (multiplayer compatible) fields on a vanilla <span class="inline-code">Body</span> or <span class="inline-code">Limb</span> without editing the game's classes. For use, use <span class="inline-code">body.GetStatus&lt;TStatus&gt;()</span> or <span class="inline-code">limb.GetStatus&lt;TStatus&gt;()</span>.</p>
       <pre><code>Body body = PlayerCamera.main.body;
 SunstrokeStatus status = body.GetStatus&lt;SunstrokeStatus&gt;();
 
@@ -1061,12 +1025,12 @@ status.ExposureSeconds += Time.deltaTime;</code></pre>
           public bool WarnedPlayer;
       }</code></pre>
       <p>These fields are ordinary C# fields. Think of them as extra body data for your mod.</p>
-      <p>For quick testing, the vanilla <span class="inline-code">setbodyfield</span> and <span class="inline-code">setlimbfield</span> autofill lists include primitive fields on statuses already attached through <span class="inline-code">GetStatus&lt;T&gt;()</span>. Use the suggested <span class="inline-code">StatusType.Field</span> form to avoid collisions: <span class="inline-code">setbodyfield SunstrokeStatus.ExposureSeconds 60</span> or <span class="inline-code">setlimbfield foreleg FrostbiteStatus.ExposureSeconds 60</span>. A bare field name also works when only one attached status has it.</p>
+      <p>Note: For testing, <span class="inline-code">setbodyfield</span> and <span class="inline-code">setlimbfield</span> supports custom statues, e.g. <span class="inline-code">setbodyfield SunstrokeStatus.ExposureSeconds 60</span></p>
     </section>
 
     <section class="lesson-card">
       <h2>Read vanilla fields and update your own state in Update()</h2>
-      <p>A common pattern is: read real vanilla body values, update your attached status, then write the gameplay effect back into other vanilla body fields. This keeps your custom logic self-contained while still using the real game simulation.</p>
+      <p>A common pattern goes something like: read real vanilla body values, update your attached status, then write the gameplay effect back into other vanilla body fields. This keeps your custom logic self-contained while still using the real game simulation.</p>
       <pre><code>[HarmonyPatch(typeof(Body), "Update")]
 public static class BodyUpdateStatusPatch
 {
@@ -1099,8 +1063,8 @@ public static class BodyUpdateStatusPatch
           public bool HasNerveDamage;
       }
 
-      Limb foreleg = body.limbs[2];
-      FrostbiteStatus frostbite = foreleg.GetStatus&lt;FrostbiteStatus&gt;();</code></pre>
+      Limb head = body.limbs[0];
+      FrostbiteStatus frostbite = head.GetStatus&lt;FrostbiteStatus&gt;();</code></pre>
     </section>
 
     <section class="lesson-card">
@@ -1119,8 +1083,6 @@ public static class BodyUpdateStatusPatch
           </tbody>
         </table>
       </div>
-      <p>Statuses are meant for instance-attached mutable state, not generic global storage.</p>
-      <p>Given that there will only ever be one <span class="inline-code">Body</span>, you technically can? But it's not great to do so regardless. :p</p>
     </section>
 
     <section class="lesson-card">
@@ -1145,8 +1107,8 @@ function moodlesPage(): string {
   return `
     <section class="lesson-card">
       <h2>Status moodle bridge</h2>
-      <p>CUCoreLib appends <span class="inline-code">MoodleRegistry</span> and queues custom entries and feeds them into the real vanilla <span class="inline-code">MoodleManager</span> during its normal update pass.</p>
-      <p>That means your custom moodle should behave like any other moodle. It'll needs a valid icon name, a display name, a description, an intensity that matches one of the background slots the game expects, and an <span class="inline-code">important</span> choice that decides whether it belongs in the main row or the side row.</p>
+      <p><span class="inline-code">MoodleRegistry</span> feeds custom entries into vanilla's <span class="inline-code">MoodleManager</span> during its normal refresh pass.</p>
+      <p>Supply a sprite or an existing vanilla icon ID, a display name, a description, a valid background intensity, and an <span class="inline-code">important</span> choice for the main or side row. Resolve localized text before passing it in; vanilla uses these strings directly.</p>
     </section>
 
     <section class="lesson-card">
@@ -1160,10 +1122,12 @@ function moodlesPage(): string {
         "Lead Poisoning",
         "You're feeling a bit woozy and fatigued...",
         critical: false,
-        chippedOnly: false,
+        chippedOnly: false
     );</code></pre>
     <img src="/images/moodle-ingame.png" alt="Example custom moodle with a custom icon" class="screenshot">
     </section>
+
+    
 
     <section class="lesson-card">
       <h2>AddMoodle parameters/fields</h2>
@@ -1182,7 +1146,7 @@ function moodlesPage(): string {
             <tr><td><span class="inline-code">chippedOnly</span></td><td><span class="inline-code">bool</span></td><td>If <span class="inline-code">true</span>, the moodle will only be displayed when the player has a chip.</td></tr>
             <tr><td><span class="inline-code">important</span></td><td><span class="inline-code">bool</span></td><td>If <span class="inline-code">false</span>, the moodle will be displayed in the unimportant hidden-ish section to the right.</td></tr>
             <tr><td><span class="inline-code">key</span></td><td><span class="inline-code">string</span></td><td>Optional stable queue key. Supply this when a moodle changes severity over time. (Where you only want one moodle with the same key active at a time.)</td></tr>
-            <tr><td><span class="inline-code">holdSeconds</span></td><td><span class="inline-code">float</span></td><td>How long the queued moodle stays visible without being refreshed. The default is <span class="inline-code">0.75f</span>.</td></tr>
+            <tr><td><span class="inline-code">holdSeconds</span></td><td><span class="inline-code">float</span></td><td>Unscaled seconds before a queued entry expires after its last refresh. The default is <span class="inline-code">0.5f</span> (seconds).</td></tr>
           </tbody>
         </table>
       </div>
@@ -1240,7 +1204,7 @@ function welcomePage(): string {
     </section>
     <section class="lesson-card">
       <h2>How to read these docs</h2>
-      <p>Use the dropdown above to move between APIs. The left side explains the API; the right side shows the generated C# shape. Some code identifiers have hover notes for field behavior and common traps.</p>
+      <p>Use the dropdown above to move between APIs. The left side explains the API, the right side shows example C# code. Some code identifiers have hover notes for field behavior and common traps.</p>
       <pre><code>
   Logger.LogInfo("Hey! I'm an in-line code block.");
   Logger.LogInfo("I'll tell you how this translates into the code on the right, ");
@@ -1254,7 +1218,7 @@ function welcomePage(): string {
     
     <section class="lesson-card"> 
       <h2>Next Steps</h2>
-      <p>Use the navigation above to explore the APIs. The next logical step is the "Unity + C# TL;DR" page, which gives a quick mental model for how to write a BepInEx plugin for Casualties Unknown.</p>
+      <p>Use the navigation above to explore the APIs. The next logical step is the "Unity + C# TL;DR" page, which gives a quick model for how to write a BepInEx plugin for Casualties Unknown.</p>
       <p>Feel free to skip this if you're already familiar with BepInEx mod structure and Unity basics. Jump to the "Setup" page when you're ready to start writing code.</p>
       </section>
 
@@ -1620,9 +1584,8 @@ function itemPage(): string {
 
     <section class="lesson-card">
       <h2>ItemRegistry.Register</h2>
-      <p>Use the read-only <span class="inline-code">TryGetOwnerModGuid</span> queries on <span class="inline-code">ItemRegistry</span>, <span class="inline-code">LiquidRegistry</span>, <span class="inline-code">BuildingEntityRegistry</span>, <span class="inline-code">TileRegistry</span>, and <span class="inline-code">RecipeRegistry</span> when a tool or UI needs to identify the CUCoreLib-owning plugin. Resolve the returned GUID through BepInEx metadata for the mod's full display name; the query returns false for vanilla or otherwise unowned content.</p>
-      <p>CUCoreLib's item API wraps the game's normal <span class="inline-code">ItemInfo</span>. Give the item a stable lowercase ID, fill the vanilla stat block, then pass a sprite loaded through <span class="inline-code">AssetLoader</span>.</p>
-      <p>The item ID is the value that recipes, console spawning, save/load fallback, and locale lookup will use. Changing it later is a breaking change for saves and dependent recipes.</p>
+      <p>CUCoreLib's item API wraps the game's normal <span class="inline-code">ItemInfo</span>. Give the item a stable lowercase ID, fill the vanilla stat block, then pass a sprite loaded through <span class="inline-code">AssetLoader</span>!</p>
+      <p>The item ID is the value that recipes, console spawning, save/load fallback, and locale lookup will use. Changing it later is a breaking change for saves and dependent recipes, so don't do that.</p>
       <pre><code>Sprite sunpearSprite = AssetLoader.LoadEmbeddedSprite("Images.sunpear.png");
 
 ItemRegistry.Register(
@@ -1764,7 +1727,6 @@ ItemRegistry.Register(
       <h2>Use actions</h2>
       <p>Items have two main use paths. <span class="inline-code">useAction</span> runs when the item is used normally and receives the player's <span class="inline-code">Body</span>. <span class="inline-code">useLimbAction</span> runs when the item is used on a specific <span class="inline-code">Limb</span>, but only if <span class="inline-code">usableOnLimb</span> is true.</p>
       <p>Use <span class="inline-code">useAction</span> for whole-body effects like eating, drinking, playing a sound, changing happiness, or running a simple tool action. Use <span class="inline-code">useLimbAction</span> for targeted medical effects, limb temperature changes, limb components, wound treatment, or anything that needs to know which limb was clicked.</p>
-      <p>When you want vanilla limb interactions without copying the game's logic, call a CUCoreLib helper such as <span class="inline-code">CUCoreUtils.DoAmputate(item, limb)</span> inside <span class="inline-code">useLimbAction</span>. That keeps your item registration readable while still following the base game's amputation rules and minigame flow.</p>
       <pre><code>usable = true,
 useAction = (body, item) =>
 {
@@ -1785,7 +1747,7 @@ useLimbAction = (limb, item) =>
     <section class="lesson-card">
       <h2>Spawning registered items</h2>
       <p>After an item is registered, CUCoreLib can spawn it through <span class="inline-code">CustomInstantiate.InstantiateReturn</span> via code, also returning a <span class="inline-code">GameObject</span> if needed.</p>
-      <p>Use this when a console command, event, recipe side effect, or debug tool needs a real in-world <span class="inline-code">GameObject</span> for your custom item. The returned object can be inspected for its <span class="inline-code">Item</span> component, dropped into the world, or force-picked into a body slot.</p>
+      <p>Note that this usually isn't needed, as items can be spawned directly via itempools, crafting recipes, drops from buildingEntities, (the spawn command for testing), etc..</p>
       <pre><code>GameObject obj = CustomInstantiate.InstantiateReturn(
     "sunpear",
     PlayerCamera.main.body.transform.position,
@@ -1793,11 +1755,9 @@ useLimbAction = (limb, item) =>
     1f
 );
 
-Item item = obj ? obj.GetComponent&lt;Item&gt;() : null;
-if (item != null)
-{
-    PlayerCamera.main.body.PickUpItem(item, 0, force: true);
-}</code></pre>
+Item item = obj.GetComponent&lt;Item&gt;();
+PlayerCamera.main.body.PickUpItem(item, 0, force: true);
+</code></pre>
     </section>
 <section class="lesson-card">
       <p>Woah, that's a lot of info. Don't worry about memorizing every field. You can always come back to this page as a reference when you want to try new things with your items. </p>
@@ -1900,7 +1860,7 @@ private void Awake()
     if (item != null)
         warmthBonus = ItemRegistry.GetCustomData(item, "warmthBonus", 0.25f);
 }</code></pre>
-      <p>Use <span class="inline-code">CustomData</span> when you want inline defaults that each item instance can later read or mutate independently. This is item-only behavior; tile <span class="inline-code">CustomData</span> still means registration metadata.</p>
+      <p>Use <span class="inline-code">CustomData</span> when you want inline defaults that each item instance can later read or mutate independently.</p>
       <p>If you need to adjust a vanilla item stat from the script, remember that the field usually lives on <span class="inline-code">item.Stats</span>, not directly on the <span class="inline-code">Item</span> component. For example, use <span class="inline-code">item.Stats.wearableIsolation = 0.20f;</span> rather than <span class="inline-code">item.wearableIsolation = 0.20f;</span>.</p>
     </section>
 
@@ -2003,7 +1963,7 @@ function liquidsPage(): string {
             <tr><td><span class="inline-code">description</span></td><td><span class="inline-code">string</span></td><td>Description registered as <span class="inline-code">other/id + "dsc"</span>.</td></tr>
             <tr><td><span class="inline-code">color</span></td><td><span class="inline-code">Color</span></td><td>Color used by liquid UI, average container color, and liquid fill visuals.</td></tr>
             <tr><td><span class="inline-code">valuePerLiter</span></td><td><span class="inline-code">float</span></td><td>Trade/value basis for 1000 mL of the liquid.</td></tr>
-            <tr><td><span class="inline-code">unobtainable</span></td><td><span class="inline-code">bool</span></td><td>When true, excludes this custom liquid from random minibarrel contents. Defaults to false; registration, containers, drinking, recipes, and multiplayer behavior remain available.</td></tr>
+            <tr><td><span class="inline-code">unobtainable</span></td><td><span class="inline-code">bool</span></td><td>When true, excludes this custom liquid from random minibarrel contents. Defaults to false.</td></tr>
             <tr><td><span class="inline-code">onDrink</span></td><td><span class="inline-code">LiquidType.OnDrink</span></td><td>Called by <span class="inline-code">WaterContainerItem.Drink(body, amount)</span> for each drained liquid portion.</td></tr>
             <tr><td><span class="inline-code">onApplyToLimb</span></td><td><span class="inline-code">LiquidType.OnHealthUse</span></td><td>Called by <span class="inline-code">ApplyToLimb</span> when the liquid is <span class="inline-code">healthUsable</span>. Falls back to <span class="inline-code">onHealthUse</span> when unset.</td></tr>
             <tr><td><span class="inline-code">onInject</span></td><td><span class="inline-code">LiquidType.OnHealthUse</span></td><td>Called by <span class="inline-code">Inject</span> when the liquid is <span class="inline-code">injectable</span>. Falls back to <span class="inline-code">onHealthUse</span> when unset.</td></tr>
@@ -2062,7 +2022,7 @@ function liquidsPage(): string {
     <section class="lesson-card">
       <h2>Liquid containers</h2>
       <p>The runtime component is <span class="inline-code">WaterContainerItem</span>. It owns the liquid stack list, tracks capacity and fill amount, adds or drains liquids, and calls liquid effects when the player drinks, applies, or injects contents.</p>
-      <p><span class="inline-code">CustomItemInfo</span> inherits the vanilla <span class="inline-code">LiquidItemInfo</span> fields, so normal liquid containers use <span class="inline-code">capacity</span>, <span class="inline-code">defaultContents</span>, and <span class="inline-code">autoFill</span> directly. <span class="inline-code">SyringeProperties</span> is only for syringe minigame/injection behavior. Use <span class="inline-code">LiquidMask</span> for a static fill overlay, or <span class="inline-code">LiquidMaskAnimationId</span> for a registered frame animation; the animation's first frame is the vanilla-compatible fallback.</p>
+      <p><span class="inline-code">CustomItemInfo</span> inherits the vanilla <span class="inline-code">LiquidItemInfo</span> fields, so normal liquid containers use <span class="inline-code">capacity</span>, <span class="inline-code">defaultContents</span>, and <span class="inline-code">autoFill</span> directly. <span class="inline-code">SyringeProperties</span> is only for syringe minigame/injection behavior. Use <span class="inline-code">LiquidMask</span> for a static fill overlay, or <span class="inline-code">LiquidMaskAnimationId</span> for a registered frame animation.</p>
       <p>Use liquid callbacks on the liquid registration itself, not on the item. Put topical effects in <span class="inline-code">onApplyToLimb</span>, injection effects in <span class="inline-code">onInject</span>, and keep <span class="inline-code">onHealthUse</span> only when you intentionally want one shared fallback for both paths.</p>
       <div class="table-wrap">
         <table class="field-table">
@@ -2580,8 +2540,8 @@ function settingsPage(): string {
   return `
     <section class="lesson-card">
       <h2>Register settings in startup</h2>
-      <p>Use <span class="inline-code">ModOptionsRegistry.Register</span> from your plugin startup to add rows to the normal game options menu. CUCoreLib appends real vanilla <span class="inline-code">Setting</span> objects, so the game keeps owning rendering, <span class="inline-code">settings.json</span>, immediate apply, menu close saves, and Reset to Default.</p>
-      <p>If you also bind a BepInEx config entry with the same setting name suffix, CUCoreLib will mirror the in-game value back into that config entry after the game setting applies. For example, <span class="inline-code">my.mod.AllowPlushHarm</span> will sync with a config key named <span class="inline-code">AllowPlushHarm</span>. The in-game setting is the source of truth, and invalid config values are rejected with a console error.</p>
+      <p>Use <span class="inline-code">ModOptionsRegistry.Register</span> from your plugin startup to add rows to the normal game options menu.</p>
+      <p>Note: If you also bind a BepInEx config entry with the same setting name suffix, CUCoreLib will mirror the in-game value back into that config entry after the game setting applies. </p>
       <pre><code>using CUCoreLib.Data;
 using CUCoreLib.Registries;
 using UnityEngine;
@@ -2601,7 +2561,7 @@ private void Awake()
 
     <section class="lesson-card">
       <h2>Custom categories</h2>
-      <p>Pass a plain string category when you want your mod to get its own tab button on the right side of the settings menu. CUCoreLib will reuse the same custom tab for matching strings, and long custom pages can be scrolled with the mouse wheel.</p>
+      <p>Pass a plain string category when you want your mod to get its own tab button on the right side of the settings menu. CUCoreLib will reuse the same custom tab for matching strings.</p>
       <pre><code>ModOptionsRegistry.Register(ModOptionDefinition.Bool(
     "glassworks.furnace.enabled",
     "Enable kiln sparks",
@@ -2659,7 +2619,7 @@ private void Update()
 
     <section class="lesson-card">
       <h2>Optional BepInEx config mirroring</h2>
-      <p>This bridge is opt-in. Your mod still creates its own config entry with <span class="inline-code">Config.Bind(...)</span>, and CUCoreLib only syncs it when the config key matches your registered option ID or its final suffix.</p>
+      
       <pre><code>using BepInEx.Configuration;
 using CUCoreLib.Data;
 using CUCoreLib.Registries;
@@ -2713,7 +2673,7 @@ private void Awake()
         <li>Each ID must contain a namespace dot and must be unique.</li>
         <li>Float and int ranges must have <span class="inline-code">min &lt;= max</span>.</li>
         <li>Dropdowns must have at least one choice, no duplicate choice keys, and a default index inside the choice list.</li>
-        <li>Only vanilla row types are supported. Custom prefab-backed rows should stay mod-local.</li>
+        <li>Only vanilla row types are supported :(</li>
       </ul>
     </section>
   `;
@@ -2778,14 +2738,12 @@ function advancedItemPage(): string {
             <tr><td><span class="inline-code">MultiWornSprites</span></td><td><span class="inline-code">Dictionary&lt;string, Sprite&gt;</span></td><td>Optional extra worn sprites keyed by vanilla limb name. CUCoreLib maps these onto the game's secondary wearable sprite arrays, so one wearable can draw on multiple limbs while equipped.</td></tr>
             <tr><td><span class="inline-code">VisualOffset</span></td><td><span class="inline-code">Vector2</span></td><td>Optional local-space offset applied only while the item is held in a hand slot.</td></tr>
             <tr><td><span class="inline-code">WornSpriteOffset</span></td><td><span class="inline-code">Vector2</span></td><td>Optional local-space offset applied to the worn item sprite after vanilla attaches it to <span class="inline-code">desiredWearLimb</span>.</td></tr>
-            <tr><td><span class="inline-code">WearableSortingOrder</span></td><td><span class="inline-code">int?</span></td><td>Optional worn-renderer sorting order override. When set, CUCoreLib applies that exact order to the main worn sprite and any <span class="inline-code">MultiWornSprites</span>; higher values draw on top of lower values.</td></tr>
+            <tr><td><span class="inline-code">WearableSortingOrder</span></td><td><span class="inline-code">int?</span></td><td>Optional worn-renderer sorting order override. When set, CUCoreLib applies that exact order to the main worn sprite and any <span class="inline-code">MultiWornSprites</span>. Higher values draw on top of lower values.</td></tr>
             <tr><td><span class="inline-code">MultiWornSpriteOffsets</span></td><td><span class="inline-code">Dictionary&lt;string, Vector2&gt;</span></td><td>Optional per-limb local offsets for entries in <span class="inline-code">MultiWornSprites</span>. Use matching limb keys, or fill it through <span class="inline-code">SetMultiWornSpriteOffset(...)</span>.</td></tr>
-            <tr><td><span class="inline-code">LiquidMask</span></td><td><span class="inline-code">Sprite</span></td><td>Optional liquid-fill overlay mask for custom <span class="inline-code">WaterContainerItem</span> containers. Use a white or neutral grayscale sprite with transparency shaping the visible fill area so the game can tint it to the current liquid color.</td></tr>
-            <tr><td><span class="inline-code">LiquidMaskAnimationId</span></td><td><span class="inline-code">string</span></td><td>Optional registered frame-animation ID for the liquid-fill mask. CUCoreLib assigns its first frame to vanilla <span class="inline-code">fillSprite</span>, then animates the generated fill renderer. Leave it empty to keep <span class="inline-code">LiquidMask</span> static.</td></tr>
             <tr><td><span class="inline-code">SpriteScale</span></td><td><span class="inline-code">float</span></td><td>Scale applied to the generated runtime template. Keep this near <span class="inline-code">1f</span> unless your art was made at a different size.</td></tr>
             <tr><td><span class="inline-code">InventoryIconScale</span></td><td><span class="inline-code">float</span></td><td>Extra multiplier applied only to the inventory icon UI size after the normal sprite scale has been resolved. Leave it at <span class="inline-code">1f</span> unless you want the inventory icon smaller or larger than the in-world sprite.</td></tr>
             <tr><td><span class="inline-code">SpriteScaleDimensions</span></td><td><span class="inline-code">SpriteScaleDimensions</span></td><td>Scales the sprite toward a target pixel size like <span class="inline-code">(14f, 14f)</span>. Add <span class="inline-code">true</span> as the third tuple value to stop once either axis reaches the requested size instead of forcing both axes to meet it.</td></tr>
-            <tr><td><span class="inline-code">scaleConditionToward</span></td><td><span class="inline-code">float</span></td><td>Weight at zero condition when <span class="inline-code">scaleWeightWithCondition</span> is enabled. Defaults to <span class="inline-code">0f</span>; for example, set <span class="inline-code">0.1f</span> to scale from 0.1 to the normal <span class="inline-code">weight</span>.</td></tr>
+            <tr><td><span class="inline-code">scaleConditionToward</span></td><td><span class="inline-code">float</span></td><td>Weight at zero condition when <span class="inline-code">scaleWeightWithCondition</span> is enabled. Defaults to <span class="inline-code">0f</span>. For example, set <span class="inline-code">0.1f</span> to scale from 0.1 to the normal <span class="inline-code">weight</span>.</td></tr>
             <tr><td><span class="inline-code">DropPool</span></td><td><span class="inline-code">DropPool?</span></td><td>Optional fixed loot-source flags such as <span class="inline-code">DropPool.Corpse</span>, <span class="inline-code">DropPool.MedicalCrate</span>, <span class="inline-code">DropPool.AllTraders</span>, <span class="inline-code">DropPool.DropCapsule</span>, or <span class="inline-code">DropPool.CapsuleContainer</span>. Leave it null to use category fallback.</td></tr>
             <tr><td><span class="inline-code">SpawnFrequency</span></td><td><span class="inline-code">int</span></td><td>Pooled spawn weight. <span class="inline-code">0</span> means no pooled injection, <span class="inline-code">1</span> is the normal default, higher values make the item more common in category fallback or fixed <span class="inline-code">DropPool</span> sources.</td></tr>
             <tr><td><span class="inline-code">WorldSpawnPerChunk</span></td><td><span class="inline-code">float?</span></td><td>Optional loose worldgen spawn density per chunk. Set it when the item should appear directly in the world after vanilla loot generation. This direct world-spawn count does not use <span class="inline-code">SpawnFrequency</span>.</td></tr>
@@ -2803,8 +2761,7 @@ function advancedItemPage(): string {
       </div>
 
       <h3>LiquidItemInfo fields</h3>
-      <p>Use these direct fields for normal liquid containers like bottles, cans, canteens, pouches, and drinkable items. Use <span class="inline-code">SyringeProperties</span> only when you want the syringe minigame and injection action.</p>
-      <p>If you want the container to render a vanilla-style colored fill overlay, pair those fields with <span class="inline-code">LiquidMask</span> on <span class="inline-code">CustomItemInfo</span>. The mask should usually be white or neutral grayscale, with transparency defining where the liquid can appear. To animate that mask, register frames first and set <span class="inline-code">LiquidMaskAnimationId</span>; the generated fill overlay uses the same timing as the rest of CUCoreLib's sprite animation system.</p>
+      <p>Use these direct fields for normal liquid containers like bottles, cans, canteens, pouches, and drinkable items.</p>
       <div class="table-wrap">
         <table class="field-table">
           <thead><tr><th>Field</th><th>Type</th><th>What it does</th></tr></thead>
@@ -2823,7 +2780,7 @@ function advancedItemPage(): string {
           <tbody>
             <tr><td><span class="inline-code">Capacity</span></td><td><span class="inline-code">float</span></td><td>Maximum total held weight for the vanilla <span class="inline-code">Container</span>.</td></tr>
             <tr><td><span class="inline-code">MaxWeightPerItem</span></td><td><span class="inline-code">float</span></td><td>Maximum weight any one contained item may have.</td></tr>
-            <tr><td><span class="inline-code">EncumbranceReduction</span></td><td><span class="inline-code">float</span></td><td>Multiplier for how much contained weight counts against the player. <span class="inline-code">1f</span> is normal; <span class="inline-code">0.5f</span> feels half as heavy.</td></tr>
+            <tr><td><span class="inline-code">EncumbranceReduction</span></td><td><span class="inline-code">float</span></td><td>Multiplier for how much contained weight counts against the player. <span class="inline-code">1f</span> is normal (no change). <span class="inline-code">0.5f</span> makes items inside half as heavy.</td></tr>
             <tr><td><span class="inline-code">ItemsVisible</span></td><td><span class="inline-code">bool</span></td><td>Controls the vanilla <span class="inline-code">Container.itemsVisible</span> flag. When true, contained item sprites remain visible inside the container.</td></tr>
             <tr><td><span class="inline-code">TagRestriction</span></td><td><span class="inline-code">string[]</span></td><td>Optional whitelist of item tags accepted by the container. Leave empty to allow any tag.</td></tr>
           </tbody>
@@ -3044,7 +3001,7 @@ function advancedItemPage(): string {
 
     <section class="lesson-card">
       <h2>Battery-powered items</h2>
-      <p>Battery-powered tools use the vanilla <span class="inline-code">BatteryItem</span> component. CUCoreLib's battery module adds one, chooses the vanilla battery size from <span class="inline-code">Preset</span>, and uses <span class="inline-code">StartCharge</span> only for the initial fill amount. Use values from <span class="inline-code">0f</span> to <span class="inline-code">1f</span> when you want a percentage of the preset size, or values above <span class="inline-code">1f</span> when you want an absolute charge amount. Use this when the item itself stores charge or accepts battery behavior; use vanilla <span class="inline-code">BatteryInfo</span> when you are registering an actual battery item.</p>
+      <p>Battery-powered tools use the vanilla <span class="inline-code">BatteryItem</span> component. CUCoreLib's battery module adds one, chooses the vanilla battery size from <span class="inline-code">Preset</span>, and uses <span class="inline-code">StartCharge</span> only for the initial fill amount. Use values from <span class="inline-code">0f</span> to <span class="inline-code">1f</span> when you want a percentage of the preset size.</p>
       <p>Battery items automatically gain <span class="inline-code">BatteryDecay</span>, so you usually just set <span class="inline-code">decayMinutes</span> to control how quickly charge drains.</p>
       <pre><code>ItemRegistry.Register(
     "portablelamp",
@@ -3187,7 +3144,7 @@ function advancedItemPage(): string {
 
     <section class="lesson-card">
       <h2>Decay bit flags</h2>
-      <p><span class="inline-code">decayInfo</span> is a byte, but it represents bit flags from <span class="inline-code">ItemInfo.DecayType</span>. Combine flags with bitwise OR (|). The enums are: <span class="inline-code">NoDecayWithoutContainerItem (1)</span>, <span class="inline-code">NoDecayWhenNotWorn (2)</span>, <span class="inline-code">NoDecayWhenStill (4)</span>, and <span class="inline-code">BatteryDecay (16)</span>.</p>
+      <p>Some fields are bit flags, such as <span class="inline-code">decayInfo</span> or <span class="inline-code">DropPool</span>. For these, you should combine flags with bitwise OR (|). For decay type as an example, the enums are: <span class="inline-code">NoDecayWithoutContainerItem (1)</span>, <span class="inline-code">NoDecayWhenNotWorn (2)</span>, <span class="inline-code">NoDecayWhenStill (4)</span>, and <span class="inline-code">BatteryDecay (16)</span>.</p>
       <pre><code>decayMinutes = 240f,
 decayInfo = (byte)(
     ItemInfo.DecayType.NoDecayWhenNotWorn | ItemInfo.DecayType.NoDecayWhenStill
@@ -3406,7 +3363,7 @@ Sprite icon = AssetLoader.LoadEmbeddedSprite("MyMod.Images.sunpear.png");
       </section>
     <section class="lesson-card">
       <h2>Shared asset cache</h2>
-      <p>When more than one system needs to resolve the same loaded asset by ID later, cache it once and reuse it. CUCoreLib exposes cache helpers for shared sprites.</p>
+      <p>When more than one system needs to resolve the same loaded asset by ID later, cache it once and reuse it.</p>
       <pre><code>Sprite icon = AssetLoader.LoadEmbeddedSprite("Images.sunpear.png");
 
 AssetLoader.CacheSprite("sunpear", icon);
@@ -3537,17 +3494,13 @@ function consolePage(): string {
             <tr><td><span class="inline-code">description</span></td><td><span class="inline-code">string</span></td><td>Help text shown by the console command list.</td></tr>
             <tr><td><span class="inline-code">action</span></td><td><span class="inline-code">Command.Action</span></td><td>The delegate that runs when the command is executed. It receives <span class="inline-code">string[] args</span>.</td></tr>
             <tr><td><span class="inline-code">argAutofill</span></td><td><span class="inline-code">Dictionary&lt;int, List&lt;string&gt;&gt;</span></td><td>Optional autocomplete suggestions per argument index. Index <span class="inline-code">0</span> means the first argument after the command name.</td></tr>
-            <tr><td><span class="inline-code">argDescription</span></td><td><span class="inline-code">params (string, string)[]</span></td><td>Optional argument labels and descriptions. The first string is the short label shown in command usage; the second string explains it.</td></tr>
+            <tr><td><span class="inline-code">argDescription</span></td><td><span class="inline-code">params (string, string)[]</span></td><td>Optional argument labels and descriptions. The first string is the short label shown in command usage, the second string explains it.</td></tr>
           </tbody>
         </table>
       </div>
       <p>Inside the action, <span class="inline-code">args[0]</span> is the command name. The first value the player typed after the command is <span class="inline-code">args[1]</span>.</p>
     </section>
-    <section class="lesson-card">
-      <h2>When to use a command</h2>
-      <p>Use console commands for debugging, development tools, diagnostics, and explicit player/admin actions. Do not hide core gameplay behavior behind a console command if it should happen automatically in normal play.</p>
-      <p>Descriptions and argument metadata matter: the vanilla console shows them while typing, and the first argument is <span class="inline-code">args[1]</span> because <span class="inline-code">args[0]</span> is the command name.</p>
-    </section>
+    
     <section class="lesson-card">
       <h2>Built-in bug reports</h2>
       <p>Players can send a diagnostic report for any bugs with your mods from anywhere in the game!</p>
@@ -3557,7 +3510,7 @@ bug-report inventory-crash
 bug-report "Inventory crashes when opened"
 bug-report inventory-crash true high</code></pre>
       <p>The syntax is <span class="inline-code">bug-report ["description text"] [bool screenshot] [severity]</span>. All arguments are optional.  Valid severities are <span class="inline-code">low</span>, <span class="inline-code">medium</span>, <span class="inline-code">high</span>, and <span class="inline-code">critical</span>.</p>
-      <p>Every report includes the loaded mod list and runtime metadata. By default it also attaches the newest 1 MiB of <span class="inline-code">BepInEx/LogOutput.log</span> and the in-game console history. A screenshot is captured only when you explicitly tell the command to :). It captures the screen as it appears upon making the report.</p>
+      <p>Every report includes the loaded mod list and runtime metadata. By default it also attaches the newest 1 MiB of <span class="inline-code">BepInEx/LogOutput.log</span> and the in-game console history. A screenshot is captured only when you explicitly tell the command to :)</p>
     </section>
     <details open>
       <summary>Autofill and argument descriptions</summary>
@@ -3681,7 +3634,7 @@ function utilsPage(): string {
             <tr><td><span class="inline-code">AwaitWorldGeneration</span> / <span class="inline-code">awaitWorldGeneration</span></td><td><span class="inline-code">float checkRepeatTimeSeconds = 0f</span></td><td>Coroutine wait helper for the runtime world finishing generation.</td></tr>
             <tr><td><span class="inline-code">OnHeal</span></td><td><span class="inline-code">event Action</span></td><td>Runs subscribers after the <span class="inline-code">heal</span> console command heals a player. In KrokMP, it runs once on the host for the affected player.</td></tr>
             <tr><td><span class="inline-code">OnLastStand</span></td><td><span class="inline-code">event Action</span></td><td>Runs subscribers when a player successfully enters last stand. In KrokMP, it runs once on the host for the affected player.</td></tr>
-            <tr><td><span class="inline-code">EventPlayer</span></td><td><span class="inline-code">Body</span></td><td>The affected player while either event callback is running; otherwise <span class="inline-code">null</span>. <span class="inline-code">GiveItem</span> automatically gives to this player.</td></tr>
+            <tr><td><span class="inline-code">EventPlayer</span></td><td><span class="inline-code">Body</span></td><td>The affected player while either event callback is running. Otherwise <span class="inline-code">null</span>. <span class="inline-code">GiveItem</span> automatically gives to this player.</td></tr>
             <tr><td><span class="inline-code">IsMainMenuReady</span></td><td>None</td><td>Returns whether the game is currently at a usable main-menu state.</td></tr>
             <tr><td><span class="inline-code">IsWorldGenerationReady</span></td><td>None</td><td>Returns whether the world exists and is no longer generating.</td></tr>
           </tbody>
@@ -3812,7 +3765,7 @@ function utilsPage(): string {
       <pre><code>Sprite sheet = AssetLoader.LoadEmbeddedSprite("Images.radio-frames.png");
 Sprite[] frames = CUCoreUtils.SplitSpriteSheet(sheet, columns: 4, rows: 2);
 
-// frames[0] is the top-left cell; frames[7] is the bottom-right cell.
+// frames[0] is the top-left cell, frames[7] is the bottom-right cell. Typewriter order, left-to-right then top-to-bottom!
 AssetLoader.RegisterFrameAnimation("mymod.radio", frames, framesPerSecond: 8f);</code></pre>
       <p>Cells must divide the input sprite evenly, ordered top-left to right, then down each row (like a typewriter!).</p>
     </section>

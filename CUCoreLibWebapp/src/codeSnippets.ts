@@ -1628,6 +1628,8 @@ private void Awake()
         CUCoreUtils.ShowAlert("Body found.");
         CUCoreUtils.Talk("Hello there.");
         CUCoreUtils.TalkElectronic("Beep boop.");
+        string lastDialogueId = CUCoreUtils.GetLastDialogue();
+        string lastDialogueText = CUCoreUtils.GetLastDialogue(false);
     }
 
     Vector2 mousePos = CUCoreUtils.GetMousePosition();
@@ -2237,19 +2239,28 @@ using CUCoreLib.Registries;
 using HarmonyLib;
 using UnityEngine;
 
+public sealed class LeadPoisoningStatus : BodyStatus
+{
+    public bool touchingLeadTiles; // Set by your mod's tile-contact logic.
+    public float LeadPoisoning;
+}
+
 [HarmonyPatch(typeof(Body), "Update")]
 public static class LeadPoisoningPatch
 {
     [HarmonyPostfix]
     private static void Postfix(Body __instance)
     {
+        if (PlayerCamera.main == null || PlayerCamera.main.body != __instance) return;
+
         LeadPoisoningStatus status = __instance.GetStatus<LeadPoisoningStatus>();
 
         if (status.touchingLeadTiles == true) // or some other custom mod flag
         {
-            boolean HasOpenWounds = __instance.totalBleedSpeed > 0.3f;
+            bool hasOpenWounds = __instance.totalBleedSpeed > 0.3f;
 
-            status.LeadPoisoning = Mathf.Clamp(status.LeadPoisoning + Time.deltaTime * 0.35f * HasOpenWounds ? 3f : 1f, 0f, 100f);  
+            status.LeadPoisoning = Mathf.Clamp(
+                status.LeadPoisoning + Time.deltaTime * 0.35f * (hasOpenWounds ? 3f : 1f), 0f, 100f);
         }
 
         if (status.LeadPoisoning > 18f)
@@ -2258,7 +2269,7 @@ public static class LeadPoisoningPatch
                 2,
                 AssetLoader.LoadEmbeddedSprite("Images.lead-moodle-1.png"),
                 "Lead Poisoning",
-                $"You're feeling a bit woozy and fatigued...",
+                "You're feeling a bit woozy and fatigued...",
                 chippedOnly: true,
                 important: true
             );
