@@ -6,6 +6,7 @@
     <PropertyGroup>
         <NoWarn>$(NoWarn);MSB3277;1591</NoWarn>
         <BaseGamePath Condition="'$(BaseGamePath)' == '' and '$(CUCORELIB_BASE_GAME_PATH)' != ''">$(CUCORELIB_BASE_GAME_PATH)</BaseGamePath>
+        <BaseGamePath Condition="'$(BaseGamePath)' == '' and Exists('../../CasualtiesUnknown.exe')">../../</BaseGamePath>
         <BaseGamePath Condition="'$(BaseGamePath)' == '' and Exists('C:\Program Files (x86)\Steam\steamapps\common\Casualties Unknown Playtest\CasualtiesUnknown_Data\Managed\Assembly-CSharp.dll')">C:\Program Files (x86)\Steam\steamapps\common\Casualties Unknown Playtest</BaseGamePath>
         <BaseGamePath Condition="'$(BaseGamePath)' == '' and Exists('C:\Program Files (x86)\Steam\steamapps\common\Casualties Unknown Demo\CasualtiesUnknown_Data\Managed\Assembly-CSharp.dll')">C:\Program Files (x86)\Steam\steamapps\common\Casualties Unknown Demo</BaseGamePath>
         <GameManagedDir Condition="'$(GameManagedDir)' == '' and '$(BaseGamePath)' != ''">$(BaseGamePath)\CasualtiesUnknown_Data\Managed</GameManagedDir>
