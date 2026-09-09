@@ -248,11 +248,14 @@ namespace CUCoreLib.Networking
                     ["id"] = id,
                     ["name"] = info.name ?? string.Empty,
                     ["description"] = info.description ?? string.Empty,
+                    ["color"] = NetworkSnapshotSerialization.WriteColor(info.color),
                     ["valuePerLiter"] = info.valuePerLiter,
                     ["healthUsable"] = info.healthUsable,
                     ["injectable"] = info.injectable,
                     ["injectionSickness"] = info.injectionSickness,
                     ["localeFromItem"] = info.localeFromItem
+                    , ["unobtainable"] = info.unobtainable
+                    , ["qualities"] = NetworkSnapshotSerialization.WriteCraftingQualities(info.qualities)
                 };
 
                 root[id] = liquid;

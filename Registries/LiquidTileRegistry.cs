@@ -499,6 +499,7 @@ namespace CUCoreLib.Registries
             {
                 if (!(property.Value is JObject obj)) continue;
 
+                RegisteredTiles.TryGetValue(property.Name, out var localInfo);
                 Register(property.Name, new CustomLiquidTileInfo
                 {
                     LiquidId = obj.Value<string>("liquidId"),
@@ -521,7 +522,13 @@ namespace CUCoreLib.Registries
                     MaxFloodFill = obj.Value<int?>("maxFloodFill") ?? 128,
                     ConsumeOnDrink = obj.Value<bool?>("consumeOnDrink") ?? true,
                     ConsumeOnFill = obj.Value<bool?>("consumeOnFill") ?? true,
-                    VisualSprite = NetworkSnapshotSerialization.ReadSprite(obj["visualSprite"])
+                    VisualSprite = NetworkSnapshotSerialization.ReadSprite(obj["visualSprite"]),
+                    VisualMaterial = localInfo?.VisualMaterial,
+                    HighResImage = localInfo?.HighResImage,
+                    OnDrinkOverride = localInfo?.OnDrinkOverride,
+                    OnTouch = localInfo?.OnTouch,
+                    OnEnter = localInfo?.OnEnter,
+                    OnExit = localInfo?.OnExit
                 });
             }
         }

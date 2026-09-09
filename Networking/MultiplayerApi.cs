@@ -37,6 +37,30 @@ namespace CUCoreLib.Networking
             MultiplayerBridge.RegisterClientHandler(channel, handler);
         }
 
+        /// <summary>Registers the same one-way event handler on clients and the server, without a response.</summary>
+        public static void RegisterHandler(string channel, Action<JToken> handler)
+        {
+            if (handler == null) return;
+
+            RegisterClientHandler(channel, handler);
+            RegisterServerHandler(channel, payload =>
+            {
+                handler(payload);
+                return null;
+            });
+        }
+
+        /// <summary>
+        /// Sends to the selected client when called on the server; otherwise sends to the server.
+        /// The target client ID is ignored on clients. Does not relay between clients or broadcast.
+        /// </summary>
+        public static bool SendToPeer(uint targetClientId, string channel, object payload = null, bool reliable = true)
+        {
+            return IsServer
+                ? SendToClient(targetClientId, channel, payload, reliable)
+                : SendToServer(channel, payload, reliable);
+        }
+
         public static bool SendToServer(string channel, object payload = null, bool reliable = true)
         {
             return MultiplayerBridge.SendToServer(channel, payload, reliable);

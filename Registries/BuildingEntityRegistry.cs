@@ -260,6 +260,7 @@ namespace CUCoreLib.Registries
                     ["randomFlip"] = definition.RandomFlip,
                     ["spawnInGround"] = definition.SpawnInGround,
                     ["hitSoundReferenceId"] = definition.HitSoundReferenceId ?? string.Empty,
+                    ["spriteAnimationId"] = definition.SpriteAnimationId ?? string.Empty,
                     ["hitSound"] =
                         NetworkSnapshotSerialization.WriteStringOrEmpty(definition.HitSound != null
                             ? definition.HitSound.name
@@ -344,6 +345,9 @@ namespace CUCoreLib.Registries
                     RandomFlip = obj.Value<bool?>("randomFlip") ?? true,
                     SpawnInGround = obj.Value<bool?>("spawnInGround") ?? false,
                     HitSoundReferenceId = obj.Value<string>("hitSoundReferenceId"),
+                    SpriteAnimationId = obj.Value<string>("spriteAnimationId") ?? localDefinition?.SpriteAnimationId,
+                    HitSound = localDefinition?.HitSound,
+                    PlaceCheck = localDefinition?.PlaceCheck,
                     BlockFootstepSoundId = obj.Value<ushort?>("blockFootstepSoundId") ?? 0,
                     RenderReferenceId = obj.Value<string>("renderReferenceId"),
                     CopyGlowPlantLayer = obj.Value<bool?>("copyGlowPlantLayer") ?? false,

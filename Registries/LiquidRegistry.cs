@@ -319,6 +319,7 @@ namespace CUCoreLib.Registries
 
                 try
                 {
+                    RegisteredLiquids.TryGetValue(property.Name, out var localInfo);
                     Register(property.Name, new CustomLiquidInfo
                     {
                         name = obj.Value<string>("name"),
@@ -330,7 +331,11 @@ namespace CUCoreLib.Registries
                         injectionSickness = obj.Value<float?>("injectionSickness") ?? 1f,
                         localeFromItem = obj.Value<bool?>("localeFromItem") ?? false,
                         unobtainable = obj.Value<bool?>("unobtainable") ?? false,
-                        qualities = NetworkSnapshotSerialization.ReadCraftingQualities(obj["qualities"])
+                        qualities = NetworkSnapshotSerialization.ReadCraftingQualities(obj["qualities"]),
+                        onDrink = localInfo?.onDrink,
+                        onHealthUse = localInfo?.onHealthUse,
+                        onApplyToLimb = localInfo?.onApplyToLimb,
+                        onInject = localInfo?.onInject
                     });
                 }
                 catch

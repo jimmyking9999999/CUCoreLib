@@ -311,6 +311,8 @@ namespace CUCoreLib.Registries
                         ["multiWornSprites"] = NetworkSnapshotSerialization.WriteSpriteDictionary(info.MultiWornSprites),
                         ["liquidMask"] = NetworkSnapshotSerialization.WriteSprite(info.LiquidMask),
                         ["liquidMaskAnimationId"] = info.LiquidMaskAnimationId ?? string.Empty,
+                        ["iconAnimationId"] = info.IconAnimationId ?? string.Empty,
+                        ["wornSpriteAnimationId"] = info.WornSpriteAnimationId ?? string.Empty,
                         ["visualOffsetX"] = info.VisualOffset.x,
                         ["visualOffsetY"] = info.VisualOffset.y,
                         ["heldSpriteOffsetX"] = info.HeldSpriteOffset.x,
@@ -400,13 +402,17 @@ namespace CUCoreLib.Registries
 
                 try
                 {
-                    // Audio clips are intentionally omitted from snapshots. Preserve clips from
-                    // the client's local registration when the host sends the static gun data.
-                    GunProperties localGun = null;
-                    if (RegisteredItems.TryGetValue(id, out var localInfo)) localGun = localInfo?.Gun;
+                    // Snapshots carry data, not executable callbacks or local audio clips.
+                    RegisteredItems.TryGetValue(id, out var localInfo);
+                    var localGun = localInfo?.Gun;
 
                     var info = new CustomItemInfo
                     {
+                        useAction = localInfo?.useAction,
+                        useLimbAction = localInfo?.useLimbAction,
+                        SpawnComponents = localInfo?.SpawnComponents != null
+                            ? new List<string>(localInfo.SpawnComponents)
+                            : new List<string>(),
                         fullName = obj.Value<string>("fullName"),
                         description = obj.Value<string>("description"),
                         category = obj.Value<string>("category"),
@@ -456,6 +462,8 @@ namespace CUCoreLib.Registries
                     MultiWornSprites = NetworkSnapshotSerialization.ReadSpriteDictionary(obj["multiWornSprites"]),
                     LiquidMask = NetworkSnapshotSerialization.ReadSprite(obj["liquidMask"]),
                     LiquidMaskAnimationId = obj.Value<string>("liquidMaskAnimationId"),
+                    IconAnimationId = obj.Value<string>("iconAnimationId") ?? localInfo?.IconAnimationId,
+                    WornSpriteAnimationId = obj.Value<string>("wornSpriteAnimationId") ?? localInfo?.WornSpriteAnimationId,
                     SpriteScale = obj.Value<float?>("spriteScale") ?? 1f,
                     SpriteScaleDimensions = new SpriteScaleDimensions(
                         obj.Value<float?>("spriteScaleWidth") ?? 0f,

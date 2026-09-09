@@ -12,7 +12,6 @@ namespace CUCoreLib.Bootstrap
         {
             if (!File.Exists(configPath))
             {
-                logger.LogWarning($"Could not find BepInEx core config at '{configPath}'. CUCoreLib could not auto-enable {HideManagerGameObjectKey}.");
                 return;
             }
 
@@ -35,12 +34,9 @@ namespace CUCoreLib.Bootstrap
                 });
                 if (!wasEnabled) return;
 
-                logger.LogWarning(
-                    $"Enabled BepInEx [Chainloader] {HideManagerGameObjectKey} = true in '{configPath}'. Restart the game so Unity stops destroying plugin game objects. If downloaded mods still do not load, confirm they are in BepInEx/plugins and then relaunch once more.");
             }
             catch (Exception ex)
             {
-                logger.LogWarning($"Failed to auto-enable BepInEx [Chainloader] {HideManagerGameObjectKey}: {ex}");
             }
         }
     }

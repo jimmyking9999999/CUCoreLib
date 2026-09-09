@@ -49,7 +49,6 @@ namespace CUCoreLib.Patches
                 harmony.Patch(receiver, prefix: new HarmonyMethod(prefix));
                 harmony.Patch(sender, prefix: new HarmonyMethod(reliablePrefix), transpiler: new HarmonyMethod(transpiler));
                 _installed = true;
-                CUCoreLibPlugin.Log?.LogInfo("CUCoreLib KrokMP 16-bit tile chunk sync installed (required on host and clients).");
             }
             catch (Exception exception)
             {
@@ -60,7 +59,6 @@ namespace CUCoreLib.Patches
                     harmony.Unpatch(sender, reliablePrefix);
                 }
                 if (receiver != null) harmony.Unpatch(receiver, prefix);
-                CUCoreLibPlugin.Log?.LogError("CUCoreLib could not install 16-bit KrokMP tile chunk sync: " + exception);
             }
         }
 

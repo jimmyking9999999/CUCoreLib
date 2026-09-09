@@ -230,7 +230,6 @@ namespace CUCoreLib.Networking
                 InstallReceivers();
                 InstallKrokMpTransportHook();
                 IsAvailable = true;
-                CUCoreLibPlugin.Log?.LogInfo("CUCoreLib multiplayer bridge is ready.");
                 return;
             }
 
@@ -676,7 +675,6 @@ namespace CUCoreLib.Networking
             InstallReceivers();
             InstallKrokMpTransportHook();
             IsAvailable = true;
-            CUCoreLibPlugin.Log?.LogInfo("CUCoreLib multiplayer bridge is ready.");
         }
 
         private static bool TryResolveRuntime()

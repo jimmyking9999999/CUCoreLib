@@ -2507,6 +2507,8 @@ private void ApplyMarkerSnapshot(JObject snapshot)
             <tr><td><span class="inline-code">IsClient</span>, <span class="inline-code">IsServer</span>, <span class="inline-code">IsHost</span></td><td>Role checks before sending server-only or client-only work.</td></tr>
             <tr><td><span class="inline-code">RegisterServerHandler</span></td><td>Handle client-to-server requests/events for your channel.</td></tr>
             <tr><td><span class="inline-code">RegisterClientHandler</span></td><td>Handle server-to-client events for your channel.</td></tr>
+            <tr><td><span class="inline-code">RegisterHandler</span></td><td>Register one event callback on both sides. Returns no server response.</td></tr>
+            <tr><td><span class="inline-code">SendToPeer</span></td><td>Server sends to the selected client; client sends to the server and ignores the target client ID. No automatic relay or broadcast.</td></tr>
             <tr><td><span class="inline-code">SendToServer</span></td><td>Fire-and-forget client event.</td></tr>
             <tr><td><span class="inline-code">RequestServer</span></td><td>Client request with a server response callback.</td></tr>
             <tr><td><span class="inline-code">SendToClient</span></td><td>Server event to one client ID.</td></tr>
@@ -2516,6 +2518,14 @@ private void ApplyMarkerSnapshot(JObject snapshot)
         </table>
       </div>
       
+      <h3>One callback for both directions</h3>
+      <pre><code>// Register once at startup on every peer.
+MultiplayerApi.RegisterHandler("mymod.print", p => Debug.Log(p?.ToString()));
+
+// Server: targetClientId selects the recipient. Client: always sends to the server.
+MultiplayerApi.SendToPeer(targetClientId, "mymod.print", "Hello!");</code></pre>
+      <p>Use <span class="inline-code">RegisterServerHandler</span> with <span class="inline-code">RequestServer</span> when you need a response. A successful send return does not confirm receipt.</p>
+
       <h3>Request custom player status data</h3>
       <p>For body-status sync, use KrokMP's <span class="inline-code">clientId</span> to choose which player body to read. A <span class="inline-code">clientId</span> is the multiplayer player ID, not the player's display name.</p>
       <p><span class="inline-code">GetCustomPlayerData</span> returns the saved custom <span class="inline-code">BodyStatus</span> payloads for that player's body. <span class="inline-code">GetCustomPlayerLimbData</span> returns custom <span class="inline-code">LimbStatus</span> payloads for that player's limbs.</p>

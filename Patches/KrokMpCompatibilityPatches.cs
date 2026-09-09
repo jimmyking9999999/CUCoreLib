@@ -122,7 +122,7 @@ namespace CUCoreLib.Patches
                 if (_newLoaderPatched || _applyHook != null)
                 {
                     _installed = true;
-                    CUCoreLibPlugin.Log?.LogInfo("CUCoreLib KrokMP compatibility patch installed.");
+                    CUCoreLibPlugin.Log?.LogInfo("CUCoreLib, with friends!");
                     return;
                 }
             }
