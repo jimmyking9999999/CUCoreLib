@@ -10,7 +10,6 @@ I figured that this would be nice to have, as to easily take a look at everythin
 ## v1.0.6
 
 ### New Stuff!
-- Added `MultiplayerApi.RegisterHandler` for one event callback on both sides and `SendToPeer` for server-to-client/client-to-server routing.
 - Added `CUCoreUtils.GetLastDialogue(...)` for checking the last dialogue ID or selected text.
 - Added `DamagePlayerOnImpact` for `AddRigidbody2D` buildingEntites
 - `setbodyfield` and `setlimbfield` can now change fields on attached CUCoreLib statuses with `StatusType.Field`. (I.e. ToxicStatuses.Toxicity)
@@ -21,7 +20,6 @@ I figured that this would be nice to have, as to easily take a look at everythin
 - Moodle queues now default to .5s refesh (this matches vanilla, so it should fix mismatched animations)
 - ""Fixed"" large amounts of data being truncated when sending over multiplayer requests
 - Explicit MP support for buildingEntites, tiles. Note this might break for people using v1.0.4/1.0.5 <-> v1.0.6 in terms of crossplay
-- I broke everything with ^, whoops. Should be fixed now.
 - Fixed `AddRigidbody2D` (t'was a layer issue)
 
 
