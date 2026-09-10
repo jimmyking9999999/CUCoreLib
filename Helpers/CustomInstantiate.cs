@@ -67,7 +67,7 @@ namespace CUCoreLib.Helpers
             return vanilla != null ? vanilla : GetOrCreateTemplate(id);
         }
 
-        internal static GameObject PrepareInstantiatedObject(GameObject obj, float? condition = null)
+        internal static GameObject PrepareInstantiatedObject(GameObject obj, float? condition = null, bool save = false)
         {
             if (obj == null) return null;
 
@@ -78,7 +78,8 @@ namespace CUCoreLib.Helpers
                 // Matches vanilla's throw path so custom sprite colliders do not tunnel through terrain.
                 if (ItemRegistry.TryGetCustomInfo(item, out _) && item.rb != null)
                     item.rb.collisionDetectionMode = CollisionDetectionMode2D.Continuous;
-                ItemRegistryPatches.MarkPendingBatteryInitialization(obj);
+                if(!save)
+                    ItemRegistryPatches.MarkPendingBatteryInitialization(obj);
             }
 
             if (!condition.HasValue) return obj;
