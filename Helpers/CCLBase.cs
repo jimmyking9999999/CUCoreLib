@@ -1,6 +1,6 @@
 using BepInEx;
 using BepInEx.Logging;
-using CUCoreLib.ContentReload;
+using CUCoreLib.DevTools.HotReload;
 
 namespace CUCoreLib.Helpers
 {

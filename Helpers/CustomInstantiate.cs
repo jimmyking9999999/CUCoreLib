@@ -350,12 +350,17 @@ namespace CUCoreLib.Helpers
         {
             if (target == null) return;
 
-            // Disabled objects/components do not affect templates instantiated before Unity completes
-            // the deferred destroy, and Object.Destroy is permitted from physics callbacks.
-            if (target is GameObject gameObject)
-                gameObject.SetActive(false);
-            else if (target is Behaviour behaviour)
-                behaviour.enabled = false;
+            switch (target)
+            {
+                // Disabled objects/components do not affect templates instantiated before Unity completes
+                // the deferred destroy, and Object.Destroy is permitted from physics callbacks.
+                case GameObject gameObject:
+                    gameObject.SetActive(false);
+                    break;
+                case Behaviour behaviour:
+                    behaviour.enabled = false;
+                    break;
+            }
 
             Object.Destroy(target);
         }

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using BepInEx;
 using BepInEx.Configuration;
 using CUCoreLib.Data;
@@ -106,16 +107,14 @@ namespace CUCoreLib.Helpers
 
         private static void TryLinkState(SyncState state)
         {
-            if (state == null) return;
-
-            if (state.Option == null || state.Setting == null || state.ConfigEntry == null) return;
+            if (state?.Option == null || state.Setting == null || state.ConfigEntry == null) return;
 
             TrySyncSettingToConfig(state, "linked setting");
         }
 
         private static void WrapSettingApply(SyncState state)
         {
-            if (state == null || state.Setting == null || state.ApplyWrapped) return;
+            if (state?.Setting == null || state.ApplyWrapped) return;
 
             var originalApply = state.Setting.apply;
             state.Setting.apply = () =>
@@ -128,14 +127,14 @@ namespace CUCoreLib.Helpers
 
         private static void NotifySettingApplied(SyncState state)
         {
-            if (state == null || state.ConfigEntry == null || state.ApplyingFromConfig) return;
+            if (state?.ConfigEntry == null || state.ApplyingFromConfig) return;
 
             TrySyncSettingToConfig(state, "game setting applied");
         }
 
         private static void TrySyncConfigToSetting(SyncState state, ConfigEntryBase entry, string reason)
         {
-            if (state == null || state.Option == null || state.Setting == null || entry == null) return;
+            if (state?.Option == null || state.Setting == null || entry == null) return;
             if (state.ApplyingFromSetting) return;
 
             if (!TryConvertConfigValueToSetting(state.Option, entry.BoxedValue, out var convertedValue, out var error))
@@ -165,7 +164,7 @@ namespace CUCoreLib.Helpers
 
         private static void TrySyncSettingToConfig(SyncState state, string reason)
         {
-            if (state == null || state.Option == null || state.Setting == null || state.ConfigEntry == null) return;
+            if (state?.Option == null || state.Setting == null || state.ConfigEntry == null) return;
             if (state.ApplyingFromConfig) return;
 
             var currentValue = GetSettingValue(state.Setting, state.Option.Kind);
@@ -196,7 +195,7 @@ namespace CUCoreLib.Helpers
 
         private static void RevertConfigEntry(SyncState state)
         {
-            if (state == null || state.ConfigEntry == null || state.Option == null || state.Setting == null) return;
+            if (state?.ConfigEntry == null || state.Option == null || state.Setting == null) return;
 
             var currentValue = GetSettingValue(state.Setting, state.Option.Kind);
             if (!TryConvertSettingValueToConfig(state.Option, currentValue, state.ConfigEntry.SettingType,
@@ -221,9 +220,8 @@ namespace CUCoreLib.Helpers
 
         private static void EnsureConfigFileHooked(ConfigFile configFile)
         {
-            if (configFile == null || HookedFiles.Contains(configFile)) return;
+            if (configFile == null || !HookedFiles.Add(configFile)) return;
 
-            HookedFiles.Add(configFile);
             configFile.SettingChanged += OnConfigSettingChanged;
             configFile.ConfigReloaded += OnConfigReloaded;
         }
@@ -244,8 +242,7 @@ namespace CUCoreLib.Helpers
 
         private static void OnConfigReloaded(object sender, EventArgs e)
         {
-            var configFile = sender as ConfigFile;
-            if (configFile == null) return;
+            if (!(sender is ConfigFile configFile)) return;
 
             if (!ConfigEntriesByFile.TryGetValue(configFile, out var entries)) return;
 
@@ -267,13 +264,12 @@ namespace CUCoreLib.Helpers
             if (state?.Option == null || state.ConfigEntry != null) return;
 
             foreach (var pair in ConfigEntriesByFile)
-            foreach (var entry in pair.Value.Values)
+            foreach (var entry in from entry in pair.Value.Values
+                     where entry != null
+                     let matchedState = FindStateForDefinition(entry.Definition)
+                     where ReferenceEquals(matchedState, state)
+                     select entry)
             {
-                if (entry == null) continue;
-
-                var matchedState = FindStateForDefinition(entry.Definition);
-                if (!ReferenceEquals(matchedState, state)) continue;
-
                 state.ConfigFile = pair.Key;
                 state.ConfigEntry = entry;
                 return;
@@ -726,6 +722,8 @@ namespace CUCoreLib.Helpers
                     }
 
                     break;
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(kind), kind, null);
             }
         }
 

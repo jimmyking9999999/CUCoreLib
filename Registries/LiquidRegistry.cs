@@ -2,8 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
-using CUCoreLib.ContentReload;
 using CUCoreLib.Data;
+using CUCoreLib.DevTools.HotReload;
 using CUCoreLib.Helpers;
 using CUCoreLib.Networking;
 using CUCoreLib.Patches;
@@ -43,6 +43,7 @@ namespace CUCoreLib.Registries
             }
             catch
             {
+                // ignored
             }
 
             try
@@ -51,6 +52,7 @@ namespace CUCoreLib.Registries
             }
             catch
             {
+                // ignored
             }
 
             KrokMpCompatibilityPatches.RefreshLiquidRegistry();
@@ -60,6 +62,7 @@ namespace CUCoreLib.Registries
             }
             catch
             {
+                // ignored
             }
 
             try
@@ -68,6 +71,7 @@ namespace CUCoreLib.Registries
             }
             catch
             {
+                // ignored
             }
         }
 
@@ -93,6 +97,7 @@ namespace CUCoreLib.Registries
                 }
                 catch
                 {
+                    // ignored
                 }
 
             KrokMpCompatibilityPatches.RefreshLiquidRegistry();
@@ -104,6 +109,7 @@ namespace CUCoreLib.Registries
                 }
                 catch
                 {
+                    // ignored
                 }
 
             return injected;
@@ -148,6 +154,7 @@ namespace CUCoreLib.Registries
             }
             catch
             {
+                // ignored
             }
 
             var wasPresent = Liquids.Registry.ContainsKey(id);
@@ -172,6 +179,7 @@ namespace CUCoreLib.Registries
                 }
                 catch
                 {
+                    // ignored
                 }
 
             if (!string.IsNullOrEmpty(info.description))
@@ -181,6 +189,7 @@ namespace CUCoreLib.Registries
                 }
                 catch
                 {
+                    // ignored
                 }
 
             return !wasPresent;
@@ -222,6 +231,7 @@ namespace CUCoreLib.Registries
                     return info.onApplyToLimb ?? info.onHealthUse;
                 case HealthUseMode.Inject:
                     return info.onInject ?? info.onHealthUse;
+                case HealthUseMode.None:
                 default:
                     return info.onHealthUse ?? info.onApplyToLimb ?? info.onInject;
             }
@@ -295,6 +305,7 @@ namespace CUCoreLib.Registries
                 }
                 catch
                 {
+                    // ignored
                 }
 
             return root;
@@ -331,6 +342,7 @@ namespace CUCoreLib.Registries
                 }
                 catch
                 {
+                    // ignored
                 }
             }
         }

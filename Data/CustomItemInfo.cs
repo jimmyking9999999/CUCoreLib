@@ -449,7 +449,7 @@ namespace CUCoreLib.Data
         /// <summary>
         ///     Optional item-tag restriction list for what the container accepts.
         /// </summary>
-        public string[] TagRestriction = new string[0];
+        public string[] TagRestriction = Array.Empty<string>();
     }
 
     /// <summary>

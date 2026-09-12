@@ -158,12 +158,8 @@ namespace CUCoreLib.Helpers
 
         private static IEnumerable<Assembly> GetCandidateAssemblies()
         {
-            foreach (var plugin in Chainloader.PluginInfos.Values)
-            {
-                var assembly = plugin?.Instance?.GetType().Assembly;
-                if (assembly == null) continue;
-                yield return assembly;
-            }
+            return Chainloader.PluginInfos.Values.Select(plugin => plugin?.Instance?.GetType().Assembly)
+                .Where(assembly => assembly != null);
         }
 
         private static bool IsSupportedField(FieldInfo field)
@@ -286,8 +282,8 @@ namespace CUCoreLib.Helpers
         {
             if (!_overlayVisible) return false;
             if (ActiveWatches.Count == 0) return false;
-            if (WorldGeneration.world == null) return false;
-            return PlayerCamera.main != null;
+            if (!WorldGeneration.world) return false;
+            return PlayerCamera.main;
         }
 
         private static GUIStyle GetOverlayStyle()

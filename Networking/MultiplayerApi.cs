@@ -1,7 +1,7 @@
 using System;
 using System.Linq;
 using System.Reflection;
-using CUCoreLib.ContentReload;
+using CUCoreLib.DevTools.HotReload;
 using CUCoreLib.Registries;
 using Newtonsoft.Json.Linq;
 
@@ -215,11 +215,11 @@ namespace CUCoreLib.Networking
                         return false;
 
                     var parameters = method.GetParameters();
-                    return parameters.Length == 3 &&
-                           MultiplayerBridge.IsClientIdType(parameters[0].ParameterType) &&
-                           parameters[1].IsOut &&
-                           parameters[2].IsOut &&
-                           parameters[2].ParameterType == typeof(Body).MakeByRefType();
+                    return parameters.Length == 3 
+                           && MultiplayerBridge.IsClientIdType(parameters[0].ParameterType)
+                           && parameters[1].IsOut 
+                           && parameters[2].IsOut 
+                           && parameters[2].ParameterType == typeof(Body).MakeByRefType();
                 });
 
             return _tryGetNetPlayerAndBodyFromClientIdMethod != null;

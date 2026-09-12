@@ -76,7 +76,9 @@ namespace CUCoreLib.Helpers
 
             var contributions = selector(data);
             var callerKey = ResolveCallerKey();
-            return contributions.TryGetValue(callerKey, out var value) ? value : 0f;
+            return contributions.TryGetValue(callerKey, out var value) 
+                ? value 
+                : 0f;
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
@@ -117,7 +119,7 @@ namespace CUCoreLib.Helpers
                 var assembly = declaringType?.Assembly;
                 if (assembly == null || assembly == currentAssembly) continue;
 
-                return assembly.GetName().Name ?? assembly.FullName ?? "external";
+                return assembly.GetName().Name ?? assembly.FullName;
             }
 
             return currentAssembly.GetName().Name ?? "cucorelib";

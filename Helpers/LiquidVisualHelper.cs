@@ -1,6 +1,7 @@
 using System.IO;
+using System.Linq;
 using System.Reflection;
-using CUCoreLib.ContentReload;
+using CUCoreLib.DevTools.HotReload;
 using UnityEngine;
 
 namespace CUCoreLib.Helpers
@@ -14,6 +15,10 @@ namespace CUCoreLib.Helpers
             "Sprites/Default",
             "Unlit/Transparent"
         };
+
+        private static readonly int MainTex = Shader.PropertyToID("_MainTex");
+        private static readonly int BaseMap = Shader.PropertyToID("_BaseMap");
+        private static readonly int Color1 = Shader.PropertyToID("_Color");
 
         public static Texture2D LoadEmbeddedTexture(string resourcePath, Assembly sourceAssembly = null,
             FilterMode filterMode = FilterMode.Point, TextureWrapMode wrapMode = TextureWrapMode.Clamp)
@@ -57,11 +62,11 @@ namespace CUCoreLib.Helpers
 
             if (texture != null)
             {
-                if (material.HasProperty("_MainTex")) material.mainTexture = texture;
-                if (material.HasProperty("_BaseMap")) material.SetTexture("_BaseMap", texture);
+                if (material.HasProperty(MainTex)) material.mainTexture = texture;
+                if (material.HasProperty(BaseMap)) material.SetTexture(BaseMap, texture);
             }
 
-            if (material.HasProperty("_Color")) material.SetColor("_Color", Color.white);
+            if (material.HasProperty(Color1)) material.SetColor(Color1, Color.white);
             return material;
         }
 
@@ -100,13 +105,11 @@ namespace CUCoreLib.Helpers
 
         private static Material CreateMaterialFromFallbackShaders()
         {
-            foreach (var shaderName in FallbackLiquidShaderNames)
-            {
-                var shader = Shader.Find(shaderName);
-                if (shader != null) return new Material(shader);
-            }
-
-            return null;
+            return (from shaderName in FallbackLiquidShaderNames
+                select Shader.Find(shaderName)
+                into shader
+                where shader != null
+                select new Material(shader)).FirstOrDefault();
         }
 
         private static Texture2D CreateTextureFromBytes(byte[] data, string textureName, FilterMode filterMode,

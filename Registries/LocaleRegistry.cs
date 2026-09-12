@@ -5,7 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 using BepInEx;
-using CUCoreLib.ContentReload;
+using CUCoreLib.DevTools.HotReload;
 using CUCoreLib.Helpers;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -178,11 +178,15 @@ namespace CUCoreLib.Registries
         /// </summary>
         /// <param name="category">Locale category such as "item", "building", "log", or "other".</param>
         /// <param name="key">Locale key within the selected category.</param>
+        /// <param name="fallback">Fallback text used when no translation exists.</param>
         /// <param name="args">
         ///     Values injected into {0}, {1}, ... placeholders. Out-of-range placeholders are preserved verbatim.
         /// </param>
         /// <returns>The formatted localized text; never null.</returns>
-        public static string GetFormattedWithFallback(string category, string key, string fallback,
+        public static string GetFormattedWithFallback(
+            string category, 
+            string key,
+            string fallback,
             params object[] args)
         {
             return Format(Get(category, key, fallback), key, args);

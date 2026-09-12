@@ -131,28 +131,19 @@ namespace CUCoreLib.Helpers
         {
             var fileName = localeName + ".json";
             var normalizedFileName = NormalizeResourceName(fileName);
-            var results = new List<EmbeddedLocaleResource>();
             var visited = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-            foreach (var pluginInfo in Chainloader.PluginInfos.Values
-                         .Where(info => info != null)
-                         .OrderBy(GetPluginSortKey, StringComparer.OrdinalIgnoreCase))
-            {
-                var assembly = ResolvePluginAssembly(pluginInfo);
-                if (assembly == null) continue;
-
-                foreach (var resourceName in assembly.GetManifestResourceNames()
-                             .Where(name => ResourceNameMatchesLocale(name, normalizedFileName))
-                             .OrderBy(name => name, StringComparer.OrdinalIgnoreCase))
-                {
-                    var uniqueKey = (assembly.FullName ?? assembly.GetName().Name ?? string.Empty) + "|" + resourceName;
-                    if (!visited.Add(uniqueKey)) continue;
-
-                    results.Add(new EmbeddedLocaleResource(assembly, resourceName));
-                }
-            }
-
-            return results;
+            return (from pluginInfo in Chainloader.PluginInfos.Values.Where(info => info != null)
+                    .OrderBy(GetPluginSortKey, StringComparer.OrdinalIgnoreCase)
+                select ResolvePluginAssembly(pluginInfo)
+                into assembly
+                where assembly != null
+                from resourceName in assembly.GetManifestResourceNames()
+                    .Where(name => ResourceNameMatchesLocale(name, normalizedFileName))
+                    .OrderBy(name => name, StringComparer.OrdinalIgnoreCase)
+                let uniqueKey = (assembly.FullName ?? assembly.GetName().Name ?? string.Empty) + "|" + resourceName
+                where visited.Add(uniqueKey)
+                select new EmbeddedLocaleResource(assembly, resourceName)).ToList();
         }
 
         private static JObject LoadEmbeddedLocaleJson(EmbeddedLocaleResource resource)
@@ -235,7 +226,9 @@ namespace CUCoreLib.Helpers
 
         private static Assembly ResolvePluginAssembly(PluginInfo pluginInfo)
         {
-            var instanceAssembly = pluginInfo?.Instance != null ? pluginInfo.Instance.GetType().Assembly : null;
+            var instanceAssembly = pluginInfo?.Instance != null
+                ? pluginInfo.Instance.GetType().Assembly
+                : null;
             if (instanceAssembly != null) return instanceAssembly;
 
             var normalizedLocation = NormalizeExistingPath(pluginInfo?.Location);

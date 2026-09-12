@@ -2,8 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
-using CUCoreLib.ContentReload;
 using CUCoreLib.Data;
+using CUCoreLib.DevTools.HotReload;
 using CUCoreLib.Helpers;
 using CUCoreLib.Networking;
 using CUCoreLib.Registries.Infrastructure;
@@ -313,15 +313,11 @@ namespace CUCoreLib.Registries
                     group => DefinitionOwners.TryGetOwner(group.First().Key, out var owner) ? owner : null,
                     StringComparer.OrdinalIgnoreCase);
             var entries = snapshot.Properties()
-                .Select(property =>
+                .Select(property => new
                 {
-                    ushort tileIndex;
-                    return new
-                    {
-                        HasIndex = ushort.TryParse(property.Name, out tileIndex),
-                        TileIndex = tileIndex,
-                        Definition = property.Value as JObject
-                    };
+                    HasIndex = ushort.TryParse(property.Name, out var tileIndex),
+                    TileIndex = tileIndex,
+                    Definition = property.Value as JObject
                 })
                 .Where(entry => entry.HasIndex && entry.Definition != null)
                 .OrderBy(entry => entry.TileIndex)
@@ -437,8 +433,7 @@ namespace CUCoreLib.Registries
         {
             if (world == null || RegisteredDefinitions.Count == 0) return;
 
-            var worldBlocks = WorldBlocksField?.GetValue(world) as ushort[,];
-            if (worldBlocks == null) return;
+            if (!(WorldBlocksField?.GetValue(world) is ushort[,] worldBlocks)) return;
 
             foreach (var entry in RegisteredDefinitions
                          .Where(entry => entry.Value != null && !(entry.Value.SpawnAmount <= 0))

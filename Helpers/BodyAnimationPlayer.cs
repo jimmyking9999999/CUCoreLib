@@ -40,7 +40,7 @@ namespace CUCoreLib.Helpers
 
         public static void ResetToVanilla(Body body)
         {
-            if (body == null) return;
+            if (!body) return;
 
             var bodyId = body.GetInstanceID();
             if (!PlaybackByBodyId.TryGetValue(bodyId, out var state) || state == null) return;
@@ -48,13 +48,13 @@ namespace CUCoreLib.Helpers
             DestroyPlayback(state);
             PlaybackByBodyId.Remove(bodyId);
 
-            if (body.bodyAnimator != null)
+            if (body.bodyAnimator)
             {
                 body.bodyAnimator.Rebind();
                 body.bodyAnimator.Update(0f);
             }
 
-            if (body.armsAnimator != null)
+            if (body.armsAnimator)
             {
                 body.armsAnimator.Rebind();
                 body.armsAnimator.Update(0f);
@@ -69,8 +69,10 @@ namespace CUCoreLib.Helpers
             foreach (var pair in PlaybackByBodyId)
             {
                 var state = pair.Value;
-                if (state == null || state.Body == null || state.Body.bodyAnimator == null ||
-                    state.Body.armsAnimator == null)
+                if (state == null
+                    || !state.Body
+                    || !state.Body.bodyAnimator
+                    || !state.Body.armsAnimator)
                 {
                     completedBodies.Add(pair.Key);
                     continue;
@@ -114,9 +116,9 @@ namespace CUCoreLib.Helpers
             }
 
             var assetName = NormalizePackAssetName(bundleId);
-            if (!AssetLoader.TryLoadBundleAsset(bundleId, assetName, out TextAsset manifestAsset) ||
-                manifestAsset == null ||
-                string.IsNullOrWhiteSpace(manifestAsset.text))
+            if (!AssetLoader.TryLoadBundleAsset(bundleId, assetName, out TextAsset manifestAsset)
+                || manifestAsset == null
+                || string.IsNullOrWhiteSpace(manifestAsset.text))
             {
                 LogWarning("Could not load bundled body animation manifest '" + assetName + "' from bundle '" +
                            bundleId + "'.");
@@ -134,7 +136,7 @@ namespace CUCoreLib.Helpers
                 return false;
             }
 
-            if (manifest == null || manifest.Animations == null || manifest.Animations.Length == 0)
+            if (manifest?.Animations == null || manifest.Animations.Length == 0)
             {
                 LogWarning("Bundled body animation manifest '" + assetName +
                            "' did not contain any animation entries.");
@@ -142,8 +144,7 @@ namespace CUCoreLib.Helpers
             }
 
             entry = manifest.Animations.FirstOrDefault(candidate =>
-                candidate != null &&
-                string.Equals(candidate.AnimationId ?? string.Empty, animationId.Trim(),
+                candidate != null && string.Equals(candidate.AnimationId ?? string.Empty, animationId.Trim(),
                     StringComparison.OrdinalIgnoreCase));
 
             if (entry == null)
@@ -152,23 +153,23 @@ namespace CUCoreLib.Helpers
                 return false;
             }
 
-            if (string.IsNullOrWhiteSpace(entry.BodyClipAssetName) ||
-                string.IsNullOrWhiteSpace(entry.ArmsClipAssetName))
+            if (string.IsNullOrWhiteSpace(entry.BodyClipAssetName) 
+                || string.IsNullOrWhiteSpace(entry.ArmsClipAssetName))
             {
                 LogWarning("Bundled body animation '" + animationId + "' is missing clip asset names.");
                 return false;
             }
 
-            if (!AssetLoader.TryLoadBundleAsset(bundleId, entry.BodyClipAssetName.Trim(), out bodyClip) ||
-                bodyClip == null)
+            if (!AssetLoader.TryLoadBundleAsset(bundleId, entry.BodyClipAssetName.Trim(), out bodyClip)
+                || bodyClip == null)
             {
                 LogWarning("Could not load body clip '" + entry.BodyClipAssetName + "' for custom animation '" +
                            animationId + "'.");
                 return false;
             }
 
-            if (!AssetLoader.TryLoadBundleAsset(bundleId, entry.ArmsClipAssetName.Trim(), out armsClip) ||
-                armsClip == null)
+            if (!AssetLoader.TryLoadBundleAsset(bundleId, entry.ArmsClipAssetName.Trim(), out armsClip)
+                || armsClip == null)
             {
                 LogWarning("Could not load arms clip '" + entry.ArmsClipAssetName + "' for custom animation '" +
                            animationId + "'.");
@@ -182,8 +183,11 @@ namespace CUCoreLib.Helpers
             AnimationClip armsClip, bool loop,
             float speed)
         {
-            if (body == null || body.bodyAnimator == null || body.armsAnimator == null || bodyClip == null ||
-                armsClip == null)
+            if (body == null
+                || body.bodyAnimator == null
+                || body.armsAnimator == null
+                || bodyClip == null 
+                || armsClip == null)
             {
                 LogWarning("Could not play custom body animation because the body seam was incomplete.");
                 return false;
@@ -250,7 +254,9 @@ namespace CUCoreLib.Helpers
         {
             var trimmed = (bundleId ?? string.Empty).Trim();
             var lastDot = trimmed.LastIndexOf('.');
-            var stem = lastDot >= 0 ? trimmed.Substring(0, lastDot) : trimmed;
+            var stem = lastDot >= 0 
+                ? trimmed.Substring(0, lastDot)
+                : trimmed;
             return stem + "AnimationPack";
         }
 

@@ -10,7 +10,7 @@ using CUCoreLib.Helpers;
 using CUCoreLib.Networking;
 using UnityEngine;
 
-namespace CUCoreLib.ContentReload
+namespace CUCoreLib.DevTools.HotReload
 {
     public static class ContentReloadManager
     {
@@ -88,12 +88,7 @@ namespace CUCoreLib.ContentReload
             return result;
         }
 
-        public static void EnableHotReload(string modGuid)
-        {
-            EnableHotReload(modGuid, null);
-        }
-
-        public static void EnableHotReload(string modGuid, HotReloadOptions options)
+        public static void EnableHotReload(string modGuid, HotReloadOptions options = null)
         {
             Initialize();
 
@@ -122,7 +117,9 @@ namespace CUCoreLib.ContentReload
         public static int GetPollIntervalSeconds()
         {
             Initialize();
-            return config != null && config.PollIntervalSeconds > 0 ? config.PollIntervalSeconds : 2;
+            return config != null && config.PollIntervalSeconds > 0 
+                ? config.PollIntervalSeconds
+                : 2;
         }
 
         public static bool ConfigureAutoHotRefresh(string modGuid, bool enabled, out string message)
@@ -166,8 +163,12 @@ namespace CUCoreLib.ContentReload
             var modName = pluginInfo.Metadata != null && !string.IsNullOrWhiteSpace(pluginInfo.Metadata.Name)
                 ? pluginInfo.Metadata.Name
                 : normalizedModGuid;
-            var label = string.IsNullOrWhiteSpace(modName) ? modGuid : modName + " (" + modGuid + ")";
-            message = (enabled ? "Enabled" : "Disabled") + " automatic hot reload for " + label + ".";
+            var label = string.IsNullOrWhiteSpace(modName)
+                ? modGuid
+                : modName + " (" + modGuid + ")";
+            message = (enabled 
+                ? "Enabled"
+                : "Disabled") + " automatic hot reload for " + label + ".";
             return true;
         }
 
@@ -183,8 +184,8 @@ namespace CUCoreLib.ContentReload
                 EnsureModConfigBound(modGuid);
                 var state = GetOrCreateState(modGuid);
                 var candidate = ContentAssemblyResolver.ResolveCandidate(modGuid, config, state);
-                if (string.IsNullOrWhiteSpace(candidate.SelectedPath) ||
-                    string.IsNullOrWhiteSpace(candidate.SelectedHash)) continue;
+                if (string.IsNullOrWhiteSpace(candidate.SelectedPath)
+                    || string.IsNullOrWhiteSpace(candidate.SelectedHash)) continue;
 
                 if (string.Equals(candidate.SelectedHash, state.LastSuccessfulHash, StringComparison.OrdinalIgnoreCase))
                 {
@@ -194,8 +195,8 @@ namespace CUCoreLib.ContentReload
                     continue;
                 }
 
-                if (!string.Equals(state.PendingHash, candidate.SelectedHash, StringComparison.OrdinalIgnoreCase) ||
-                    !string.Equals(state.PendingSourcePath, candidate.SelectedPath, StringComparison.OrdinalIgnoreCase))
+                if (!string.Equals(state.PendingHash, candidate.SelectedHash, StringComparison.OrdinalIgnoreCase)
+                    || !string.Equals(state.PendingSourcePath, candidate.SelectedPath, StringComparison.OrdinalIgnoreCase))
                 {
                     state.PendingHash = candidate.SelectedHash;
                     state.PendingSourcePath = candidate.SelectedPath;
@@ -224,8 +225,12 @@ namespace CUCoreLib.ContentReload
                 return;
             }
 
-            WriteMessages(console, result != null ? result.Errors.ToArray() : Array.Empty<string>());
-            WriteMessages(console, result != null ? result.Skipped.ToArray() : Array.Empty<string>());
+            WriteMessages(console, result != null
+                ? result.Errors.ToArray()
+                : Array.Empty<string>());
+            WriteMessages(console, result != null
+                ? result.Skipped.ToArray()
+                : Array.Empty<string>());
             if (result != null && !string.IsNullOrWhiteSpace(result.UnsupportedReason))
                 WriteMessages(console, new[] { result.UnsupportedReason });
         }
@@ -259,6 +264,7 @@ namespace CUCoreLib.ContentReload
                     config.Mods[normalizedModGuid] = modConfig;
                 }
 
+                // always true???
                 modConfig.WatchEnabled = watchEnabled;
                 modConfig.OverridePath = GetConfiguredOverridePath(normalizedModGuid);
             }
@@ -289,8 +295,8 @@ namespace CUCoreLib.ContentReload
                 config.Mods[normalizedModGuid] = modConfig;
             }
 
-            if (!OverridePathEntriesByModGuid.TryGetValue(normalizedModGuid, out var overrideEntry) ||
-                overrideEntry == null)
+            if (!OverridePathEntriesByModGuid.TryGetValue(normalizedModGuid, out var overrideEntry)
+                || overrideEntry == null)
             {
                 overrideEntry = CUCoreLibPlugin.BindSharedConfig(
                     ConfigSectionName,
@@ -310,7 +316,9 @@ namespace CUCoreLib.ContentReload
             if (!OverridePathEntriesByModGuid.TryGetValue(modGuid.Trim(), out var entry) || entry == null) return null;
 
             var value = entry.Value;
-            return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+            return string.IsNullOrWhiteSpace(value)
+                ? null
+                : value.Trim();
         }
 
         private static bool IsMultiplayerActive()
@@ -365,9 +373,7 @@ namespace CUCoreLib.ContentReload
 
         private static string TryGetPluginGuidFromType(Type pluginType)
         {
-            if (pluginType == null) return null;
-
-            var attribute = pluginType.GetCustomAttributes(typeof(BepInPlugin), true)
+            var attribute = pluginType?.GetCustomAttributes(typeof(BepInPlugin), true)
                 .OfType<BepInPlugin>()
                 .FirstOrDefault();
             return attribute?.GUID;

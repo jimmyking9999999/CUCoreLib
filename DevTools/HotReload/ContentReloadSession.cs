@@ -7,7 +7,7 @@ using System.Reflection;
 using BepInEx.Bootstrap;
 using CUCoreLib.Helpers;
 
-namespace CUCoreLib.ContentReload
+namespace CUCoreLib.DevTools.HotReload
 {
     internal static class ContentReloadSession
     {
@@ -95,26 +95,18 @@ namespace CUCoreLib.ContentReload
 
             if ((current.AllowedSurfaces & surface) != 0) return;
 
-            if (CurrentMode == HotReloadMode.FlexibleGuarded)
-            {
-                WarnBlocked(apiName, guidance);
-                return;
-            }
-
-            throw new InvalidOperationException(BuildDisallowedMessage(apiName, guidance));
+            if (CurrentMode != HotReloadMode.FlexibleGuarded)
+                throw new InvalidOperationException(BuildDisallowedMessage(apiName, guidance));
+            WarnBlocked(apiName, guidance);
         }
 
         internal static void AssertNotActive(string apiName, string guidance = null)
         {
             if (current == null) return;
 
-            if (CurrentMode == HotReloadMode.FlexibleGuarded)
-            {
-                WarnBlocked(apiName, guidance);
-                return;
-            }
-
-            throw new InvalidOperationException(BuildDisallowedMessage(apiName, guidance));
+            if (CurrentMode != HotReloadMode.FlexibleGuarded)
+                throw new InvalidOperationException(BuildDisallowedMessage(apiName, guidance));
+            WarnBlocked(apiName, guidance);
         }
 
         private static void WarnBlocked(string apiName, string guidance)

@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace CUCoreLib.ContentReload
+namespace CUCoreLib.DevTools.HotReload
 {
     [Flags]
     internal enum ContentReloadSurface

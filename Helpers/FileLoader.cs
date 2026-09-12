@@ -3,7 +3,7 @@ using System.Linq;
 using System.Reflection;
 using System.Text;
 using BepInEx.Logging;
-using CUCoreLib.ContentReload;
+using CUCoreLib.DevTools.HotReload;
 using UnityEngine;
 
 namespace CUCoreLib.Helpers
@@ -23,20 +23,18 @@ namespace CUCoreLib.Helpers
         }
 
 
-        public static Sprite LoadSpriteFromFile(string filename)
-        {
-            // Introduced optional parameters for method 'Sprite LoadSpriteFromFile(string, float, FilterMode, int, int)'
-            return LoadSpriteFromFile(filename, 100, FilterMode.Point, 1, 1);
-        }
-
         public static Sprite LoadSpriteFromFile(string filename, float ppu, FilterMode filterMode)
         {
             return LoadSpriteFromFile(filename, ppu, filterMode, 1, 1);
         }
 
         // Direct file loads
-        public static Sprite LoadSpriteFromFile(string filename, float ppu, FilterMode filterMode, int widthMultiplier,
-            int heightMultiplier)
+        public static Sprite LoadSpriteFromFile(
+            string filename,
+            float ppu = 100,
+            FilterMode filterMode = FilterMode.Point,
+            int widthMultiplier = 1,
+            int heightMultiplier = 1)
         {
             var pluginPath = ResolvePluginDirectory();
             var imagePath = TryResolveSpriteFilePath(pluginPath, filename, out var attemptedPaths);
@@ -76,19 +74,17 @@ namespace CUCoreLib.Helpers
             return AssetLoader.LoadEmbeddedAudio(fileName, ResolveSourceAssembly());
         }
 
-        public static Sprite LoadEmbeddedSprite(string filename)
-        {
-            // Introduced optional parameters for method 'Sprite LoadEmbeddedSprite(string, float, FilterMode, int, int)' 
-            return LoadEmbeddedSprite(filename, 100, FilterMode.Point, 1, 1);
-        }
-
         public static Sprite LoadEmbeddedSprite(string filename, float ppu, FilterMode filterMode)
         {
             return LoadEmbeddedSprite(filename, ppu, filterMode, 1, 1);
         }
 
-        public static Sprite LoadEmbeddedSprite(string filename, float ppu, FilterMode filterMode, int widthMultiplier,
-            int heightMultiplier)
+        public static Sprite LoadEmbeddedSprite(
+            string filename,
+            float ppu = 100,
+            FilterMode filterMode = FilterMode.Point, 
+            int widthMultiplier = 1,
+            int heightMultiplier = 1)
         {
             var asm = ResolveSourceAssembly();
             if (asm == null) return null;

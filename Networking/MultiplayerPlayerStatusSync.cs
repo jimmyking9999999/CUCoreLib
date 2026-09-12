@@ -24,15 +24,21 @@ namespace CUCoreLib.Networking
             if (_scheduled) return;
             _scheduled = true;
             CUCoreUtils.CallWhen(
-                () => MultiplayerBridge.IsAvailable && MultiplayerBridge.IsRunning && MultiplayerBridge.IsClient &&
-                      MultiplayerBridge.IsConnected && CUCoreUtils.IsInWorld(),
+                () => MultiplayerBridge.IsAvailable
+                      && MultiplayerBridge.IsRunning
+                      && MultiplayerBridge.IsClient 
+                      && MultiplayerBridge.IsConnected
+                      && CUCoreUtils.IsInWorld(),
                 () => CUCoreUtils.StartCoroutine(Run()), 1f);
         }
 
         private static IEnumerator Run()
         {
-            while (MultiplayerBridge.IsAvailable && MultiplayerBridge.IsRunning && MultiplayerBridge.IsClient &&
-                   MultiplayerBridge.IsConnected && CUCoreUtils.IsInWorld())
+            while (MultiplayerBridge.IsAvailable 
+                   && MultiplayerBridge.IsRunning 
+                   && MultiplayerBridge.IsClient 
+                   && MultiplayerBridge.IsConnected
+                   && CUCoreUtils.IsInWorld())
             {
                 MultiplayerBridge.RequestServer(MultiplayerSyncRegistry.PlayerStatusSnapshotChannel, null, payload =>
                 {

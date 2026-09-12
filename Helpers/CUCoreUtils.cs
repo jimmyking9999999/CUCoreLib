@@ -7,8 +7,8 @@ using System.Linq;
 using System.Reflection;
 using System.Text;
 using BepInEx.Bootstrap;
-using CUCoreLib.ContentReload;
 using CUCoreLib.Data;
+using CUCoreLib.DevTools.HotReload;
 using CUCoreLib.Patches;
 using CUCoreLib.Registries;
 using Newtonsoft.Json.Linq;
@@ -85,9 +85,9 @@ namespace CUCoreLib.Helpers
 
         private static IEnumerator CheckModVersionRoutine(string modGuid, string url, Action<string, string> onOutdated)
         {
-            if (string.IsNullOrWhiteSpace(modGuid) ||
-                !Chainloader.PluginInfos.TryGetValue(modGuid, out var plugin) ||
-                plugin?.Metadata?.Version == null)
+            if (string.IsNullOrWhiteSpace(modGuid)
+                || !Chainloader.PluginInfos.TryGetValue(modGuid, out var plugin)
+                || plugin?.Metadata?.Version == null)
                 yield break;
 
             if (string.IsNullOrWhiteSpace(url)) yield break;
@@ -108,9 +108,9 @@ namespace CUCoreLib.Helpers
                 }
 
                 var current = plugin.Metadata.Version.ToString();
-                if (!Version.TryParse(current.TrimStart('v', 'V'), out var currentVersion) ||
-                    !Version.TryParse((latest ?? string.Empty).TrimStart('v', 'V'), out var latestVersion) ||
-                    latestVersion <= currentVersion)
+                if (!Version.TryParse(current.TrimStart('v', 'V'), out var currentVersion)
+                    || !Version.TryParse((latest ?? string.Empty).TrimStart('v', 'V'), out var latestVersion)
+                    || latestVersion <= currentVersion)
                     yield break;
 
                 if (onOutdated != null)
@@ -126,8 +126,8 @@ namespace CUCoreLib.Helpers
                 if (console != null && VersionWarnings.Add(warningKey))
                 {
                     var name = string.IsNullOrWhiteSpace(plugin.Metadata.Name) ? modGuid : plugin.Metadata.Name;
-                    var hash = 2166136261u;
-                    foreach (var character in modGuid) hash = (hash ^ character) * 16777619u;
+                    var hash = modGuid.Aggregate(2166136261u,
+                        (current1, character) => (current1 ^ character) * 16777619u);
                     var color = Color.HSVToRGB(hash % 1000 / 1000f, 0.8f, 1f);
                     var hex = ColorUtility.ToHtmlStringRGB(color);
                     ConsoleLog(console,
@@ -425,13 +425,12 @@ namespace CUCoreLib.Helpers
             if (!TryGetBody(out var body)) return false;
 
             var uiCasts = UIUtil.GetEventSystemRaycastResults();
-            for (var i = 0; i < uiCasts.Count; i++)
+            foreach (var gameObject in uiCasts
+                         .Select(t => t.gameObject)
+                         .Where(gameObject => gameObject != null))
             {
-                var gameObject = uiCasts[i].gameObject;
-                if (gameObject == null) continue;
-
-                if (!gameObject.TryGetComponent(out ItemLabel label) || label == null ||
-                    label.refItem == null) continue;
+                if (!gameObject.TryGetComponent(out ItemLabel label) || label == null
+                                                                     || label.refItem == null) continue;
                 item = label.refItem;
                 return true;
             }
@@ -661,9 +660,9 @@ namespace CUCoreLib.Helpers
         /// <param name="wornSprite">Sprite to use for that secondary worn limb, or <c>null</c> to remove it.</param>
         public static bool SetMultiWornSprite(Item item, string limbName, Sprite wornSprite)
         {
-            return item != null &&
-                   !string.IsNullOrWhiteSpace(item.id) &&
-                   SetMultiWornSprite(item.id, limbName, wornSprite);
+            return item != null
+                   && !string.IsNullOrWhiteSpace(item.id)
+                   && SetMultiWornSprite(item.id, limbName, wornSprite);
         }
 
         public static bool setWornSprite(string itemId, Sprite wornSprite)
@@ -723,8 +722,8 @@ namespace CUCoreLib.Helpers
         public static void Talk(string dialogue)
         {
             if (string.IsNullOrWhiteSpace(dialogue)) return;
-            if (PlayerCamera.main == null || PlayerCamera.main.body == null ||
-                PlayerCamera.main.body.talker == null) return;
+            if (PlayerCamera.main == null || PlayerCamera.main.body == null
+                                          || PlayerCamera.main.body.talker == null) return;
 
             PlayerCamera.main.body.talker.Talk(dialogue);
         }
@@ -755,8 +754,7 @@ namespace CUCoreLib.Helpers
         {
             if (string.IsNullOrWhiteSpace(dialogue)) return;
 
-            bool createdProxy;
-            var talker = GetElectronicTalker(item, out createdProxy);
+            var talker = GetElectronicTalker(item, out var createdProxy);
             if (talker == null) return;
 
             if (createdProxy)
@@ -820,8 +818,8 @@ namespace CUCoreLib.Helpers
             var normalizedId = itemId.Trim();
             if (ItemRegistry.TryGetCustomInfo(normalizedId, out _)) return true;
 
-            return normalizedId.StartsWith("glassworks.", StringComparison.OrdinalIgnoreCase) ||
-                   normalizedId.StartsWith("cucorelib.", StringComparison.OrdinalIgnoreCase);
+            return normalizedId.StartsWith("glassworks.", StringComparison.OrdinalIgnoreCase)
+                   || normalizedId.StartsWith("cucorelib.", StringComparison.OrdinalIgnoreCase);
         }
 
         public static bool isModdedItem(string itemId)
@@ -831,48 +829,51 @@ namespace CUCoreLib.Helpers
 
         private static Talker GetElectronicTalker(Item item, out bool createdProxy)
         {
-            createdProxy = false;
-
-            if (item != null)
+            while (true)
             {
-                var attachedTalker = item.GetComponent<Talker>();
-                if (attachedTalker != null) return attachedTalker;
-            }
+                createdProxy = false;
 
-            var fallbackPosition = PlayerCamera.main != null && PlayerCamera.main.body != null
-                ? PlayerCamera.main.body.transform.position
-                : Vector3.zero;
+                if (item != null)
+                {
+                    var attachedTalker = item.GetComponent<Talker>();
+                    if (attachedTalker != null) return attachedTalker;
+                }
 
-            var templateTalker = GetWatchTalkerTemplate();
-            if (templateTalker == null) return null;
+                var fallbackPosition = PlayerCamera.main != null && PlayerCamera.main.body != null
+                    ? PlayerCamera.main.body.transform.position
+                    : Vector3.zero;
 
-            if (ElectronicTalkerProxy == null)
-            {
-                var target = new GameObject("CUCoreUtils_ElectronicTalker");
-                Object.DontDestroyOnLoad(target);
-                ElectronicTalkerProxy = target.AddComponent<Talker>();
-                InitializeElectronicTalker(ElectronicTalkerProxy, templateTalker);
-                createdProxy = true;
-            }
-            else if (!ElectronicTalkerProxy)
-            {
-                ElectronicTalkerProxy = null;
-                return GetElectronicTalker(item, out createdProxy);
-            }
+                var templateTalker = GetWatchTalkerTemplate();
+                if (templateTalker == null) return null;
 
-            var proxyTransform = ElectronicTalkerProxy.transform;
-            if (item != null)
-            {
-                proxyTransform.SetParent(item.transform, false);
-                proxyTransform.position = item.transform.position;
-            }
-            else
-            {
-                proxyTransform.SetParent(null);
-                proxyTransform.position = fallbackPosition;
-            }
+                if (ElectronicTalkerProxy == null)
+                {
+                    var target = new GameObject("CUCoreUtils_ElectronicTalker");
+                    Object.DontDestroyOnLoad(target);
+                    ElectronicTalkerProxy = target.AddComponent<Talker>();
+                    InitializeElectronicTalker(ElectronicTalkerProxy, templateTalker);
+                    createdProxy = true;
+                }
+                else if (!ElectronicTalkerProxy)
+                {
+                    ElectronicTalkerProxy = null;
+                    continue;
+                }
 
-            return ElectronicTalkerProxy;
+                var proxyTransform = ElectronicTalkerProxy.transform;
+                if (item != null)
+                {
+                    proxyTransform.SetParent(item.transform, false);
+                    proxyTransform.position = item.transform.position;
+                }
+                else
+                {
+                    proxyTransform.SetParent(null);
+                    proxyTransform.position = fallbackPosition;
+                }
+
+                return ElectronicTalkerProxy;
+            }
         }
 
         private static Talker GetWatchTalkerTemplate()
@@ -1140,28 +1141,28 @@ namespace CUCoreLib.Helpers
 
         private static bool IsFriendlyKeybindHealthPanelBlocked()
         {
-            return PlayerCamera.main != null &&
-                   PlayerCamera.main.woundView != null &&
-                   PlayerCamera.main.woundView.activeSelf;
+            return PlayerCamera.main != null
+                   && PlayerCamera.main.woundView != null
+                   && PlayerCamera.main.woundView.activeSelf;
         }
 
         private static bool IsFriendlyKeybindInventoryBlocked()
         {
-            return PlayerCamera.main != null &&
-                   PlayerCamera.main.craftingPanel != null &&
-                   PlayerCamera.main.craftingPanel.activeSelf;
+            return PlayerCamera.main != null
+                   && PlayerCamera.main.craftingPanel != null
+                   && PlayerCamera.main.craftingPanel.activeSelf;
         }
 
         private static bool IsFriendlyKeybindInputFieldBlocked()
         {
-            if (ConsoleScript.instance != null &&
-                ConsoleScript.instance.input != null &&
-                ConsoleScript.instance.input.isFocused)
+            if (ConsoleScript.instance != null
+                && ConsoleScript.instance.input != null
+                && ConsoleScript.instance.input.isFocused)
                 return true;
 
-            if (PlayerCamera.main != null &&
-                PlayerCamera.main.recipeFilterField != null &&
-                PlayerCamera.main.recipeFilterField.isFocused)
+            if (PlayerCamera.main != null
+                && PlayerCamera.main.recipeFilterField != null
+                && PlayerCamera.main.recipeFilterField.isFocused)
                 return true;
 
             if (IsKrokMpChatFocused())
@@ -1213,7 +1214,7 @@ namespace CUCoreLib.Helpers
         private static string BuildFriendlyKeybindActionId(string friendlyKeybindName)
         {
             var sourceAssembly = ContentReloadSession.GetSourceAssemblyOverride() ?? Assembly.GetCallingAssembly();
-            var assemblyName = sourceAssembly?.GetName().Name;
+            var assemblyName = sourceAssembly.GetName().Name;
             var normalizedAssembly = NormalizeFriendlyKeybindToken(assemblyName);
             var normalizedKeybind = NormalizeFriendlyKeybindToken(friendlyKeybindName);
             if (string.IsNullOrWhiteSpace(normalizedAssembly) || string.IsNullOrWhiteSpace(normalizedKeybind))
@@ -1265,8 +1266,8 @@ namespace CUCoreLib.Helpers
             }
 
             if (FriendlyKeyNames.FirstOrDefault(pair =>
-                    string.Equals(pair.Value, trimmed, StringComparison.OrdinalIgnoreCase)).Key is var friendlyMatch &&
-                friendlyMatch != KeyCode.None)
+                    string.Equals(pair.Value, trimmed, StringComparison.OrdinalIgnoreCase)).Key is var friendlyMatch
+                && friendlyMatch != KeyCode.None)
             {
                 keyCode = friendlyMatch;
                 return true;
@@ -1298,12 +1299,20 @@ namespace CUCoreLib.Helpers
             var sheetWidth = Mathf.RoundToInt(sheetRect.width);
             var sheetHeight = Mathf.RoundToInt(sheetRect.height);
             var pixelsPerUnit = spriteSheet.pixelsPerUnit;
-            if (texture == null || sheetWidth <= 0 || sheetHeight <= 0 ||
-                !Mathf.Approximately(sheetRect.width, sheetWidth) ||
-                !Mathf.Approximately(sheetRect.height, sheetHeight) ||
-                sheetRect.xMin < 0f || sheetRect.yMin < 0f || sheetRect.xMax > texture.width ||
-                sheetRect.yMax > texture.height || sheetWidth % columns != 0 || sheetHeight % rows != 0 ||
-                pixelsPerUnit <= 0f || float.IsNaN(pixelsPerUnit) || float.IsInfinity(pixelsPerUnit))
+            if (texture == null
+                || sheetWidth <= 0
+                || sheetHeight <= 0
+                || !Mathf.Approximately(sheetRect.width, sheetWidth)
+                || !Mathf.Approximately(sheetRect.height, sheetHeight)
+                || sheetRect.xMin < 0f
+                || sheetRect.yMin < 0f 
+                || sheetRect.xMax > texture.width
+                || sheetRect.yMax > texture.height
+                || sheetWidth % columns != 0
+                || sheetHeight % rows != 0
+                || pixelsPerUnit <= 0f
+                || float.IsNaN(pixelsPerUnit) 
+                || float.IsInfinity(pixelsPerUnit))
                 return Array.Empty<Sprite>();
 
             var cellWidth = sheetWidth / columns;
@@ -1447,7 +1456,7 @@ namespace CUCoreLib.Helpers
 
             public static implicit operator KeyCode(FriendlyKeybind keybind)
             {
-                return keybind != null ? keybind.KeyCode : KeyCode.None;
+                return keybind?.KeyCode ?? KeyCode.None;
             }
         }
 

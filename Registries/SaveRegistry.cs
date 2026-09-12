@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Generic;
-using CUCoreLib.ContentReload;
+using CUCoreLib.DevTools.HotReload;
 using CUCoreLib.Saving;
 
 namespace CUCoreLib.Registries

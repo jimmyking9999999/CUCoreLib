@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Generic;
-using CUCoreLib.ContentReload;
+using CUCoreLib.DevTools.HotReload;
 using CUCoreLib.Helpers;
 using CUCoreLib.Registries;
 using Newtonsoft.Json.Linq;
@@ -165,8 +165,10 @@ namespace CUCoreLib.Networking
 
             _initialSnapshotScheduled = true;
             CUCoreUtils.CallWhen(
-                () => MultiplayerBridge.IsAvailable && MultiplayerBridge.IsRunning && MultiplayerBridge.IsClient &&
-                      MultiplayerBridge.IsConnected,
+                () => MultiplayerBridge.IsAvailable 
+                      && MultiplayerBridge.IsRunning 
+                      && MultiplayerBridge.IsClient 
+                      && MultiplayerBridge.IsConnected,
                 RequestInitialSnapshot,
                 1f);
             MultiplayerPlayerStatusSync.Schedule();
@@ -174,8 +176,11 @@ namespace CUCoreLib.Networking
 
         public static void RequestInitialSnapshot()
         {
-            if (_initialSnapshotRequested || !MultiplayerBridge.IsAvailable || !MultiplayerBridge.IsRunning ||
-                !MultiplayerBridge.IsClient || !MultiplayerBridge.IsConnected) return;
+            if (_initialSnapshotRequested
+                || !MultiplayerBridge.IsAvailable
+                || !MultiplayerBridge.IsRunning
+                || !MultiplayerBridge.IsClient
+                || !MultiplayerBridge.IsConnected) return;
 
             _initialSnapshotRequested = MultiplayerBridge.RequestServer(
                 SnapshotChannel,

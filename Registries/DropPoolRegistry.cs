@@ -88,13 +88,14 @@ namespace CUCoreLib.Registries
             ExplicitPools.TryGetValue(source, out var explicitItems);
             if (explicitItems != null && explicitItems.Count == 0) explicitItems = null;
 
-            var fallbackCount = fallbackItems != null ? fallbackItems.Count : 0;
-            var explicitCount = explicitItems != null ? explicitItems.Count : 0;
+            var fallbackCount = fallbackItems?.Count ?? 0;
+            var explicitCount = explicitItems?.Count ?? 0;
             var totalCount = fallbackCount + explicitCount;
             if (totalCount == 0) return false;
 
             var index = Random.Range(0, totalCount);
-            itemId = index < fallbackCount ? fallbackItems[index] : explicitItems[index - fallbackCount];
+            if (fallbackItems != null && explicitItems != null)
+                itemId = index < fallbackCount ? fallbackItems[index] : explicitItems[index - fallbackCount];
             return !string.IsNullOrWhiteSpace(itemId);
         }
 
@@ -115,7 +116,7 @@ namespace CUCoreLib.Registries
 
         private static void RegisterFixedSources(string id, CustomItemInfo info)
         {
-            if (info == null || !info.DropPool.HasValue) return;
+            if (info?.DropPool == null) return;
 
             var frequency = Mathf.Max(0, info.SpawnFrequency);
             if (frequency <= 0 || info.DropPool.Value == DropPool.None) return;
@@ -137,7 +138,7 @@ namespace CUCoreLib.Registries
 
         private static void RegisterWorldSpawn(string id, CustomItemInfo info)
         {
-            if (info == null || !info.WorldSpawnPerChunk.HasValue) return;
+            if (info?.WorldSpawnPerChunk == null) return;
 
             var perChunk = info.WorldSpawnPerChunk.Value;
             if (perChunk < 0f)

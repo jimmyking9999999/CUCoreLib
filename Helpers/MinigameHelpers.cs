@@ -269,9 +269,8 @@ namespace CUCoreLib.Helpers
             if (TryGetState(out T state)) return state;
 
             state = factory();
-            if (state == null) throw new InvalidOperationException("Minigame state factory returned null.");
 
-            stateByType[typeof(T)] = state;
+            stateByType[typeof(T)] = state ?? throw new InvalidOperationException("Minigame state factory returned null.");
             return state;
         }
 
@@ -289,9 +288,7 @@ namespace CUCoreLib.Helpers
 
         public void SetState<T>(T state) where T : class
         {
-            if (state == null) throw new ArgumentNullException(nameof(state));
-
-            stateByType[typeof(T)] = state;
+            stateByType[typeof(T)] = state ?? throw new ArgumentNullException(nameof(state));
         }
 
         public bool RemoveState<T>() where T : class
@@ -323,12 +320,7 @@ namespace CUCoreLib.Helpers
             return TryInstantiateMinigameScreen(prefab, out spawnedScreen);
         }
 
-        public void End()
-        {
-            End(CUCoreMinigameEndReason.Cancelled);
-        }
-
-        public void End(CUCoreMinigameEndReason reason)
+        public void End(CUCoreMinigameEndReason reason = CUCoreMinigameEndReason.Cancelled)
         {
             lifecycleHost?.RequestEnd(reason);
             if (Game != null) Game.EndMinigame();
@@ -530,8 +522,8 @@ namespace CUCoreLib.Helpers
         {
             bundleId = null;
             assetName = null;
-            if (string.IsNullOrWhiteSpace(resourceId) ||
-                !resourceId.StartsWith(BundledScreenResourcePrefix, StringComparison.OrdinalIgnoreCase))
+            if (string.IsNullOrWhiteSpace(resourceId) 
+                || !resourceId.StartsWith(BundledScreenResourcePrefix, StringComparison.OrdinalIgnoreCase))
                 return false;
 
             var payload = resourceId.Substring(BundledScreenResourcePrefix.Length);

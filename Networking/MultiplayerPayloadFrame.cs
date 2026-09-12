@@ -61,7 +61,8 @@ namespace CUCoreLib.Networking
             if (length != Sentinel)
             {
                 var segment = (ArraySegment<byte>)getSegment.Invoke(reader, new object[] { (int)length });
-                return Encoding.ASCII.GetString(segment.Array, segment.Offset, segment.Count);
+                if (segment.Array != null)
+                    return Encoding.ASCII.GetString(segment.Array, segment.Offset, segment.Count);
             }
 
             var total = (uint)getUInt.Invoke(reader, null);

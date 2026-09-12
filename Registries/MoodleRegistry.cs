@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
-using CUCoreLib.ContentReload;
 using CUCoreLib.Data;
+using CUCoreLib.DevTools.HotReload;
 using CUCoreLib.Helpers;
 using Newtonsoft.Json.Linq;
 using UnityEngine;
@@ -171,7 +171,7 @@ namespace CUCoreLib.Registries
             float holdSeconds = DefaultHoldSeconds)
         {
             var animation = AssetLoader.GetCachedSpriteAnimation(animationId);
-            if (animation == null || animation.Frames == null || animation.Frames.Length == 0 ||
+            if (animation?.Frames == null || animation.Frames.Length == 0 ||
                 animation.Frames[0] == null)
             {
                 WarnMissingAnimatedMoodle(name, animationId, key);
@@ -283,22 +283,19 @@ namespace CUCoreLib.Registries
 
         internal static void ApplyNetworkSnapshot(JObject snapshot)
         {
-            if (snapshot == null) return;
-
-            var queued = snapshot["queued"] as JArray;
-            if (queued == null) return;
+            if (!(snapshot?["queued"] is JArray queued)) return;
 
             QueuedMoodles.Clear();
             foreach (var token in queued)
             {
-                var obj = token as JObject;
-                if (obj == null) continue;
+                if (!(token is JObject obj)) continue;
 
                 var key = obj.Value<string>("key");
                 var iconId = obj.Value<string>("iconId");
                 var name = obj.Value<string>("name");
-                if (string.IsNullOrWhiteSpace(key) || string.IsNullOrWhiteSpace(iconId) ||
-                    string.IsNullOrWhiteSpace(name)) continue;
+                if (string.IsNullOrWhiteSpace(key)
+                    || string.IsNullOrWhiteSpace(iconId) 
+                    || string.IsNullOrWhiteSpace(name)) continue;
 
                 QueuedMoodles.TryGetValue(key, out var localMoodle);
                 QueueMoodle(

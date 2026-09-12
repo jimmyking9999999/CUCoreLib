@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using CUCoreLib.ContentReload;
+using CUCoreLib.DevTools.HotReload;
 
 namespace CUCoreLib.Registries
 {
@@ -68,9 +68,7 @@ namespace CUCoreLib.Registries
         {
             foreach (var command in RegisteredCommands) InjectSingle(command);
         }
-
-        // 允许内置命令在语言重载后重新注册并刷新本地化描述。
-        // 仅从注册表与游戏命令列表中移除，不影响其他 mod 注册的命令。
+        
         internal static void Unregister(string name)
         {
             if (string.IsNullOrWhiteSpace(name)) return;

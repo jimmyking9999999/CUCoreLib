@@ -30,8 +30,7 @@ namespace CUCoreLib.Helpers
             if (sprite == null || sprite.texture == null) return null;
 
             var key = SpritePayloadKey.From(sprite);
-            string cachedData;
-            if (_spriteDedupeDepth > 0 && SpritePayloadCache.TryGetValue(key, out cachedData))
+            if (_spriteDedupeDepth > 0 && SpritePayloadCache.TryGetValue(key, out var cachedData))
                 return BuildSpritePayload(sprite, cachedData);
 
             var png = WriteTextureRegion(sprite);

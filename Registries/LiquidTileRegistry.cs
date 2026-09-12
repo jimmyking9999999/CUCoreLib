@@ -2,8 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
-using CUCoreLib.ContentReload;
 using CUCoreLib.Data;
+using CUCoreLib.DevTools.HotReload;
 using CUCoreLib.Helpers;
 using CUCoreLib.Networking;
 using CUCoreLib.Registries.Infrastructure;
@@ -206,7 +206,7 @@ namespace CUCoreLib.Registries
             if (info.ConsumeOnDrink)
                 FluidManager.main.SetLiquid(pos.x, pos.y, 0);
 
-            var amount = 200f;
+            const float amount = 200f;
             if (info.OnDrinkOverride != null) info.OnDrinkOverride(amount, body);
             else liquidType.onDrink(amount, body);
 
@@ -243,8 +243,9 @@ namespace CUCoreLib.Registries
                 return;
             }
 
-            var entered = !BodyTouchStates.TryGetValue(body.GetInstanceID(), out var state) ||
-                          state.WorldByte != worldByte || state.BlockPosition != pos;
+            var entered = !BodyTouchStates.TryGetValue(body.GetInstanceID(), out var state)
+                          || state.WorldByte != worldByte
+                          || state.BlockPosition != pos;
 
             var context = new LiquidTileTouchContext
             {
@@ -275,8 +276,7 @@ namespace CUCoreLib.Registries
             if (manager == null) return;
 
             EnsureLiquidColorsCapacity(manager);
-            var particles = LiquidParticlesField?.GetValue(manager) as List<ParticleSystem>;
-            if (particles == null) return;
+            if (!(LiquidParticlesField?.GetValue(manager) is List<ParticleSystem> particles)) return;
 
             var maxByte = GetMaxAssignedWorldByte();
             while (manager.LiquidParticlePrefabs.Count <= maxByte)
@@ -296,8 +296,8 @@ namespace CUCoreLib.Registries
             if (manager == null) return false;
             EnsureVisualCapacity(manager);
 
-            var particles = LiquidParticlesField?.GetValue(manager) as List<ParticleSystem>;
-            if (particles == null || particles.Count == 0) return false;
+            if (!(LiquidParticlesField?.GetValue(manager) is List<ParticleSystem> particles) ||
+                particles.Count == 0) return false;
 
             var range = manager.SimulationRange();
 
@@ -637,8 +637,7 @@ namespace CUCoreLib.Registries
             if (manager.liquidColors != null && manager.liquidColors.Length <= maxAssigned)
                 Array.Resize(ref manager.liquidColors, maxAssigned + 1);
 
-            var particles = LiquidParticlesField?.GetValue(manager) as List<ParticleSystem>;
-            if (particles == null) return;
+            if (!(LiquidParticlesField?.GetValue(manager) is List<ParticleSystem> particles)) return;
 
             while (manager.LiquidParticlePrefabs.Count <= maxAssigned)
             {
@@ -706,6 +705,10 @@ namespace CUCoreLib.Registries
                     }
 
                     break;
+                case LiquidTileVisualMode.ExistingLiquidPlusTint:
+                    break;
+                default:
+                    throw new ArgumentOutOfRangeException();
             }
         }
 

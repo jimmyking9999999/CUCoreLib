@@ -4,7 +4,7 @@ using System.Reflection;
 using BepInEx;
 using CUCoreLib.Helpers;
 
-namespace CUCoreLib.ContentReload
+namespace CUCoreLib.DevTools.HotReload
 {
     internal static class ContentHostRuntime
     {
@@ -13,7 +13,7 @@ namespace CUCoreLib.ContentReload
 
         internal static void RegisterPlugin(BaseUnityPlugin plugin)
         {
-            if (plugin == null || plugin.Info == null || plugin.Info.Metadata == null) return;
+            if (plugin == null || plugin.Info?.Metadata == null) return;
 
             var guid = plugin.Info.Metadata.GUID;
             if (string.IsNullOrWhiteSpace(guid)) return;

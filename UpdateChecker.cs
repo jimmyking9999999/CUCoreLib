@@ -36,10 +36,10 @@ namespace CUCoreLib
             DontDestroyOnLoad(go);
             go.hideFlags = HideFlags.HideAndDontSave;
             _instance = go.AddComponent<UpdateChecker>();
-            _instance.StartCoroutine(_instance.CheckForUpdates());
+            _instance.StartCoroutine(CheckForUpdates());
         }
 
-        private IEnumerator CheckForUpdates()
+        private static IEnumerator CheckForUpdates()
         {
             if (_hasChecked) yield break;
 
@@ -106,7 +106,8 @@ namespace CUCoreLib
             return (version ?? string.Empty).Trim().TrimStart('v', 'V');
         }
 
-        private IEnumerator Notify(string message, bool warning = false)
+        // ReSharper disable Unity.PerformanceAnalysis
+        private static IEnumerator Notify(string message, bool warning = false)
         {
             if (warning)
                 _logger?.LogWarning(message);
@@ -116,20 +117,20 @@ namespace CUCoreLib
             ConsoleScript console = null;
             var attempts = 0;
 
-            while (console == null && attempts < 50)
+            while (!console && attempts < 50)
             {
-                console = ConsoleScript.instance != null
+                console = ConsoleScript.instance
                     ? ConsoleScript.instance
                     : FindObjectOfType<ConsoleScript>();
 
-                if (console == null)
+                if (!console)
                 {
                     attempts++;
                     yield return new WaitForSecondsRealtime(0.2f);
                 }
             }
 
-            if (console != null)
+            if (console)
             {
                 var consoleMessage = warning
                     ? "<color=#FFA500>" + message + "</color>"

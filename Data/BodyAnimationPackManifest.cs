@@ -1,8 +1,10 @@
+using System;
+
 namespace CUCoreLib.Data
 {
     public sealed class BodyAnimationPackManifest
     {
-        public BodyAnimationPackEntry[] Animations = new BodyAnimationPackEntry[0];
+        public BodyAnimationPackEntry[] Animations = Array.Empty<BodyAnimationPackEntry>();
         public string PackId;
     }
 

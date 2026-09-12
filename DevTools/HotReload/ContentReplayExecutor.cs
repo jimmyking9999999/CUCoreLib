@@ -10,7 +10,7 @@ using CUCoreLib.Helpers;
 using CUCoreLib.Patches;
 using CUCoreLib.Registries;
 
-namespace CUCoreLib.ContentReload
+namespace CUCoreLib.DevTools.HotReload
 {
     internal static class ContentReplayExecutor
     {
