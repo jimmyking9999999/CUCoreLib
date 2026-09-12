@@ -312,6 +312,8 @@
     </ItemGroup>
     <ItemGroup>
       <EmbeddedResource Include="Locales\zh-CN.json" />
+      <EmbeddedResource Include="Locales\zh-TW.json" />
+      <EmbeddedResource Include="Locales\ru-RU.json" />
     </ItemGroup>
     <Target Name="CopyOutputDllsToPlaytestPluginsFolder" AfterTargets="AfterBuild" Condition="'$(BepInExDir)' != ''">
         <MakeDir Directories="$(BepInExDir)\plugins"/>
