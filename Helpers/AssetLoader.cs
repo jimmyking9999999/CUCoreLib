@@ -1472,10 +1472,14 @@ namespace CUCoreLib.Helpers
                     return null;
             }
 
-            var samples = new List<float>();
             var buffer = new float[provider.WaveFormat.SampleRate * provider.WaveFormat.Channels];
+            var samples = new List<float>();
             int read;
-            while ((read = provider.Read(buffer, 0, buffer.Length)) > 0) samples.AddRange(buffer.Take(read));
+            while ((read = provider.Read(buffer, 0, buffer.Length)) > 0)
+            {
+                for (var i = 0; i < read; i++)
+                    samples.Add(buffer[i]);
+            }
 
             var waveFormat = provider.WaveFormat;
             var sampleRate = waveFormat.SampleRate;
@@ -1485,6 +1489,7 @@ namespace CUCoreLib.Helpers
             var clip = AudioClip.Create(resourceName, samplesPerChannel, channels, sampleRate, false);
             clip.SetData(samples.ToArray(), 0);
             return clip;
+
         }
 
         private sealed class EmbeddedSpritePreloadEntry
