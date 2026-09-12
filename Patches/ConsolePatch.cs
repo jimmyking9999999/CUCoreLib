@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
 using System.Reflection;
+using BepInEx.Bootstrap;
+using CUCoreLib.BugReporting;
 using CUCoreLib.ContentReload;
 using CUCoreLib.Data;
 using CUCoreLib.Helpers;
@@ -205,10 +207,113 @@ namespace CUCoreLib.Patches
                 }, BuildSetTileAutofill(), ("tileIndex", "Vanilla index or registered custom tile ID/index."),
                 ("position", "Tile position.")));
 
+            RegisterBuiltInRegistryCommands();
             ConsoleCommandRegistry.InjectRegisteredCommands();
             RefreshRuntimeAutofill();
             HookHealCommand();
             HookStatusFieldCommands(__instance);
+        }
+
+        private static readonly string[] BuiltInRegistryCommandNames =
+        {
+            "createLocale", 
+            "modlist", 
+            "bug-report",
+            "reloadcontent",
+            "autohotreload",
+            "debugwatch"
+        };
+
+        private static void RegisterBuiltInRegistryCommands()
+        {
+            // RegisterAllCommands 可能被游戏多次调用（如切换语言），先移除旧对象以便刷新本地化描述。
+            foreach (var commandName in BuiltInRegistryCommandNames)
+                ConsoleCommandRegistry.Unregister(commandName);
+
+            ConsoleCommandRegistry.Register("createLocale",
+                LocaleRegistry.GetFormatted("command", "createLocale.description"),
+                delegate(string[] args)
+                {
+                    var path = args.Length > 1
+                        ? args[1]
+                        : null;
+                    var writtenPath = LocaleRegistry.WriteLocaleFile(path);
+                    var message = LocaleRegistry.GetFormatted("command", "createLocale.message", writtenPath);
+                    CUCoreLibPlugin.Log.LogInfo(message);
+                    CUCoreUtils.ConsoleLog(ConsoleScript.instance, message);
+                }, null, ("path", LocaleRegistry.GetFormatted("command", "createLocale.path")));
+
+            ConsoleCommandRegistry.Register("modlist",
+                LocaleRegistry.GetFormatted("command", "modlist.description"),
+                delegate
+                {
+                    var loadedPlugins = Chainloader.PluginInfos.Values
+                        .OrderBy(plugin => plugin.Metadata?.Name ?? plugin.Metadata?.GUID ?? string.Empty)
+                        .Select(plugin =>
+                        {
+                            var name = plugin.Metadata?.Name
+                                       ?? plugin.Metadata?.GUID
+                                       ?? LocaleRegistry.GetFormatted("command", "modlist.unknown_name");
+                            var version = plugin.Metadata?.Version?.ToString()
+                                          ?? LocaleRegistry.GetFormatted("command", "modlist.unknown_version");
+                            var guid = plugin.Metadata?.GUID
+                                       ?? LocaleRegistry.GetFormatted("command", "modlist.unknown_guid");
+                            return $"  {name} v{version} ({guid})";
+                        }).ToList();
+
+                    var summary = LocaleRegistry.GetFormatted("command", "modlist.loaded", loadedPlugins.Count);
+                    CUCoreLibPlugin.Log.LogInfo(summary);
+                    foreach (var line in loadedPlugins) CUCoreLibPlugin.Log.LogInfo(line);
+
+                    var console = ConsoleScript.instance;
+                    if (console == null) return;
+                    CUCoreUtils.ConsoleLog(console, summary);
+                    foreach (var line in loadedPlugins) CUCoreUtils.ConsoleLog(console, line);
+                });
+
+            ConsoleCommandRegistry.Register("bug-report",
+                "Sends a diagnostic bug report with debug logs. Thanks!",
+                BugReportService.RunCommand,
+                new Dictionary<int, List<string>>
+                {
+                    [2] = new List<string> { "low", "medium", "high", "critical" }
+                },
+                ("description", "Optional description in quotation marks \"\". Optional, but highly recommended."),
+                ("bool screenshot", "True/false. Captures the current game screen if true. Optional."),
+                ("severity", "low/medium/high/critical. Optional."));
+
+            ConsoleCommandRegistry.Register("reloadcontent",
+                "Strictly reloads item/liquid/recipe/locale content from a rebuilt mod DLL.",
+                delegate(string[] args)
+                {
+                    if (args.Length < 2) throw new Exception("Usage: reloadcontent [modGuid]");
+                    var result = ContentReloadManager.Reload(args[1]);
+                    ContentReloadManager.WriteReloadSummaryToConsole(ConsoleScript.instance, result);
+                }, new Dictionary<int, List<string>>
+                {
+                    [0] = ContentReloadManager.GetLoadedModGuids().ToList()
+                }, ("modGuid", "BepInEx plugin GUID to strictly reload from a rebuilt DLL."));
+
+            ConsoleCommandRegistry.Register("autohotreload",
+                "Enables automatic hot reloading after detecting a loaded mod DLL file change.",
+                delegate(string[] args)
+                {
+                    if (args.Length < 3) throw new Exception("Usage: autohotreload [modGuid] [enable]");
+                    if (!bool.TryParse(args[2], out var enabled))
+                        throw new Exception("Enable must be 'true' or 'false'.");
+
+                    var success = ContentReloadManager.ConfigureAutoHotRefresh(args[1], enabled, out var message);
+                    if (!success) throw new Exception(message);
+                    CUCoreUtils.ConsoleLog(ConsoleScript.instance, message);
+                }, null,
+                ("modGuid", "BepInEx plugin GUID that previously called ContentReloadManager.EnableHotReload(GUID)."),
+                ("enable", "true to enable watch mode for that DLL, false to disable it."));
+
+            ConsoleCommandRegistry.Register("debugwatch",
+                "Manages a live top-right overlay of watched static fields for runtime debugging.",
+                delegate(string[] args) { DebugWatchConsoleCommands.Run(ConsoleScript.instance, args); }, null,
+                ("action", "add, remove, list, clear, show, or hide."),
+                ("Type.member", "Reflected static field to watch, such as Namespace.Plugin.healthRate."));
         }
 
         [HarmonyPatch("TryExecuteCommand")]
@@ -216,7 +321,7 @@ namespace CUCoreLib.Patches
         private static void NotifyMultiplayerHeal(string[] args)
         {
             if (args == null
-                || args.Length == 0 
+                || args.Length == 0
                 || !string.Equals(args[0], "heal", StringComparison.OrdinalIgnoreCase)
                 || !MultiplayerBridge.IsRunning
                 || !MultiplayerBridge.IsServer
@@ -236,7 +341,7 @@ namespace CUCoreLib.Patches
                 originalAction?.Invoke(args);
                 if (!MultiplayerBridge.IsRunning)
                     PlayerEventPatches.NotifyHeal(PlayerCamera.main != null
-                        ? PlayerCamera.main.body 
+                        ? PlayerCamera.main.body
                         : null);
             };
             healCommand = command;
@@ -273,7 +378,7 @@ namespace CUCoreLib.Patches
         {
             if (args == null || args.Length < 3 || typeof(Body).GetField(args[1]) != null) return false;
 
-            var body = PlayerCamera.main != null 
+            var body = PlayerCamera.main != null
                 ? PlayerCamera.main.body
                 : null;
             if (body == null || !TrySetStatusField(StatusRegistry.EnumerateBodyStatuses(body), args[1], args[2],
@@ -307,9 +412,9 @@ namespace CUCoreLib.Patches
 
             var separator = fieldQuery.LastIndexOf('.');
             var statusName = separator > 0
-                ? fieldQuery.Substring(0, separator) 
+                ? fieldQuery.Substring(0, separator)
                 : null;
-            var fieldName = separator > 0 
+            var fieldName = separator > 0
                 ? fieldQuery.Substring(separator + 1)
                 : fieldQuery;
             FieldInfo matchedField = null;
@@ -341,7 +446,7 @@ namespace CUCoreLib.Patches
         {
             if (statusType == null) return false;
 
-            if (string.Equals(statusType.Name, statusName, StringComparison.OrdinalIgnoreCase) 
+            if (string.Equals(statusType.Name, statusName, StringComparison.OrdinalIgnoreCase)
                 || string.Equals(statusType.FullName, statusName, StringComparison.OrdinalIgnoreCase)) return true;
 
             var options = statusType.GetCustomAttribute<StatusOptionsAttribute>();
@@ -1047,7 +1152,7 @@ namespace CUCoreLib.Patches
             __instance.descriptionText.text = text.Substring(0, newlineIndex + 1) + string.Join("\n", lines);
         }
 
-        [HarmonyPatch("RegisterPlayerDetails")]
+        [HarmonyPatch(typeof(ConsoleScript), "RegisterPlayerDetails")]
         internal static class SpawnCategoryAutofillPatch
         {
             [HarmonyPrefix]
@@ -1067,13 +1172,10 @@ namespace CUCoreLib.Patches
         }
 
         [HarmonyPatch("RegisterAllCommands")]
-        internal static class LiquidAutofillPatch
+        [HarmonyPostfix]
+        private static void AddCustomLiquidsToAutofill()
         {
-            [HarmonyPostfix]
-            private static void AddCustomLiquidsToAutofill()
-            {
-                RefreshAddLiquidAutofill();
-            }
+            RefreshAddLiquidAutofill();
         }
     }
 }

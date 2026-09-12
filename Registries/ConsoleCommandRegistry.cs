@@ -69,6 +69,21 @@ namespace CUCoreLib.Registries
             foreach (var command in RegisteredCommands) InjectSingle(command);
         }
 
+        // 允许内置命令在语言重载后重新注册并刷新本地化描述。
+        // 仅从注册表与游戏命令列表中移除，不影响其他 mod 注册的命令。
+        internal static void Unregister(string name)
+        {
+            if (string.IsNullOrWhiteSpace(name)) return;
+
+            var trimmedName = name.Trim();
+            RegisteredCommands.RemoveAll(command =>
+                command != null && command.name.Equals(trimmedName, StringComparison.OrdinalIgnoreCase));
+
+            if (ConsoleScript.Commands == null) return;
+            ConsoleScript.Commands.RemoveAll(command =>
+                command != null && command.name.Equals(trimmedName, StringComparison.OrdinalIgnoreCase));
+        }
+
         private static void InjectSingle(Command command)
         {
             if (ConsoleScript.Commands.Any(c => c.name.Equals(command.name, StringComparison.OrdinalIgnoreCase)))
