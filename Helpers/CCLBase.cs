@@ -1,6 +1,6 @@
 using BepInEx;
-using BepInEx.Bootstrap;
 using BepInEx.Logging;
+using CUCoreLib.ContentReload;
 
 namespace CUCoreLib.Helpers
 {
@@ -17,19 +17,13 @@ namespace CUCoreLib.Helpers
 
         protected BaseUnityPlugin Plugin { get; private set; }
 
-        protected ManualLogSource Logger
-        {
-            get
-            {
-                return CUCoreLibPlugin.Log;
-            }
-        }
+        protected ManualLogSource Logger => CUCoreLibPlugin.Log;
 
         public static void Initialize(BaseUnityPlugin plugin)
         {
             if (plugin == null) return;
 
-            ContentReload.ContentHostRuntime.RegisterPlugin(plugin);
+            ContentHostRuntime.RegisterPlugin(plugin);
         }
 
         internal void AttachPlugin(BaseUnityPlugin plugin)

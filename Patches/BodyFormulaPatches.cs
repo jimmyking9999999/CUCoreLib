@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Reflection;
 using System.Reflection.Emit;
@@ -20,7 +21,8 @@ namespace CUCoreLib.Patches
             };
 
         private static readonly MethodInfo FloatLerpMethod =
-            AccessTools.Method(typeof(Mathf), nameof(Mathf.Lerp), new[] { typeof(float), typeof(float), typeof(float) });
+            AccessTools.Method(typeof(Mathf), nameof(Mathf.Lerp),
+                new[] { typeof(float), typeof(float), typeof(float) });
 
         private static readonly MethodInfo FloatMoveTowardsMethod =
             AccessTools.Method(typeof(Mathf), nameof(Mathf.MoveTowards),
@@ -28,15 +30,16 @@ namespace CUCoreLib.Patches
 
         [HarmonyPatch(typeof(Body), "HandleCirculation")]
         [HarmonyTranspiler]
-        private static IEnumerable<CodeInstruction> HandleCirculation_Transpiler(IEnumerable<CodeInstruction> instructions)
+        private static IEnumerable<CodeInstruction> HandleCirculation_Transpiler(
+            IEnumerable<CodeInstruction> instructions)
         {
             var codes = new List<CodeInstruction>(instructions);
             for (var i = 0; i < codes.Count; i++)
             {
-                CodeInstruction instruction = codes[i];
+                var instruction = codes[i];
                 if (instruction.Calls(FloatMoveTowardsMethod) &&
-                    TryFindStoredBodyField(codes, i + 1, out string fieldName) &&
-                    string.Equals(fieldName, "respiratoryRate", System.StringComparison.Ordinal))
+                    TryFindStoredBodyField(codes, i + 1, out var fieldName) &&
+                    string.Equals(fieldName, "respiratoryRate", StringComparison.Ordinal))
                 {
                     yield return new CodeInstruction(OpCodes.Ldarg_0);
                     yield return new CodeInstruction(OpCodes.Call,
@@ -47,7 +50,7 @@ namespace CUCoreLib.Patches
                 if (instruction.Calls(FloatLerpMethod) &&
                     TryFindStoredBodyField(codes, i + 1, out fieldName))
                 {
-                    if (string.Equals(fieldName, "heartRate", System.StringComparison.Ordinal))
+                    if (string.Equals(fieldName, "heartRate", StringComparison.Ordinal))
                     {
                         yield return new CodeInstruction(OpCodes.Ldarg_0);
                         yield return new CodeInstruction(OpCodes.Call,
@@ -55,7 +58,7 @@ namespace CUCoreLib.Patches
                         continue;
                     }
 
-                    if (string.Equals(fieldName, "bloodPressure", System.StringComparison.Ordinal))
+                    if (string.Equals(fieldName, "bloodPressure", StringComparison.Ordinal))
                     {
                         yield return new CodeInstruction(OpCodes.Ldarg_0);
                         yield return new CodeInstruction(OpCodes.Call,
@@ -74,7 +77,7 @@ namespace CUCoreLib.Patches
             IEnumerable<CodeInstruction> instructions)
         {
             var codes = new List<CodeInstruction>(instructions);
-            bool insertedAveragePainPatch = false;
+            var insertedAveragePainPatch = false;
 
             for (var i = 0; i < codes.Count; i++)
             {
@@ -93,11 +96,11 @@ namespace CUCoreLib.Patches
                         AccessTools.Method(typeof(BodyFormulaPatches), nameof(ApplyAveragePainContribution)));
                 }
 
-                CodeInstruction instruction = codes[i];
+                var instruction = codes[i];
                 if (instruction.opcode == OpCodes.Stfld &&
                     instruction.operand is FieldInfo field &&
                     field.DeclaringType == typeof(Body) &&
-                    PeriodicReplacements.TryGetValue(field.Name, out MethodInfo setter))
+                    PeriodicReplacements.TryGetValue(field.Name, out var setter))
                 {
                     yield return new CodeInstruction(OpCodes.Call, setter)
                     {
@@ -122,12 +125,12 @@ namespace CUCoreLib.Patches
             IEnumerable<CodeInstruction> instructions,
             IReadOnlyDictionary<string, MethodInfo> replacements)
         {
-            foreach (CodeInstruction instruction in instructions)
+            foreach (var instruction in instructions)
             {
                 if (instruction.opcode == OpCodes.Stfld &&
                     instruction.operand is FieldInfo field &&
                     field.DeclaringType == typeof(Body) &&
-                    replacements.TryGetValue(field.Name, out MethodInfo setter))
+                    replacements.TryGetValue(field.Name, out var setter))
                 {
                     yield return new CodeInstruction(OpCodes.Call, setter)
                     {
@@ -145,7 +148,7 @@ namespace CUCoreLib.Patches
         {
             if (body == null) return Mathf.MoveTowards(current, target, maxDelta);
 
-            BodyFormulaData data = body.GetBodyFormulaData();
+            var data = body.GetBodyFormulaData();
             return Mathf.MoveTowards(current, target + BodyFormulaData.Sum(data.RespiratoryRate), maxDelta);
         }
 
@@ -153,7 +156,7 @@ namespace CUCoreLib.Patches
         {
             if (body == null) return Mathf.Lerp(current, target, t);
 
-            BodyFormulaData data = body.GetBodyFormulaData();
+            var data = body.GetBodyFormulaData();
             return Mathf.Lerp(current, target + BodyFormulaData.Sum(data.HeartRate), t);
         }
 
@@ -161,20 +164,17 @@ namespace CUCoreLib.Patches
         {
             if (body == null) return Mathf.Lerp(current, target, t);
 
-            BodyFormulaData data = body.GetBodyFormulaData();
+            var data = body.GetBodyFormulaData();
             return Mathf.Lerp(current, target + BodyFormulaData.Sum(data.BloodPressure), t);
         }
 
         internal static void ApplyJumpSpeedContribution(Body body)
         {
-            if (body == null)
-            {
-                return;
-            }
+            if (body == null) return;
 
-            BodyFormulaData data = body.GetBodyFormulaData();
-            float contribution = BodyFormulaData.Sum(data.JumpSpeed);
-            float previousContribution = data.AppliedJumpSpeedContribution;
+            var data = body.GetBodyFormulaData();
+            var contribution = BodyFormulaData.Sum(data.JumpSpeed);
+            var previousContribution = data.AppliedJumpSpeedContribution;
 
             body.jumpSpeed = Mathf.Max(0f, body.jumpSpeed - previousContribution + contribution);
             data.AppliedJumpSpeedContribution = contribution;
@@ -182,21 +182,15 @@ namespace CUCoreLib.Patches
 
         private static void ApplyAveragePainContribution(Body body)
         {
-            if (body == null || body.limbs == null)
-            {
-                return;
-            }
+            if (body == null || body.limbs == null) return;
 
-            BodyFormulaData data = body.GetBodyFormulaData();
-            float contribution = BodyFormulaData.Sum(data.AveragePain);
-            float previousContribution = data.AppliedAveragePainContribution;
+            var data = body.GetBodyFormulaData();
+            var contribution = BodyFormulaData.Sum(data.AveragePain);
+            var previousContribution = data.AppliedAveragePainContribution;
 
-            foreach (Limb limb in body.limbs)
+            foreach (var limb in body.limbs)
             {
-                if (limb == null || limb.dismembered)
-                {
-                    continue;
-                }
+                if (limb == null || limb.dismembered) continue;
 
                 limb.pain = Mathf.Clamp(limb.pain - previousContribution + contribution, 0f, 100f);
             }
@@ -210,12 +204,10 @@ namespace CUCoreLib.Patches
             fieldName = null;
             for (var i = startIndex; i < instructions.Count && i < startIndex + 6; i++)
             {
-                CodeInstruction instruction = instructions[i];
+                var instruction = instructions[i];
                 if (instruction.opcode != OpCodes.Stfld || !(instruction.operand is FieldInfo field) ||
                     field.DeclaringType != typeof(Body))
-                {
                     continue;
-                }
 
                 fieldName = field.Name;
                 return true;
@@ -233,34 +225,25 @@ namespace CUCoreLib.Patches
 
         private static void SetMaxEncumberance(Body body, float value)
         {
-            if (body == null)
-            {
-                return;
-            }
+            if (body == null) return;
 
-            BodyFormulaData data = body.GetBodyFormulaData();
+            var data = body.GetBodyFormulaData();
             body.maxEncumberance = Mathf.Max(0f, value + BodyFormulaData.Sum(data.MaxEncumberance));
         }
 
         private static void SetTotalEncumberance(Body body, float value)
         {
-            if (body == null)
-            {
-                return;
-            }
+            if (body == null) return;
 
-            BodyFormulaData data = body.GetBodyFormulaData();
+            var data = body.GetBodyFormulaData();
             body.totalEncumberance = Mathf.Max(0f, value + BodyFormulaData.Sum(data.TotalEncumberance));
         }
 
         private static void SetImmunity(Body body, float value)
         {
-            if (body == null)
-            {
-                return;
-            }
+            if (body == null) return;
 
-            BodyFormulaData data = body.GetBodyFormulaData();
+            var data = body.GetBodyFormulaData();
             body.immunity = value + BodyFormulaData.Sum(data.Immunity);
         }
     }

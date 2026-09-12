@@ -5,7 +5,7 @@ using System.Linq;
 using System.Reflection;
 using Mono.Cecil;
 using Mono.Cecil.Cil;
-using CUCoreLib.Data;
+using MethodAttributes = Mono.Cecil.MethodAttributes;
 
 namespace CUCoreLib.ContentReload
 {
@@ -334,7 +334,8 @@ namespace CUCoreLib.ContentReload
 
                 if (!TryReadPreviousStringArgument(instructions, i, out var argumentGuid))
                 {
-                    reason = "Awake() must call ContentReloadManager.EnableHotReload(GUID) with a literal GUID argument.";
+                    reason =
+                        "Awake() must call ContentReloadManager.EnableHotReload(GUID) with a literal GUID argument.";
                     return false;
                 }
 
@@ -559,14 +560,14 @@ namespace CUCoreLib.ContentReload
             if (string.Equals(declaringType, "CUCoreLib.Registries.ModOptionsRegistry", StringComparison.Ordinal))
             {
                 unsupportedReason = BuildUnsupportedReason(callingMethod, "it calls ModOptionsRegistry." + methodName +
-                                                                         "(). Mod options are excluded from strict content reload.");
+                                                                          "(). Mod options are excluded from strict content reload.");
                 return null;
             }
 
             if (string.Equals(declaringType, "CUCoreLib.Registries.SaveRegistry", StringComparison.Ordinal))
             {
                 unsupportedReason = BuildUnsupportedReason(callingMethod, "it calls SaveRegistry." + methodName +
-                                                                         "(). Save providers are excluded from strict content reload.");
+                                                                          "(). Save providers are excluded from strict content reload.");
                 return null;
             }
 
@@ -592,14 +593,14 @@ namespace CUCoreLib.ContentReload
             if (string.Equals(declaringType, "CUCoreLib.Registries.TileRegistry", StringComparison.Ordinal))
             {
                 unsupportedReason = BuildUnsupportedReason(callingMethod, "it calls TileRegistry." + methodName +
-                                                                         "(). Tile registration is excluded from strict content reload.");
+                                                                          "(). Tile registration is excluded from strict content reload.");
                 return null;
             }
 
             if (string.Equals(declaringType, "CUCoreLib.Registries.StructureRegistry", StringComparison.Ordinal))
             {
                 unsupportedReason = BuildUnsupportedReason(callingMethod, "it calls StructureRegistry." + methodName +
-                                                                         "(). Structure registration is excluded from strict content reload.");
+                                                                          "(). Structure registration is excluded from strict content reload.");
                 return null;
             }
 
@@ -621,9 +622,9 @@ namespace CUCoreLib.ContentReload
             }
 
             if (string.Equals(declaringType, "CUCoreLib.Helpers.CustomInstantiate", StringComparison.Ordinal) ||
-                string.Equals(declaringType, "Body", StringComparison.Ordinal) &&
-                (string.Equals(methodName, "PickUpItem", StringComparison.Ordinal) ||
-                 string.Equals(methodName, "DropItem", StringComparison.Ordinal)))
+                (string.Equals(declaringType, "Body", StringComparison.Ordinal) &&
+                 (string.Equals(methodName, "PickUpItem", StringComparison.Ordinal) ||
+                  string.Equals(methodName, "DropItem", StringComparison.Ordinal))))
             {
                 unsupportedReason = BuildUnsupportedReason(callingMethod,
                     "it mutates the live scene or inventory. Runtime scene side effects are excluded from strict content reload.");
@@ -725,7 +726,8 @@ namespace CUCoreLib.ContentReload
             ContentReloadEntryStage stage, int order, bool isPluginMethod, int discoveryIndex)
         {
             var displayName = BuildMethodDisplayName(method);
-            if (report.Methods.Any(existing => string.Equals(existing.DisplayName, displayName, StringComparison.Ordinal)))
+            if (report.Methods.Any(existing =>
+                    string.Equals(existing.DisplayName, displayName, StringComparison.Ordinal)))
                 return;
 
             report.Methods.Add(new DiscoveredReloadMethod
@@ -834,7 +836,7 @@ namespace CUCoreLib.ContentReload
                 return false;
             if (method.HasParameters) return false;
             if (method.ReturnType != null && method.ReturnType.FullName != "System.Void") return false;
-            if ((method.Attributes & Mono.Cecil.MethodAttributes.SpecialName) != 0) return false;
+            if ((method.Attributes & MethodAttributes.SpecialName) != 0) return false;
             if (method.Name.StartsWith("<", StringComparison.Ordinal)) return false;
 
             return true;
@@ -940,7 +942,7 @@ namespace CUCoreLib.ContentReload
                     string.Equals(memberName, "PlaceCheck", StringComparison.Ordinal) ||
                     string.Equals(memberName, "Components", StringComparison.Ordinal) ||
                     string.Equals(memberName, "SpawnComponents", StringComparison.Ordinal) ||
-                    instruction.OpCode == OpCodes.Stfld && !allowedMembers.Contains(memberName))
+                    (instruction.OpCode == OpCodes.Stfld && !allowedMembers.Contains(memberName)))
                     return "Method '" + member.DeclaringType.FullName +
                            "' registers a building definition using unsupported member '" + memberName +
                            "'. Only basic/scriptless building definitions can be hot reloaded.";

@@ -1,4 +1,3 @@
-using System;
 using System.IO;
 using System.Reflection;
 using CUCoreLib.ContentReload;
@@ -66,7 +65,8 @@ namespace CUCoreLib.Helpers
             return material;
         }
 
-        public static Material CreateLiquidMaterialFromEmbeddedTexture(string resourcePath, Material baseMaterial = null,
+        public static Material CreateLiquidMaterialFromEmbeddedTexture(string resourcePath,
+            Material baseMaterial = null,
             string shaderName = null, Assembly sourceAssembly = null, FilterMode filterMode = FilterMode.Point,
             TextureWrapMode wrapMode = TextureWrapMode.Clamp)
         {
@@ -123,7 +123,7 @@ namespace CUCoreLib.Helpers
 
             if (texture.LoadImage(data)) return texture;
 
-            UnityEngine.Object.Destroy(texture);
+            Object.Destroy(texture);
             return null;
         }
 

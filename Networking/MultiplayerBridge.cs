@@ -504,7 +504,6 @@ namespace CUCoreLib.Networking
             if (getString == null) return null;
             var value = getString.Invoke(reader, null);
             return value as string;
-
         }
 
         private static void InstallReceivers()
@@ -541,8 +540,8 @@ namespace CUCoreLib.Networking
                 return true;
             }
             catch (TargetInvocationException ex) when (ex.InnerException is ArgumentException &&
-                                                        IsReceiverRegistered(registerMethod.DeclaringType,
-                                                            handlerFieldName, messageId))
+                                                       IsReceiverRegistered(registerMethod.DeclaringType,
+                                                           handlerFieldName, messageId))
             {
                 return true;
             }
@@ -601,8 +600,9 @@ namespace CUCoreLib.Networking
             }
             catch (Exception ex)
             {
-                CUCoreLibPlugin.Log?.LogWarning("CUCoreLib failed to restore receivers for an active KrokMP session.\n" +
-                                                ex);
+                CUCoreLibPlugin.Log?.LogWarning(
+                    "CUCoreLib failed to restore receivers for an active KrokMP session.\n" +
+                    ex);
             }
         }
 
@@ -750,7 +750,8 @@ namespace CUCoreLib.Networking
         {
             if (_krokAssembly != null) return true;
 
-            return Chainloader.PluginInfos.ContainsKey(PluginGuid) || AppDomain.CurrentDomain.GetAssemblies().Any(assembly => assembly.GetType(MpTypeName, false) != null);
+            return Chainloader.PluginInfos.ContainsKey(PluginGuid) || AppDomain.CurrentDomain.GetAssemblies()
+                .Any(assembly => assembly.GetType(MpTypeName, false) != null);
         }
 
         private static MethodInfo ResolveMethod(Type type, string[] methodNames, Type[] parameterTypes)
@@ -921,16 +922,16 @@ namespace CUCoreLib.Networking
 
             var parameters = method.GetParameters();
             return parameters.Length > 0
-                ? (parameters[0].ParameterType.IsByRef
+                ? parameters[0].ParameterType.IsByRef
                     ? parameters[0].ParameterType.GetElementType()
-                    : parameters[0].ParameterType)
+                    : parameters[0].ParameterType
                 : null;
         }
 
         private static MethodInfo ResolveStringPutMethod()
         {
             var extensions = _krokAssembly.GetType("KrokoshaCasualtiesMP.MyLiteNetLibExtensions", false);
-            if (extensions == null) return null;    // Use null propagation
+            if (extensions == null) return null; // Use null propagation
 
             return extensions.GetMethods(BindingFlags.Public | BindingFlags.Static)
                 .FirstOrDefault(method =>
@@ -967,7 +968,7 @@ namespace CUCoreLib.Networking
             if (_serverMainType == null) return null;
 
             var property = _serverMainType.GetProperty(memberName, BindingFlags.Public | BindingFlags.Static);
-            return property != null 
+            return property != null
                 ? property.GetValue(null, null)
                 : null;
         }
@@ -1000,7 +1001,8 @@ namespace CUCoreLib.Networking
 
             if (normalizedActual == normalizedExpected) return true;
 
-            if (normalizedExpected == typeof(IEnumerable)) return typeof(IEnumerable).IsAssignableFrom(normalizedActual);
+            if (normalizedExpected == typeof(IEnumerable))
+                return typeof(IEnumerable).IsAssignableFrom(normalizedActual);
 
             if (normalizedExpected.IsAssignableFrom(normalizedActual)) return true;
 
@@ -1044,7 +1046,7 @@ namespace CUCoreLib.Networking
             if (IsUnsignedIntegerLike(clientId.GetType())) return Convert.ToUInt32(clientId);
 
             var idField = clientId.GetType().GetField("id", BindingFlags.Public | BindingFlags.NonPublic |
-                                                        BindingFlags.Instance);
+                                                            BindingFlags.Instance);
             return idField != null && IsUnsignedIntegerLike(idField.FieldType)
                 ? Convert.ToUInt32(idField.GetValue(clientId))
                 : 0u;
@@ -1063,7 +1065,7 @@ namespace CUCoreLib.Networking
             {
                 var targetAddress = string.IsNullOrWhiteSpace(address) ? "localhost:7790" : address.Trim();
                 var mode = Enum.Parse(_netModeType, modeName);
-                var result = _liteNetConnectMethod.Invoke(null, new object[] { targetAddress, mode });
+                var result = _liteNetConnectMethod.Invoke(null, new[] { targetAddress, mode });
                 return result is bool connected && connected;
             }
             catch (Exception ex)

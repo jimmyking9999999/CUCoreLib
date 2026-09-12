@@ -110,7 +110,8 @@ namespace CUCoreLib.Patches
         {
             if (__instance == null || item == null) return true;
             if (!ItemRegistry.TryGetCustomInfo(item, out var def)) return true;
-            if (def.WornSprite == null && (def.MultiWornSprites == null || def.MultiWornSprites.Count == 0)) return true;
+            if (def.WornSprite == null && (def.MultiWornSprites == null || def.MultiWornSprites.Count == 0))
+                return true;
             if (!IsWorn(item)) return true;
 
             __instance.DropWearable(item);
@@ -216,8 +217,8 @@ namespace CUCoreLib.Patches
         {
             return new HashSet<string>(
                 (wearSlotId ?? string.Empty).Split(',')
-                    .Select(slot => slot.Trim())
-                    .Where(slot => !string.IsNullOrWhiteSpace(slot)),
+                .Select(slot => slot.Trim())
+                .Where(slot => !string.IsNullOrWhiteSpace(slot)),
                 StringComparer.OrdinalIgnoreCase);
         }
 

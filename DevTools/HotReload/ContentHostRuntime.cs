@@ -2,8 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Reflection;
 using BepInEx;
-using BepInEx.Bootstrap;
-using CUCoreLib.Data;
 using CUCoreLib.Helpers;
 
 namespace CUCoreLib.ContentReload

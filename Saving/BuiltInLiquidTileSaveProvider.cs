@@ -23,10 +23,7 @@ namespace CUCoreLib.Saving
         {
             if (!(payload is JObject obj)) return;
 
-            contextForRestore.Defer(() =>
-            {
-                LiquidTileRegistry.ApplyNetworkSnapshot(obj);
-            });
+            contextForRestore.Defer(() => { LiquidTileRegistry.ApplyNetworkSnapshot(obj); });
         }
     }
 }

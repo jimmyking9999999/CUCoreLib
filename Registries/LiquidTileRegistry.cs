@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Linq;
 using System.Reflection;
 using CUCoreLib.ContentReload;
@@ -9,8 +8,8 @@ using CUCoreLib.Helpers;
 using CUCoreLib.Networking;
 using CUCoreLib.Registries.Infrastructure;
 using CUCoreLib.Saving;
-using Newtonsoft.Json.Linq;
 using HarmonyLib;
+using Newtonsoft.Json.Linq;
 using UnityEngine;
 using Object = UnityEngine.Object;
 
@@ -230,7 +229,6 @@ namespace CUCoreLib.Registries
                 if (BodyTouchStates.TryGetValue(body.GetInstanceID(), out var oldState))
                 {
                     if (TryGetTileInfo(oldState.WorldByte, out var oldInfo) && oldInfo?.OnExit != null)
-                    {
                         oldInfo.OnExit(body, new LiquidTileTouchContext
                         {
                             BlockPosition = oldState.BlockPosition,
@@ -238,7 +236,6 @@ namespace CUCoreLib.Registries
                             WorldByte = oldState.WorldByte,
                             Exited = true
                         });
-                    }
 
                     BodyTouchStates.Remove(body.GetInstanceID());
                 }
@@ -311,43 +308,43 @@ namespace CUCoreLib.Registries
                 for (var i = 0; i < _renderParticleBuffers.Length; i++)
                     _renderParticleBuffers[i] = new ParticleSystem.Particle[64];
             }
+
             for (var i = 0; i < _renderParticleCounts.Length; i++)
                 _renderParticleCounts[i] = 0;
             var byType = _renderParticleBuffers;
             var counts = _renderParticleCounts;
 
             for (var x = range.Item1.min; x < range.Item1.max; x++)
+            for (var y = range.Item2.min; y < range.Item2.max; y++)
             {
-                for (var y = range.Item2.min; y < range.Item2.max; y++)
+                var worldByte = manager.GetLiquid(x, y);
+                if (worldByte == 0) continue;
+
+                var index = worldByte - 1;
+                if (index < 0 || index >= byType.Length) continue;
+
+                var openTop = manager.GetLiquid(x, y + 1) == 0 &&
+                              (manager.GetLiquid(x + 1, y) == 0 || manager.GetLiquid(x - 1, y) == 0);
+                var color = TryGetDisplayColor(worldByte, out var customColor) ? customColor : Color.white;
+
+                var list = byType[index];
+                if (counts[index] >= list.Length)
                 {
-                    var worldByte = manager.GetLiquid(x, y);
-                    if (worldByte == 0) continue;
-
-                    var index = worldByte - 1;
-                    if (index < 0 || index >= byType.Length) continue;
-
-                    var openTop = manager.GetLiquid(x, y + 1) == 0 &&
-                                  (manager.GetLiquid(x + 1, y) == 0 || manager.GetLiquid(x - 1, y) == 0);
-                    var color = TryGetDisplayColor(worldByte, out var customColor) ? customColor : Color.white;
-
-                    var list = byType[index];
-                    if (counts[index] >= list.Length)
-                    {
-                        var enlarged = new ParticleSystem.Particle[list.Length * 2];
-                        Array.Copy(list, enlarged, list.Length);
-                        list = enlarged;
-                        byType[index] = list;
-                    }
-                    list[counts[index]++] = new ParticleSystem.Particle
-                    {
-                        position = WorldGeneration.world.BlockToWorldPos(new Vector2Int(x, y)) +
-                                   (openTop ? new Vector2(0f, -0.3125f) : Vector2.zero),
-                        startLifetime = 999f,
-                        remainingLifetime = 999f,
-                        startColor = color,
-                        startSize3D = new Vector2(1.25f, openTop ? 0.625f : 1.25f)
-                    };
+                    var enlarged = new ParticleSystem.Particle[list.Length * 2];
+                    Array.Copy(list, enlarged, list.Length);
+                    list = enlarged;
+                    byType[index] = list;
                 }
+
+                list[counts[index]++] = new ParticleSystem.Particle
+                {
+                    position = WorldGeneration.world.BlockToWorldPos(new Vector2Int(x, y)) +
+                               (openTop ? new Vector2(0f, -0.3125f) : Vector2.zero),
+                    startLifetime = 999f,
+                    remainingLifetime = 999f,
+                    startColor = color,
+                    startSize3D = new Vector2(1.25f, openTop ? 0.625f : 1.25f)
+                };
             }
 
             for (var i = 0; i < particles.Count; i++)
@@ -432,19 +429,17 @@ namespace CUCoreLib.Registries
 
             var cells = new JArray();
             for (var x = 0; x < FluidManager.main.fluid.GetLength(0); x++)
+            for (var y = 0; y < FluidManager.main.fluid.GetLength(1); y++)
             {
-                for (var y = 0; y < FluidManager.main.fluid.GetLength(1); y++)
-                {
-                    var worldByte = FluidManager.main.fluid[x, y];
-                    if (!IsCustomWorldByte(worldByte)) continue;
+                var worldByte = FluidManager.main.fluid[x, y];
+                if (!IsCustomWorldByte(worldByte)) continue;
 
-                    cells.Add(new JObject
-                    {
-                        ["x"] = x,
-                        ["y"] = y,
-                        ["b"] = worldByte
-                    });
-                }
+                cells.Add(new JObject
+                {
+                    ["x"] = x,
+                    ["y"] = y,
+                    ["b"] = worldByte
+                });
             }
 
             root["cells"] = cells;
@@ -488,7 +483,8 @@ namespace CUCoreLib.Registries
             }
 
             if (ids.Length > 0)
-                result?.AddInfo("Cleared " + ids.Length + " liquid tile registrations owned by '" + normalizedOwnerId + "'.");
+                result?.AddInfo("Cleared " + ids.Length + " liquid tile registrations owned by '" + normalizedOwnerId +
+                                "'.");
         }
 
         private static void ApplyDefinitionSnapshot(JObject snapshot)
@@ -535,7 +531,8 @@ namespace CUCoreLib.Registries
 
         private static void ApplyWorldStateSnapshot(JObject snapshot)
         {
-            if (snapshot == null || FluidManager.main == null || WorldGeneration.world == null || FluidManager.main.fluid == null)
+            if (snapshot == null || FluidManager.main == null || WorldGeneration.world == null ||
+                FluidManager.main.fluid == null)
                 return;
 
             ClearCustomWorldBytes();
@@ -578,11 +575,9 @@ namespace CUCoreLib.Registries
             body.liquidSlipTime = Mathf.Clamp01(body.liquidSlipTime + info.SlipPerSecond * dt);
             body.liquidRagdollBar = Mathf.Clamp01(body.liquidRagdollBar - info.RagdollBarDrainPerSecond * dt);
             if (info.DisinfectPerSecond != 0f && body.limbs != null)
-            {
                 foreach (var limb in body.limbs)
                     if (limb != null)
                         limb.SetDisinfect(Mathf.Max(limb.disinfectionTime, info.DisinfectPerSecond * dt));
-            }
         }
 
         private static void QueueWorldBroadcast()
@@ -816,8 +811,8 @@ namespace CUCoreLib.Registries
 
         private sealed class LiquidTileTouchState
         {
-            public byte WorldByte;
             public Vector2Int BlockPosition;
+            public byte WorldByte;
         }
     }
 }

@@ -81,7 +81,7 @@ namespace CUCoreLib.Registries
             if (Recipes.recipes == null || recipe?.result == null) return false;
             EnsureCurrentRecipeList();
             NormalizeRecipeIngredients(recipe);
-            if (!ValidateRecipeReferences(recipe, deferVanillaValidation: false)) return false;
+            if (!ValidateRecipeReferences(recipe, false)) return false;
 
             var recipeKey = BuildRecipeKey(recipe);
             if (InjectedRecipeKeys.Contains(recipeKey)) return false;
@@ -215,7 +215,7 @@ namespace CUCoreLib.Registries
 
         internal static bool IsKnownRecipeResult(RecipeResult result)
         {
-            return result != null && TryResolveRecipeItemId(result.id, result.isLiquid, deferVanillaValidation: false);
+            return result != null && TryResolveRecipeItemId(result.id, result.isLiquid, false);
         }
 
         private static bool ValidateRecipeReferences(Recipe recipe, bool deferVanillaValidation = true)
@@ -245,7 +245,8 @@ namespace CUCoreLib.Registries
                 var item = recipe.items[i];
                 if (item == null)
                 {
-                    CUCoreLibPlugin.Log?.LogError($"Recipe '{recipe.result.id}' was ignored because ingredient {i} is null.");
+                    CUCoreLibPlugin.Log?.LogError(
+                        $"Recipe '{recipe.result.id}' was ignored because ingredient {i} is null.");
                     isValid = false;
                     continue;
                 }
@@ -345,6 +346,5 @@ namespace CUCoreLib.Registries
 
             return builder.ToString();
         }
-
     }
 }

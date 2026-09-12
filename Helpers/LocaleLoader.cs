@@ -27,7 +27,7 @@ namespace CUCoreLib.Helpers
             if (string.IsNullOrWhiteSpace(localeName)) return;
 
             var normalizedLocaleName = localeName.Trim();
-            
+
             var isEnglish = string.Equals(normalizedLocaleName, "EN", StringComparison.OrdinalIgnoreCase);
             if (!isEnglish)
                 ApplyLocaleFile("EN");

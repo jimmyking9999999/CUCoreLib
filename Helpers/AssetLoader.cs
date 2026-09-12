@@ -13,6 +13,7 @@ using CUCoreLib.Data;
 using NAudio.Wave;
 using UnityEngine;
 using UnityEngine.UI;
+using Object = UnityEngine.Object;
 
 namespace CUCoreLib.Helpers
 {
@@ -21,6 +22,8 @@ namespace CUCoreLib.Helpers
         public const float PPU_WORLD = 8f;
         public const float PPU_UI = 100f;
         private const float EmbeddedSpritePreloadFrameBudgetSeconds = 0.004f;
+
+        private const string MissingResourceName = "\0";
 
         private static ManualLogSource Logger;
 
@@ -47,8 +50,6 @@ namespace CUCoreLib.Helpers
 
         private static readonly Dictionary<string, string> ResolvedResourceNameCache =
             new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-
-        private const string MissingResourceName = "\0";
 
         private static readonly Dictionary<string, Texture2D> EmbeddedTextureCache =
             new Dictionary<string, Texture2D>(StringComparer.OrdinalIgnoreCase);
@@ -88,8 +89,8 @@ namespace CUCoreLib.Helpers
         private static readonly Dictionary<string, RegisteredAssetBundle> RegisteredBundles =
             new Dictionary<string, RegisteredAssetBundle>(StringComparer.OrdinalIgnoreCase);
 
-        private static readonly Dictionary<string, UnityEngine.Object> BundleAssetCache =
-            new Dictionary<string, UnityEngine.Object>(StringComparer.OrdinalIgnoreCase);
+        private static readonly Dictionary<string, Object> BundleAssetCache =
+            new Dictionary<string, Object>(StringComparer.OrdinalIgnoreCase);
 
         private static readonly Dictionary<string, HashSet<string>> BundleAssetCacheKeysByBundleId =
             new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
@@ -287,12 +288,10 @@ namespace CUCoreLib.Helpers
                 return;
 
             foreach (var bundleId in bundleIds.ToArray())
-            {
                 if (unregister)
                     UnregisterBundle(bundleId);
                 else
                     InvalidateBundle(bundleId);
-            }
 
             if (unregister) ModGuidBundleIds.Remove(modGuid);
         }
@@ -311,7 +310,7 @@ namespace CUCoreLib.Helpers
                     if (!EmbeddedSpriteVariantCache.TryGetValue(spriteKey, out var sprite) || sprite == null) continue;
 
                     EmbeddedSpriteVariantCache.Remove(spriteKey);
-                    UnityEngine.Object.Destroy(sprite);
+                    Object.Destroy(sprite);
                 }
 
                 AssemblySpriteVariantKeys.Remove(assemblyKey);
@@ -324,7 +323,7 @@ namespace CUCoreLib.Helpers
                     if (!EmbeddedTextureCache.TryGetValue(textureKey, out var texture) || texture == null) continue;
 
                     EmbeddedTextureCache.Remove(textureKey);
-                    UnityEngine.Object.Destroy(texture);
+                    Object.Destroy(texture);
                 }
 
                 AssemblyTextureKeys.Remove(assemblyKey);
@@ -335,7 +334,8 @@ namespace CUCoreLib.Helpers
             foreach (var cacheKey in ResolvedResourceNameCache.Keys
                          .Where(key => key.StartsWith(resolutionPrefix, StringComparison.OrdinalIgnoreCase)).ToArray())
                 ResolvedResourceNameCache.Remove(cacheKey);
-            LoggedMissingResources.RemoveWhere(key => key.IndexOf(assemblyKey, StringComparison.OrdinalIgnoreCase) >= 0);
+            LoggedMissingResources.RemoveWhere(key =>
+                key.IndexOf(assemblyKey, StringComparison.OrdinalIgnoreCase) >= 0);
 
             InvalidateSpriteAnimationsForAssembly(assemblyKey);
         }
@@ -345,16 +345,15 @@ namespace CUCoreLib.Helpers
             var assemblyKey = GetAssemblyCacheKey(assembly);
             if (string.IsNullOrWhiteSpace(assemblyKey)) return;
 
-            if (!AssemblyBundleIds.TryGetValue(assemblyKey, out var bundleIds) || bundleIds == null || bundleIds.Count == 0)
+            if (!AssemblyBundleIds.TryGetValue(assemblyKey, out var bundleIds) || bundleIds == null ||
+                bundleIds.Count == 0)
                 return;
 
             foreach (var bundleId in bundleIds.ToArray())
-            {
                 if (unregister)
                     UnregisterBundle(bundleId);
                 else
                     InvalidateBundle(bundleId);
-            }
 
             if (unregister) AssemblyBundleIds.Remove(assemblyKey);
         }
@@ -463,9 +462,9 @@ namespace CUCoreLib.Helpers
 
             removedAnything |= ClearBundleAssetCaches(normalizedBundleId);
             LoggedMissingResources.RemoveWhere(key => key.IndexOf("bundle-asset:" + normalizedBundleId + ":",
-                StringComparison.OrdinalIgnoreCase) >= 0 ||
-                                                   key.IndexOf("bundle-curve:" + normalizedBundleId + ":",
-                                                       StringComparison.OrdinalIgnoreCase) >= 0);
+                                                          StringComparison.OrdinalIgnoreCase) >= 0 ||
+                                                      key.IndexOf("bundle-curve:" + normalizedBundleId + ":",
+                                                          StringComparison.OrdinalIgnoreCase) >= 0);
             return removedAnything;
         }
 
@@ -491,7 +490,7 @@ namespace CUCoreLib.Helpers
         }
 
         public static bool TryLoadBundleAsset<T>(string bundleId, string assetName, out T asset)
-            where T : UnityEngine.Object
+            where T : Object
         {
             asset = null;
 
@@ -592,8 +591,8 @@ namespace CUCoreLib.Helpers
         }
 
         /// <summary>
-        /// Loads an ordered list of embedded image resources as a registered frame animation. Frame order is exactly
-        /// the order supplied by <paramref name="frameResourcePaths"/>.
+        ///     Loads an ordered list of embedded image resources as a registered frame animation. Frame order is exactly
+        ///     the order supplied by <paramref name="frameResourcePaths" />.
         /// </summary>
         public static RegisteredSpriteAnimation LoadFrameAnimationFromEmbeddedResources(string id,
             IEnumerable<string> frameResourcePaths, float pixelsPerUnit = PPU_WORLD, float framesPerSecond = 12f,
@@ -890,7 +889,7 @@ namespace CUCoreLib.Helpers
                          .ToArray())
             {
                 SpriteVariantCache.Remove(entry.Key);
-                if (entry.Value != null) UnityEngine.Object.Destroy(entry.Value);
+                if (entry.Value != null) Object.Destroy(entry.Value);
             }
         }
 
@@ -910,9 +909,7 @@ namespace CUCoreLib.Helpers
             }
 
             if (widthMultiplier > 1 || heightMultiplier > 1)
-            {
                 finalTexture = ModifyTextures.ResizeTexture(finalTexture, widthMultiplier, heightMultiplier);
-            }
 
             finalTexture.filterMode = filterMode;
             finalTexture.wrapMode = TextureWrapMode.Clamp;
@@ -1066,7 +1063,8 @@ namespace CUCoreLib.Helpers
                 return;
 
             SpriteAnimationOwnerAssemblyKeys.Remove(animationId);
-            if (!AssemblySpriteAnimationIds.TryGetValue(assemblyKey, out var animationIds) || animationIds == null) return;
+            if (!AssemblySpriteAnimationIds.TryGetValue(assemblyKey, out var animationIds) ||
+                animationIds == null) return;
 
             animationIds.Remove(animationId);
             if (animationIds.Count == 0) AssemblySpriteAnimationIds.Remove(assemblyKey);
@@ -1245,10 +1243,7 @@ namespace CUCoreLib.Helpers
 
             if (BundleAssetCacheKeysByBundleId.TryGetValue(bundleId, out var assetCacheKeys) && assetCacheKeys != null)
             {
-                foreach (var cacheKey in assetCacheKeys.ToArray())
-                {
-                    clearedAny |= BundleAssetCache.Remove(cacheKey);
-                }
+                foreach (var cacheKey in assetCacheKeys.ToArray()) clearedAny |= BundleAssetCache.Remove(cacheKey);
 
                 BundleAssetCacheKeysByBundleId.Remove(bundleId);
             }
@@ -1275,7 +1270,8 @@ namespace CUCoreLib.Helpers
             bundleIds.Add(bundleId);
         }
 
-        private static void RemoveBundleOwner(string ownerKey, string bundleId, Dictionary<string, HashSet<string>> index)
+        private static void RemoveBundleOwner(string ownerKey, string bundleId,
+            Dictionary<string, HashSet<string>> index)
         {
             if (string.IsNullOrWhiteSpace(ownerKey) || string.IsNullOrWhiteSpace(bundleId)) return;
             if (!index.TryGetValue(ownerKey, out var bundleIds) || bundleIds == null) return;
@@ -1284,7 +1280,8 @@ namespace CUCoreLib.Helpers
             if (bundleIds.Count == 0) index.Remove(ownerKey);
         }
 
-        private static void AddBundleCacheKey(Dictionary<string, HashSet<string>> index, string bundleId, string cacheKey)
+        private static void AddBundleCacheKey(Dictionary<string, HashSet<string>> index, string bundleId,
+            string cacheKey)
         {
             if (string.IsNullOrWhiteSpace(bundleId) || string.IsNullOrWhiteSpace(cacheKey)) return;
 
@@ -1361,7 +1358,7 @@ namespace CUCoreLib.Helpers
 
         private static string BuildBundleAssetCacheKey(string bundleId, Type assetType, string assetName)
         {
-            return bundleId + "|" + (assetType?.FullName ?? typeof(UnityEngine.Object).FullName) + "|" + assetName;
+            return bundleId + "|" + (assetType?.FullName ?? typeof(Object).FullName) + "|" + assetName;
         }
 
         private static void AddAssemblyKey(Dictionary<string, HashSet<string>> index, string assemblyKey, string key)

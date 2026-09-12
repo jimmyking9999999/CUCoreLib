@@ -23,7 +23,8 @@ namespace CUCoreLib.Registries
             Command = 5,
             Option = 6,
             Liquid = 7,
-            Title = 8
+            Tile = 8,
+            Ui = 9
         }
 
         internal static Dictionary<int, Dictionary<string, string>> CustomLocales =
@@ -125,7 +126,8 @@ namespace CUCoreLib.Registries
             }
 
             Register(category, normalizedKey, optionalFallbackIfLocaleValueNullOrWhitespace);
-            var value = LocaleLoader.GetLocalizedText(category, normalizedKey, optionalFallbackIfLocaleValueNullOrWhitespace);
+            var value = LocaleLoader.GetLocalizedText(category, normalizedKey,
+                optionalFallbackIfLocaleValueNullOrWhitespace);
             return string.IsNullOrWhiteSpace(value) ? optionalFallbackIfLocaleValueNullOrWhitespace : value;
         }
 
@@ -290,7 +292,8 @@ namespace CUCoreLib.Registries
                 normalizedCategory == "command" ? LocaleCategory.Command :
                 normalizedCategory == "option" ? LocaleCategory.Option :
                 normalizedCategory == "liquid" ? LocaleCategory.Liquid :
-                normalizedCategory == "title" ? LocaleCategory.Title :
+                normalizedCategory == "tile" ? LocaleCategory.Tile :
+                normalizedCategory == "ui" ? LocaleCategory.Ui :
                 LocaleCategory.Other);
         }
 
@@ -312,8 +315,10 @@ namespace CUCoreLib.Registries
                     return "option";
                 case LocaleCategory.Liquid:
                     return "liquid";
-                case LocaleCategory.Title:
-                    return "title";
+                case LocaleCategory.Tile:
+                    return "tile";
+                case LocaleCategory.Ui:
+                    return "ui";
                 case LocaleCategory.Other:
                 default:
                     return "other";
@@ -331,7 +336,8 @@ namespace CUCoreLib.Registries
                     case JObject obj:
                     {
                         var result = new Dictionary<string, object>(StringComparer.Ordinal);
-                        foreach (var property in obj.Properties()) result[property.Name] = ConvertTokenToPlainObject(property.Value);
+                        foreach (var property in obj.Properties())
+                            result[property.Name] = ConvertTokenToPlainObject(property.Value);
 
                         return result;
                     }
@@ -369,7 +375,7 @@ namespace CUCoreLib.Registries
                     var previous = trimmed[i - 1];
                     var hasNext = i + 1 < trimmed.Length;
                     var next = hasNext ? trimmed[i + 1] : '\0';
-                    if ((char.IsLower(previous) || char.IsDigit(previous)) ||
+                    if (char.IsLower(previous) || char.IsDigit(previous) ||
                         (char.IsUpper(previous) && hasNext && char.IsLower(next)))
                         builder.Append(' ');
                 }

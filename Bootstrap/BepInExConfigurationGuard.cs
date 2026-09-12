@@ -8,12 +8,10 @@ namespace CUCoreLib.Bootstrap
     internal static class BepInExConfigurationGuard
     {
         private const string HideManagerGameObjectKey = "HideManagerGameObject";
+
         internal static void EnsureManagerIsHidden(string configPath, ManualLogSource logger)
         {
-            if (!File.Exists(configPath))
-            {
-                return;
-            }
+            if (!File.Exists(configPath)) return;
 
             try
             {
@@ -33,10 +31,10 @@ namespace CUCoreLib.Bootstrap
                     wasEnabled = true;
                 });
                 if (!wasEnabled) return;
-
             }
             catch (Exception ex)
             {
+                // ignored
             }
         }
     }

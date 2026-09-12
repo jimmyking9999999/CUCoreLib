@@ -15,13 +15,6 @@ namespace CUCoreLib.Registries
 {
     public static class LiquidRegistry
     {
-        internal enum HealthUseMode
-        {
-            None,
-            ApplyToLimb,
-            Inject
-        }
-
         internal static Dictionary<string, CustomLiquidInfo> RegisteredLiquids =
             new Dictionary<string, CustomLiquidInfo>(StringComparer.OrdinalIgnoreCase);
 
@@ -94,7 +87,6 @@ namespace CUCoreLib.Registries
         {
             var injected = 0;
             foreach (var entry in RegisteredLiquids.ToArray())
-            {
                 try
                 {
                     if (InjectSingleLiquid(entry.Key, entry.Value)) injected++;
@@ -102,7 +94,6 @@ namespace CUCoreLib.Registries
                 catch
                 {
                 }
-            }
 
             KrokMpCompatibilityPatches.RefreshLiquidRegistry();
 
@@ -139,6 +130,7 @@ namespace CUCoreLib.Registries
             {
                 return false;
             }
+
             return true;
         }
 
@@ -274,14 +266,14 @@ namespace CUCoreLib.Registries
             KrokMpCompatibilityPatches.RefreshLiquidRegistry();
 
             if (ids.Length > 0)
-                result?.AddInfo("Cleared " + ids.Length + " liquid registrations owned by '" + normalizedOwnerId + "'.");
+                result?.AddInfo("Cleared " + ids.Length + " liquid registrations owned by '" + normalizedOwnerId +
+                                "'.");
         }
 
         internal static JObject CaptureNetworkSnapshot()
         {
             var root = new JObject();
             foreach (var entry in RegisteredLiquids.ToArray())
-            {
                 try
                 {
                     var info = entry.Value;
@@ -304,7 +296,6 @@ namespace CUCoreLib.Registries
                 catch
                 {
                 }
-            }
 
             return root;
         }
@@ -361,5 +352,11 @@ namespace CUCoreLib.Registries
                 .ToDictionary(entry => entry.Key, entry => entry.Value, StringComparer.Ordinal);
         }
 
+        internal enum HealthUseMode
+        {
+            None,
+            ApplyToLimb,
+            Inject
+        }
     }
 }

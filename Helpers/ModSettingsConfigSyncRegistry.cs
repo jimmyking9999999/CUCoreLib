@@ -10,17 +10,6 @@ namespace CUCoreLib.Helpers
 {
     internal static class ModSettingsConfigSyncRegistry
     {
-        private sealed class SyncState
-        {
-            public ModOptionDefinition Option;
-            public Setting Setting;
-            public ConfigFile ConfigFile;
-            public ConfigEntryBase ConfigEntry;
-            public bool ApplyingFromConfig;
-            public bool ApplyingFromSetting;
-            public bool ApplyWrapped;
-        }
-
         private static readonly Dictionary<string, SyncState> StatesById =
             new Dictionary<string, SyncState>(StringComparer.Ordinal);
 
@@ -278,18 +267,16 @@ namespace CUCoreLib.Helpers
             if (state?.Option == null || state.ConfigEntry != null) return;
 
             foreach (var pair in ConfigEntriesByFile)
+            foreach (var entry in pair.Value.Values)
             {
-                foreach (var entry in pair.Value.Values)
-                {
-                    if (entry == null) continue;
+                if (entry == null) continue;
 
-                    var matchedState = FindStateForDefinition(entry.Definition);
-                    if (!ReferenceEquals(matchedState, state)) continue;
+                var matchedState = FindStateForDefinition(entry.Definition);
+                if (!ReferenceEquals(matchedState, state)) continue;
 
-                    state.ConfigFile = pair.Key;
-                    state.ConfigEntry = entry;
-                    return;
-                }
+                state.ConfigFile = pair.Key;
+                state.ConfigEntry = entry;
+                return;
             }
         }
 
@@ -344,7 +331,8 @@ namespace CUCoreLib.Helpers
             }
             catch (Exception ex)
             {
-                CUCoreLibPlugin.Log?.LogDebug($"CUCoreLib settings sync could not inspect loaded plugin configs: {ex.Message}");
+                CUCoreLibPlugin.Log?.LogDebug(
+                    $"CUCoreLib settings sync could not inspect loaded plugin configs: {ex.Message}");
             }
         }
 
@@ -376,14 +364,17 @@ namespace CUCoreLib.Helpers
                         convertedValue = boolValue;
                         return true;
                     }
+
                     error = DescribeExpectedValue("bool", rawValue);
                     return false;
                 case ModOptionKind.Int:
                     if (TryConvertToInt(rawValue, out var intValue))
                     {
-                        convertedValue = Mathf.Clamp(intValue, Mathf.RoundToInt(option.Min), Mathf.RoundToInt(option.Max));
+                        convertedValue = Mathf.Clamp(intValue, Mathf.RoundToInt(option.Min),
+                            Mathf.RoundToInt(option.Max));
                         return true;
                     }
+
                     error = DescribeExpectedValue("int", rawValue);
                     return false;
                 case ModOptionKind.Float:
@@ -392,6 +383,7 @@ namespace CUCoreLib.Helpers
                         convertedValue = Mathf.Clamp(floatValue, option.Min, option.Max);
                         return true;
                     }
+
                     error = DescribeExpectedValue("float", rawValue);
                     return false;
                 case ModOptionKind.Dropdown:
@@ -400,6 +392,7 @@ namespace CUCoreLib.Helpers
                         convertedValue = index;
                         return true;
                     }
+
                     return false;
                 case ModOptionKind.Keybind:
                     if (TryConvertToKeyCode(rawValue, out var keyCode))
@@ -407,6 +400,7 @@ namespace CUCoreLib.Helpers
                         convertedValue = keyCode;
                         return true;
                     }
+
                     error = DescribeExpectedValue("keybind", rawValue);
                     return false;
                 default:
@@ -527,7 +521,8 @@ namespace CUCoreLib.Helpers
                     return true;
                 case string text when bool.TryParse(text, out value):
                     return true;
-                case string text when int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsedInt):
+                case string text when int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture,
+                    out var parsedInt):
                     value = parsedInt != 0;
                     return true;
                 case byte byteValue:
@@ -590,7 +585,8 @@ namespace CUCoreLib.Helpers
                     return true;
                 case string text when int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out value):
                     return true;
-                case string text when float.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsedFloat):
+                case string text when float.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture,
+                    out var parsedFloat):
                     value = Mathf.RoundToInt(parsedFloat);
                     return true;
                 default:
@@ -620,7 +616,8 @@ namespace CUCoreLib.Helpers
                     return true;
                 case string text when float.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out value):
                     return true;
-                case string text when int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsedInt):
+                case string text when int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture,
+                    out var parsedInt):
                     value = parsedInt;
                     return true;
                 default:
@@ -642,7 +639,8 @@ namespace CUCoreLib.Helpers
                 case string text when Enum.TryParse(text, true, out KeyCode parsedKeyCode):
                     value = parsedKeyCode;
                     return true;
-                case string text when int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsedInt):
+                case string text when int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture,
+                    out var parsedInt):
                     value = (KeyCode)parsedInt;
                     return true;
                 default:
@@ -667,16 +665,12 @@ namespace CUCoreLib.Helpers
             }
 
             if (option.Choices != null && rawValue is string text)
-            {
                 for (var i = 0; i < option.Choices.Length; i++)
-                {
                     if (string.Equals(option.Choices[i].Key, text, StringComparison.OrdinalIgnoreCase))
                     {
                         value = i;
                         return true;
                     }
-                }
-            }
 
             error = DescribeExpectedValue("dropdown index or choice key", rawValue);
             value = 0;
@@ -739,6 +733,17 @@ namespace CUCoreLib.Helpers
         {
             if (rawValue == null) return $"expected {expected}, but value was null.";
             return $"expected {expected}, but got '{rawValue}' ({rawValue.GetType().Name}).";
+        }
+
+        private sealed class SyncState
+        {
+            public bool ApplyWrapped;
+            public bool ApplyingFromConfig;
+            public bool ApplyingFromSetting;
+            public ConfigEntryBase ConfigEntry;
+            public ConfigFile ConfigFile;
+            public ModOptionDefinition Option;
+            public Setting Setting;
         }
     }
 }

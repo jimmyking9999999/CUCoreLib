@@ -53,7 +53,7 @@ namespace CUCoreLib.Bootstrap
                 BugReportService.RunCommand,
                 new Dictionary<int, List<string>>
                 {
-                    [2] = new List<string> { "low", "medium", "high", "critical" } 
+                    [2] = new List<string> { "low", "medium", "high", "critical" }
                 },
                 ("description", "Optional description in quotation marks \"\". Optional, but highly recommended."),
                 ("bool screenshot", "True/false. Captures the current game screen if true. Optional."),

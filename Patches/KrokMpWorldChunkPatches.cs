@@ -12,17 +12,18 @@ namespace CUCoreLib.Patches
 {
     internal static class KrokMpWorldChunkPatches
     {
-        private static bool _installed;
         private static MethodInfo _getByte;
         private static MethodInfo _getBytes;
         private static readonly FieldInfo WorldBlocks = AccessTools.Field(typeof(WorldGeneration), "worldBlocks");
-        private static readonly FieldInfo InstantiatingWorld = AccessTools.Field(typeof(WorldGeneration), "instantiatingWorld");
 
-        internal static bool IsInstalled => _installed;
+        private static readonly FieldInfo InstantiatingWorld =
+            AccessTools.Field(typeof(WorldGeneration), "instantiatingWorld");
+
+        internal static bool IsInstalled { get; private set; }
 
         internal static void Install(Harmony harmony, Type chunkSync)
         {
-            if (_installed || chunkSync == null) return;
+            if (IsInstalled || chunkSync == null) return;
 
             MethodInfo sender = null;
             MethodInfo receiver = null;
@@ -46,9 +47,9 @@ namespace CUCoreLib.Patches
                     WorldBlocks == null || InstantiatingWorld == null)
                     throw new MissingMemberException("KrokMP tile chunk reader or world fields unavailable.");
 
-                harmony.Patch(receiver, prefix: new HarmonyMethod(prefix));
-                harmony.Patch(sender, prefix: new HarmonyMethod(reliablePrefix), transpiler: new HarmonyMethod(transpiler));
-                _installed = true;
+                harmony.Patch(receiver, new HarmonyMethod(prefix));
+                harmony.Patch(sender, new HarmonyMethod(reliablePrefix), transpiler: new HarmonyMethod(transpiler));
+                IsInstalled = true;
             }
             catch (Exception exception)
             {
@@ -58,6 +59,7 @@ namespace CUCoreLib.Patches
                     harmony.Unpatch(sender, transpiler);
                     harmony.Unpatch(sender, reliablePrefix);
                 }
+
                 if (receiver != null) harmony.Unpatch(receiver, prefix);
             }
         }
@@ -81,7 +83,8 @@ namespace CUCoreLib.Patches
             var match = matches[0];
             code[match - 1].opcode = OpCodes.Nop;
             code[match].opcode = OpCodes.Call;
-            code[match].operand = AccessTools.Method(typeof(MultiplayerTileChunk), nameof(MultiplayerTileChunk.WriteTileId));
+            code[match].operand =
+                AccessTools.Method(typeof(MultiplayerTileChunk), nameof(MultiplayerTileChunk.WriteTileId));
             return code;
         }
 

@@ -7,25 +7,71 @@ using System.Linq;
 using System.Reflection;
 using System.Text;
 using BepInEx.Bootstrap;
+using CUCoreLib.ContentReload;
 using CUCoreLib.Data;
 using CUCoreLib.Patches;
 using CUCoreLib.Registries;
 using Newtonsoft.Json.Linq;
 using TMPro;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.Networking;
 using CompressionLevel = System.IO.Compression.CompressionLevel;
 using Object = UnityEngine.Object;
-using UnityEngine.EventSystems;
 
 namespace CUCoreLib.Helpers
 {
     public static class CUCoreUtils
     {
-        private const string ModVersionsUrl = "https://jimmyking9999999.github.io/Metadata-generator/nexusmods-versions.json";
+        private const string ModVersionsUrl =
+            "https://jimmyking9999999.github.io/Metadata-generator/nexusmods-versions.json";
+
         private static readonly HashSet<string> VersionWarnings = new HashSet<string>(StringComparer.Ordinal);
 
-        /// <summary>Checks a loaded mod against the published Nexus metadata and invokes <paramref name="onOutdated"/> when newer.</summary>
+        private static readonly Dictionary<string, MethodInfo> MethodCache = new Dictionary<string, MethodInfo>();
+        private static readonly Dictionary<KeyCode, Sprite> KeySpriteCache = new Dictionary<KeyCode, Sprite>();
+
+        private static readonly Dictionary<string, FriendlyKeybindEntry> FriendlyKeybindsByActionId =
+            new Dictionary<string, FriendlyKeybindEntry>(StringComparer.Ordinal);
+
+        private static readonly int ItemLayerMask = LayerMask.GetMask("Item");
+
+        private static Talker ElectronicTalkerProxy;
+        private static FieldInfo KrokMpChatFocusedField;
+        private static bool KrokMpChatFocusFieldResolved;
+        private static string LastDialogueId;
+        private static string LastDialogueText;
+
+        // TODO allow for keybind support with FriendyKeyNames as a relay
+        private static readonly Dictionary<KeyCode, string> FriendlyKeyNames = new Dictionary<KeyCode, string>
+        {
+            { KeyCode.Mouse0, "Left Click" },
+            { KeyCode.Mouse1, "Right Click" },
+            { KeyCode.Mouse2, "Middle Click" },
+            { KeyCode.Alpha0, "0" },
+            { KeyCode.Alpha1, "1" },
+            { KeyCode.Alpha2, "2" },
+            { KeyCode.Alpha3, "3" },
+            { KeyCode.Alpha4, "4" },
+            { KeyCode.Alpha5, "5" },
+            { KeyCode.Alpha6, "6" },
+            { KeyCode.Alpha7, "7" },
+            { KeyCode.Alpha8, "8" },
+            { KeyCode.Alpha9, "9" },
+            { KeyCode.Return, "Enter" },
+            { KeyCode.Escape, "Esc" },
+            { KeyCode.BackQuote, "~" }
+        };
+
+        /// <summary>
+        ///     The player whose event is currently invoking a CUCoreUtils player-event callback.
+        /// </summary>
+        public static Body EventPlayer { get; internal set; }
+
+        /// <summary>
+        ///     Checks a loaded mod against the published Nexus metadata and invokes <paramref name="onOutdated" /> when
+        ///     newer.
+        /// </summary>
         public static Coroutine CheckModVersion(string modGuid, Action<string, string> onOutdated = null)
         {
             return StartCoroutine(CheckModVersionRoutine(modGuid, ModVersionsUrl, onOutdated));
@@ -51,12 +97,15 @@ namespace CUCoreLib.Helpers
                 if (request.result != UnityWebRequest.Result.Success) yield break;
 
                 var raw = request.downloadHandler.text?.Trim();
-                string latest = raw;
+                var latest = raw;
                 try
                 {
                     if (raw != null && raw.StartsWith("{")) latest = JObject.Parse(raw).Value<string>(modGuid);
                 }
-                catch { yield break; }
+                catch
+                {
+                    yield break;
+                }
 
                 var current = plugin.Metadata.Version.ToString();
                 if (!Version.TryParse(current.TrimStart('v', 'V'), out var currentVersion) ||
@@ -79,130 +128,28 @@ namespace CUCoreLib.Helpers
                     var name = string.IsNullOrWhiteSpace(plugin.Metadata.Name) ? modGuid : plugin.Metadata.Name;
                     var hash = 2166136261u;
                     foreach (var character in modGuid) hash = (hash ^ character) * 16777619u;
-                    var color = Color.HSVToRGB((hash % 1000) / 1000f, 0.8f, 1f);
+                    var color = Color.HSVToRGB(hash % 1000 / 1000f, 0.8f, 1f);
                     var hex = ColorUtility.ToHtmlStringRGB(color);
-                    ConsoleLog(console, $"Mod <color=#{hex}>{name}</color> is out of date! (Version {current} -> Version {latest})");
+                    ConsoleLog(console,
+                        $"Mod <color=#{hex}>{name}</color> is out of date! (Version {current} -> Version {latest})");
                 }
             }
         }
 
-        public sealed class FriendlyKeybind
-        {
-            private readonly FriendlyKeybindEntry entry;
-
-            internal FriendlyKeybind(FriendlyKeybindEntry entry)
-            {
-                this.entry = entry;
-            }
-
-            public bool disableInInputFields
-            {
-                get => entry.DisableInInputFields;
-                set => entry.DisableInInputFields = value;
-            }
-
-            public bool disableInMainMenu
-            {
-                get => entry.DisableInMainMenu;
-                set => entry.DisableInMainMenu = value;
-            }
-
-            public bool disableInHealthPanel
-            {
-                get => entry.DisableInHealthPanel;
-                set => entry.DisableInHealthPanel = value;
-            }
-
-            public bool disableInInventory
-            {
-                get => entry.DisableInInventory;
-                set => entry.DisableInInventory = value;
-            }
-
-            public KeyCode KeyCode => ResolveKeyCode(entry);
-
-            public string KeyName => GetFriendlyKeyName(KeyCode);
-
-            public bool IsPressed()
-            {
-                if (!Input.GetKeyDown(KeyCode))
-                    return false;
-                return !ShouldDisableFriendlyKeybind(entry);
-            }
-
-            public static implicit operator KeyCode(FriendlyKeybind keybind)
-            {
-                return keybind != null ? keybind.KeyCode : KeyCode.None;
-            }
-        }
-
-        internal sealed class FriendlyKeybindEntry
-        {
-            public string ActionId;
-            public string FriendlyName;
-            public KeyCode DefaultKey;
-            public KeyCode CurrentKey;
-            public string Description;
-            public bool RebindRegistered;
-            public bool DisableInInputFields;
-            public bool DisableInMainMenu;
-            public bool DisableInHealthPanel;
-            public bool DisableInInventory;
-            public FriendlyKeybind Handle;
-        }
-
-        private static readonly Dictionary<string, MethodInfo> MethodCache = new Dictionary<string, MethodInfo>();
-        private static readonly Dictionary<KeyCode, Sprite> KeySpriteCache = new Dictionary<KeyCode, Sprite>();
-        private static readonly Dictionary<string, FriendlyKeybindEntry> FriendlyKeybindsByActionId =
-            new Dictionary<string, FriendlyKeybindEntry>(StringComparer.Ordinal);
-        private static readonly int ItemLayerMask = LayerMask.GetMask("Item");
-
-        private static Talker ElectronicTalkerProxy;
-        private static FieldInfo KrokMpChatFocusedField;
-        private static bool KrokMpChatFocusFieldResolved;
-        private static string LastDialogueId;
-        private static string LastDialogueText;
-
         /// <summary>
-        /// Invoked after the <c>heal</c> console command heals a player.
+        ///     Invoked after the <c>heal</c> console command heals a player.
         /// </summary>
         public static event Action OnHeal;
 
         /// <summary>
-        /// Invoked when the player successfully enters last stand.
+        ///     Invoked when the player successfully enters last stand.
         /// </summary>
         public static event Action OnLastStand;
 
-        /// <summary>
-        /// The player whose event is currently invoking a CUCoreUtils player-event callback.
-        /// </summary>
-        public static Body EventPlayer { get; internal set; }
-
-        // TODO allow for keybind support with FriendyKeyNames as a relay
-        private static readonly Dictionary<KeyCode, string> FriendlyKeyNames = new Dictionary<KeyCode, string>
-        {
-            { KeyCode.Mouse0, "Left Click" },
-            { KeyCode.Mouse1, "Right Click" },
-            { KeyCode.Mouse2, "Middle Click" },
-            { KeyCode.Alpha0, "0" },
-            { KeyCode.Alpha1, "1" },
-            { KeyCode.Alpha2, "2" },
-            { KeyCode.Alpha3, "3" },
-            { KeyCode.Alpha4, "4" },
-            { KeyCode.Alpha5, "5" },
-            { KeyCode.Alpha6, "6" },
-            { KeyCode.Alpha7, "7" },
-            { KeyCode.Alpha8, "8" },
-            { KeyCode.Alpha9, "9" },
-            { KeyCode.Return, "Enter" },
-            { KeyCode.Escape, "Esc" },
-            { KeyCode.BackQuote, "~" }
-        };
-
         public static Coroutine StartCoroutine(IEnumerator routine)
         {
-            return routine == null 
-                ? null 
+            return routine == null
+                ? null
                 : CoroutineRunner.Instance.StartCoroutine(routine);
         }
 
@@ -375,8 +322,9 @@ namespace CUCoreLib.Helpers
         }
 
         /// <summary>
-        /// Creates a vanilla <see cref="CraftingQuality"/> and optionally registers a fallback locale label for the quality ID.
-        /// Only one fallbackname is needed per ID, all other fallbacknames for this function are disregarded.
+        ///     Creates a vanilla <see cref="CraftingQuality" /> and optionally registers a fallback locale label for the quality
+        ///     ID.
+        ///     Only one fallbackname is needed per ID, all other fallbacknames for this function are disregarded.
         /// </summary>
         /// <param name="id">Stable crafting-quality id used for recipe matching and locale lookup.</param>
         /// <param name="amount">Minimum quality amount required.</param>
@@ -388,8 +336,9 @@ namespace CUCoreLib.Helpers
         }
 
         /// <summary>
-        /// Creates a vanilla <see cref="CraftingQuality"/> with an amount of <c>1f</c> and optionally registers a fallback locale label for the quality ID.
-        /// Only one fallbackname is needed per ID, all other fallbacknames for this function are disregarded.
+        ///     Creates a vanilla <see cref="CraftingQuality" /> with an amount of <c>1f</c> and optionally registers a fallback
+        ///     locale label for the quality ID.
+        ///     Only one fallbackname is needed per ID, all other fallbacknames for this function are disregarded.
         /// </summary>
         /// <param name="id">Stable crafting-quality id used for recipe matching and locale lookup.</param>
         /// <param name="fallbackName">Optional fallback label used when no locale entry exists for this quality id.</param>
@@ -400,11 +349,11 @@ namespace CUCoreLib.Helpers
         }
 
         /// <summary>
-        /// Applies an edit to a vanilla item definition. The edit is queued automatically when
-        /// called before vanilla item setup and reapplied whenever the vanilla table is rebuilt.
+        ///     Applies an edit to a vanilla item definition. The edit is queued automatically when
+        ///     called before vanilla item setup and reapplied whenever the vanilla table is rebuilt.
         /// </summary>
         /// <param name="itemId">Vanilla item ID, such as <c>flimsyknife</c>.</param>
-        /// <param name="edit">Mutation to apply to the vanilla <see cref="ItemInfo"/>.</param>
+        /// <param name="edit">Mutation to apply to the vanilla <see cref="ItemInfo" />.</param>
         public static void EditVanillaItem(string itemId, Action<ItemInfo> edit)
         {
             ItemRegistry.QueueVanillaItemEdit(itemId, edit);
@@ -489,7 +438,7 @@ namespace CUCoreLib.Helpers
 
             // maybe System.NullReferenceException
             var collider = Physics2D.OverlapPoint(
-                Camera.main.ScreenToWorldPoint(Input.mousePosition),    // maybe null
+                Camera.main.ScreenToWorldPoint(Input.mousePosition), // maybe null
                 ItemLayerMask);
 
             if (collider == null) return false;
@@ -590,7 +539,7 @@ namespace CUCoreLib.Helpers
         {
             GiveItem(id, count);
         }
-        
+
         public static void GiveItemSlot(string id, int slot, int count)
         {
             if (!IsInWorld() || string.IsNullOrWhiteSpace(id) || count <= 0) return;
@@ -625,7 +574,7 @@ namespace CUCoreLib.Helpers
         }
 
         /// <summary>
-        /// Converts a vanilla item definition to <see cref="CustomItemInfo"/> so CUCoreLib-only fields can be configured.
+        ///     Converts a vanilla item definition to <see cref="CustomItemInfo" /> so CUCoreLib-only fields can be configured.
         /// </summary>
         /// <param name="info">The item definition to convert. May be <c>null</c>.</param>
         /// <returns>The original definition when it is already custom; otherwise a shallow custom copy.</returns>
@@ -640,8 +589,8 @@ namespace CUCoreLib.Helpers
         }
 
         /// <summary>
-        /// Updates the registered worn sprite for a custom item and refreshes every live instance with the same item ID.
-        /// Pass <c>null</c> to clear the custom worn sprite and fall back to the normal icon while worn.
+        ///     Updates the registered worn sprite for a custom item and refreshes every live instance with the same item ID.
+        ///     Pass <c>null</c> to clear the custom worn sprite and fall back to the normal icon while worn.
         /// </summary>
         /// <param name="itemId">Registered custom item id to update.</param>
         /// <param name="wornSprite">Sprite to use while the item is worn.</param>
@@ -659,8 +608,8 @@ namespace CUCoreLib.Helpers
         }
 
         /// <summary>
-        /// Updates the registered worn sprite for the item's ID and refreshes every live instance with that same item ID.
-        /// Pass <c>null</c> to clear the custom worn sprite and fall back to the normal icon while worn.
+        ///     Updates the registered worn sprite for the item's ID and refreshes every live instance with that same item ID.
+        ///     Pass <c>null</c> to clear the custom worn sprite and fall back to the normal icon while worn.
         /// </summary>
         /// <param name="item">Any live item instance whose registered custom item should be updated.</param>
         /// <param name="wornSprite">Sprite to use while the item is worn.</param>
@@ -670,11 +619,12 @@ namespace CUCoreLib.Helpers
         }
 
         /// <summary>
-        /// Updates or clears one registered multi-worn sprite entry for a custom item, then refreshes every live instance with the same item ID.
-        /// Pass <c>null</c> for <paramref name="wornSprite"/> to remove the multi-worn sprite for that limb.
+        ///     Updates or clears one registered multi-worn sprite entry for a custom item, then refreshes every live instance with
+        ///     the same item ID.
+        ///     Pass <c>null</c> for <paramref name="wornSprite" /> to remove the multi-worn sprite for that limb.
         /// </summary>
         /// <param name="itemId">Registered custom item id to update.</param>
-        /// <param name="limbName">Vanilla limb name used by <see cref="CustomItemInfo.MultiWornSprites"/>.</param>
+        /// <param name="limbName">Vanilla limb name used by <see cref="CustomItemInfo.MultiWornSprites" />.</param>
         /// <param name="wornSprite">Sprite to use for that secondary worn limb, or <c>null</c> to remove it.</param>
         public static bool SetMultiWornSprite(string itemId, string limbName, Sprite wornSprite)
         {
@@ -693,7 +643,9 @@ namespace CUCoreLib.Helpers
                 info.MultiWornSpriteOffsets?.Remove(normalizedLimbName);
             }
             else
+            {
                 info.MultiWornSprites[normalizedLimbName] = wornSprite;
+            }
 
             ItemRegistry.Register(normalizedId, info);
             ItemRegistryPatches.RefreshLiveInstances(new[] { normalizedId });
@@ -701,11 +653,11 @@ namespace CUCoreLib.Helpers
         }
 
         /// <summary>
-        /// Updates or clears one registered multi-worn sprite entry for the item's ID, then refreshes matching live instances.
-        /// Pass <c>null</c> for <paramref name="wornSprite"/> to remove the multi-worn sprite for that limb.
+        ///     Updates or clears one registered multi-worn sprite entry for the item's ID, then refreshes matching live instances.
+        ///     Pass <c>null</c> for <paramref name="wornSprite" /> to remove the multi-worn sprite for that limb.
         /// </summary>
         /// <param name="item">Any live item instance whose registered custom item should be updated.</param>
-        /// <param name="limbName">Vanilla limb name used by <see cref="CustomItemInfo.MultiWornSprites"/>.</param>
+        /// <param name="limbName">Vanilla limb name used by <see cref="CustomItemInfo.MultiWornSprites" />.</param>
         /// <param name="wornSprite">Sprite to use for that secondary worn limb, or <c>null</c> to remove it.</param>
         public static bool SetMultiWornSprite(Item item, string limbName, Sprite wornSprite)
         {
@@ -735,9 +687,10 @@ namespace CUCoreLib.Helpers
         }
 
         /// <summary>
-        /// Updates the inventory/world icon sprite for one live item instance without touching its worn sprite or the shared item registration.
-        /// Pass <c>null</c> to clear the override and fall back to the registered item icon.
-        /// This is useful for per-instance state visuals such as battery-inserted versus battery-empty variants.
+        ///     Updates the inventory/world icon sprite for one live item instance without touching its worn sprite or the shared
+        ///     item registration.
+        ///     Pass <c>null</c> to clear the override and fall back to the registered item icon.
+        ///     This is useful for per-instance state visuals such as battery-inserted versus battery-empty variants.
         /// </summary>
         /// <param name="item">Live item instance to update.</param>
         /// <param name="iconSprite">Sprite to use for the item's normal icon/world sprite.</param>
@@ -770,14 +723,15 @@ namespace CUCoreLib.Helpers
         public static void Talk(string dialogue)
         {
             if (string.IsNullOrWhiteSpace(dialogue)) return;
-            if (PlayerCamera.main == null || PlayerCamera.main.body == null || PlayerCamera.main.body.talker == null) return;
+            if (PlayerCamera.main == null || PlayerCamera.main.body == null ||
+                PlayerCamera.main.body.talker == null) return;
 
             PlayerCamera.main.body.talker.Talk(dialogue);
         }
 
         /// <summary>
-        /// Gets the most recently triggered dialogue ID, or the selected raw text when <paramref name="id"/> is false.
-        /// Direct text passed to <c>Talker.Talk(string)</c> has no ID and returns null when <paramref name="id"/> is true.
+        ///     Gets the most recently triggered dialogue ID, or the selected raw text when <paramref name="id" /> is false.
+        ///     Direct text passed to <c>Talker.Talk(string)</c> has no ID and returns null when <paramref name="id" /> is true.
         /// </summary>
         /// <param name="id">True to return the locale dialogue ID; false to return the selected text.</param>
         /// <returns>The last dialogue value, or null before any dialogue has been triggered.</returns>
@@ -802,7 +756,7 @@ namespace CUCoreLib.Helpers
             if (string.IsNullOrWhiteSpace(dialogue)) return;
 
             bool createdProxy;
-            Talker talker = GetElectronicTalker(item, out createdProxy);
+            var talker = GetElectronicTalker(item, out createdProxy);
             if (talker == null) return;
 
             if (createdProxy)
@@ -821,10 +775,11 @@ namespace CUCoreLib.Helpers
 
         public static AudioSource PlaySoundAt(AudioClip clip, Vector2? pos = null)
         {
-            return PlaySoundAt(clip, null, null, pos, null);
+            return PlaySoundAt(clip, null, null, pos);
         }
 
-        public static AudioSource PlaySoundAt(AudioClip clip, float? volume = null, float? delay = null, Vector2? position = null, float? pitch = null)
+        public static AudioSource PlaySoundAt(AudioClip clip, float? volume = null, float? delay = null,
+            Vector2? position = null, float? pitch = null)
         {
             if (clip == null) return null;
 
@@ -832,13 +787,15 @@ namespace CUCoreLib.Helpers
                 ? (Vector2)PlayerCamera.main.body.transform.position
                 : Vector2.zero);
 
-            float resolvedVolume = volume ?? 1f;
-            float resolvedPitch = pitch ?? 1f;
-            bool usePitchShift = !pitch.HasValue;
+            var resolvedVolume = volume ?? 1f;
+            var resolvedPitch = pitch ?? 1f;
+            var usePitchShift = !pitch.HasValue;
 
             if (delay.HasValue && delay.Value > 0f)
             {
-                DelayCall(delay.Value, () => Sound.Play(clip, playPos, volume: resolvedVolume, pitch: resolvedPitch, pitchShift: usePitchShift));
+                DelayCall(delay.Value,
+                    () => Sound.Play(clip, playPos, volume: resolvedVolume, pitch: resolvedPitch,
+                        pitchShift: usePitchShift));
                 return null;
             }
 
@@ -850,7 +807,8 @@ namespace CUCoreLib.Helpers
             return PlaySoundAt(clip, pos);
         }
 
-        public static AudioSource playSoundAt(AudioClip clip, float? volume = null, float? delay = null, Vector2? position = null, float? pitch = null)
+        public static AudioSource playSoundAt(AudioClip clip, float? volume = null, float? delay = null,
+            Vector2? position = null, float? pitch = null)
         {
             return PlaySoundAt(clip, volume, delay, position, pitch);
         }
@@ -877,26 +835,20 @@ namespace CUCoreLib.Helpers
 
             if (item != null)
             {
-                Talker attachedTalker = item.GetComponent<Talker>();
-                if (attachedTalker != null)
-                {
-                    return attachedTalker;
-                }
+                var attachedTalker = item.GetComponent<Talker>();
+                if (attachedTalker != null) return attachedTalker;
             }
 
-            Vector3 fallbackPosition = PlayerCamera.main != null && PlayerCamera.main.body != null
+            var fallbackPosition = PlayerCamera.main != null && PlayerCamera.main.body != null
                 ? PlayerCamera.main.body.transform.position
                 : Vector3.zero;
 
-            Talker templateTalker = GetWatchTalkerTemplate();
-            if (templateTalker == null)
-            {
-                return null;
-            }
+            var templateTalker = GetWatchTalkerTemplate();
+            if (templateTalker == null) return null;
 
             if (ElectronicTalkerProxy == null)
             {
-                GameObject target = new GameObject("CUCoreUtils_ElectronicTalker");
+                var target = new GameObject("CUCoreUtils_ElectronicTalker");
                 Object.DontDestroyOnLoad(target);
                 ElectronicTalkerProxy = target.AddComponent<Talker>();
                 InitializeElectronicTalker(ElectronicTalkerProxy, templateTalker);
@@ -908,7 +860,7 @@ namespace CUCoreLib.Helpers
                 return GetElectronicTalker(item, out createdProxy);
             }
 
-            Transform proxyTransform = ElectronicTalkerProxy.transform;
+            var proxyTransform = ElectronicTalkerProxy.transform;
             if (item != null)
             {
                 proxyTransform.SetParent(item.transform, false);
@@ -925,21 +877,15 @@ namespace CUCoreLib.Helpers
 
         private static Talker GetWatchTalkerTemplate()
         {
-            GameObject watchPrefab = Resources.Load<GameObject>("watch");
-            if (watchPrefab == null)
-            {
-                return null;
-            }
+            var watchPrefab = Resources.Load<GameObject>("watch");
+            if (watchPrefab == null) return null;
 
             return watchPrefab.GetComponent<Talker>();
         }
 
         private static void InitializeElectronicTalker(Talker talker, Talker templateTalker)
         {
-            if (talker == null || templateTalker == null)
-            {
-                return;
-            }
+            if (talker == null || templateTalker == null) return;
 
             talker.textPrefab = templateTalker.textPrefab;
             talker.talkSoundCustom = templateTalker.talkSoundCustom;
@@ -949,7 +895,7 @@ namespace CUCoreLib.Helpers
 
             if (talker.text == null && talker.textPrefab != null)
             {
-                GameObject textObject = Object.Instantiate(talker.textPrefab, talker.transform.position, Quaternion.identity);
+                var textObject = Object.Instantiate(talker.textPrefab, talker.transform.position, Quaternion.identity);
                 talker.text = textObject.GetComponent<TextMeshPro>();
             }
         }
@@ -979,7 +925,7 @@ namespace CUCoreLib.Helpers
         {
             InvokeMethod(instance, "LogToConsole", message);
         }
-        
+
         // try this?
         // _consoleScript are ConsoleScript Instance
         // public static void LogToConsole(string text)
@@ -1266,7 +1212,7 @@ namespace CUCoreLib.Helpers
 
         private static string BuildFriendlyKeybindActionId(string friendlyKeybindName)
         {
-            var sourceAssembly = ContentReload.ContentReloadSession.GetSourceAssemblyOverride() ?? Assembly.GetCallingAssembly();
+            var sourceAssembly = ContentReloadSession.GetSourceAssemblyOverride() ?? Assembly.GetCallingAssembly();
             var assemblyName = sourceAssembly?.GetName().Name;
             var normalizedAssembly = NormalizeFriendlyKeybindToken(assemblyName);
             var normalizedKeybind = NormalizeFriendlyKeybindToken(friendlyKeybindName);
@@ -1336,8 +1282,8 @@ namespace CUCoreLib.Helpers
         }
 
         /// <summary>
-        /// Splits an equal-cell sprite sheet into independent sprites. Frames are ordered from the top-left cell,
-        /// left-to-right across each row, then top-to-bottom.
+        ///     Splits an equal-cell sprite sheet into independent sprites. Frames are ordered from the top-left cell,
+        ///     left-to-right across each row, then top-to-bottom.
         /// </summary>
         /// <param name="spriteSheet">Sprite covering the full sprite-sheet area to split.</param>
         /// <param name="columns">Number of equal-width cells in the sheet.</param>
@@ -1347,11 +1293,11 @@ namespace CUCoreLib.Helpers
         {
             if (spriteSheet == null || columns <= 0 || rows <= 0) return Array.Empty<Sprite>();
 
-            Texture2D texture = spriteSheet.texture;
-            Rect sheetRect = spriteSheet.rect;
-            int sheetWidth = Mathf.RoundToInt(sheetRect.width);
-            int sheetHeight = Mathf.RoundToInt(sheetRect.height);
-            float pixelsPerUnit = spriteSheet.pixelsPerUnit;
+            var texture = spriteSheet.texture;
+            var sheetRect = spriteSheet.rect;
+            var sheetWidth = Mathf.RoundToInt(sheetRect.width);
+            var sheetHeight = Mathf.RoundToInt(sheetRect.height);
+            var pixelsPerUnit = spriteSheet.pixelsPerUnit;
             if (texture == null || sheetWidth <= 0 || sheetHeight <= 0 ||
                 !Mathf.Approximately(sheetRect.width, sheetWidth) ||
                 !Mathf.Approximately(sheetRect.height, sheetHeight) ||
@@ -1360,17 +1306,17 @@ namespace CUCoreLib.Helpers
                 pixelsPerUnit <= 0f || float.IsNaN(pixelsPerUnit) || float.IsInfinity(pixelsPerUnit))
                 return Array.Empty<Sprite>();
 
-            int cellWidth = sheetWidth / columns;
-            int cellHeight = sheetHeight / rows;
-            Vector2 pivot = new Vector2(spriteSheet.pivot.x / sheetRect.width,
+            var cellWidth = sheetWidth / columns;
+            var cellHeight = sheetHeight / rows;
+            var pivot = new Vector2(spriteSheet.pivot.x / sheetRect.width,
                 spriteSheet.pivot.y / sheetRect.height);
             var frames = new Sprite[columns * rows];
 
             texture.filterMode = FilterMode.Point;
             texture.wrapMode = TextureWrapMode.Clamp;
 
-            for (int row = 0; row < rows; row++)
-            for (int column = 0; column < columns; column++)
+            for (var row = 0; row < rows; row++)
+            for (var column = 0; column < columns; column++)
             {
                 var frameRect = new Rect(sheetRect.x + column * cellWidth,
                     sheetRect.y + (rows - row - 1) * cellHeight, cellWidth, cellHeight);
@@ -1385,11 +1331,15 @@ namespace CUCoreLib.Helpers
         }
 
         /// <summary>
-        /// Opens a readable stream for an embedded resource resolved from the calling assembly or an explicit assembly override.
-        /// The caller owns the returned stream and should dispose it when finished.
+        ///     Opens a readable stream for an embedded resource resolved from the calling assembly or an explicit assembly
+        ///     override.
+        ///     The caller owns the returned stream and should dispose it when finished.
         /// </summary>
         /// <param name="resourcePath">Full or suffix resource name to resolve.</param>
-        /// <param name="sourceAssembly">Optional assembly override. Defaults to CUCoreLib's content-reload override or the calling assembly.</param>
+        /// <param name="sourceAssembly">
+        ///     Optional assembly override. Defaults to CUCoreLib's content-reload override or the calling
+        ///     assembly.
+        /// </param>
         public static Stream LoadEmbeddedStream(string resourcePath, Assembly sourceAssembly = null)
         {
             return AssetLoader.LoadEmbeddedStream(resourcePath, sourceAssembly);
@@ -1449,6 +1399,71 @@ namespace CUCoreLib.Helpers
                 deflate.CopyTo(output);
                 return output.ToArray();
             }
+        }
+
+        public sealed class FriendlyKeybind
+        {
+            private readonly FriendlyKeybindEntry entry;
+
+            internal FriendlyKeybind(FriendlyKeybindEntry entry)
+            {
+                this.entry = entry;
+            }
+
+            public bool disableInInputFields
+            {
+                get => entry.DisableInInputFields;
+                set => entry.DisableInInputFields = value;
+            }
+
+            public bool disableInMainMenu
+            {
+                get => entry.DisableInMainMenu;
+                set => entry.DisableInMainMenu = value;
+            }
+
+            public bool disableInHealthPanel
+            {
+                get => entry.DisableInHealthPanel;
+                set => entry.DisableInHealthPanel = value;
+            }
+
+            public bool disableInInventory
+            {
+                get => entry.DisableInInventory;
+                set => entry.DisableInInventory = value;
+            }
+
+            public KeyCode KeyCode => ResolveKeyCode(entry);
+
+            public string KeyName => GetFriendlyKeyName(KeyCode);
+
+            public bool IsPressed()
+            {
+                if (!Input.GetKeyDown(KeyCode))
+                    return false;
+                return !ShouldDisableFriendlyKeybind(entry);
+            }
+
+            public static implicit operator KeyCode(FriendlyKeybind keybind)
+            {
+                return keybind != null ? keybind.KeyCode : KeyCode.None;
+            }
+        }
+
+        internal sealed class FriendlyKeybindEntry
+        {
+            public string ActionId;
+            public KeyCode CurrentKey;
+            public KeyCode DefaultKey;
+            public string Description;
+            public bool DisableInHealthPanel;
+            public bool DisableInInputFields;
+            public bool DisableInInventory;
+            public bool DisableInMainMenu;
+            public string FriendlyName;
+            public FriendlyKeybind Handle;
+            public bool RebindRegistered;
         }
 
         private sealed class CoroutineRunner : MonoBehaviour

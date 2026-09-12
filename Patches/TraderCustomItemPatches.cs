@@ -108,7 +108,7 @@ namespace CUCoreLib.Patches
             if (__instance == null) return false;
 
             var amount = Mathf.RoundToInt(
-                UnityEngine.Random.Range(2, 9) * WorldGeneration.GetRunSettingFloat("traderitemamount"));
+                Random.Range(2, 9) * WorldGeneration.GetRunSettingFloat("traderitemamount"));
 
             if (__instance.character == 2) amount = Mathf.RoundToInt(amount * 0.66f);
 
@@ -479,7 +479,7 @@ namespace CUCoreLib.Patches
 
             for (var attempt = 0; attempt < 24; attempt++)
             {
-                var category = categories[UnityEngine.Random.Range(0, categories.Length)];
+                var category = categories[Random.Range(0, categories.Length)];
                 if (!DropPoolRegistry.TryGetRandomItemId(traderPool, category, out var itemId)) continue;
                 if (!TryResolveTraderItemInfo(itemId, out var info) || info == null || info.value <= 0) continue;
 

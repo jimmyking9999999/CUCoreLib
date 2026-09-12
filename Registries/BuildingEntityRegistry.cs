@@ -37,11 +37,8 @@ namespace CUCoreLib.Registries
         private static readonly int GroundLayer = LayerMask.NameToLayer("Ground");
         private static bool NetworkSpawnComponentsWarningLogged;
 
-        private static readonly IReadOnlyDictionary<string, CustomBuildingEntityDefinition> ReadOnlyDefinitions =
+        public static IReadOnlyDictionary<string, CustomBuildingEntityDefinition> RegisteredDefinitionsView { get; } =
             new ReadOnlyDictionary<string, CustomBuildingEntityDefinition>(RegisteredDefinitions);
-
-        public static IReadOnlyDictionary<string, CustomBuildingEntityDefinition> RegisteredDefinitionsView
-            => ReadOnlyDefinitions;
 
         public static event Action<string, CustomBuildingEntityDefinition, bool> Registered;
 
@@ -355,7 +352,8 @@ namespace CUCoreLib.Registries
                     HeatPerSecond = obj.Value<float?>("heatPerSecond") ?? 0f,
                     MaxHeatBodyTemperature = obj.Value<float?>("maxHeatBodyTemperature") ?? 0f,
                     SpawnComponents = localDefinition?.SpawnComponents ?? new List<string>(),
-                    Components = localDefinition?.Components ?? NetworkSnapshotSerialization.ReadTypeNames(obj["components"]),
+                    Components = localDefinition?.Components ??
+                                 NetworkSnapshotSerialization.ReadTypeNames(obj["components"]),
                     ConfigurePrefab = localDefinition?.ConfigurePrefab,
                     ConfigureInstance = localDefinition?.ConfigureInstance
                 };
@@ -639,10 +637,14 @@ namespace CUCoreLib.Registries
         {
             if (!HasValue(token)) return fallback;
             if (token.Type == JTokenType.Integer)
-            {
-                try { return (T)Enum.ToObject(typeof(T), token.Value<int>()); }
-                catch (Exception) { return fallback; }
-            }
+                try
+                {
+                    return (T)Enum.ToObject(typeof(T), token.Value<int>());
+                }
+                catch (Exception)
+                {
+                    return fallback;
+                }
 
             var text = token.Value<string>();
             if (string.Equals(text, "Ground", StringComparison.OrdinalIgnoreCase) &&
@@ -938,10 +940,8 @@ namespace CUCoreLib.Registries
             var obj = SpawnDrop(source.transform.position, itemId,
                 Quaternion.Euler(0f, 0f, Random.Range(0f, 360f)), null, conditionMin, conditionMax, isNearPlayer);
             if (obj == null)
-            {
                 CUCoreLibPlugin.Log?.LogWarning("Custom building '" + source.id + "' failed to spawn drop '" + itemId +
                                                 "'.");
-            }
         }
 
         internal static GameObject SpawnDrop(Vector3 position, string itemId, Quaternion rotation,
@@ -960,6 +960,5 @@ namespace CUCoreLib.Registries
 
             return obj;
         }
-
     }
 }

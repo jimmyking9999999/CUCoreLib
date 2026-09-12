@@ -12,17 +12,17 @@ namespace CUCoreLib.BugReporting
 
     internal sealed class BugReportPackage
     {
-        public string ReportId;
+        public readonly List<BugReportAttachment> Attachments = new List<BugReportAttachment>();
         public DateTime CreatedUtc;
         public string Description;
-        public BugReportSeverity Severity;
         public string GameVersion;
-        public string OperatingSystem;
-        public string SceneName;
         public bool IsWorldActive;
+        public string OperatingSystem;
+        public string ReportId;
+        public string SceneName;
         public byte[] Screenshot;
         public string ScreenshotNote;
-        public readonly List<BugReportAttachment> Attachments = new List<BugReportAttachment>();
+        public BugReportSeverity Severity;
     }
 
     internal sealed class BugReportAttachment
@@ -49,8 +49,8 @@ namespace CUCoreLib.BugReporting
 
     internal sealed class BugReportSendResult
     {
-        public bool Success;
         public string Error;
         public float RetryAfterSeconds;
+        public bool Success;
     }
 }

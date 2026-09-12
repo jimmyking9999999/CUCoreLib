@@ -10,13 +10,14 @@ using CUCoreLib.Networking;
 using CUCoreLib.Registries;
 using HarmonyLib;
 using UnityEngine;
+using Random = UnityEngine.Random;
 
 namespace CUCoreLib.Patches
 {
     [HarmonyPatch(typeof(ConsoleScript), "RegisterAllCommands")]
     internal static class ConsolePatch
     {
-        private static readonly System.Reflection.FieldInfo RegisteredSpawnEntitiesField =
+        private static readonly FieldInfo RegisteredSpawnEntitiesField =
             AccessTools.Field(typeof(ConsoleScript), "registeredSpawnEntities");
 
         private static Command healCommand;
@@ -49,7 +50,8 @@ namespace CUCoreLib.Patches
 
             foreach (var limb in body.limbs)
                 if (limb != null)
-                    AppendAutofill(limbCommand, 1, BuildStatusFieldAutofill(StatusRegistry.EnumerateLimbStatuses(limb)));
+                    AppendAutofill(limbCommand, 1,
+                        BuildStatusFieldAutofill(StatusRegistry.EnumerateLimbStatuses(limb)));
         }
 
         private static void AppendAutofill(Command command, int argumentIndex, IEnumerable<string> values)
@@ -60,7 +62,8 @@ namespace CUCoreLib.Patches
                 command.argAutofill[argumentIndex] = entries = new List<string>();
 
             foreach (var value in values)
-                if (!entries.Contains(value, StringComparer.OrdinalIgnoreCase)) entries.Add(value);
+                if (!entries.Contains(value, StringComparer.OrdinalIgnoreCase))
+                    entries.Add(value);
         }
 
         private static IEnumerable<string> BuildStatusFieldAutofill<TStatus>(
@@ -117,7 +120,7 @@ namespace CUCoreLib.Patches
                     foreach (var itemId in items)
                     {
                         var obj = Utils.Create(itemId,
-                            position + UnityEngine.Random.insideUnitCircle * 3f, 0f);
+                            position + Random.insideUnitCircle * 3f, 0f);
                         var body = obj != null ? obj.GetComponent<Rigidbody2D>() : null;
                         if (body != null) body.gravityScale = 0f;
                     }
@@ -135,7 +138,7 @@ namespace CUCoreLib.Patches
                     if (args.Length < 2) throw new Exception("Usage: cuspawn [id]");
 
                     var query = args[1];
-                    Vector2 pos = Camera.main.ScreenToWorldPoint(Input.mousePosition);  // maybe null
+                    Vector2 pos = Camera.main.ScreenToWorldPoint(Input.mousePosition); // maybe null
                     if (args.Length > 2 && TryParsePosition(__instance, args[2], out var parsedPosition))
                         pos = parsedPosition;
 
@@ -174,7 +177,7 @@ namespace CUCoreLib.Patches
                     if (!customTile && !ushort.TryParse(args[1], out tileIndex))
                         throw new Exception($"'{args[1]}' is not a valid tile index or registered tile ID.");
 
-                    Vector2 worldPosition = Camera.main.ScreenToWorldPoint(Input.mousePosition);    // maybe null
+                    Vector2 worldPosition = Camera.main.ScreenToWorldPoint(Input.mousePosition); // maybe null
                     if (args.Length > 2 && TryParsePosition(__instance, args[2], out var parsedPosition))
                         worldPosition = parsedPosition;
 
@@ -211,7 +214,8 @@ namespace CUCoreLib.Patches
         [HarmonyPostfix]
         private static void NotifyMultiplayerHeal(string[] args)
         {
-            if (args == null || args.Length == 0 || !string.Equals(args[0], "heal", StringComparison.OrdinalIgnoreCase) ||
+            if (args == null || args.Length == 0 ||
+                !string.Equals(args[0], "heal", StringComparison.OrdinalIgnoreCase) ||
                 !MultiplayerBridge.IsRunning || !MultiplayerBridge.IsServer || args.Length > 1) return;
 
             PlayerEventPatches.NotifyHeal(PlayerCamera.main != null ? PlayerCamera.main.body : null);
@@ -402,7 +406,8 @@ namespace CUCoreLib.Patches
                 spawnCommand.argAutofill[0] = spawnIds;
             }
 
-            foreach (var id in BuildSpawnAutofill()[0].Where(id => !spawnIds.Contains(id, StringComparer.OrdinalIgnoreCase)))
+            foreach (var id in BuildSpawnAutofill()[0]
+                         .Where(id => !spawnIds.Contains(id, StringComparer.OrdinalIgnoreCase)))
                 spawnIds.Add(id);
         }
 
@@ -436,7 +441,8 @@ namespace CUCoreLib.Patches
         {
             if (console == null) return false;
 
-            return RegisteredSpawnEntitiesField != null && RegisteredSpawnEntitiesField.GetValue(console) is bool registered &&
+            return RegisteredSpawnEntitiesField != null &&
+                   RegisteredSpawnEntitiesField.GetValue(console) is bool registered &&
                    registered;
         }
 
@@ -860,10 +866,8 @@ namespace CUCoreLib.Patches
                     return true;
             }
 
-            if (!LiquidTileRegistry.TryGetTileId(liquidByte, out liquidId) || string.IsNullOrWhiteSpace(liquidId))
-            {
-                return false;
-            }
+            if (!LiquidTileRegistry.TryGetTileId(liquidByte, out liquidId) ||
+                string.IsNullOrWhiteSpace(liquidId)) return false;
 
             CustomLiquidInfo customInfo;
             if (LiquidRegistry.TryGetCustomInfo(liquidId, out customInfo) &&
@@ -875,7 +879,8 @@ namespace CUCoreLib.Patches
             }
 
             LiquidType liquidType;
-            if (Liquids.Registry != null && Liquids.Registry.TryGetValue(liquidId, out liquidType) && liquidType != null)
+            if (Liquids.Registry != null && Liquids.Registry.TryGetValue(liquidId, out liquidType) &&
+                liquidType != null)
             {
                 var localeKey = !string.IsNullOrWhiteSpace(liquidType.localeName) ? liquidType.localeName : liquidId;
                 displayName = Locale.GetOther(localeKey);
@@ -893,7 +898,8 @@ namespace CUCoreLib.Patches
 
             string liquidId;
             string displayName;
-            if (!TryGetFloodFillVisual(liquidByte, out liquidId, out displayName) || string.IsNullOrWhiteSpace(liquidId))
+            if (!TryGetFloodFillVisual(liquidByte, out liquidId, out displayName) ||
+                string.IsNullOrWhiteSpace(liquidId))
                 return value;
 
             if (string.IsNullOrWhiteSpace(displayName) ||

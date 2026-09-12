@@ -26,6 +26,7 @@ namespace CUCoreLib.Registries.Infrastructure
                 var excludedMask = FromLayerNumber(excludedLayerNumbers[i]);
                 if (excludedMask != 0) mask &= ~excludedMask;
             }
+
             return mask;
         }
     }

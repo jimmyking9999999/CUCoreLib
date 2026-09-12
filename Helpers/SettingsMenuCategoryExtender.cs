@@ -12,12 +12,12 @@ namespace CUCoreLib.Helpers
         private const int BuiltInTabCount = 5;
         private const float MinimumInterButtonGap = 2f;
         private const float ScrollPixelsPerWheelStep = 48f;
-        private readonly Dictionary<Button, int> buttonCategoryIndices = new Dictionary<Button, int>();
-
-        private readonly List<Button> customButtons = new List<Button>();
-        private readonly List<TMP_Dropdown> cachedDropdowns = new List<TMP_Dropdown>();
         private readonly List<Vector2> builtInAnchoredPositions = new List<Vector2>();
         private readonly List<Vector2> builtInSizes = new List<Vector2>();
+        private readonly Dictionary<Button, int> buttonCategoryIndices = new Dictionary<Button, int>();
+        private readonly List<TMP_Dropdown> cachedDropdowns = new List<TMP_Dropdown>();
+
+        private readonly List<Button> customButtons = new List<Button>();
         private int activeCategoryIndex;
         private string activeOwnedCategoryKey;
         private bool capturedBuiltInLayout;
@@ -173,15 +173,9 @@ namespace CUCoreLib.Helpers
             ModOptionsRegistry.ReconcileCustomCategoryOwnership(Settings.settings);
 
             var categories = ModOptionsRegistry.GetCustomCategories();
-            if (menu == null || menu.buttons == null || menu.buttons.Count == 0)
-            {
-                return;
-            }
+            if (menu == null || menu.buttons == null || menu.buttons.Count == 0) return;
 
-            if (categories.Count == 0)
-            {
-                return;
-            }
+            if (categories.Count == 0) return;
 
             var template = FindTemplateButton();
             if (!template) return;
@@ -220,9 +214,7 @@ namespace CUCoreLib.Helpers
                     label.text = category.DisplayName;
                     foreach (var localizer in label.GetComponents<MonoBehaviour>()
                                  .Where(component => component && component.GetType().Name.Contains("Local")))
-                    {
                         Destroy(localizer);
-                    }
 
                     NormalizeTabLabel(label);
                 }
@@ -316,10 +308,8 @@ namespace CUCoreLib.Helpers
 
         private void CaptureBuiltInLayoutIfNeeded()
         {
-            if (capturedBuiltInLayout || menu == null || menu.buttons == null || menu.buttons.Count < BuiltInTabCount)
-            {
-                return;
-            }
+            if (capturedBuiltInLayout || menu == null || menu.buttons == null ||
+                menu.buttons.Count < BuiltInTabCount) return;
 
             builtInAnchoredPositions.Clear();
             builtInSizes.Clear();
@@ -345,7 +335,8 @@ namespace CUCoreLib.Helpers
         {
             if (!capturedBuiltInLayout || menu == null || menu.buttons == null) return;
 
-            var builtInCount = Mathf.Min(Mathf.Min(BuiltInTabCount, menu.buttons.Count), builtInAnchoredPositions.Count);
+            var builtInCount = Mathf.Min(Mathf.Min(BuiltInTabCount, menu.buttons.Count),
+                builtInAnchoredPositions.Count);
             for (var i = 0; i < builtInCount; i++)
             {
                 var rect = menu.buttons[i] != null ? menu.buttons[i].transform as RectTransform : null;
@@ -392,10 +383,8 @@ namespace CUCoreLib.Helpers
         {
             var parentRect = menu.buttons[0] != null ? menu.buttons[0].transform.parent as RectTransform : null;
             if (parentRect == null)
-            {
                 return builtInAnchoredPositions[BuiltInTabCount - 1].x +
                        builtInSizes[BuiltInTabCount - 1].x * 0.5f;
-            }
 
             // The vanilla buttons occupy only part of their parent. Use the matching right inset so
             // custom tabs consume the entire visible tab strip instead of stopping at the Language tab.

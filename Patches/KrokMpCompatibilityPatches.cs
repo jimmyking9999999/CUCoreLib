@@ -1,8 +1,8 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using System.Reflection.Emit;
-using System.Collections.Generic;
 using BepInEx.Bootstrap;
 using CUCoreLib.Helpers;
 using CUCoreLib.Networking;
@@ -58,6 +58,7 @@ namespace CUCoreLib.Patches
                 if (!KrokMpWorldChunkPatches.IsInstalled && chunkType == null && IsKrokMpExpected())
                     ScheduleChunkRetry(harmony);
             }
+
             if (harmony == null || _installed) return;
 
             var patchedAnything = false;
@@ -90,7 +91,7 @@ namespace CUCoreLib.Patches
                         foreach (var loadObjectResource in loadObjectResources)
                         {
                             harmony.Patch(loadObjectResource,
-                                prefix: new HarmonyMethod(typeof(KrokMpCompatibilityPatches),
+                                new HarmonyMethod(typeof(KrokMpCompatibilityPatches),
                                     nameof(LoadObjectResource_Prefix)));
                             patchedAnything = true;
                         }
@@ -409,10 +410,7 @@ namespace CUCoreLib.Patches
         private static bool LoadObjectResource_Prefix(string resourceid, object[] __args, ref GameObject __result)
         {
             var pos = default(Vector2);
-            if (__args != null && __args.Length > 1 && __args[1] is Vector2 vector)
-            {
-                pos = vector;
-            }
+            if (__args != null && __args.Length > 1 && __args[1] is Vector2 vector) pos = vector;
 
             if (!TryResolveResourcePrefab(resourceid, out var prefab) ||
                 prefab == null) return true;

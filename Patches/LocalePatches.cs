@@ -48,7 +48,7 @@ namespace CUCoreLib.Patches
             if (type != (int)LocaleRegistry.LocaleCategory.Other) return false;
 
             return TryGetCustomLocaleTextForType((int)LocaleRegistry.LocaleCategory.Liquid, key, out text) ||
-                   TryGetCustomLocaleTextForType((int)LocaleRegistry.LocaleCategory.Title, key, out text);
+                   TryGetCustomLocaleTextForType((int)LocaleRegistry.LocaleCategory.Tile, key, out text);
         }
 
         private static bool TryGetCustomLocaleTextForType(int type, string key, out string text)
@@ -77,11 +77,6 @@ namespace CUCoreLib.Patches
     [HarmonyPatch(typeof(Locale), nameof(Locale.GetCharacter), typeof(string), typeof(int))]
     internal static class LocaleCharacterDialoguePatch
     {
-        private sealed class DialogueSource
-        {
-            internal string Id;
-        }
-
         private static readonly ConditionalWeakTable<List<string>, DialogueSource> DialogueSources =
             new ConditionalWeakTable<List<string>, DialogueSource>();
 
@@ -97,6 +92,11 @@ namespace CUCoreLib.Patches
         internal static string GetDialogueId(List<string> lines)
         {
             return lines != null && DialogueSources.TryGetValue(lines, out var source) ? source.Id : null;
+        }
+
+        private sealed class DialogueSource
+        {
+            internal string Id;
         }
     }
 

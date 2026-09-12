@@ -51,8 +51,8 @@ namespace CUCoreLib.Networking
         }
 
         /// <summary>
-        /// Sends to the selected client when called on the server; otherwise sends to the server.
-        /// The target client ID is ignored on clients. Does not relay between clients or broadcast.
+        ///     Sends to the selected client when called on the server; otherwise sends to the server.
+        ///     The target client ID is ignored on clients. Does not relay between clients or broadcast.
         /// </summary>
         public static bool SendToPeer(uint targetClientId, string channel, object payload = null, bool reliable = true)
         {
@@ -192,7 +192,7 @@ namespace CUCoreLib.Networking
             if (!TryResolveNetPlayerReflection()) return false;
 
             var clientIdType = _tryGetNetPlayerAndBodyFromClientIdMethod.GetParameters()[0].ParameterType;
-            var args = new object[] { MultiplayerBridge.ConvertClientId(clientId, clientIdType), null, null };
+            var args = new[] { MultiplayerBridge.ConvertClientId(clientId, clientIdType), null, null };
             var found = _tryGetNetPlayerAndBodyFromClientIdMethod.Invoke(null, args) is bool flag && flag;
             if (!found) return false;
 

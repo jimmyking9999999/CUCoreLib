@@ -4,7 +4,6 @@ using CUCoreLib.ContentReload;
 using CUCoreLib.Helpers;
 using CUCoreLib.Registries;
 using Newtonsoft.Json.Linq;
-using UnityEngine;
 
 namespace CUCoreLib.Networking
 {
@@ -253,9 +252,8 @@ namespace CUCoreLib.Networking
                     ["healthUsable"] = info.healthUsable,
                     ["injectable"] = info.injectable,
                     ["injectionSickness"] = info.injectionSickness,
-                    ["localeFromItem"] = info.localeFromItem
-                    , ["unobtainable"] = info.unobtainable
-                    , ["qualities"] = NetworkSnapshotSerialization.WriteCraftingQualities(info.qualities)
+                    ["localeFromItem"] = info.localeFromItem, ["unobtainable"] = info.unobtainable,
+                    ["qualities"] = NetworkSnapshotSerialization.WriteCraftingQualities(info.qualities)
                 };
 
                 root[id] = liquid;

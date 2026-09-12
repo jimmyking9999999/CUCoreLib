@@ -3,7 +3,7 @@ using System;
 namespace CUCoreLib.Data
 {
     /// <summary>
-    /// Optional fixed loot sources for custom items. Leave null to use vanilla category fallback only.
+    ///     Optional fixed loot sources for custom items. Leave null to use vanilla category fallback only.
     /// </summary>
     [Flags]
     public enum DropPool : ushort

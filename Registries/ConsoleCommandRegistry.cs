@@ -41,7 +41,8 @@ namespace CUCoreLib.Registries
 
             if (command == null)
             {
-                CUCoreLibPlugin.Log.LogWarning("Ignored console command registration because the command object was null.");
+                CUCoreLibPlugin.Log.LogWarning(
+                    "Ignored console command registration because the command object was null.");
                 return;
             }
 

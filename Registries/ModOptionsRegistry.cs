@@ -15,6 +15,7 @@ namespace CUCoreLib.Registries
         internal static readonly List<ModOptionDefinition> RegisteredOptions = new List<ModOptionDefinition>();
         private static readonly HashSet<string> RegisteredIds = new HashSet<string>(StringComparer.Ordinal);
         private static readonly List<ModOptionCategoryEntry> CustomCategories = new List<ModOptionCategoryEntry>();
+
         private static readonly Dictionary<string, ModOptionCategoryEntry> CustomCategoriesByOptionId =
             new Dictionary<string, ModOptionCategoryEntry>(StringComparer.Ordinal);
 
@@ -70,7 +71,8 @@ namespace CUCoreLib.Registries
             return CustomCategories.ToList();
         }
 
-        internal static bool TryGetOwnedCustomCategory(Setting.SettingCategory category, out ModOptionCategoryEntry entry)
+        internal static bool TryGetOwnedCustomCategory(Setting.SettingCategory category,
+            out ModOptionCategoryEntry entry)
         {
             entry = CustomCategories.FirstOrDefault(candidate => candidate != null && candidate.Category == category);
             return entry != null;
@@ -164,6 +166,7 @@ namespace CUCoreLib.Registries
                 LocaleRegistry.Register(LocaleRegistry.LocaleCategory.Other, "gameset" + option.Id + "dsc",
                     option.Description);
             }
+
             // todo I really need to figure this out
             // man this is kinda ass ngl
             if (option.Kind != ModOptionKind.Dropdown || option.Choices == null) return;
@@ -405,7 +408,8 @@ namespace CUCoreLib.Registries
         {
             foreach (var option in RegisteredOptions)
             {
-                if (option == null || !CustomCategoriesByOptionId.TryGetValue(option.Id, out var entry) || entry == null) continue;
+                if (option == null || !CustomCategoriesByOptionId.TryGetValue(option.Id, out var entry) ||
+                    entry == null) continue;
                 option.SetResolvedCategory(entry.Category);
             }
 
@@ -414,7 +418,8 @@ namespace CUCoreLib.Registries
 
             foreach (var setting in targetSettings)
             {
-                if (setting == null || !CustomCategoriesByOptionId.TryGetValue(setting.name, out var entry) || entry == null)
+                if (setting == null || !CustomCategoriesByOptionId.TryGetValue(setting.name, out var entry) ||
+                    entry == null)
                     continue;
 
                 setting.category = entry.Category;
@@ -435,7 +440,8 @@ namespace CUCoreLib.Registries
             return true;
         }
 
-        private static bool TryGetRegisteredLocaleText(LocaleRegistry.LocaleCategory category, string key, out string text)
+        private static bool TryGetRegisteredLocaleText(LocaleRegistry.LocaleCategory category, string key,
+            out string text)
         {
             text = null;
             if (string.IsNullOrWhiteSpace(key)) return false;
@@ -459,6 +465,10 @@ namespace CUCoreLib.Registries
             Category = category;
         }
 
+        public string DisplayName { get; }
+        public Setting.SettingCategory Category { get; private set; }
+        public int CategoryIndex => (int)Category;
+
         public void RegisterOption(string optionId)
         {
             if (!string.IsNullOrWhiteSpace(optionId))
@@ -469,9 +479,5 @@ namespace CUCoreLib.Registries
         {
             Category = category;
         }
-
-        public string DisplayName { get; }
-        public Setting.SettingCategory Category { get; private set; }
-        public int CategoryIndex => (int)Category;
     }
 }

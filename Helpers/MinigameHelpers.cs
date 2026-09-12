@@ -5,6 +5,7 @@ using HarmonyLib;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
+using Object = UnityEngine.Object;
 
 namespace CUCoreLib.Helpers
 {
@@ -18,15 +19,14 @@ namespace CUCoreLib.Helpers
 
     public sealed class CUCoreMinigameConfig
     {
-        public Func<CUCoreMinigameSession, Minigame.HandSpriteType> HandType = _ => Minigame.HandSpriteType.Grasp;
+        public Func<CUCoreMinigameSession, bool> CanExit = _ => true;
 
         public Func<CUCoreMinigameSession, string> GuideLocaleKey = _ => string.Empty;
 
-        public Func<CUCoreMinigameSession, bool> NeedsItem = _ => true;
-
         public Func<CUCoreMinigameSession, float> HandRotationOffset = _ => 0f;
+        public Func<CUCoreMinigameSession, Minigame.HandSpriteType> HandType = _ => Minigame.HandSpriteType.Grasp;
 
-        public Func<CUCoreMinigameSession, bool> CanExit = _ => true;
+        public Func<CUCoreMinigameSession, bool> NeedsItem = _ => true;
     }
 
     public interface ICUCoreMinigameDefinition
@@ -50,18 +50,6 @@ namespace CUCoreLib.Helpers
 
     public abstract class CUCoreMinigameDefinition : ICUCoreMinigameDefinition
     {
-        public virtual CUCoreMinigameConfig Configure(CUCoreMinigameSession session)
-        {
-            return new CUCoreMinigameConfig
-            {
-                HandType = HandType,
-                GuideLocaleKey = GuideLocaleKey,
-                NeedsItem = NeedsItem,
-                HandRotationOffset = HandRotationOffset,
-                CanExit = CanExit
-            };
-        }
-
         public virtual Minigame.HandSpriteType HandType(CUCoreMinigameSession session)
         {
             return Minigame.HandSpriteType.Grasp;
@@ -94,6 +82,18 @@ namespace CUCoreLib.Helpers
         }
 
         public abstract void Update(CUCoreMinigameSession session, List<RaycastResult> uiCasts);
+
+        public virtual CUCoreMinigameConfig Configure(CUCoreMinigameSession session)
+        {
+            return new CUCoreMinigameConfig
+            {
+                HandType = HandType,
+                GuideLocaleKey = GuideLocaleKey,
+                NeedsItem = NeedsItem,
+                HandRotationOffset = HandRotationOffset,
+                CanExit = CanExit
+            };
+        }
 
         public virtual void End(CUCoreMinigameSession session, CUCoreMinigameEndReason reason)
         {
@@ -175,10 +175,10 @@ namespace CUCoreLib.Helpers
 
     public sealed class CUCoreMinigameSession
     {
+        public const string BundledScreenResourcePrefix = "cclbundle://";
+
         private static readonly FieldInfo HandSpriteField =
             typeof(MinigameBase).GetField("handSprite", BindingFlags.Instance | BindingFlags.NonPublic);
-
-        public const string BundledScreenResourcePrefix = "cclbundle://";
 
         private readonly Minigame boundMinigame;
         private readonly Dictionary<Type, object> stateByType = new Dictionary<Type, object>();
@@ -198,7 +198,8 @@ namespace CUCoreLib.Helpers
 
         public Item CurrentItem => Game != null ? Game.currentItem : null;
 
-        public Minigame CurrentMinigame => Game != null && Game.currentMinigame != null ? Game.currentMinigame : boundMinigame;
+        public Minigame CurrentMinigame =>
+            Game != null && Game.currentMinigame != null ? Game.currentMinigame : boundMinigame;
 
         public GameObject SpawnedMiniGame => Game != null ? Game.spawnedMiniGame?.gameObject : null;
 
@@ -516,7 +517,7 @@ namespace CUCoreLib.Helpers
             spawnedScreen = null;
             if (Game == null || prefab == null || Game.minigameScreen == null) return false;
 
-            spawnedScreen = UnityEngine.Object.Instantiate(prefab, Game.minigameScreen, false);
+            spawnedScreen = Object.Instantiate(prefab, Game.minigameScreen, false);
             if (spawnedScreen == null) return false;
 
             spawnedScreen.transform.SetSiblingIndex(0);
@@ -524,7 +525,8 @@ namespace CUCoreLib.Helpers
             return true;
         }
 
-        private static bool TryParseBundledScreenResourceId(string resourceId, out string bundleId, out string assetName)
+        private static bool TryParseBundledScreenResourceId(string resourceId, out string bundleId,
+            out string assetName)
         {
             bundleId = null;
             assetName = null;
@@ -821,10 +823,25 @@ namespace CUCoreLib.Helpers
             this.definition = definition ?? throw new ArgumentNullException(nameof(definition));
         }
 
-        public CUCoreMinigameEndReason? RequestedEndReason => requestedEndReason;
-
         private CUCoreMinigameSession Session =>
             session ?? (session = CUCoreMinigames.GetOrCreateSession(CUCoreMinigames.Game, this, this));
+
+        public CUCoreMinigameEndReason? RequestedEndReason => requestedEndReason;
+
+        public void RequestEnd(CUCoreMinigameEndReason reason)
+        {
+            if (!requestedEndReason.HasValue) requestedEndReason = reason;
+        }
+
+        public void NotifyEnded(CUCoreMinigameEndReason fallbackReason)
+        {
+            if (hasEnded) return;
+
+            hasEnded = true;
+            var finalReason = requestedEndReason ?? fallbackReason;
+            if (definition is CUCoreMinigameDefinition definitionWithLifecycle)
+                definitionWithLifecycle.End(Session, finalReason);
+        }
 
         public override HandSpriteType HandType()
         {
@@ -866,21 +883,6 @@ namespace CUCoreLib.Helpers
         public override void Update(List<RaycastResult> uiCasts)
         {
             definition.Update(Session, uiCasts);
-        }
-
-        public void RequestEnd(CUCoreMinigameEndReason reason)
-        {
-            if (!requestedEndReason.HasValue) requestedEndReason = reason;
-        }
-
-        public void NotifyEnded(CUCoreMinigameEndReason fallbackReason)
-        {
-            if (hasEnded) return;
-
-            hasEnded = true;
-            var finalReason = requestedEndReason ?? fallbackReason;
-            if (definition is CUCoreMinigameDefinition definitionWithLifecycle)
-                definitionWithLifecycle.End(Session, finalReason);
         }
 
         private CUCoreMinigameConfig ResolveConfig()

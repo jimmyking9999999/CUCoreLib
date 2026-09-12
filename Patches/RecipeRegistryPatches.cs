@@ -66,7 +66,8 @@ namespace CUCoreLib.Patches
             }
 
             var customSprite = AssetLoader.GetCachedSprite(__instance.result.id);
-            if (!ItemRegistry.IsValidIcon(customSprite)) ItemRegistry.TryGetIcon(__instance.result.id, out customSprite);
+            if (!ItemRegistry.IsValidIcon(customSprite))
+                ItemRegistry.TryGetIcon(__instance.result.id, out customSprite);
 
             if (customSprite != null)
             {

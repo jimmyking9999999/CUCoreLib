@@ -14,42 +14,42 @@ namespace CUCoreLib.Data
     public sealed class LiquidTileTouchContext
     {
         public Vector2Int BlockPosition;
-        public Vector2 WorldPosition;
-        public byte WorldByte;
         public float DeltaTime;
         public bool Entered;
         public bool Exited;
         public bool InWater;
+        public byte WorldByte;
+        public Vector2 WorldPosition;
     }
 
     public class CustomLiquidTileInfo
     {
-        public string LiquidId;
         public float Buoyancy = 0.6f;
-        public float Drag = 0.915f;
-        public bool PushBodies = true;
-        public float WetnessPerSecond = 20f;
-        public float TemperaturePerSecond;
-        public float SicknessPerSecond;
-        public float DirtynessPerSecond;
-        public float DisinfectPerSecond;
-        public float SlipPerSecond;
-        public float RagdollBarDrainPerSecond;
-        public LiquidTileVisualMode VisualMode = LiquidTileVisualMode.ExistingLiquidPlusTint;
-        public byte ExistingVisualLiquidByte = 1;
-        public Color Tint = Color.white;
-        public Material VisualMaterial;
-        public Sprite VisualSprite;
-        public Texture2D HighResImage;
-        public float SpawnAmount;
-        public int SpawnLayers = -1;
-        public int MaxFloodFill = 128;
         public bool ConsumeOnDrink = true;
         public bool ConsumeOnFill = true;
+        public float DirtynessPerSecond;
+        public float DisinfectPerSecond;
+        public float Drag = 0.915f;
+        public byte ExistingVisualLiquidByte = 1;
         public string FillLiquidId;
+        public Texture2D HighResImage;
+        public string LiquidId;
+        public int MaxFloodFill = 128;
         public LiquidType.OnDrink OnDrinkOverride;
-        public Action<Body, LiquidTileTouchContext> OnTouch;
         public Action<Body, LiquidTileTouchContext> OnEnter;
         public Action<Body, LiquidTileTouchContext> OnExit;
+        public Action<Body, LiquidTileTouchContext> OnTouch;
+        public bool PushBodies = true;
+        public float RagdollBarDrainPerSecond;
+        public float SicknessPerSecond;
+        public float SlipPerSecond;
+        public float SpawnAmount;
+        public int SpawnLayers = -1;
+        public float TemperaturePerSecond;
+        public Color Tint = Color.white;
+        public Material VisualMaterial;
+        public LiquidTileVisualMode VisualMode = LiquidTileVisualMode.ExistingLiquidPlusTint;
+        public Sprite VisualSprite;
+        public float WetnessPerSecond = 20f;
     }
 }

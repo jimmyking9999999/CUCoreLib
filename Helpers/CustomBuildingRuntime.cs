@@ -11,10 +11,10 @@ namespace CUCoreLib.Helpers
 
         private BuildingEntity _building;
         private CustomBuildingEntityDefinition _definition;
+        private float _heatElapsed;
         private bool _isQuitting;
         private bool _registered;
         private bool _spawnedDrops;
-        private float _heatElapsed;
 
         private void Awake()
         {

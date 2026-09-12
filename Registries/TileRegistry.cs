@@ -69,11 +69,11 @@ namespace CUCoreLib.Registries
         }
 
         /// <summary>
-        /// Registers a custom terrain tile under a stable ID and returns its effective ID.
+        ///     Registers a custom terrain tile under a stable ID and returns its effective ID.
         /// </summary>
         /// <remarks>
-        /// CUCoreLib allocates the runtime block index. If another tile already uses <paramref name="id"/>,
-        /// the returned value and <see cref="CustomTileDefinition.ID"/> become <c>id~1</c>, <c>id~2</c>, and so on.
+        ///     CUCoreLib allocates the runtime block index. If another tile already uses <paramref name="id" />,
+        ///     the returned value and <see cref="CustomTileDefinition.ID" /> become <c>id~1</c>, <c>id~2</c>, and so on.
         /// </remarks>
         public static string Register(string id, CustomTileDefinition definition)
         {
@@ -89,7 +89,8 @@ namespace CUCoreLib.Registries
             id = id.Trim();
             if (!id.All(char.IsLetterOrDigit))
             {
-                CUCoreLibPlugin.Log?.LogWarning($"Tile registration ignored for invalid stable ID '{id}'. Stable IDs must be alphanumeric.");
+                CUCoreLibPlugin.Log?.LogWarning(
+                    $"Tile registration ignored for invalid stable ID '{id}'. Stable IDs must be alphanumeric.");
                 return null;
             }
 
@@ -106,7 +107,6 @@ namespace CUCoreLib.Registries
         private static bool RegisterAt(ushort tileIndex, CustomTileDefinition definition, string requestedId,
             bool queueNetworkSnapshot)
         {
-
             if (tileIndex < FirstCustomTileIndex)
             {
                 CUCoreLibPlugin.Log?.LogWarning(
@@ -304,7 +304,8 @@ namespace CUCoreLib.Registries
             var localHitSounds = RegisteredDefinitions.Values
                 .Where(definition => definition != null && !string.IsNullOrWhiteSpace(definition.ID))
                 .GroupBy(definition => definition.ID, StringComparer.OrdinalIgnoreCase)
-                .ToDictionary(group => group.Key, group => group.First().HitSoundClip, StringComparer.OrdinalIgnoreCase);
+                .ToDictionary(group => group.Key, group => group.First().HitSoundClip,
+                    StringComparer.OrdinalIgnoreCase);
             var localOwners = RegisteredDefinitions
                 .Where(entry => entry.Value != null && !string.IsNullOrWhiteSpace(entry.Value.ID))
                 .GroupBy(entry => entry.Value.ID, StringComparer.OrdinalIgnoreCase)
@@ -371,7 +372,9 @@ namespace CUCoreLib.Registries
 
                 localOwners.TryGetValue(definition.ID ?? string.Empty, out var localOwner);
                 using (DefinitionOwners.BeginScope(localOwner))
+                {
                     RegisterAt(entry.TileIndex, definition, definition.ID, false);
+                }
             }
         }
 
@@ -440,9 +443,7 @@ namespace CUCoreLib.Registries
             foreach (var entry in RegisteredDefinitions
                          .Where(entry => entry.Value != null && !(entry.Value.SpawnAmount <= 0))
                          .Where(entry => CanSpawnInLayer(entry.Value, world.biomeDepth)))
-            {
                 GenerateWorldTile(entry.Value, world, worldBlocks, entry.Key);
-            }
         }
 
         public static bool SetBlock(WorldGeneration world, Vector2Int position, ushort tileIndex)

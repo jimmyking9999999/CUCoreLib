@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using CUCoreLib.Data;
 using CUCoreLib.Helpers;
 using UnityEngine;
+using Random = UnityEngine.Random;
 
 namespace CUCoreLib.Registries
 {
@@ -92,7 +93,7 @@ namespace CUCoreLib.Registries
             var totalCount = fallbackCount + explicitCount;
             if (totalCount == 0) return false;
 
-            var index = UnityEngine.Random.Range(0, totalCount);
+            var index = Random.Range(0, totalCount);
             itemId = index < fallbackCount ? fallbackItems[index] : explicitItems[index - fallbackCount];
             return !string.IsNullOrWhiteSpace(itemId);
         }
@@ -160,8 +161,8 @@ namespace CUCoreLib.Registries
         private static void TrySpawnLooseWorldItem(WorldGeneration world, string itemId)
         {
             var randomPos = new Vector2(
-                UnityEngine.Random.Range(-(float)world.halfWidth, world.halfWidth),
-                UnityEngine.Random.Range(-(float)world.halfHeight, world.halfHeight));
+                Random.Range(-(float)world.halfWidth, world.halfWidth),
+                Random.Range(-(float)world.halfHeight, world.halfHeight));
 
             if (Physics2D.OverlapPoint(randomPos, GroundMask)) return;
 
@@ -171,7 +172,7 @@ namespace CUCoreLib.Registries
             var instance = CustomInstantiate.InstantiateReturn(
                 itemId,
                 hit.point + Vector2.up,
-                Quaternion.Euler(0f, 0f, UnityEngine.Random.Range(0f, 360f)),
+                Quaternion.Euler(0f, 0f, Random.Range(0f, 360f)),
                 1f);
 
             if (instance == null) return;
