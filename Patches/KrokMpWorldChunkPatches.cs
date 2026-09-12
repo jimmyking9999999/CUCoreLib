@@ -33,9 +33,10 @@ namespace CUCoreLib.Patches
             try
             {
                 sender = AccessTools.GetDeclaredMethods(chunkSync).Single(method =>
-                    method.Name == "Server_Sendchunk" && method.GetParameters().Length == 3 &&
-                    method.GetParameters()[1].ParameterType.FullName == "KrokoshaCasualtiesMP.NetPlayer" &&
-                    method.GetParameters()[2].ParameterType == typeof(bool));
+                    method.Name == "Server_Sendchunk"
+                    && method.GetParameters().Length == 3
+                    && method.GetParameters()[1].ParameterType.FullName == "KrokoshaCasualtiesMP.NetPlayer"
+                    && method.GetParameters()[2].ParameterType == typeof(bool));
                 receiver = AccessTools.Method(chunkSync, "ClientReceiver_WorldTilemapChunk");
                 var parameters = receiver?.GetParameters();
                 if (parameters == null || parameters.Length != 2 || !parameters[1].ParameterType.IsByRef)
@@ -92,8 +93,7 @@ namespace CUCoreLib.Patches
         {
             var world = WorldGeneration.world;
             if (world == null || (bool)InstantiatingWorld.GetValue(world)) return false;
-            var blocks = WorldBlocks.GetValue(world) as ushort[,];
-            if (blocks == null) return false;
+            if (!(WorldBlocks.GetValue(world) is ushort[,] blocks)) return false;
 
             var reader = __args[1];
             var x = (byte)_getByte.Invoke(reader, null) * MultiplayerTileChunk.Size;

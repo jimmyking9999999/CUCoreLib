@@ -9,7 +9,6 @@ using UnityEngine;
 
 namespace CUCoreLib.Patches
 {
-    [HarmonyPatch]
     internal static class CustomWearablePatches
     {
         [HarmonyPatch(typeof(Body), "AutoPickUpItem")]
@@ -197,15 +196,16 @@ namespace CUCoreLib.Patches
             var wornWearables = body.GetAllWearables();
             if (wornWearables == null) return false;
 
-            foreach (var wornWearable in wornWearables)
+            foreach (var wornWearable
+                     in from wornWearable in wornWearables
+                     where wornWearable != null
+                           && wornWearable != item
+                           && wornWearable.Stats != null
+                     let wornSlots = GetWearableSlots(wornWearable.Stats.wearSlotId)
+                     where requestedSlots.Count > 1 || wornSlots.Count > 1
+                     where requestedSlots.Overlaps(wornSlots)
+                     select wornWearable)
             {
-                if (wornWearable == null || wornWearable == item || wornWearable.Stats == null)
-                    continue;
-
-                var wornSlots = GetWearableSlots(wornWearable.Stats.wearSlotId);
-                if (requestedSlots.Count <= 1 && wornSlots.Count <= 1) continue;
-                if (!requestedSlots.Overlaps(wornSlots)) continue;
-
                 conflictingWearable = wornWearable;
                 return true;
             }
@@ -246,10 +246,9 @@ namespace CUCoreLib.Patches
 
             var configuredSprites = new List<KeyValuePair<string, Sprite>>();
             if (def.MultiWornSprites != null)
-                foreach (var entry in def.MultiWornSprites)
+                foreach (var entry in def.MultiWornSprites.Where(entry =>
+                             !string.IsNullOrWhiteSpace(entry.Key) && entry.Value != null))
                 {
-                    if (string.IsNullOrWhiteSpace(entry.Key) || entry.Value == null) continue;
-
                     if (body != null && body.LimbByName(entry.Key) == null)
                     {
                         CUCoreLibPlugin.Log?.LogWarning(
@@ -286,7 +285,7 @@ namespace CUCoreLib.Patches
 
         private static void ApplySortingOrder(Item item, CustomItemInfo def)
         {
-            if (item == null || def == null || !def.WearableSortingOrder.HasValue) return;
+            if (item == null || def?.WearableSortingOrder == null) return;
 
             var renderer = item.GetComponent<SpriteRenderer>();
             if (renderer == null) return;
@@ -296,7 +295,7 @@ namespace CUCoreLib.Patches
 
         private static void ApplySecondarySpriteSortingOrder(Wearable wearable, CustomItemInfo def)
         {
-            if (wearable == null || def == null || !def.WearableSortingOrder.HasValue) return;
+            if (wearable == null || def?.WearableSortingOrder == null) return;
             if (wearable.secondaryObjects == null) return;
 
             foreach (var obj in wearable.secondaryObjects)

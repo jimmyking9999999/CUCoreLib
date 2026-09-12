@@ -85,7 +85,7 @@ namespace CUCoreLib.Patches
                 {
                     var loadObjectResources = AccessTools.GetDeclaredMethods(newObjectSystemType)
                         ?.Where(method => string.Equals(method.Name, "LoadObjectResource", StringComparison.Ordinal))
-                        ?.ToArray();
+                        .ToArray();
                     if (loadObjectResources != null)
                     {
                         foreach (var loadObjectResource in loadObjectResources)
@@ -151,10 +151,8 @@ namespace CUCoreLib.Patches
                 var reverseIds = new string[count];
                 var index = 0;
                 // KrokMP assigns byte IDs in this exact enumeration order; sorting breaks legacy peers.
-                foreach (var liquid in Liquids.Registry)
+                foreach (var liquid in Liquids.Registry.TakeWhile(liquid => index != count))
                 {
-                    if (index == count) break;
-
                     ids[liquid.Key] = (byte)index;
                     reverseIds[index] = liquid.Key;
                     index++;
@@ -165,6 +163,7 @@ namespace CUCoreLib.Patches
             }
             catch
             {
+                // ignored
             }
         }
 
@@ -185,6 +184,7 @@ namespace CUCoreLib.Patches
             }
             catch
             {
+                // ignored
             }
         }
 

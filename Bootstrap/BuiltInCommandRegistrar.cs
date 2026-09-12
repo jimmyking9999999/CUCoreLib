@@ -14,31 +14,37 @@ namespace CUCoreLib.Bootstrap
         internal static void Register()
         {
             ConsoleCommandRegistry.Register("createLocale",
-                "Writes or updates CUCoreLib generated locale data. WARNING: Overrides EN.json",
+                LocaleRegistry.Get("command", "createLocale.description", "Writes or updates CUCoreLib generated locale data. WARNING: Overrides EN.json"),
                 delegate(string[] args)
                 {
-                    var path = args.Length > 1 ? args[1] : null;
+                    var path = args.Length > 1 
+                        ? args[1] 
+                        : null;
                     var writtenPath = LocaleRegistry.WriteLocaleFile(path);
-                    var message = $"created locale at {writtenPath}";
+                    var message = LocaleRegistry.Get("command", "createLocale.message", $"created locale at {writtenPath}");
                     CUCoreLibPlugin.Log.LogInfo(message);
                     CUCoreUtils.ConsoleLog(ConsoleScript.instance, message);
-                }, null, ("path", "Optional output path. Defaults to BepInEx/config/CUCoreLib/Locales/EN.json."));
+                }, null, ("path", LocaleRegistry.Get("command", "createLocale.path","Optional output path. Defaults to BepInEx/config/CUCoreLib/Locales/EN.json.")));
 
             ConsoleCommandRegistry.Register("modlist",
-                "Prints the loaded BepInEx plugin list to the in-game console and Unity log.",
+                LocaleRegistry.Get("command", "modlist.description", "Prints the loaded BepInEx plugin list to the in-game console and Unity log."),
                 delegate
                 {
                     var loadedPlugins = Chainloader.PluginInfos.Values
                         .OrderBy(plugin => plugin.Metadata?.Name ?? plugin.Metadata?.GUID ?? string.Empty)
                         .Select(plugin =>
                         {
-                            var name = plugin.Metadata?.Name ?? plugin.Metadata?.GUID ?? "Unknown Plugin";
-                            var version = plugin.Metadata?.Version?.ToString() ?? "unknown";
-                            var guid = plugin.Metadata?.GUID ?? "unknown.guid";
+                            var name = plugin.Metadata?.Name
+                                       ?? plugin.Metadata?.GUID 
+                                       ?? LocaleRegistry.Get("command", "modlist.unknown_name", "Unknown Plugin");
+                            var version = plugin.Metadata?.Version?.ToString()
+                                          ?? LocaleRegistry.Get("command", "modlist.unknown_version", "unknown");
+                            var guid = plugin.Metadata?.GUID
+                                       ?? LocaleRegistry.Get("command", "modlist.unknown_guid", "unknown");
                             return $"  {name} v{version} ({guid})";
                         }).ToList();
 
-                    var summary = $"Loaded mods ({loadedPlugins.Count}):";
+                    var summary = LocaleRegistry.Get("command", "modlist.loaded", $"Loaded mods ({loadedPlugins.Count}):");
                     CUCoreLibPlugin.Log.LogInfo(summary);
                     foreach (var line in loadedPlugins) CUCoreLibPlugin.Log.LogInfo(line);
 

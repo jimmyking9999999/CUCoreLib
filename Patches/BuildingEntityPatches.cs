@@ -11,9 +11,9 @@ using Object = UnityEngine.Object;
 
 namespace CUCoreLib.Patches
 {
-    [HarmonyPatch(typeof(BuildingEntity), "Start")]
     internal static class BuildingEntityPatches
     {
+        [HarmonyPatch(typeof(BuildingEntity), "Start")]
         [HarmonyPostfix]
         private static void PreserveRegisteredBuildingLocale(BuildingEntity __instance)
         {
@@ -29,7 +29,6 @@ namespace CUCoreLib.Patches
 
     // BuildingEntity's vanilla destruction path loads each drop directly from Resources.
     // CUCoreLib items are runtime templates, so they need the same fallback used by save loading
-    [HarmonyPatch(typeof(BuildingEntity), "Update")]
     internal static class BuildingEntityBodyTypePatch
     {
         private static readonly MethodInfo BodyTypeSetter = AccessTools.PropertySetter(
@@ -38,6 +37,7 @@ namespace CUCoreLib.Patches
         private static readonly MethodInfo SetBodyTypeIfChangedMethod = AccessTools.Method(
             typeof(BuildingEntityBodyTypePatch), nameof(SetBodyTypeIfChanged));
 
+        [HarmonyPatch(typeof(BuildingEntity), "Update")]
         [HarmonyTranspiler]
         private static IEnumerable<CodeInstruction> AvoidRedundantBodyTypeWrites(
             IEnumerable<CodeInstruction> instructions)
@@ -61,7 +61,6 @@ namespace CUCoreLib.Patches
         }
     }
 
-    [HarmonyPatch(typeof(BuildingEntity), "Update")]
     internal static class BuildingEntityCustomDropResolutionPatch
     {
         private static readonly MethodInfo ResourcesLoadMethod = typeof(Resources)
@@ -75,6 +74,7 @@ namespace CUCoreLib.Patches
         private static readonly MethodInfo ResolveSavedResourceMethod =
             AccessTools.Method(typeof(CustomInstantiate), nameof(CustomInstantiate.ResolveSavedResource));
 
+        [HarmonyPatch(typeof(BuildingEntity), "Update")]
         [HarmonyTranspiler]
         private static IEnumerable<CodeInstruction> ResolveRuntimeCustomDrops(
             IEnumerable<CodeInstruction> instructions)
@@ -92,9 +92,9 @@ namespace CUCoreLib.Patches
         }
     }
 
-    [HarmonyPatch(typeof(BuildingEntity), "Update")]
     internal static class BuildingEntityDropPoolPatches
     {
+        [HarmonyPatch(typeof(BuildingEntity), "Update")]
         [HarmonyPrefix]
         private static bool HandleBuiltInDropPools(BuildingEntity __instance)
         {
@@ -206,7 +206,9 @@ namespace CUCoreLib.Patches
 
         private static bool TryGetComponent<T>(Component component, out T value) where T : Component
         {
-            value = component != null ? component.GetComponent<T>() : null;
+            value = component != null
+                ? component.GetComponent<T>() 
+                : null;
             return value != null;
         }
     }

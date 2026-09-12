@@ -5,24 +5,24 @@ using UnityEngine;
 
 namespace CUCoreLib.Patches
 {
-    [HarmonyPatch]
+    [HarmonyPatch(typeof(WorldGeneration))]
     internal static class TileRegistryPatches
     {
-        [HarmonyPatch(typeof(WorldGeneration), "Awake")]
+        [HarmonyPatch("Awake")]
         [HarmonyPostfix]
         private static void InjectCustomTiles(WorldGeneration __instance)
         {
             TileRegistry.InjectRegisteredTiles(__instance);
         }
 
-        [HarmonyPatch(typeof(WorldGeneration), "GenerateOres")]
+        [HarmonyPatch("GenerateOres")]
         [HarmonyPostfix]
         private static void GenerateRegisteredTileOres(WorldGeneration __instance)
         {
             TileRegistry.GenerateWorldTiles(__instance);
         }
 
-        [HarmonyPatch(typeof(WorldGeneration), nameof(WorldGeneration.GetBlockInfo))]
+        [HarmonyPatch(nameof(WorldGeneration.GetBlockInfo))]
         [HarmonyPrefix]
         private static bool GetCustomBlockInfo(ushort block, ref BlockInfo __result)
         {
@@ -32,8 +32,13 @@ namespace CUCoreLib.Patches
             return false;
         }
 
-        [HarmonyPatch(typeof(WorldGeneration), nameof(WorldGeneration.DamageBlock), typeof(Vector2Int), typeof(float),
-            typeof(bool), typeof(bool), typeof(bool))]
+        [HarmonyPatch(
+            nameof(WorldGeneration.DamageBlock),
+            typeof(Vector2Int), 
+            typeof(float),
+            typeof(bool),
+            typeof(bool), 
+            typeof(bool))]
         [HarmonyPrefix]
         private static void TrackCustomTileBreak(
             WorldGeneration __instance,
@@ -57,8 +62,13 @@ namespace CUCoreLib.Patches
             };
         }
 
-        [HarmonyPatch(typeof(WorldGeneration), nameof(WorldGeneration.DamageBlock), typeof(Vector2Int), typeof(float),
-            typeof(bool), typeof(bool), typeof(bool))]
+        [HarmonyPatch(
+            nameof(WorldGeneration.DamageBlock),
+            typeof(Vector2Int), 
+            typeof(float),
+            typeof(bool), 
+            typeof(bool),
+            typeof(bool))]
         [HarmonyPostfix]
         private static void SpawnCustomTileDrops(WorldGeneration __instance, Vector2Int pos, BreakDropState __state)
         {

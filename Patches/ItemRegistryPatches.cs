@@ -60,6 +60,7 @@ namespace CUCoreLib.Patches
                 }
                 catch
                 {
+                    // ignored
                 }
 
             CUCoreLibPlugin.Log.LogInfo($"Bulk injected {ItemRegistry.RegisteredItems.Count} items.");
@@ -233,7 +234,7 @@ namespace CUCoreLib.Patches
             if (def != null && !string.IsNullOrWhiteSpace(def.IconAnimationId))
             {
                 var animation = AssetLoader.GetCachedSpriteAnimation(def.IconAnimationId);
-                if (animation != null && animation.Frames != null && animation.Frames.Length > 0 &&
+                if (animation?.Frames != null && animation.Frames.Length > 0 &&
                     ItemRegistry.IsValidIcon(animation.Frames[0]))
                     return animation.Frames[0];
             }
@@ -434,10 +435,7 @@ namespace CUCoreLib.Patches
 
                 if (def.capacity > 0f)
                 {
-                    var totalAmount = 0f;
-                    for (var si = 0; si < wat.stack.Count; si++)
-                        if (wat.stack[si] != null)
-                            totalAmount += wat.stack[si].amount;
+                    var totalAmount = wat.stack.Where(t => t != null).Sum(t => t.amount);
                     item.condition = Mathf.Clamp01(totalAmount / def.capacity);
                 }
             }
@@ -457,14 +455,9 @@ namespace CUCoreLib.Patches
                     foreach (var liquid in def.Syringe.DefaultContents)
                         wat.stack.Add(new LiquidStack(liquid.liquidId, liquid.amount));
 
-                if (def.Syringe.Capacity > 0f)
-                {
-                    var totalAmount = 0f;
-                    for (var si = 0; si < wat.stack.Count; si++)
-                        if (wat.stack[si] != null)
-                            totalAmount += wat.stack[si].amount;
-                    item.condition = Mathf.Clamp01(totalAmount / def.Syringe.Capacity);
-                }
+                if (!(def.Syringe.Capacity > 0f)) return;
+                var totalAmount = wat.stack.Where(t => t != null).Sum(t => t.amount);
+                item.condition = Mathf.Clamp01(totalAmount / def.Syringe.Capacity);
             }
         }
 
@@ -510,15 +503,10 @@ namespace CUCoreLib.Patches
             if (waterContainer == null) return null;
 
             var renderers = waterContainer.GetComponentsInChildren<SpriteRenderer>(true);
-            for (var i = 0; i < renderers.Length; i++)
-            {
-                var renderer = renderers[i];
-                if (renderer != null && renderer.transform.parent == waterContainer.transform &&
-                    string.Equals(renderer.gameObject.name, "LiquidFill", StringComparison.Ordinal))
-                    return renderer;
-            }
-
-            return null;
+            return renderers.FirstOrDefault(renderer =>
+                renderer != null 
+                && renderer.transform.parent == waterContainer.transform
+                && string.Equals(renderer.gameObject.name, "LiquidFill", StringComparison.Ordinal));
         }
 
         internal static void ApplyContainerProperties(Item item, CustomItemInfo def)
@@ -531,7 +519,7 @@ namespace CUCoreLib.Patches
             cont.maxWeightPerItem = def.Container.MaxWeightPerItem;
             cont.encumberanceMult = def.Container.EncumbranceReduction;
             cont.itemsVisible = def.Container.ItemsVisible;
-            cont.tagRestriction = def.Container.TagRestriction ?? new string[0];
+            cont.tagRestriction = def.Container.TagRestriction ?? Array.Empty<string>();
         }
 
         private static bool IsLiquidContainer(CustomItemInfo def)
@@ -544,12 +532,7 @@ namespace CUCoreLib.Patches
             var copy = new List<LiquidStack>();
             if (source == null) return copy;
 
-            for (var i = 0; i < source.Count; i++)
-            {
-                var liquid = source[i];
-                if (liquid != null)
-                    copy.Add(new LiquidStack(liquid.liquidId, liquid.amount));
-            }
+            copy.AddRange(from liquid in source where liquid != null select new LiquidStack(liquid.liquidId, liquid.amount));
 
             return copy;
         }
@@ -602,16 +585,16 @@ namespace CUCoreLib.Patches
             light.pointLightOuterAngle = properties.PointLightOuterAngle;
             light.pointLightInnerAngle = properties.PointLightInnerAngle;
 
-            if (properties.LightType == CustomLightType.Point &&
-                (properties.PointLightInnerAngle < 360f || properties.PointLightOuterAngle < 360f))
-                try
-                {
-                    MarkLightForUpdateMethod?.Invoke(light, null);
-                }
-                catch
-                {
-                    // Older URP versions may not expose the internal refresh hook.
-                }
+            if (properties.LightType != CustomLightType.Point ||
+                (!(properties.PointLightInnerAngle < 360f) && !(properties.PointLightOuterAngle < 360f))) return;
+            try
+            {
+                MarkLightForUpdateMethod?.Invoke(light, null);
+            }
+            catch
+            {
+                // Older URP versions may not expose the internal refresh hook.
+            }
         }
 
         internal static void ApplyGunProperties(Item item, CustomItemInfo def)
@@ -921,7 +904,11 @@ namespace CUCoreLib.Patches
 
         private static void WarnInvalidDecayConfiguration(Item item, string issue)
         {
-            var itemId = string.IsNullOrWhiteSpace(item != null ? item.id : null) ? "<unknown>" : item.id;
+            var itemId = string.IsNullOrWhiteSpace(item != null
+                ? item.id 
+                : null) 
+                ? "<unknown>"
+                : item.id;
             var warningKey = itemId + "|" + issue;
             if (!WarnedInvalidDecayConfigurations.Add(warningKey)) return;
 

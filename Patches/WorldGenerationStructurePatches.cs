@@ -4,9 +4,9 @@ using HarmonyLib;
 
 namespace CUCoreLib.Patches
 {
-    [HarmonyPatch(typeof(WorldGeneration), "WorldGenerateWorldBorders")]
     internal static class WorldGenerationStructurePatches
     {
+        [HarmonyPatch(typeof(WorldGeneration), "WorldGenerateWorldBorders")]
         [HarmonyPostfix]
         private static IEnumerator DistributeRegisteredStructures(IEnumerator __result, WorldGeneration __instance)
         {

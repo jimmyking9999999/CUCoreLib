@@ -50,13 +50,10 @@ namespace CUCoreLib.Patches
             if (__instance.result.isLiquid)
             {
                 LiquidRegistry.EnsureLiquidInjected(__instance.result.id);
-                if (!RecipeRegistry.IsKnownRecipeResult(__instance.result))
-                {
-                    __result = (ItemRegistry.GetMissingItemIcon(), Color.white);
-                    return false;
-                }
+                if (RecipeRegistry.IsKnownRecipeResult(__instance.result)) return true;
+                __result = (ItemRegistry.GetMissingItemIcon(), Color.white);
+                return false;
 
-                return true;
             }
 
             if (!RecipeRegistry.IsKnownRecipeResult(__instance.result))
@@ -69,13 +66,10 @@ namespace CUCoreLib.Patches
             if (!ItemRegistry.IsValidIcon(customSprite))
                 ItemRegistry.TryGetIcon(__instance.result.id, out customSprite);
 
-            if (customSprite != null)
-            {
-                __result = (customSprite, Color.white);
-                return false;
-            }
+            if (customSprite == null) return true;
+            __result = (customSprite, Color.white);
+            return false;
 
-            return true;
         }
 
         [HarmonyPatch(typeof(PlayerCamera), "RefreshRecipeList")]

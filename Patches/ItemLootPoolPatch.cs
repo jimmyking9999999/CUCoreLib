@@ -8,7 +8,6 @@ using UnityEngine;
 
 namespace CUCoreLib.Patches
 {
-    [HarmonyPatch]
     internal static class ItemLootPoolPatch
     {
         private static bool hasLoggedInjection;
@@ -28,6 +27,7 @@ namespace CUCoreLib.Patches
             }
             catch
             {
+                // ignored
             }
 
             var injectedCount = 0;
@@ -38,6 +38,7 @@ namespace CUCoreLib.Patches
                 }
                 catch
                 {
+                    // ignored
                 }
 
             if (injectedCount <= 0) return;

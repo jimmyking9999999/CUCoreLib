@@ -14,7 +14,7 @@ using Random = UnityEngine.Random;
 
 namespace CUCoreLib.Patches
 {
-    [HarmonyPatch(typeof(ConsoleScript), "RegisterAllCommands")]
+    [HarmonyPatch(typeof(ConsoleScript))]
     internal static class ConsolePatch
     {
         private static readonly FieldInfo RegisteredSpawnEntitiesField =
@@ -81,6 +81,7 @@ namespace CUCoreLib.Patches
             }
         }
 
+        [HarmonyPatch("RegisterAllCommands")]
         [HarmonyPostfix]
         private static void AddBuiltInCommands(ConsoleScript __instance)
         {
@@ -210,13 +211,16 @@ namespace CUCoreLib.Patches
             HookStatusFieldCommands(__instance);
         }
 
-        [HarmonyPatch(typeof(ConsoleScript), "TryExecuteCommand")]
+        [HarmonyPatch("TryExecuteCommand")]
         [HarmonyPostfix]
         private static void NotifyMultiplayerHeal(string[] args)
         {
-            if (args == null || args.Length == 0 ||
-                !string.Equals(args[0], "heal", StringComparison.OrdinalIgnoreCase) ||
-                !MultiplayerBridge.IsRunning || !MultiplayerBridge.IsServer || args.Length > 1) return;
+            if (args == null
+                || args.Length == 0 
+                || !string.Equals(args[0], "heal", StringComparison.OrdinalIgnoreCase)
+                || !MultiplayerBridge.IsRunning
+                || !MultiplayerBridge.IsServer
+                || args.Length > 1) return;
 
             PlayerEventPatches.NotifyHeal(PlayerCamera.main != null ? PlayerCamera.main.body : null);
         }
@@ -231,7 +235,9 @@ namespace CUCoreLib.Patches
             {
                 originalAction?.Invoke(args);
                 if (!MultiplayerBridge.IsRunning)
-                    PlayerEventPatches.NotifyHeal(PlayerCamera.main != null ? PlayerCamera.main.body : null);
+                    PlayerEventPatches.NotifyHeal(PlayerCamera.main != null
+                        ? PlayerCamera.main.body 
+                        : null);
             };
             healCommand = command;
         }
@@ -251,7 +257,7 @@ namespace CUCoreLib.Patches
             }
 
             var limbCommand = ConsoleScript.SearchExact("setlimbfield");
-            if (limbCommand != null && !ReferenceEquals(limbCommand, setLimbFieldCommand))
+            if (limbCommand == null || ReferenceEquals(limbCommand, setLimbFieldCommand)) return;
             {
                 var originalAction = limbCommand.action;
                 limbCommand.action = args =>
@@ -267,7 +273,9 @@ namespace CUCoreLib.Patches
         {
             if (args == null || args.Length < 3 || typeof(Body).GetField(args[1]) != null) return false;
 
-            var body = PlayerCamera.main != null ? PlayerCamera.main.body : null;
+            var body = PlayerCamera.main != null 
+                ? PlayerCamera.main.body
+                : null;
             if (body == null || !TrySetStatusField(StatusRegistry.EnumerateBodyStatuses(body), args[1], args[2],
                     out var value)) return false;
 
@@ -280,7 +288,9 @@ namespace CUCoreLib.Patches
             if (args == null || args.Length < 4 || typeof(Limb).GetField(args[2]) != null) return false;
 
             var body = PlayerCamera.main != null ? PlayerCamera.main.body : null;
-            var limb = body != null ? body.LimbByName(args[1]) : null;
+            var limb = body != null
+                ? body.LimbByName(args[1])
+                : null;
             if (limb == null || !TrySetStatusField(StatusRegistry.EnumerateLimbStatuses(limb), args[2], args[3],
                     out var value)) return false;
 
@@ -296,8 +306,12 @@ namespace CUCoreLib.Patches
             if (statuses == null || string.IsNullOrWhiteSpace(fieldQuery)) return false;
 
             var separator = fieldQuery.LastIndexOf('.');
-            var statusName = separator > 0 ? fieldQuery.Substring(0, separator) : null;
-            var fieldName = separator > 0 ? fieldQuery.Substring(separator + 1) : fieldQuery;
+            var statusName = separator > 0
+                ? fieldQuery.Substring(0, separator) 
+                : null;
+            var fieldName = separator > 0 
+                ? fieldQuery.Substring(separator + 1)
+                : fieldQuery;
             FieldInfo matchedField = null;
             TStatus matchedStatus = null;
 
@@ -327,8 +341,8 @@ namespace CUCoreLib.Patches
         {
             if (statusType == null) return false;
 
-            if (string.Equals(statusType.Name, statusName, StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(statusType.FullName, statusName, StringComparison.OrdinalIgnoreCase)) return true;
+            if (string.Equals(statusType.Name, statusName, StringComparison.OrdinalIgnoreCase) 
+                || string.Equals(statusType.FullName, statusName, StringComparison.OrdinalIgnoreCase)) return true;
 
             var options = statusType.GetCustomAttribute<StatusOptionsAttribute>();
             return options != null && string.Equals(options.Key, statusName, StringComparison.OrdinalIgnoreCase);
@@ -374,7 +388,7 @@ namespace CUCoreLib.Patches
             };
         }
 
-        [HarmonyPatch(typeof(ConsoleScript), "RegisterSpawnEntities")]
+        [HarmonyPatch("RegisterSpawnEntities")]
         [HarmonyPrefix]
         private static bool GuardDuplicateVanillaSpawnAutofill(ConsoleScript __instance)
         {
@@ -386,7 +400,7 @@ namespace CUCoreLib.Patches
             return false;
         }
 
-        [HarmonyPatch(typeof(ConsoleScript), "RegisterSpawnEntities")]
+        [HarmonyPatch("RegisterSpawnEntities")]
         [HarmonyPostfix]
         private static void AppendSpawnAutofill(ConsoleScript __instance)
         {
@@ -770,16 +784,19 @@ namespace CUCoreLib.Patches
                     StringComparer.OrdinalIgnoreCase);
 
             if (Item.GlobalItems != null)
-                foreach (var id in Item.GlobalItems.Keys)
-                    if (CUCoreUtils.IsModdedItem(id) &&
-                        (ownerFilteredIds == null || ownerFilteredIds.Contains(id)) &&
-                        !moddedIds.Contains(id, StringComparer.OrdinalIgnoreCase))
-                        moddedIds.Add(id);
+                foreach (var id
+                         in Item.GlobalItems.Keys.Where(id =>
+                             CUCoreUtils.IsModdedItem(id)
+                             && (ownerFilteredIds == null
+                                 || ownerFilteredIds.Contains(id))
+                             && !moddedIds.Contains(id, StringComparer.OrdinalIgnoreCase)))
+                    moddedIds.Add(id);
 
             foreach (var id in ItemRegistry.GetRegisteredItemIds())
                 if (CUCoreUtils.IsModdedItem(id) &&
-                    (ownerFilteredIds == null || ownerFilteredIds.Contains(id)) &&
-                    !moddedIds.Contains(id, StringComparer.OrdinalIgnoreCase))
+                    (ownerFilteredIds == null
+                     || ownerFilteredIds.Contains(id))
+                    && !moddedIds.Contains(id, StringComparer.OrdinalIgnoreCase))
                     moddedIds.Add(id);
 
             return moddedIds;
@@ -869,8 +886,7 @@ namespace CUCoreLib.Patches
             if (!LiquidTileRegistry.TryGetTileId(liquidByte, out liquidId) ||
                 string.IsNullOrWhiteSpace(liquidId)) return false;
 
-            CustomLiquidInfo customInfo;
-            if (LiquidRegistry.TryGetCustomInfo(liquidId, out customInfo) &&
+            if (LiquidRegistry.TryGetCustomInfo(liquidId, out var customInfo) &&
                 customInfo != null &&
                 !string.IsNullOrWhiteSpace(customInfo.name))
             {
@@ -878,8 +894,7 @@ namespace CUCoreLib.Patches
                 return true;
             }
 
-            LiquidType liquidType;
-            if (Liquids.Registry != null && Liquids.Registry.TryGetValue(liquidId, out liquidType) &&
+            if (Liquids.Registry != null && Liquids.Registry.TryGetValue(liquidId, out var liquidType) &&
                 liquidType != null)
             {
                 var localeKey = !string.IsNullOrWhiteSpace(liquidType.localeName) ? liquidType.localeName : liquidId;
@@ -893,14 +908,9 @@ namespace CUCoreLib.Patches
 
         private static string FormatFloodFillAutofill(string value)
         {
-            byte liquidByte;
-            if (!byte.TryParse(value, out liquidByte)) return value;
-
-            string liquidId;
-            string displayName;
-            if (!TryGetFloodFillVisual(liquidByte, out liquidId, out displayName) ||
-                string.IsNullOrWhiteSpace(liquidId))
-                return value;
+            if (!byte.TryParse(value, out var liquidByte) ||
+                !TryGetFloodFillVisual(liquidByte, out var liquidId, out var displayName) ||
+                string.IsNullOrWhiteSpace(liquidId)) return value;
 
             if (string.IsNullOrWhiteSpace(displayName) ||
                 string.Equals(displayName, liquidId, StringComparison.OrdinalIgnoreCase))
@@ -911,12 +921,9 @@ namespace CUCoreLib.Patches
 
         private static string FormatSetTileAutofill(string value)
         {
-            ushort tileIndex;
-            if (!ushort.TryParse(value, out tileIndex)) return value;
+            if (!ushort.TryParse(value, out var tileIndex)) return value;
 
-            string vanillaTileId;
-            string vanillaDisplayName;
-            if (TryGetVanillaTileVisual(tileIndex, out vanillaTileId, out vanillaDisplayName) &&
+            if (TryGetVanillaTileVisual(tileIndex, out var vanillaTileId, out var vanillaDisplayName) &&
                 !string.IsNullOrWhiteSpace(vanillaTileId))
             {
                 if (string.IsNullOrWhiteSpace(vanillaDisplayName) ||
@@ -926,8 +933,7 @@ namespace CUCoreLib.Patches
                 return value + " - " + vanillaTileId + " - " + vanillaDisplayName;
             }
 
-            CustomTileDefinition definition;
-            if (!TileRegistry.TryGetDefinition(tileIndex, out definition) || definition == null ||
+            if (!TileRegistry.TryGetDefinition(tileIndex, out var definition) || definition == null ||
                 string.IsNullOrWhiteSpace(definition.ID))
                 return value;
 
@@ -1022,14 +1028,13 @@ namespace CUCoreLib.Patches
             return d[n, m];
         }
 
-        [HarmonyPatch(typeof(ConsoleScript), "HandleDescriptionText")]
+        [HarmonyPatch("HandleDescriptionText")]
         [HarmonyPostfix]
         private static void LabelCommandAutofill(ConsoleScript __instance, string[] args)
         {
             if (__instance?.descriptionText == null || args == null || args.Length < 2) return;
 
-            Func<string, string> formatter;
-            if (!TryGetAutofillFormatter(args[0], args.Length - 2, out formatter)) return;
+            if (!TryGetAutofillFormatter(args[0], args.Length - 2, out var formatter)) return;
 
             var text = __instance.descriptionText.text;
             var newlineIndex = text.IndexOf('\n');
@@ -1042,16 +1047,15 @@ namespace CUCoreLib.Patches
             __instance.descriptionText.text = text.Substring(0, newlineIndex + 1) + string.Join("\n", lines);
         }
 
-        [HarmonyPatch(typeof(ConsoleScript), "RegisterPlayerDetails")]
+        [HarmonyPatch("RegisterPlayerDetails")]
         internal static class SpawnCategoryAutofillPatch
         {
             [HarmonyPrefix]
             private static void Prefix()
             {
                 var spawnCategoryCommand = ConsoleScript.SearchExact("spawncategory");
-                if (spawnCategoryCommand?.argAutofill == null) return;
 
-                spawnCategoryCommand.argAutofill.Remove(0);
+                spawnCategoryCommand?.argAutofill?.Remove(0);
             }
 
             [HarmonyPostfix]
@@ -1062,7 +1066,7 @@ namespace CUCoreLib.Patches
             }
         }
 
-        [HarmonyPatch(typeof(ConsoleScript), "RegisterAllCommands")]
+        [HarmonyPatch("RegisterAllCommands")]
         internal static class LiquidAutofillPatch
         {
             [HarmonyPostfix]

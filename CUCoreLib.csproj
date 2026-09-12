@@ -311,6 +311,9 @@
         <Analyzer Include="packages\BepInEx.Analyzers.1.0.8\analyzers\dotnet\cs\BepInEx.Analyzers.CodeFixes.dll"/>
         <Analyzer Include="packages\BepInEx.Analyzers.1.0.8\analyzers\dotnet\cs\BepInEx.Analyzers.dll"/>
     </ItemGroup>
+    <ItemGroup>
+      <EmbeddedResource Include="Locales\zh-CN.json" />
+    </ItemGroup>
     <Target Name="CopyOutputDllsToPlaytestPluginsFolder" AfterTargets="AfterBuild" Condition="'$(BepInExDir)' != ''">
         <MakeDir Directories="$(BepInExDir)\plugins"/>
         <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(BepInExDir)\plugins"/>

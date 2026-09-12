@@ -51,9 +51,10 @@ namespace CUCoreLib.Patches
             IEnumerable<CodeInstruction> instructions)
         {
             var resourcesLoad = typeof(Resources).GetMethods(BindingFlags.Public | BindingFlags.Static)
-                .FirstOrDefault(method => method.Name == nameof(Resources.Load) && !method.IsGenericMethod &&
-                                          method.GetParameters().Length == 1 &&
-                                          method.GetParameters()[0].ParameterType == typeof(string));
+                .FirstOrDefault(method => method.Name == nameof(Resources.Load) 
+                                          && !method.IsGenericMethod
+                                          && method.GetParameters().Length == 1
+                                          && method.GetParameters()[0].ParameterType == typeof(string));
             var resolveSavedResource = AccessTools.Method(typeof(CustomInstantiate),
                 nameof(CustomInstantiate.ResolveSavedResource));
 

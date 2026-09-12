@@ -12,6 +12,7 @@ using Object = UnityEngine.Object;
 using Random = UnityEngine.Random;
 
 // TODO I don't like this, will need to refactor to not override so much vanilla game behaviour
+// Moss: then I won't change it. ╮(╯▽╰)╭
 namespace CUCoreLib.Patches
 {
     [HarmonyPatch]

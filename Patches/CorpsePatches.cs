@@ -6,10 +6,10 @@ using UnityEngine;
 
 namespace CUCoreLib.Patches
 {
-    [HarmonyPatch(typeof(CorpseScript), "Start")]
     internal static class CorpsePatches
     {
-        // May produce unwanted behaviour with another corpsescript patcher
+        [HarmonyPatch(typeof(CorpseScript), "Start")]
+        // May produce unwanted behavior with another CorpseScript patcher
         private static bool Prefix(CorpseScript __instance)
         {
             if (__instance.animalCorpse) return true;
