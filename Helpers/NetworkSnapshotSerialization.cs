@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Newtonsoft.Json.Linq;
 using UnityEngine;
+using Object = UnityEngine.Object;
 
 namespace CUCoreLib.Helpers
 {
@@ -24,21 +25,12 @@ namespace CUCoreLib.Helpers
             return new SpriteDedupeScope();
         }
 
-        private sealed class SpriteDedupeScope : IDisposable
-        {
-            public void Dispose()
-            {
-                if (_spriteDedupeDepth > 0 && --_spriteDedupeDepth == 0) SpritePayloadCache.Clear();
-            }
-        }
-
         internal static JObject WriteSprite(Sprite sprite)
         {
             if (sprite == null || sprite.texture == null) return null;
 
             var key = SpritePayloadKey.From(sprite);
-            string cachedData;
-            if (_spriteDedupeDepth > 0 && SpritePayloadCache.TryGetValue(key, out cachedData))
+            if (_spriteDedupeDepth > 0 && SpritePayloadCache.TryGetValue(key, out var cachedData))
                 return BuildSpritePayload(sprite, cachedData);
 
             var png = WriteTextureRegion(sprite);
@@ -137,9 +129,9 @@ namespace CUCoreLib.Helpers
             if (array == null) return stacks;
 
             stacks.AddRange(from obj
-                in array.OfType<JObject>()
+                    in array.OfType<JObject>()
                 let liquidId = obj.Value<string>("liquidId")
-                where !string.IsNullOrWhiteSpace(liquidId) 
+                where !string.IsNullOrWhiteSpace(liquidId)
                 select new LiquidStack(liquidId, obj.Value<float?>("amount") ?? 0f));
 
             return stacks;
@@ -171,9 +163,9 @@ namespace CUCoreLib.Helpers
             if (array == null) return qualities;
 
             qualities.AddRange(from obj
-                in array.OfType<JObject>() 
+                    in array.OfType<JObject>()
                 let id = obj.Value<string>("id")
-                where !string.IsNullOrWhiteSpace(id) 
+                where !string.IsNullOrWhiteSpace(id)
                 select new CraftingQuality(id, obj.Value<float?>("amount") ?? 1f));
 
             return qualities;
@@ -321,7 +313,7 @@ namespace CUCoreLib.Helpers
                     }
                     finally
                     {
-                        UnityEngine.Object.DestroyImmediate(cropped);
+                        Object.DestroyImmediate(cropped);
                     }
                 }
             }
@@ -348,7 +340,7 @@ namespace CUCoreLib.Helpers
                 }
                 finally
                 {
-                    UnityEngine.Object.DestroyImmediate(readable);
+                    Object.DestroyImmediate(readable);
                 }
             }
             catch
@@ -412,6 +404,14 @@ namespace CUCoreLib.Helpers
             {
                 data = null;
                 return false;
+            }
+        }
+
+        private sealed class SpriteDedupeScope : IDisposable
+        {
+            public void Dispose()
+            {
+                if (_spriteDedupeDepth > 0 && --_spriteDedupeDepth == 0) SpritePayloadCache.Clear();
             }
         }
 

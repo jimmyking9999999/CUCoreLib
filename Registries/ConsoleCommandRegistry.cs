@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using CUCoreLib.ContentReload;
+using CUCoreLib.DevTools.HotReload;
 
 namespace CUCoreLib.Registries
 {
@@ -41,7 +41,8 @@ namespace CUCoreLib.Registries
 
             if (command == null)
             {
-                CUCoreLibPlugin.Log.LogWarning("Ignored console command registration because the command object was null.");
+                CUCoreLibPlugin.Log.LogWarning(
+                    "Ignored console command registration because the command object was null.");
                 return;
             }
 
@@ -66,6 +67,19 @@ namespace CUCoreLib.Registries
         internal static void InjectRegisteredCommands()
         {
             foreach (var command in RegisteredCommands) InjectSingle(command);
+        }
+        
+        internal static void Unregister(string name)
+        {
+            if (string.IsNullOrWhiteSpace(name)) return;
+
+            var trimmedName = name.Trim();
+            RegisteredCommands.RemoveAll(command =>
+                command != null && command.name.Equals(trimmedName, StringComparison.OrdinalIgnoreCase));
+
+            if (ConsoleScript.Commands == null) return;
+            ConsoleScript.Commands.RemoveAll(command =>
+                command != null && command.name.Equals(trimmedName, StringComparison.OrdinalIgnoreCase));
         }
 
         private static void InjectSingle(Command command)

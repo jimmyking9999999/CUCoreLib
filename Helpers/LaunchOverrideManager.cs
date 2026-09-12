@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
@@ -7,8 +8,8 @@ using System.Text;
 using BepInEx;
 using BepInEx.Configuration;
 using CUCoreLib.Networking;
-using UnityEngine.SceneManagement;
 using UnityEngine;
+using Object = UnityEngine.Object;
 
 namespace CUCoreLib.Helpers
 {
@@ -121,7 +122,8 @@ namespace CUCoreLib.Helpers
             var role = ClaimQuickTestRole();
             if (role == QuickTestRole.None)
             {
-                CUCoreLibPlugin.Log?.LogWarning("CUCoreLib multiplayerQuickTest could not determine a quick-test role.");
+                CUCoreLibPlugin.Log?.LogWarning(
+                    "CUCoreLib multiplayerQuickTest could not determine a quick-test role.");
                 return false;
             }
 
@@ -129,7 +131,8 @@ namespace CUCoreLib.Helpers
             var username = role == QuickTestRole.Host ? HostUserName : ClientUserName;
             if (!MultiplayerBridge.TryConfigureLocalIdentity(username, address))
             {
-                CUCoreLibPlugin.Log?.LogWarning("CUCoreLib multiplayerQuickTest failed to configure KrokMP localhost identity.");
+                CUCoreLibPlugin.Log?.LogWarning(
+                    "CUCoreLib multiplayerQuickTest failed to configure KrokMP localhost identity.");
                 return false;
             }
 
@@ -139,7 +142,8 @@ namespace CUCoreLib.Helpers
 
             if (!started)
             {
-                CUCoreLibPlugin.Log?.LogWarning("CUCoreLib multiplayerQuickTest failed to start localhost " + role + ".");
+                CUCoreLibPlugin.Log?.LogWarning(
+                    "CUCoreLib multiplayerQuickTest failed to start localhost " + role + ".");
                 return false;
             }
 
@@ -156,7 +160,7 @@ namespace CUCoreLib.Helpers
             return false;
         }
 
-        private static System.Collections.IEnumerator HostQuickTestStartRoutine(PreRunScript menu)
+        private static IEnumerator HostQuickTestStartRoutine(PreRunScript menu)
         {
             Application.runInBackground = true;
             yield return new WaitForSecondsRealtime(3f);
@@ -164,10 +168,11 @@ namespace CUCoreLib.Helpers
             TrySkipWarningScreen();
             ScrollableText.ForceClose();
 
-            var liveMenu = menu != null ? menu : UnityEngine.Object.FindObjectOfType<PreRunScript>();
+            var liveMenu = menu != null ? menu : Object.FindObjectOfType<PreRunScript>();
             if (liveMenu == null)
             {
-                CUCoreLibPlugin.Log?.LogWarning("CUCoreLib multiplayerQuickTest host start could not find PreRunScript.");
+                CUCoreLibPlugin.Log?.LogWarning(
+                    "CUCoreLib multiplayerQuickTest host start could not find PreRunScript.");
                 yield break;
             }
 
@@ -179,7 +184,7 @@ namespace CUCoreLib.Helpers
             CUCoreUtils.CallWhen(() => WorldGeneration.world != null, TryAnnounceGameStart, 0.1f);
         }
 
-        private static System.Collections.IEnumerator ClientQuickTestStartRoutine()
+        private static IEnumerator ClientQuickTestStartRoutine()
         {
             Application.runInBackground = true;
             yield return new WaitForSecondsRealtime(1f);
@@ -192,7 +197,8 @@ namespace CUCoreLib.Helpers
             if (!MultiplayerBridge.IsServer) return;
 
             if (MultiplayerBridge.TryAnnounceGameStart())
-                CUCoreLibPlugin.Log?.LogInfo("CUCoreLib multiplayerQuickTest: announced game start to localhost clients.");
+                CUCoreLibPlugin.Log?.LogInfo(
+                    "CUCoreLib multiplayerQuickTest: announced game start to localhost clients.");
         }
 
         private static void TrySkipWarningScreen()
@@ -237,7 +243,8 @@ namespace CUCoreLib.Helpers
             }
             catch (Exception ex)
             {
-                CUCoreLibPlugin.Log?.LogWarning("CUCoreLib multiplayerQuickTest failed to claim host/client role.\n" + ex);
+                CUCoreLibPlugin.Log?.LogWarning("CUCoreLib multiplayerQuickTest failed to claim host/client role.\n" +
+                                                ex);
                 return QuickTestRole.None;
             }
         }
@@ -314,10 +321,10 @@ namespace CUCoreLib.Helpers
 
         private sealed class QuickTestState
         {
-            public int HostProcessId;
-            public DateTime HostHeartbeatUtc;
-            public int ClientProcessId;
             public DateTime ClientHeartbeatUtc;
+            public int ClientProcessId;
+            public DateTime HostHeartbeatUtc;
+            public int HostProcessId;
 
             public bool HasLiveHost => IsProcessSlotAlive(HostProcessId, HostHeartbeatUtc);
             public bool HasLiveClient => IsProcessSlotAlive(ClientProcessId, ClientHeartbeatUtc);

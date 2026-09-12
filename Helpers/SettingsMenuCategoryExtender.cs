@@ -12,12 +12,12 @@ namespace CUCoreLib.Helpers
         private const int BuiltInTabCount = 5;
         private const float MinimumInterButtonGap = 2f;
         private const float ScrollPixelsPerWheelStep = 48f;
-        private readonly Dictionary<Button, int> buttonCategoryIndices = new Dictionary<Button, int>();
-
-        private readonly List<Button> customButtons = new List<Button>();
-        private readonly List<TMP_Dropdown> cachedDropdowns = new List<TMP_Dropdown>();
         private readonly List<Vector2> builtInAnchoredPositions = new List<Vector2>();
         private readonly List<Vector2> builtInSizes = new List<Vector2>();
+        private readonly Dictionary<Button, int> buttonCategoryIndices = new Dictionary<Button, int>();
+        private readonly List<TMP_Dropdown> cachedDropdowns = new List<TMP_Dropdown>();
+
+        private readonly List<Button> customButtons = new List<Button>();
         private int activeCategoryIndex;
         private string activeOwnedCategoryKey;
         private bool capturedBuiltInLayout;
@@ -54,8 +54,9 @@ namespace CUCoreLib.Helpers
             return (from dd in cachedDropdowns
                 where dd && dd.IsExpanded && dd.template
                 select dd.template).Any(templateRect =>
-                templateRect && templateRect.gameObject.activeInHierarchy &&
-                RectTransformUtility.RectangleContainsScreenPoint(templateRect, mousePos));
+                templateRect 
+                && templateRect.gameObject.activeInHierarchy 
+                && RectTransformUtility.RectangleContainsScreenPoint(templateRect, mousePos));
         }
 
         // fixes dropdown templates created by the game's SettingsMenu.
@@ -157,9 +158,9 @@ namespace CUCoreLib.Helpers
             if (menu == null) return;
 
             RebuildButtons();
-            if (!string.IsNullOrWhiteSpace(activeOwnedCategoryKey) &&
-                ModOptionsRegistry.TryGetOwnedCustomCategory(activeOwnedCategoryKey, out var activeEntry) &&
-                activeEntry != null)
+            if (!string.IsNullOrWhiteSpace(activeOwnedCategoryKey)
+                && ModOptionsRegistry.TryGetOwnedCustomCategory(activeOwnedCategoryKey, out var activeEntry) 
+                && activeEntry != null)
                 activeCategoryIndex = activeEntry.CategoryIndex;
             menu.SelectTab(activeCategoryIndex);
         }
@@ -173,15 +174,9 @@ namespace CUCoreLib.Helpers
             ModOptionsRegistry.ReconcileCustomCategoryOwnership(Settings.settings);
 
             var categories = ModOptionsRegistry.GetCustomCategories();
-            if (menu == null || menu.buttons == null || menu.buttons.Count == 0)
-            {
-                return;
-            }
+            if (menu == null || menu.buttons == null || menu.buttons.Count == 0) return;
 
-            if (categories.Count == 0)
-            {
-                return;
-            }
+            if (categories.Count == 0) return;
 
             var template = FindTemplateButton();
             if (!template) return;
@@ -220,9 +215,7 @@ namespace CUCoreLib.Helpers
                     label.text = category.DisplayName;
                     foreach (var localizer in label.GetComponents<MonoBehaviour>()
                                  .Where(component => component && component.GetType().Name.Contains("Local")))
-                    {
                         Destroy(localizer);
-                    }
 
                     NormalizeTabLabel(label);
                 }
@@ -241,12 +234,11 @@ namespace CUCoreLib.Helpers
                 foreach (var button in customButtons)
                     menu.buttons.Remove(button);
 
-            foreach (var button in customButtons)
-                if (button)
-                {
-                    buttonCategoryIndices.Remove(button);
-                    Destroy(button.gameObject);
-                }
+            foreach (var button in customButtons.Where(button => button))
+            {
+                buttonCategoryIndices.Remove(button);
+                Destroy(button.gameObject);
+            }
 
             customButtons.Clear();
         }
@@ -297,7 +289,7 @@ namespace CUCoreLib.Helpers
 
         private void ClampScrollPosition()
         {
-            if (menu?.content == null) return;
+            if (!menu?.content) return;
 
             var anchoredPosition = menu.content.anchoredPosition;
             anchoredPosition.y = Mathf.Clamp(anchoredPosition.y, 0f, GetMaxScroll());
@@ -306,20 +298,18 @@ namespace CUCoreLib.Helpers
 
         private float GetMaxScroll()
         {
-            if (menu?.content == null) return 0f;
+            if (!menu?.content) return 0f;
 
             var viewport = menu.content.parent as RectTransform;
-            if (viewport == null) return 0f;
+            if (!viewport) return 0f;
 
             return Mathf.Max(0f, menu.content.sizeDelta.y - viewport.rect.height);
         }
 
         private void CaptureBuiltInLayoutIfNeeded()
         {
-            if (capturedBuiltInLayout || menu == null || menu.buttons == null || menu.buttons.Count < BuiltInTabCount)
-            {
-                return;
-            }
+            if (capturedBuiltInLayout || menu == null || menu.buttons == null ||
+                menu.buttons.Count < BuiltInTabCount) return;
 
             builtInAnchoredPositions.Clear();
             builtInSizes.Clear();
@@ -345,7 +335,8 @@ namespace CUCoreLib.Helpers
         {
             if (!capturedBuiltInLayout || menu == null || menu.buttons == null) return;
 
-            var builtInCount = Mathf.Min(Mathf.Min(BuiltInTabCount, menu.buttons.Count), builtInAnchoredPositions.Count);
+            var builtInCount = Mathf.Min(Mathf.Min(BuiltInTabCount, menu.buttons.Count),
+                builtInAnchoredPositions.Count);
             for (var i = 0; i < builtInCount; i++)
             {
                 var rect = menu.buttons[i] != null ? menu.buttons[i].transform as RectTransform : null;
@@ -358,8 +349,12 @@ namespace CUCoreLib.Helpers
 
         private void ReflowButtonsIntoOriginalBand()
         {
-            if (!capturedBuiltInLayout || menu == null || menu.buttons == null || menu.buttons.Count == 0 ||
-                builtInAnchoredPositions.Count < BuiltInTabCount || builtInSizes.Count < BuiltInTabCount)
+            if (!capturedBuiltInLayout 
+                || menu == null 
+                || menu.buttons == null
+                || menu.buttons.Count == 0 
+                || builtInAnchoredPositions.Count < BuiltInTabCount
+                || builtInSizes.Count < BuiltInTabCount)
                 return;
 
             var totalButtons = menu.buttons.Count;
@@ -390,12 +385,12 @@ namespace CUCoreLib.Helpers
 
         private float GetTabStripRightEdge(float firstLeft)
         {
-            var parentRect = menu.buttons[0] != null ? menu.buttons[0].transform.parent as RectTransform : null;
+            var parentRect = menu.buttons[0] != null 
+                ? menu.buttons[0].transform.parent as RectTransform
+                : null;
             if (parentRect == null)
-            {
                 return builtInAnchoredPositions[BuiltInTabCount - 1].x +
                        builtInSizes[BuiltInTabCount - 1].x * 0.5f;
-            }
 
             // The vanilla buttons occupy only part of their parent. Use the matching right inset so
             // custom tabs consume the entire visible tab strip instead of stopping at the Language tab.

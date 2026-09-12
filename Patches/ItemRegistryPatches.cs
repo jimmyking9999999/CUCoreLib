@@ -34,16 +34,14 @@ namespace CUCoreLib.Patches
         private static readonly HashSet<string> WarnedInvalidSpawnComponents =
             new HashSet<string>();
 
+        [ThreadStatic] private static LiquidRegistry.HealthUseMode previousLiquidApplyMode;
+
+        [ThreadStatic] private static LiquidRegistry.HealthUseMode previousLiquidInjectMode;
+
         internal static void ClearWorldState()
         {
             NextLightLookupFrameByInstance.Clear();
         }
-
-        [ThreadStatic]
-        private static LiquidRegistry.HealthUseMode previousLiquidApplyMode;
-
-        [ThreadStatic]
-        private static LiquidRegistry.HealthUseMode previousLiquidInjectMode;
 
         // Startup injection
         [HarmonyPatch("SetupItems")]
@@ -62,6 +60,7 @@ namespace CUCoreLib.Patches
                 }
                 catch
                 {
+                    // ignored
                 }
 
             CUCoreLibPlugin.Log.LogInfo($"Bulk injected {ItemRegistry.RegisteredItems.Count} items.");
@@ -97,7 +96,8 @@ namespace CUCoreLib.Patches
             if (stats == null || !stats.scaleWeightWithCondition)
                 return true;
 
-            __result = Mathf.Max(0f, Mathf.Lerp(def.scaleConditionToward, stats.weight, Mathf.Clamp01(__instance.condition)));
+            __result = Mathf.Max(0f,
+                Mathf.Lerp(def.scaleConditionToward, stats.weight, Mathf.Clamp01(__instance.condition)));
             return false;
         }
 
@@ -196,7 +196,9 @@ namespace CUCoreLib.Patches
 
                 if (preferWornSprite && item.TryGetComponent<Wearable>(out var wearable))
                 {
-                    var body = item.transform.parent != null ? item.transform.parent.GetComponentInParent<Body>() : null;
+                    var body = item.transform.parent != null
+                        ? item.transform.parent.GetComponentInParent<Body>()
+                        : null;
                     if (body != null)
                     {
                         wearable.ClearSprites();
@@ -232,7 +234,7 @@ namespace CUCoreLib.Patches
             if (def != null && !string.IsNullOrWhiteSpace(def.IconAnimationId))
             {
                 var animation = AssetLoader.GetCachedSpriteAnimation(def.IconAnimationId);
-                if (animation != null && animation.Frames != null && animation.Frames.Length > 0 &&
+                if (animation?.Frames != null && animation.Frames.Length > 0 &&
                     ItemRegistry.IsValidIcon(animation.Frames[0]))
                     return animation.Frames[0];
             }
@@ -334,7 +336,7 @@ namespace CUCoreLib.Patches
             if (slot == null || !slot.isHand) return;
 
             var offset = def.VisualOffset;
-            if (offset == default(Vector2))
+            if (offset == default)
                 offset = def.HeldSpriteOffset;
             item.transform.localPosition = new Vector3(offset.x, offset.y,
                 item.transform.localPosition.z);
@@ -353,7 +355,8 @@ namespace CUCoreLib.Patches
         private static bool IsCurrentlyWornWearable(Item item, CustomItemInfo def)
         {
             if (item == null || def == null) return false;
-            if (def.WornSprite == null && (def.MultiWornSprites == null || def.MultiWornSprites.Count == 0)) return false;
+            if (def.WornSprite == null && (def.MultiWornSprites == null || def.MultiWornSprites.Count == 0))
+                return false;
             if (!item.TryGetComponent<Wearable>(out _)) return false;
 
             var parent = item.transform.parent;
@@ -432,10 +435,7 @@ namespace CUCoreLib.Patches
 
                 if (def.capacity > 0f)
                 {
-                    var totalAmount = 0f;
-                    for (var si = 0; si < wat.stack.Count; si++)
-                        if (wat.stack[si] != null)
-                            totalAmount += wat.stack[si].amount;
+                    var totalAmount = wat.stack.Where(t => t != null).Sum(t => t.amount);
                     item.condition = Mathf.Clamp01(totalAmount / def.capacity);
                 }
             }
@@ -455,14 +455,9 @@ namespace CUCoreLib.Patches
                     foreach (var liquid in def.Syringe.DefaultContents)
                         wat.stack.Add(new LiquidStack(liquid.liquidId, liquid.amount));
 
-                if (def.Syringe.Capacity > 0f)
-                {
-                    var totalAmount = 0f;
-                    for (var si = 0; si < wat.stack.Count; si++)
-                        if (wat.stack[si] != null)
-                            totalAmount += wat.stack[si].amount;
-                    item.condition = Mathf.Clamp01(totalAmount / def.Syringe.Capacity);
-                }
+                if (!(def.Syringe.Capacity > 0f)) return;
+                var totalAmount = wat.stack.Where(t => t != null).Sum(t => t.amount);
+                item.condition = Mathf.Clamp01(totalAmount / def.Syringe.Capacity);
             }
         }
 
@@ -508,14 +503,10 @@ namespace CUCoreLib.Patches
             if (waterContainer == null) return null;
 
             var renderers = waterContainer.GetComponentsInChildren<SpriteRenderer>(true);
-            for (var i = 0; i < renderers.Length; i++)
-            {
-                var renderer = renderers[i];
-                if (renderer != null && renderer.transform.parent == waterContainer.transform &&
-                    string.Equals(renderer.gameObject.name, "LiquidFill", StringComparison.Ordinal))
-                    return renderer;
-            }
-            return null;
+            return renderers.FirstOrDefault(renderer =>
+                renderer != null 
+                && renderer.transform.parent == waterContainer.transform
+                && string.Equals(renderer.gameObject.name, "LiquidFill", StringComparison.Ordinal));
         }
 
         internal static void ApplyContainerProperties(Item item, CustomItemInfo def)
@@ -528,7 +519,7 @@ namespace CUCoreLib.Patches
             cont.maxWeightPerItem = def.Container.MaxWeightPerItem;
             cont.encumberanceMult = def.Container.EncumbranceReduction;
             cont.itemsVisible = def.Container.ItemsVisible;
-            cont.tagRestriction = def.Container.TagRestriction ?? new string[0];
+            cont.tagRestriction = def.Container.TagRestriction ?? Array.Empty<string>();
         }
 
         private static bool IsLiquidContainer(CustomItemInfo def)
@@ -541,12 +532,7 @@ namespace CUCoreLib.Patches
             var copy = new List<LiquidStack>();
             if (source == null) return copy;
 
-            for (var i = 0; i < source.Count; i++)
-            {
-                var liquid = source[i];
-                if (liquid != null)
-                    copy.Add(new LiquidStack(liquid.liquidId, liquid.amount));
-            }
+            copy.AddRange(from liquid in source where liquid != null select new LiquidStack(liquid.liquidId, liquid.amount));
 
             return copy;
         }
@@ -580,9 +566,9 @@ namespace CUCoreLib.Patches
         }
 
         /// <summary>
-        /// Applies the complete Light2D state from one shared seam.  Point/cone
-        /// lights are explicitly marked after all shape fields are assigned so
-        /// URP consumes the new cone state on its next LateUpdate.
+        ///     Applies the complete Light2D state from one shared seam.  Point/cone
+        ///     lights are explicitly marked after all shape fields are assigned so
+        ///     URP consumes the new cone state on its next LateUpdate.
         /// </summary>
         internal static void ApplyLightProperties(Light2D light, LightProperties properties)
         {
@@ -599,17 +585,15 @@ namespace CUCoreLib.Patches
             light.pointLightOuterAngle = properties.PointLightOuterAngle;
             light.pointLightInnerAngle = properties.PointLightInnerAngle;
 
-            if (properties.LightType == CustomLightType.Point &&
-                (properties.PointLightInnerAngle < 360f || properties.PointLightOuterAngle < 360f))
+            if (properties.LightType != CustomLightType.Point ||
+                (!(properties.PointLightInnerAngle < 360f) && !(properties.PointLightOuterAngle < 360f))) return;
+            try
             {
-                try
-                {
-                    MarkLightForUpdateMethod?.Invoke(light, null);
-                }
-                catch
-                {
-                    // Older URP versions may not expose the internal refresh hook.
-                }
+                MarkLightForUpdateMethod?.Invoke(light, null);
+            }
+            catch
+            {
+                // Older URP versions may not expose the internal refresh hook.
             }
         }
 
@@ -748,11 +732,9 @@ namespace CUCoreLib.Patches
 
             var startCharge = maxCharge;
             if (def.Battery.StartCharge >= 0f)
-            {
                 startCharge = def.Battery.StartCharge <= 1f
                     ? maxCharge * def.Battery.StartCharge
                     : Mathf.Min(def.Battery.StartCharge, maxCharge);
-            }
 
             item.condition = Mathf.Clamp01(startCharge / Mathf.Max(1f, maxCharge));
         }
@@ -918,12 +900,15 @@ namespace CUCoreLib.Patches
             WarnInvalidDecayConfiguration(__instance,
                 "uses BatteryDecay but has no BatteryItem component; skipping decay update");
             return false;
-
         }
 
         private static void WarnInvalidDecayConfiguration(Item item, string issue)
         {
-            var itemId = string.IsNullOrWhiteSpace(item != null ? item.id : null) ? "<unknown>" : item.id;
+            var itemId = string.IsNullOrWhiteSpace(item != null
+                ? item.id 
+                : null) 
+                ? "<unknown>"
+                : item.id;
             var warningKey = itemId + "|" + issue;
             if (!WarnedInvalidDecayConfigurations.Add(warningKey)) return;
 
@@ -968,7 +953,6 @@ namespace CUCoreLib.Patches
             if (!Item.GlobalItems.TryGetValue(id, out var info)) return true;
             __result = info;
             return false;
-
         }
 
         private sealed class PendingBatteryInitializationMarker : MonoBehaviour
@@ -999,7 +983,6 @@ namespace CUCoreLib.Patches
                 if (!Item.GlobalItems.TryGetValue(__instance.id, out var info)) return true;
                 __result = info;
                 return false;
-
             }
         }
     }

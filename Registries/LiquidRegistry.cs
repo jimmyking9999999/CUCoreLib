@@ -2,8 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
-using CUCoreLib.ContentReload;
 using CUCoreLib.Data;
+using CUCoreLib.DevTools.HotReload;
 using CUCoreLib.Helpers;
 using CUCoreLib.Networking;
 using CUCoreLib.Patches;
@@ -15,13 +15,6 @@ namespace CUCoreLib.Registries
 {
     public static class LiquidRegistry
     {
-        internal enum HealthUseMode
-        {
-            None,
-            ApplyToLimb,
-            Inject
-        }
-
         internal static Dictionary<string, CustomLiquidInfo> RegisteredLiquids =
             new Dictionary<string, CustomLiquidInfo>(StringComparer.OrdinalIgnoreCase);
 
@@ -50,6 +43,7 @@ namespace CUCoreLib.Registries
             }
             catch
             {
+                // ignored
             }
 
             try
@@ -58,6 +52,7 @@ namespace CUCoreLib.Registries
             }
             catch
             {
+                // ignored
             }
 
             KrokMpCompatibilityPatches.RefreshLiquidRegistry();
@@ -67,6 +62,7 @@ namespace CUCoreLib.Registries
             }
             catch
             {
+                // ignored
             }
 
             try
@@ -75,6 +71,7 @@ namespace CUCoreLib.Registries
             }
             catch
             {
+                // ignored
             }
         }
 
@@ -94,15 +91,14 @@ namespace CUCoreLib.Registries
         {
             var injected = 0;
             foreach (var entry in RegisteredLiquids.ToArray())
-            {
                 try
                 {
                     if (InjectSingleLiquid(entry.Key, entry.Value)) injected++;
                 }
                 catch
                 {
+                    // ignored
                 }
-            }
 
             KrokMpCompatibilityPatches.RefreshLiquidRegistry();
 
@@ -113,6 +109,7 @@ namespace CUCoreLib.Registries
                 }
                 catch
                 {
+                    // ignored
                 }
 
             return injected;
@@ -139,6 +136,7 @@ namespace CUCoreLib.Registries
             {
                 return false;
             }
+
             return true;
         }
 
@@ -156,6 +154,7 @@ namespace CUCoreLib.Registries
             }
             catch
             {
+                // ignored
             }
 
             var wasPresent = Liquids.Registry.ContainsKey(id);
@@ -180,6 +179,7 @@ namespace CUCoreLib.Registries
                 }
                 catch
                 {
+                    // ignored
                 }
 
             if (!string.IsNullOrEmpty(info.description))
@@ -189,6 +189,7 @@ namespace CUCoreLib.Registries
                 }
                 catch
                 {
+                    // ignored
                 }
 
             return !wasPresent;
@@ -230,6 +231,7 @@ namespace CUCoreLib.Registries
                     return info.onApplyToLimb ?? info.onHealthUse;
                 case HealthUseMode.Inject:
                     return info.onInject ?? info.onHealthUse;
+                case HealthUseMode.None:
                 default:
                     return info.onHealthUse ?? info.onApplyToLimb ?? info.onInject;
             }
@@ -274,14 +276,14 @@ namespace CUCoreLib.Registries
             KrokMpCompatibilityPatches.RefreshLiquidRegistry();
 
             if (ids.Length > 0)
-                result?.AddInfo("Cleared " + ids.Length + " liquid registrations owned by '" + normalizedOwnerId + "'.");
+                result?.AddInfo("Cleared " + ids.Length + " liquid registrations owned by '" + normalizedOwnerId +
+                                "'.");
         }
 
         internal static JObject CaptureNetworkSnapshot()
         {
             var root = new JObject();
             foreach (var entry in RegisteredLiquids.ToArray())
-            {
                 try
                 {
                     var info = entry.Value;
@@ -303,8 +305,8 @@ namespace CUCoreLib.Registries
                 }
                 catch
                 {
+                    // ignored
                 }
-            }
 
             return root;
         }
@@ -340,6 +342,7 @@ namespace CUCoreLib.Registries
                 }
                 catch
                 {
+                    // ignored
                 }
             }
         }
@@ -361,5 +364,11 @@ namespace CUCoreLib.Registries
                 .ToDictionary(entry => entry.Key, entry => entry.Value, StringComparer.Ordinal);
         }
 
+        internal enum HealthUseMode
+        {
+            None,
+            ApplyToLimb,
+            Inject
+        }
     }
 }

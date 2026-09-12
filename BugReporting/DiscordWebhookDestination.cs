@@ -9,6 +9,7 @@ namespace CUCoreLib.BugReporting
     internal sealed class DiscordWebhookDestination
     {
         private const int RequestTimeoutSeconds = 30;
+
         // Surely...
         private readonly string _webhookUrl;
 
@@ -35,13 +36,11 @@ namespace CUCoreLib.BugReporting
             }
 
             if (report.Screenshot != null && report.Screenshot.Length > 0)
-            {
                 sections.Add(new MultipartFormFileSection(
                     "files[" + (sections.Count - 1) + "]",
                     report.Screenshot,
                     "screenshot.jpg",
                     "image/jpeg"));
-            }
 
             var url = _webhookUrl.IndexOf('?') >= 0
                 ? _webhookUrl + "&wait=true"
@@ -61,10 +60,13 @@ namespace CUCoreLib.BugReporting
                 completed(new BugReportSendResult
                 {
                     Success = false,
-                    Error = "Please check your internet connection! | HTTP " + request.responseCode + ": " + request.error,
+                    Error = "Please check your internet connection! | HTTP " + request.responseCode + ": " +
+                            request.error,
                     RetryAfterSeconds = request.responseCode == 429
                         ? ReadRetryAfterSeconds(request.downloadHandler?.text)
-                        : request.responseCode >= 500 ? 1f : 0f
+                        : request.responseCode >= 500
+                            ? 1f
+                            : 0f
                 });
             }
         }
@@ -88,7 +90,7 @@ namespace CUCoreLib.BugReporting
                     //Field("Scene", string.IsNullOrWhiteSpace(report.SceneName) ? "unknown" : report.SceneName, true),
                     //Field("World active", report.IsWorldActive ? "Yes" : "No", true),
                     Field("Operating system",
-                        string.IsNullOrWhiteSpace(report.OperatingSystem) ? "unknown" : report.OperatingSystem, false),
+                        string.IsNullOrWhiteSpace(report.OperatingSystem) ? "unknown" : report.OperatingSystem, false)
                     //Field("Screenshot", string.IsNullOrWhiteSpace(report.ScreenshotNote)
                     //    ? (report.Screenshot != null ? "Attached" : "Not requested")
                     //    : report.ScreenshotNote, false)

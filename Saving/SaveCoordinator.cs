@@ -25,25 +25,6 @@ namespace CUCoreLib.Saving
 
         private static bool _warnedUnsupportedKrokMpScope;
 
-        internal sealed class LoadState
-        {
-            internal readonly KrokMpSaveScope Scope;
-            internal readonly JObject Payload;
-            internal readonly Body Body;
-            internal readonly PlayerCamera PlayerCamera;
-            internal readonly WorldGeneration World;
-
-            internal LoadState(KrokMpSaveScope scope, JObject payload, Body body, PlayerCamera playerCamera,
-                WorldGeneration world)
-            {
-                Scope = scope;
-                Payload = payload;
-                Body = body;
-                PlayerCamera = playerCamera;
-                World = world;
-            }
-        }
-
         internal static void EmbedIntoSaveFile()
         {
             try
@@ -105,7 +86,8 @@ namespace CUCoreLib.Saving
                     WarnUnknownProviders(state.Payload["global"] as JObject, SaveRegistry.GlobalProviderKeys, "global");
                     WarnUnknownProviders(state.Payload["world"] as JObject, SaveRegistry.WorldProviderKeys, "world");
                     ApplyGlobalProviders(state.Payload["global"] as JObject, restoreContext);
-                    ApplyWorldProviders(state.Payload["world"] as JObject, restoreContext, state.Body, state.PlayerCamera,
+                    ApplyWorldProviders(state.Payload["world"] as JObject, restoreContext, state.Body,
+                        state.PlayerCamera,
                         state.World);
                 }
 
@@ -512,6 +494,25 @@ namespace CUCoreLib.Saving
 
                     path = null;
                     return false;
+            }
+        }
+
+        internal sealed class LoadState
+        {
+            internal readonly Body Body;
+            internal readonly JObject Payload;
+            internal readonly PlayerCamera PlayerCamera;
+            internal readonly KrokMpSaveScope Scope;
+            internal readonly WorldGeneration World;
+
+            internal LoadState(KrokMpSaveScope scope, JObject payload, Body body, PlayerCamera playerCamera,
+                WorldGeneration world)
+            {
+                Scope = scope;
+                Payload = payload;
+                Body = body;
+                PlayerCamera = playerCamera;
+                World = world;
             }
         }
     }

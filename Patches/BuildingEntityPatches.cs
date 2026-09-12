@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
@@ -12,9 +11,9 @@ using Object = UnityEngine.Object;
 
 namespace CUCoreLib.Patches
 {
-    [HarmonyPatch(typeof(BuildingEntity), "Start")]
     internal static class BuildingEntityPatches
     {
+        [HarmonyPatch(typeof(BuildingEntity), "Start")]
         [HarmonyPostfix]
         private static void PreserveRegisteredBuildingLocale(BuildingEntity __instance)
         {
@@ -30,7 +29,6 @@ namespace CUCoreLib.Patches
 
     // BuildingEntity's vanilla destruction path loads each drop directly from Resources.
     // CUCoreLib items are runtime templates, so they need the same fallback used by save loading
-    [HarmonyPatch(typeof(BuildingEntity), "Update")]
     internal static class BuildingEntityBodyTypePatch
     {
         private static readonly MethodInfo BodyTypeSetter = AccessTools.PropertySetter(
@@ -39,6 +37,7 @@ namespace CUCoreLib.Patches
         private static readonly MethodInfo SetBodyTypeIfChangedMethod = AccessTools.Method(
             typeof(BuildingEntityBodyTypePatch), nameof(SetBodyTypeIfChanged));
 
+        [HarmonyPatch(typeof(BuildingEntity), "Update")]
         [HarmonyTranspiler]
         private static IEnumerable<CodeInstruction> AvoidRedundantBodyTypeWrites(
             IEnumerable<CodeInstruction> instructions)
@@ -62,7 +61,6 @@ namespace CUCoreLib.Patches
         }
     }
 
-    [HarmonyPatch(typeof(BuildingEntity), "Update")]
     internal static class BuildingEntityCustomDropResolutionPatch
     {
         private static readonly MethodInfo ResourcesLoadMethod = typeof(Resources)
@@ -76,6 +74,7 @@ namespace CUCoreLib.Patches
         private static readonly MethodInfo ResolveSavedResourceMethod =
             AccessTools.Method(typeof(CustomInstantiate), nameof(CustomInstantiate.ResolveSavedResource));
 
+        [HarmonyPatch(typeof(BuildingEntity), "Update")]
         [HarmonyTranspiler]
         private static IEnumerable<CodeInstruction> ResolveRuntimeCustomDrops(
             IEnumerable<CodeInstruction> instructions)
@@ -93,9 +92,9 @@ namespace CUCoreLib.Patches
         }
     }
 
-    [HarmonyPatch(typeof(BuildingEntity), "Update")]
     internal static class BuildingEntityDropPoolPatches
     {
+        [HarmonyPatch(typeof(BuildingEntity), "Update")]
         [HarmonyPrefix]
         private static bool HandleBuiltInDropPools(BuildingEntity __instance)
         {
@@ -116,7 +115,8 @@ namespace CUCoreLib.Patches
                 }
             }
 
-            Object.Instantiate(Resources.Load<GameObject>("DustBig"), __instance.transform.position, Quaternion.identity);
+            Object.Instantiate(Resources.Load<GameObject>("DustBig"), __instance.transform.position,
+                Quaternion.identity);
             if (__instance.animal) __instance.gameObject.SendMessage("AnimalDeath");
 
             Sound.Play("footstep/Rock/11", __instance.transform.position);
@@ -126,7 +126,8 @@ namespace CUCoreLib.Patches
                                Vector2.Distance(__instance.transform.position,
                                    PlayerCamera.main.body.transform.position) < 8f;
 
-            SpawnDropArray(__instance, __instance.itemsDropOnDestroy, __instance.dropChanceMultiplier, isNearPlayer, true);
+            SpawnDropArray(__instance, __instance.itemsDropOnDestroy, __instance.dropChanceMultiplier, isNearPlayer,
+                true);
             SpawnDropPoolEntries(__instance, source, isNearPlayer);
             SpawnDropArray(__instance, __instance.alwaysDrop, 1f, isNearPlayer, false);
 
@@ -169,7 +170,7 @@ namespace CUCoreLib.Patches
             for (var i = 0; i < building.guaranteedDropAmount; i++)
             {
                 var fallbackCategory = building.itemCategoriesToAdd != null && building.itemCategoriesToAdd.Length > 0
-                    ? building.itemCategoriesToAdd[UnityEngine.Random.Range(0, building.itemCategoriesToAdd.Length)]
+                    ? building.itemCategoriesToAdd[Random.Range(0, building.itemCategoriesToAdd.Length)]
                     : null;
 
                 if (!DropPoolRegistry.TryGetRandomItemId(source, fallbackCategory, out var itemId)) continue;
@@ -178,7 +179,8 @@ namespace CUCoreLib.Patches
             }
         }
 
-        private static void SpawnDropArray(BuildingEntity building, ItemDrop[] drops, float multiplier, bool isNearPlayer,
+        private static void SpawnDropArray(BuildingEntity building, ItemDrop[] drops, float multiplier,
+            bool isNearPlayer,
             bool useChance)
         {
             if (building == null || drops == null || drops.Length == 0) return;
@@ -186,24 +188,27 @@ namespace CUCoreLib.Patches
             foreach (var drop in drops)
             {
                 if (drop == null || string.IsNullOrWhiteSpace(drop.id)) continue;
-                if (useChance && UnityEngine.Random.Range(0f, 1f) >= drop.chance * multiplier) continue;
+                if (useChance && Random.Range(0f, 1f) >= drop.chance * multiplier) continue;
 
-                SpawnSingleDrop(building.transform.position, drop.id, drop.conditionMin, drop.conditionMax, isNearPlayer);
+                SpawnSingleDrop(building.transform.position, drop.id, drop.conditionMin, drop.conditionMax,
+                    isNearPlayer);
             }
         }
 
         private static void SpawnSingleDrop(Vector3 position, string itemId, float conditionMin, float conditionMax,
             bool isNearPlayer)
         {
-            var rotation = Quaternion.Euler(0f, 0f, UnityEngine.Random.Range(0f, 360f));
-            var initialCondition = UnityEngine.Random.Range(conditionMin, conditionMax);
+            var rotation = Quaternion.Euler(0f, 0f, Random.Range(0f, 360f));
+            var initialCondition = Random.Range(conditionMin, conditionMax);
             BuildingEntityRegistry.SpawnDrop(position, itemId, rotation, initialCondition, conditionMin, conditionMax,
                 isNearPlayer);
         }
 
         private static bool TryGetComponent<T>(Component component, out T value) where T : Component
         {
-            value = component != null ? component.GetComponent<T>() : null;
+            value = component != null
+                ? component.GetComponent<T>() 
+                : null;
             return value != null;
         }
     }

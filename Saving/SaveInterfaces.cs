@@ -43,10 +43,6 @@ namespace CUCoreLib.Saving
 
     public sealed class WorldSaveContext
     {
-        private readonly Body _body;
-        private readonly PlayerCamera _playerCamera;
-        private readonly WorldGeneration _world;
-
         public WorldSaveContext()
             : this(PlayerCamera.main != null ? PlayerCamera.main.body : null, PlayerCamera.main,
                 WorldGeneration.world)
@@ -55,14 +51,16 @@ namespace CUCoreLib.Saving
 
         internal WorldSaveContext(Body body, PlayerCamera playerCamera, WorldGeneration world)
         {
-            _body = body;
-            _playerCamera = playerCamera;
-            _world = world;
+            Body = body;
+            PlayerCamera = playerCamera;
+            World = world;
         }
 
-        public Body Body => _body;
-        public PlayerCamera PlayerCamera => _playerCamera;
-        public WorldGeneration World => _world;
+        public Body Body { get; }
+
+        public PlayerCamera PlayerCamera { get; }
+
+        public WorldGeneration World { get; }
     }
 
     public sealed class SaveRestoreContext

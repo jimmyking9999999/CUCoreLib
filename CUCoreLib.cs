@@ -5,8 +5,7 @@ using BepInEx;
 using BepInEx.Configuration;
 using BepInEx.Logging;
 using CUCoreLib.Bootstrap;
-using CUCoreLib.BugReporting;
-using CUCoreLib.ContentReload;
+using CUCoreLib.DevTools.HotReload;
 using CUCoreLib.Helpers;
 using CUCoreLib.Networking;
 using CUCoreLib.Patches;
@@ -27,11 +26,45 @@ namespace CUCoreLib
         private static readonly Mutex ConfigFileMutex = new Mutex(false, ConfigFileMutexName);
 
         internal static ManualLogSource Log;
-        // Alllright. Let's get this party rolling.
+        // Alright. Let's get this party rolling.
 
 
         public static CUCoreLibPlugin Instance { get; private set; }
         internal static ConfigFile SharedConfig { get; private set; }
+
+        private void Awake()
+        {
+            Instance = this;
+            Log = Logger;
+            SharedConfig = GetOrCreateSharedConfig();
+            BepInExConfigurationGuard.EnsureManagerIsHidden(
+                Path.Combine(Paths.ConfigPath, BepInExCoreConfigFileName), Logger);
+
+            // Logger.LogInfo($"Starting up {MODNAME} v{VERSION}...");
+
+            // Initialize Helpers
+            AssetLoader.Initialize(Logger);
+            FileLoader.Initialize(Logger);
+            LocaleLoader.Initialize(Logger);
+            LaunchOverrideManager.Initialize();
+            DebugWatchService.Initialize();
+            ContentReloadManager.Initialize();
+            SaveRegistry.RegisterBuiltIns();
+            LiquidTileRegistry.RegisterBuiltIns();
+            MultiplayerApi.RegisterBuiltIns();
+            UpdateChecker.Initialize(Logger);
+
+            // Patches
+            var harmony = new Harmony(GUID);
+            harmony.PatchAll();
+            KrokMpCompatibilityPatches.Install(harmony);
+            QoLUnknownCompatibilityPatches.Install(harmony);
+
+            MultiplayerBridge.Initialize(harmony);
+            MultiplayerSyncRegistry.ScheduleInitialSnapshot();
+
+            Logger.LogInfo("CUCoreLib is ready to sit in the background.");
+        }
 
         internal static ConfigFile GetOrCreateSharedConfig()
         {
@@ -45,7 +78,7 @@ namespace CUCoreLib
             {
                 if (SharedConfig != null) return SharedConfig;
 
-                SharedConfig = new ConfigFile(System.IO.Path.Combine(Paths.ConfigPath, "CUCoreLib.cfg"), false)
+                SharedConfig = new ConfigFile(Path.Combine(Paths.ConfigPath, "CUCoreLib.cfg"), false)
                 {
                     SaveOnConfigSet = false
                 };
@@ -141,41 +174,5 @@ namespace CUCoreLib
                 ConfigFileMutex.ReleaseMutex();
             }
         }
-
-        private void Awake()
-        {
-            Instance = this;
-            Log = Logger;
-            SharedConfig = GetOrCreateSharedConfig();
-            BepInExConfigurationGuard.EnsureManagerIsHidden(
-                Path.Combine(Paths.ConfigPath, BepInExCoreConfigFileName), Logger);
-
-            // Logger.LogInfo($"Starting up {MODNAME} v{VERSION}...");
-
-            // Initialize Helpers
-            AssetLoader.Initialize(Logger);
-            FileLoader.Initialize(Logger);
-            LocaleLoader.Initialize(Logger);
-            LaunchOverrideManager.Initialize();
-            DebugWatchService.Initialize();
-            ContentReloadManager.Initialize();
-            SaveRegistry.RegisterBuiltIns();
-            LiquidTileRegistry.RegisterBuiltIns();
-            MultiplayerApi.RegisterBuiltIns();
-            BuiltInCommandRegistrar.Register();
-            UpdateChecker.Initialize(Logger);
-
-            // Patches
-            var harmony = new Harmony(GUID);
-            harmony.PatchAll();
-            KrokMpCompatibilityPatches.Install(harmony);
-            QoLUnknownCompatibilityPatches.Install(harmony);
-
-            MultiplayerBridge.Initialize(harmony);
-            MultiplayerSyncRegistry.ScheduleInitialSnapshot();
-
-            Logger.LogInfo("CUCoreLib is ready to sit in the background.");
-        }
-
     }
 }

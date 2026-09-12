@@ -7,20 +7,18 @@ namespace CUCoreLib.Data
     [StatusOptions(Key = "cucorelib.bodyFormulaData", SaveEnabled = true)]
     internal sealed class BodyFormulaData : BodyStatus
     {
+        [JsonIgnore] public float AppliedAveragePainContribution;
+
+        [JsonIgnore] public float AppliedJumpSpeedContribution;
+
+        public Dictionary<string, float> AveragePain = new Dictionary<string, float>();
         public Dictionary<string, float> BloodPressure = new Dictionary<string, float>();
         public Dictionary<string, float> HeartRate = new Dictionary<string, float>();
-        public Dictionary<string, float> RespiratoryRate = new Dictionary<string, float>();
-        public Dictionary<string, float> MaxEncumberance = new Dictionary<string, float>();
-        public Dictionary<string, float> TotalEncumberance = new Dictionary<string, float>();
         public Dictionary<string, float> Immunity = new Dictionary<string, float>();
         public Dictionary<string, float> JumpSpeed = new Dictionary<string, float>();
-        public Dictionary<string, float> AveragePain = new Dictionary<string, float>();
-
-        [JsonIgnore]
-        public float AppliedJumpSpeedContribution;
-
-        [JsonIgnore]
-        public float AppliedAveragePainContribution;
+        public Dictionary<string, float> MaxEncumberance = new Dictionary<string, float>();
+        public Dictionary<string, float> RespiratoryRate = new Dictionary<string, float>();
+        public Dictionary<string, float> TotalEncumberance = new Dictionary<string, float>();
 
         [JsonIgnore]
         public bool HasAnyFormulaEdits =>
@@ -35,10 +33,7 @@ namespace CUCoreLib.Data
 
         internal static float Sum(Dictionary<string, float> contributions)
         {
-            if (contributions == null || contributions.Count == 0)
-            {
-                return 0f;
-            }
+            if (contributions == null || contributions.Count == 0) return 0f;
 
             return contributions.Values.Sum();
         }

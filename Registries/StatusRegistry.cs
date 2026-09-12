@@ -48,7 +48,7 @@ namespace CUCoreLib.Registries
                 payload = new JObject
                 {
                     ["type"] = metadata.Key,
-                    ["data"] = values ?? new JObject()
+                    ["data"] = values
                 };
                 return true;
             }
@@ -155,12 +155,10 @@ namespace CUCoreLib.Registries
 
         private static void RestoreStatusToken(IStatusCollection collection, JToken token, bool isBody)
         {
-            var obj = token as JObject;
-            if (obj == null) return;
+            if (!(token is JObject obj)) return;
 
             var key = obj.Value<string>("type");
-            var data = obj["data"] as JObject;
-            if (string.IsNullOrWhiteSpace(key) || data == null) return;
+            if (string.IsNullOrWhiteSpace(key) || !(obj["data"] is JObject data)) return;
 
             if (!StatusMetadata.TryResolve(key, out var metadata))
             {
@@ -169,20 +167,26 @@ namespace CUCoreLib.Registries
                 return;
             }
 
-            if (isBody && !typeof(BodyStatus).IsAssignableFrom(metadata.StatusType)) return;
-
-            if (!isBody && !typeof(LimbStatus).IsAssignableFrom(metadata.StatusType)) return;
-
-            try
+            switch (isBody)
             {
-                var restored = (StatusBase)data.ToObject(metadata.StatusType);
-                if (restored == null) return;
+                case true when !typeof(BodyStatus).IsAssignableFrom(metadata.StatusType):
+                case false when !typeof(LimbStatus).IsAssignableFrom(metadata.StatusType):
+                    return;
+                default:
+                    try
+                    {
+                        var restored = (StatusBase)data.ToObject(metadata.StatusType);
+                        if (restored == null) return;
 
-                collection.Set(metadata.StatusType, restored);
-            }
-            catch (Exception ex)
-            {
-                CUCoreLibPlugin.Log?.LogWarning("CUCoreLib Statuses: Failed to restore status '" + key + "'.\n" + ex);
+                        collection.Set(metadata.StatusType, restored);
+                    }
+                    catch (Exception ex)
+                    {
+                        CUCoreLibPlugin.Log?.LogWarning("CUCoreLib Statuses: Failed to restore status '" + key +
+                                                        "'.\n" + ex);
+                    }
+
+                    break;
             }
         }
 
@@ -201,8 +205,7 @@ namespace CUCoreLib.Registries
 
             foreach (var token in payloads)
             {
-                var obj = token as JObject;
-                if (obj == null) continue;
+                if (!(token is JObject obj)) continue;
 
                 var limbIndex = obj.Value<int?>("slot") ?? -1;
                 if (limbIndex < 0 || limbIndex >= body.limbs.Length) continue;
@@ -220,8 +223,7 @@ namespace CUCoreLib.Registries
 
         private static void ApplySnapshotToken(IStatusCollection collection, JToken token, bool isBody)
         {
-            var obj = token as JObject;
-            if (collection == null || obj == null) return;
+            if (collection == null || !(token is JObject obj)) return;
 
             // The token is the per-slot entry written by CaptureBodyStatusArray /
             // CaptureLimbStatusArray:
@@ -259,19 +261,25 @@ namespace CUCoreLib.Registries
                 return;
             }
 
-            if (isBody && !typeof(BodyStatus).IsAssignableFrom(statusType)) return;
-
-            if (!isBody && !typeof(LimbStatus).IsAssignableFrom(statusType)) return;
-
-            try
+            switch (isBody)
             {
-                var restored = (StatusBase)data.ToObject(statusType);
-                if (restored != null) collection.Set(statusType, restored);
-            }
-            catch (Exception ex)
-            {
-                CUCoreLibPlugin.Log?.LogWarning("CUCoreLib Statuses: Failed to apply network snapshot for status '" +
-                                                typeName + "'.\n" + ex);
+                case true when !typeof(BodyStatus).IsAssignableFrom(statusType):
+                case false when !typeof(LimbStatus).IsAssignableFrom(statusType):
+                    return;
+                default:
+                    try
+                    {
+                        var restored = (StatusBase)data.ToObject(statusType);
+                        if (restored != null) collection.Set(statusType, restored);
+                    }
+                    catch (Exception ex)
+                    {
+                        CUCoreLibPlugin.Log?.LogWarning(
+                            "CUCoreLib Statuses: Failed to apply network snapshot for status '" +
+                            typeName + "'.\n" + ex);
+                    }
+
+                    break;
             }
         }
 

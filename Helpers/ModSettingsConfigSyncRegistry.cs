@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using BepInEx;
 using BepInEx.Configuration;
 using CUCoreLib.Data;
@@ -10,17 +11,6 @@ namespace CUCoreLib.Helpers
 {
     internal static class ModSettingsConfigSyncRegistry
     {
-        private sealed class SyncState
-        {
-            public ModOptionDefinition Option;
-            public Setting Setting;
-            public ConfigFile ConfigFile;
-            public ConfigEntryBase ConfigEntry;
-            public bool ApplyingFromConfig;
-            public bool ApplyingFromSetting;
-            public bool ApplyWrapped;
-        }
-
         private static readonly Dictionary<string, SyncState> StatesById =
             new Dictionary<string, SyncState>(StringComparer.Ordinal);
 
@@ -117,16 +107,14 @@ namespace CUCoreLib.Helpers
 
         private static void TryLinkState(SyncState state)
         {
-            if (state == null) return;
-
-            if (state.Option == null || state.Setting == null || state.ConfigEntry == null) return;
+            if (state?.Option == null || state.Setting == null || state.ConfigEntry == null) return;
 
             TrySyncSettingToConfig(state, "linked setting");
         }
 
         private static void WrapSettingApply(SyncState state)
         {
-            if (state == null || state.Setting == null || state.ApplyWrapped) return;
+            if (state?.Setting == null || state.ApplyWrapped) return;
 
             var originalApply = state.Setting.apply;
             state.Setting.apply = () =>
@@ -139,14 +127,14 @@ namespace CUCoreLib.Helpers
 
         private static void NotifySettingApplied(SyncState state)
         {
-            if (state == null || state.ConfigEntry == null || state.ApplyingFromConfig) return;
+            if (state?.ConfigEntry == null || state.ApplyingFromConfig) return;
 
             TrySyncSettingToConfig(state, "game setting applied");
         }
 
         private static void TrySyncConfigToSetting(SyncState state, ConfigEntryBase entry, string reason)
         {
-            if (state == null || state.Option == null || state.Setting == null || entry == null) return;
+            if (state?.Option == null || state.Setting == null || entry == null) return;
             if (state.ApplyingFromSetting) return;
 
             if (!TryConvertConfigValueToSetting(state.Option, entry.BoxedValue, out var convertedValue, out var error))
@@ -176,7 +164,7 @@ namespace CUCoreLib.Helpers
 
         private static void TrySyncSettingToConfig(SyncState state, string reason)
         {
-            if (state == null || state.Option == null || state.Setting == null || state.ConfigEntry == null) return;
+            if (state?.Option == null || state.Setting == null || state.ConfigEntry == null) return;
             if (state.ApplyingFromConfig) return;
 
             var currentValue = GetSettingValue(state.Setting, state.Option.Kind);
@@ -207,7 +195,7 @@ namespace CUCoreLib.Helpers
 
         private static void RevertConfigEntry(SyncState state)
         {
-            if (state == null || state.ConfigEntry == null || state.Option == null || state.Setting == null) return;
+            if (state?.ConfigEntry == null || state.Option == null || state.Setting == null) return;
 
             var currentValue = GetSettingValue(state.Setting, state.Option.Kind);
             if (!TryConvertSettingValueToConfig(state.Option, currentValue, state.ConfigEntry.SettingType,
@@ -232,9 +220,8 @@ namespace CUCoreLib.Helpers
 
         private static void EnsureConfigFileHooked(ConfigFile configFile)
         {
-            if (configFile == null || HookedFiles.Contains(configFile)) return;
+            if (configFile == null || !HookedFiles.Add(configFile)) return;
 
-            HookedFiles.Add(configFile);
             configFile.SettingChanged += OnConfigSettingChanged;
             configFile.ConfigReloaded += OnConfigReloaded;
         }
@@ -255,8 +242,7 @@ namespace CUCoreLib.Helpers
 
         private static void OnConfigReloaded(object sender, EventArgs e)
         {
-            var configFile = sender as ConfigFile;
-            if (configFile == null) return;
+            if (!(sender is ConfigFile configFile)) return;
 
             if (!ConfigEntriesByFile.TryGetValue(configFile, out var entries)) return;
 
@@ -278,18 +264,15 @@ namespace CUCoreLib.Helpers
             if (state?.Option == null || state.ConfigEntry != null) return;
 
             foreach (var pair in ConfigEntriesByFile)
+            foreach (var entry in from entry in pair.Value.Values
+                     where entry != null
+                     let matchedState = FindStateForDefinition(entry.Definition)
+                     where ReferenceEquals(matchedState, state)
+                     select entry)
             {
-                foreach (var entry in pair.Value.Values)
-                {
-                    if (entry == null) continue;
-
-                    var matchedState = FindStateForDefinition(entry.Definition);
-                    if (!ReferenceEquals(matchedState, state)) continue;
-
-                    state.ConfigFile = pair.Key;
-                    state.ConfigEntry = entry;
-                    return;
-                }
+                state.ConfigFile = pair.Key;
+                state.ConfigEntry = entry;
+                return;
             }
         }
 
@@ -344,7 +327,8 @@ namespace CUCoreLib.Helpers
             }
             catch (Exception ex)
             {
-                CUCoreLibPlugin.Log?.LogDebug($"CUCoreLib settings sync could not inspect loaded plugin configs: {ex.Message}");
+                CUCoreLibPlugin.Log?.LogDebug(
+                    $"CUCoreLib settings sync could not inspect loaded plugin configs: {ex.Message}");
             }
         }
 
@@ -376,14 +360,17 @@ namespace CUCoreLib.Helpers
                         convertedValue = boolValue;
                         return true;
                     }
+
                     error = DescribeExpectedValue("bool", rawValue);
                     return false;
                 case ModOptionKind.Int:
                     if (TryConvertToInt(rawValue, out var intValue))
                     {
-                        convertedValue = Mathf.Clamp(intValue, Mathf.RoundToInt(option.Min), Mathf.RoundToInt(option.Max));
+                        convertedValue = Mathf.Clamp(intValue, Mathf.RoundToInt(option.Min),
+                            Mathf.RoundToInt(option.Max));
                         return true;
                     }
+
                     error = DescribeExpectedValue("int", rawValue);
                     return false;
                 case ModOptionKind.Float:
@@ -392,6 +379,7 @@ namespace CUCoreLib.Helpers
                         convertedValue = Mathf.Clamp(floatValue, option.Min, option.Max);
                         return true;
                     }
+
                     error = DescribeExpectedValue("float", rawValue);
                     return false;
                 case ModOptionKind.Dropdown:
@@ -400,6 +388,7 @@ namespace CUCoreLib.Helpers
                         convertedValue = index;
                         return true;
                     }
+
                     return false;
                 case ModOptionKind.Keybind:
                     if (TryConvertToKeyCode(rawValue, out var keyCode))
@@ -407,6 +396,7 @@ namespace CUCoreLib.Helpers
                         convertedValue = keyCode;
                         return true;
                     }
+
                     error = DescribeExpectedValue("keybind", rawValue);
                     return false;
                 default:
@@ -527,7 +517,8 @@ namespace CUCoreLib.Helpers
                     return true;
                 case string text when bool.TryParse(text, out value):
                     return true;
-                case string text when int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsedInt):
+                case string text when int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture,
+                    out var parsedInt):
                     value = parsedInt != 0;
                     return true;
                 case byte byteValue:
@@ -590,7 +581,8 @@ namespace CUCoreLib.Helpers
                     return true;
                 case string text when int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out value):
                     return true;
-                case string text when float.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsedFloat):
+                case string text when float.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture,
+                    out var parsedFloat):
                     value = Mathf.RoundToInt(parsedFloat);
                     return true;
                 default:
@@ -620,7 +612,8 @@ namespace CUCoreLib.Helpers
                     return true;
                 case string text when float.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out value):
                     return true;
-                case string text when int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsedInt):
+                case string text when int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture,
+                    out var parsedInt):
                     value = parsedInt;
                     return true;
                 default:
@@ -642,7 +635,8 @@ namespace CUCoreLib.Helpers
                 case string text when Enum.TryParse(text, true, out KeyCode parsedKeyCode):
                     value = parsedKeyCode;
                     return true;
-                case string text when int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsedInt):
+                case string text when int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture,
+                    out var parsedInt):
                     value = (KeyCode)parsedInt;
                     return true;
                 default:
@@ -667,16 +661,12 @@ namespace CUCoreLib.Helpers
             }
 
             if (option.Choices != null && rawValue is string text)
-            {
                 for (var i = 0; i < option.Choices.Length; i++)
-                {
                     if (string.Equals(option.Choices[i].Key, text, StringComparison.OrdinalIgnoreCase))
                     {
                         value = i;
                         return true;
                     }
-                }
-            }
 
             error = DescribeExpectedValue("dropdown index or choice key", rawValue);
             value = 0;
@@ -732,6 +722,8 @@ namespace CUCoreLib.Helpers
                     }
 
                     break;
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(kind), kind, null);
             }
         }
 
@@ -739,6 +731,17 @@ namespace CUCoreLib.Helpers
         {
             if (rawValue == null) return $"expected {expected}, but value was null.";
             return $"expected {expected}, but got '{rawValue}' ({rawValue.GetType().Name}).";
+        }
+
+        private sealed class SyncState
+        {
+            public bool ApplyWrapped;
+            public bool ApplyingFromConfig;
+            public bool ApplyingFromSetting;
+            public ConfigEntryBase ConfigEntry;
+            public ConfigFile ConfigFile;
+            public ModOptionDefinition Option;
+            public Setting Setting;
         }
     }
 }

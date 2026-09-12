@@ -2,8 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
-using CUCoreLib.ContentReload;
 using CUCoreLib.Data;
+using CUCoreLib.DevTools.HotReload;
 using CUCoreLib.Helpers;
 using CUCoreLib.Networking;
 using CUCoreLib.Registries.Infrastructure;
@@ -37,11 +37,8 @@ namespace CUCoreLib.Registries
         private static readonly int GroundLayer = LayerMask.NameToLayer("Ground");
         private static bool NetworkSpawnComponentsWarningLogged;
 
-        private static readonly IReadOnlyDictionary<string, CustomBuildingEntityDefinition> ReadOnlyDefinitions =
+        public static IReadOnlyDictionary<string, CustomBuildingEntityDefinition> RegisteredDefinitionsView { get; } =
             new ReadOnlyDictionary<string, CustomBuildingEntityDefinition>(RegisteredDefinitions);
-
-        public static IReadOnlyDictionary<string, CustomBuildingEntityDefinition> RegisteredDefinitionsView
-            => ReadOnlyDefinitions;
 
         public static event Action<string, CustomBuildingEntityDefinition, bool> Registered;
 
@@ -186,9 +183,8 @@ namespace CUCoreLib.Registries
             var normalizedOwnerId = ownerId.Trim();
             var ids = DefinitionOwners.GetKeys(normalizedOwnerId);
 
-            for (var i = 0; i < ids.Length; i++)
+            foreach (var id in ids)
             {
-                var id = ids[i];
                 RegisteredDefinitions.Remove(id);
                 DefinitionOwners.Remove(id);
                 PrefabCache.Remove(id);
@@ -298,8 +294,7 @@ namespace CUCoreLib.Registries
             foreach (var property in snapshot.Properties())
             {
                 var id = property.Name;
-                var obj = property.Value as JObject;
-                if (string.IsNullOrWhiteSpace(id) || obj == null) continue;
+                if (string.IsNullOrWhiteSpace(id) || !(property.Value is JObject obj)) continue;
 
                 RegisteredDefinitions.TryGetValue(id, out var localDefinition);
 
@@ -355,7 +350,8 @@ namespace CUCoreLib.Registries
                     HeatPerSecond = obj.Value<float?>("heatPerSecond") ?? 0f,
                     MaxHeatBodyTemperature = obj.Value<float?>("maxHeatBodyTemperature") ?? 0f,
                     SpawnComponents = localDefinition?.SpawnComponents ?? new List<string>(),
-                    Components = localDefinition?.Components ?? NetworkSnapshotSerialization.ReadTypeNames(obj["components"]),
+                    Components = localDefinition?.Components ??
+                                 NetworkSnapshotSerialization.ReadTypeNames(obj["components"]),
                     ConfigurePrefab = localDefinition?.ConfigurePrefab,
                     ConfigureInstance = localDefinition?.ConfigureInstance
                 };
@@ -508,9 +504,10 @@ namespace CUCoreLib.Registries
         {
             if (source == null || !TryGetDefinition(id, out var definition)) return;
 
-            var isNearPlayer = PlayerCamera.main != null &&
-                               PlayerCamera.main.body != null &&
-                               Vector2.Distance(source.transform.position, PlayerCamera.main.body.transform.position) <
+            var isNearPlayer = PlayerCamera.main != null
+                               && PlayerCamera.main.body != null
+                               && Vector2.Distance(source.transform.position,
+                                   PlayerCamera.main.body.transform.position) <
                                8f;
 
             SpawnDropArray(source, definition.ItemsDropOnDestroy, definition.DropChanceMultiplier, isNearPlayer, true);
@@ -639,10 +636,14 @@ namespace CUCoreLib.Registries
         {
             if (!HasValue(token)) return fallback;
             if (token.Type == JTokenType.Integer)
-            {
-                try { return (T)Enum.ToObject(typeof(T), token.Value<int>()); }
-                catch (Exception) { return fallback; }
-            }
+                try
+                {
+                    return (T)Enum.ToObject(typeof(T), token.Value<int>());
+                }
+                catch (Exception)
+                {
+                    return fallback;
+                }
 
             var text = token.Value<string>();
             if (string.Equals(text, "Ground", StringComparison.OrdinalIgnoreCase) &&
@@ -695,9 +696,7 @@ namespace CUCoreLib.Registries
                 case "metal":
                     normalized = "turret";
                     break;
-                case "rubber":
-                    normalized = "glowplant";
-                    break;
+                case "rubber": // ???
                 case "plant":
                     normalized = "glowplant";
                     break;
@@ -787,9 +786,13 @@ namespace CUCoreLib.Registries
             if (definition == null) return false;
 
             var spawnLayers = definition.SpawnLayers;
-            if (spawnLayers == 0) return false;
-
-            if (spawnLayers == AllSpawnLayersMask) return true;
+            switch (spawnLayers)
+            {
+                case 0:
+                    return false;
+                case AllSpawnLayersMask:
+                    return true;
+            }
 
             var layerNumber = biomeDepth + 1;
             var layerMask = LayerToMask(layerNumber);
@@ -894,9 +897,8 @@ namespace CUCoreLib.Registries
                 chunkY >= world.ChunkUpdated.GetLength(1)) return;
 
             var chunkUpdated = world.ChunkUpdated[chunkX, chunkY];
-            if (chunkUpdated == null) return;
 
-            chunkUpdated.AddListener(building.CheckSeating);
+            chunkUpdated?.AddListener(building.CheckSeating);
         }
 
         private static void SpawnDropArray(BuildingEntity source, ItemDrop[] drops, float multiplier, bool isNearPlayer,
@@ -916,16 +918,18 @@ namespace CUCoreLib.Registries
         private static void SpawnCategoryDrops(BuildingEntity source, CustomBuildingEntityDefinition definition,
             bool isNearPlayer)
         {
-            if (definition.GuaranteedDropAmount <= 0 || definition.ItemCategoriesToAdd == null ||
-                definition.ItemCategoriesToAdd.Length == 0) return;
+            if (definition.GuaranteedDropAmount <= 0
+                || definition.ItemCategoriesToAdd == null
+                || definition.ItemCategoriesToAdd.Length == 0) return;
             if (ItemLootPool.pool == null) return;
 
             for (var i = 0; i < definition.GuaranteedDropAmount; i++)
             {
                 var category = definition.ItemCategoriesToAdd[Random.Range(0, definition.ItemCategoriesToAdd.Length)];
                 if (string.IsNullOrWhiteSpace(category)) continue;
-                if (!ItemLootPool.pool.TryGetValue(category, out var poolItems) || poolItems == null ||
-                    poolItems.Count == 0) continue;
+                if (!ItemLootPool.pool.TryGetValue(category, out var poolItems)
+                    || poolItems == null
+                    || poolItems.Count == 0) continue;
 
                 var dropId = poolItems[Random.Range(0, poolItems.Count)];
                 SpawnAndSetupDrop(source, dropId, 1f, 1f, isNearPlayer);
@@ -938,10 +942,8 @@ namespace CUCoreLib.Registries
             var obj = SpawnDrop(source.transform.position, itemId,
                 Quaternion.Euler(0f, 0f, Random.Range(0f, 360f)), null, conditionMin, conditionMax, isNearPlayer);
             if (obj == null)
-            {
                 CUCoreLibPlugin.Log?.LogWarning("Custom building '" + source.id + "' failed to spawn drop '" + itemId +
                                                 "'.");
-            }
         }
 
         internal static GameObject SpawnDrop(Vector3 position, string itemId, Quaternion rotation,
@@ -960,6 +962,5 @@ namespace CUCoreLib.Registries
 
             return obj;
         }
-
     }
 }

@@ -47,7 +47,6 @@
     </PropertyGroup>
     <ItemGroup>
         <Compile Include="Bootstrap\BepInExConfigurationGuard.cs"/>
-        <Compile Include="Bootstrap\BuiltInCommandRegistrar.cs"/>
         <Compile Include="BugReporting\BugReportCollector.cs"/>
         <Compile Include="BugReporting\BugReportModels.cs"/>
         <Compile Include="BugReporting\BugReportService.cs"/>
@@ -303,13 +302,18 @@
         <Compile Include="Helpers\FileLoader.cs"/>
     </ItemGroup>
     <ItemGroup>
-        <EmbeddedResource Include="Data\MissingItem.png" />
+        <EmbeddedResource Include="Data\MissingItem.png"/>
         <None Include="Helpers\app.config"/>
         <None Include="packages.config"/>
     </ItemGroup>
     <ItemGroup>
         <Analyzer Include="packages\BepInEx.Analyzers.1.0.8\analyzers\dotnet\cs\BepInEx.Analyzers.CodeFixes.dll"/>
         <Analyzer Include="packages\BepInEx.Analyzers.1.0.8\analyzers\dotnet\cs\BepInEx.Analyzers.dll"/>
+    </ItemGroup>
+    <ItemGroup>
+      <EmbeddedResource Include="Locales\zh-CN.json" />
+      <EmbeddedResource Include="Locales\zh-TW.json" />
+      <EmbeddedResource Include="Locales\ru-RU.json" />
     </ItemGroup>
     <Target Name="CopyOutputDllsToPlaytestPluginsFolder" AfterTargets="AfterBuild" Condition="'$(BepInExDir)' != ''">
         <MakeDir Directories="$(BepInExDir)\plugins"/>
@@ -318,9 +322,9 @@
 
     <Target Name="CompileOnly">
         <MSBuild
-            Projects="$(MSBuildProjectFullPath)"
-            Targets="Compile"
-            Properties="Configuration=$(Configuration);Platform=$(Platform);BepInExDir=$(BepInExDir);DisableFody=true"/>
+                Projects="$(MSBuildProjectFullPath)"
+                Targets="Compile"
+                Properties="Configuration=$(Configuration);Platform=$(Platform);BepInExDir=$(BepInExDir);DisableFody=true"/>
     </Target>
 
     <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets"/>

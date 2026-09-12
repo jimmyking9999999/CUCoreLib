@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Reflection;
 using System.Runtime.CompilerServices;
 using CUCoreLib.Data;
 using CUCoreLib.Patches;
@@ -10,29 +9,7 @@ namespace CUCoreLib.Helpers
 {
     public static class CCLBody
     {
-        [ThreadStatic]
-        private static Body _scopedBody;
-
-        public static BodyScope Use(Body body)
-        {
-            return new BodyScope(body);
-        }
-
-        public struct BodyScope : IDisposable
-        {
-            private readonly Body _previousBody;
-
-            internal BodyScope(Body body)
-            {
-                _previousBody = _scopedBody;
-                _scopedBody = body;
-            }
-
-            public void Dispose()
-            {
-                _scopedBody = _previousBody;
-            }
-        }
+        [ThreadStatic] private static Body _scopedBody;
 
         public static float BloodPressure
         {
@@ -86,41 +63,39 @@ namespace CUCoreLib.Helpers
             set => SetValue(value, data => data.AveragePain);
         }
 
-        [MethodImpl(MethodImplOptions.NoInlining)]
-        private static float GetValue(System.Func<BodyFormulaData, Dictionary<string, float>> selector)
+        public static BodyScope Use(Body body)
         {
-            BodyFormulaData data = GetData();
-            if (data == null)
-            {
-                return 0f;
-            }
-
-            Dictionary<string, float> contributions = selector(data);
-            string callerKey = ResolveCallerKey();
-            return contributions.TryGetValue(callerKey, out float value) ? value : 0f;
+            return new BodyScope(body);
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
-        private static void SetValue(float value, System.Func<BodyFormulaData, Dictionary<string, float>> selector)
+        private static float GetValue(Func<BodyFormulaData, Dictionary<string, float>> selector)
         {
-            BodyFormulaData data = GetData();
-            if (data == null)
-            {
-                return;
-            }
+            var data = GetData();
+            if (data == null) return 0f;
 
-            Dictionary<string, float> contributions = selector(data);
-            string callerKey = ResolveCallerKey();
+            var contributions = selector(data);
+            var callerKey = ResolveCallerKey();
+            return contributions.TryGetValue(callerKey, out var value) 
+                ? value 
+                : 0f;
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static void SetValue(float value, Func<BodyFormulaData, Dictionary<string, float>> selector)
+        {
+            var data = GetData();
+            if (data == null) return;
+
+            var contributions = selector(data);
+            var callerKey = ResolveCallerKey();
             contributions[callerKey] = value;
         }
 
         private static BodyFormulaData GetData()
         {
-            Body body = GetBody();
-            if (body == null)
-            {
-                return null;
-            }
+            var body = GetBody();
+            if (body == null) return null;
 
             return body.GetBodyFormulaData();
         }
@@ -134,23 +109,36 @@ namespace CUCoreLib.Helpers
         [MethodImpl(MethodImplOptions.NoInlining)]
         private static string ResolveCallerKey()
         {
-            Assembly currentAssembly = typeof(CCLBody).Assembly;
-            StackTrace trace = new StackTrace();
+            var currentAssembly = typeof(CCLBody).Assembly;
+            var trace = new StackTrace();
 
-            for (int i = 1; i < trace.FrameCount; i++)
+            for (var i = 1; i < trace.FrameCount; i++)
             {
-                MethodBase method = trace.GetFrame(i)?.GetMethod();
-                Type declaringType = method?.DeclaringType;
-                Assembly assembly = declaringType?.Assembly;
-                if (assembly == null || assembly == currentAssembly)
-                {
-                    continue;
-                }
+                var method = trace.GetFrame(i)?.GetMethod();
+                var declaringType = method?.DeclaringType;
+                var assembly = declaringType?.Assembly;
+                if (assembly == null || assembly == currentAssembly) continue;
 
-                return assembly.GetName().Name ?? assembly.FullName ?? "external";
+                return assembly.GetName().Name ?? assembly.FullName;
             }
 
             return currentAssembly.GetName().Name ?? "cucorelib";
+        }
+
+        public struct BodyScope : IDisposable
+        {
+            private readonly Body _previousBody;
+
+            internal BodyScope(Body body)
+            {
+                _previousBody = _scopedBody;
+                _scopedBody = body;
+            }
+
+            public void Dispose()
+            {
+                _scopedBody = _previousBody;
+            }
         }
     }
 }

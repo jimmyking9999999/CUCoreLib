@@ -5,8 +5,8 @@ namespace CUCoreLib.Registries.Infrastructure
 {
     internal sealed class RegistrationOwnershipIndex<TKey>
     {
-        private readonly Dictionary<TKey, string> ownerByKey;
         private readonly Dictionary<string, HashSet<TKey>> keysByOwner;
+        private readonly Dictionary<TKey, string> ownerByKey;
         private string activeOwnerId;
 
         internal RegistrationOwnershipIndex(IEqualityComparer<TKey> keyComparer = null)

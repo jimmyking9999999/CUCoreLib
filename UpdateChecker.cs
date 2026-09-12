@@ -3,6 +3,8 @@ using System.Collections;
 using BepInEx.Bootstrap;
 using BepInEx.Logging;
 using CUCoreLib.Helpers;
+using CUCoreLib.Registries;
+using Newtonsoft.Json.Linq;
 using UnityEngine;
 using UnityEngine.Networking;
 
@@ -36,10 +38,10 @@ namespace CUCoreLib
             DontDestroyOnLoad(go);
             go.hideFlags = HideFlags.HideAndDontSave;
             _instance = go.AddComponent<UpdateChecker>();
-            _instance.StartCoroutine(_instance.CheckForUpdates());
+            _instance.StartCoroutine(CheckForUpdates());
         }
 
-        private IEnumerator CheckForUpdates()
+        private static IEnumerator CheckForUpdates()
         {
             if (_hasChecked) yield break;
 
@@ -53,24 +55,24 @@ namespace CUCoreLib
 
                 if (request.result != UnityWebRequest.Result.Success)
                 {
-                    yield return Notify("CUCoreLib could not check for updates.");
+                    yield return Notify(LocaleRegistry.GetFormatted("other", "updatechecker.no_connection"));
                     yield break;
                 }
 
                 var latestTag = TryExtractTagName(request.downloadHandler.text);
                 if (string.IsNullOrWhiteSpace(latestTag))
                 {
-                    yield return Notify("CUCoreLib could not read the latest release version.");
+                    yield return Notify(LocaleRegistry.GetFormatted("other", "updatechecker.no_version"));
                     yield break;
                 }
 
                 if (IsNewer(_currentVersion, latestTag))
                 {
-                    yield return Notify($"CUCoreLib update available! {_currentVersion} -> {latestTag}", true);
+                    yield return Notify(LocaleRegistry.GetFormatted("other", "updatechecker.update_available", _currentVersion, latestTag), true);
                     yield break;
                 }
 
-                yield return Notify($"CUCoreLib is up to date! Current: {_currentVersion}, Latest: {latestTag}");
+                yield return Notify(LocaleRegistry.GetFormatted("other", "updatechecker.up_to_date", _currentVersion, latestTag));
             }
         }
 
@@ -78,15 +80,15 @@ namespace CUCoreLib
         {
             if (string.IsNullOrEmpty(json)) return null;
 
-            const string tagSearch = "\"tag_name\":\"";
-            var startIndex = json.IndexOf(tagSearch, StringComparison.Ordinal);
-            if (startIndex < 0) return null;
-
-            startIndex += tagSearch.Length;
-            var endIndex = json.IndexOf('"', startIndex);
-            if (endIndex < 0 || endIndex <= startIndex) return null;
-
-            return json.Substring(startIndex, endIndex - startIndex);
+            try
+            {
+                var obj = JObject.Parse(json);
+                return obj["tag_name"]?.Value<string>();
+            }
+            catch
+            {
+                return null;
+            }
         }
 
         private static bool IsNewer(string current, string latest)
@@ -106,7 +108,8 @@ namespace CUCoreLib
             return (version ?? string.Empty).Trim().TrimStart('v', 'V');
         }
 
-        private IEnumerator Notify(string message, bool warning = false)
+        // ReSharper disable Unity.PerformanceAnalysis
+        private static IEnumerator Notify(string message, bool warning = false)
         {
             if (warning)
                 _logger?.LogWarning(message);
@@ -116,20 +119,20 @@ namespace CUCoreLib
             ConsoleScript console = null;
             var attempts = 0;
 
-            while (console == null && attempts < 50)
+            while (!console && attempts < 50)
             {
-                console = ConsoleScript.instance != null
+                console = ConsoleScript.instance
                     ? ConsoleScript.instance
                     : FindObjectOfType<ConsoleScript>();
 
-                if (console == null)
+                if (!console)
                 {
                     attempts++;
                     yield return new WaitForSecondsRealtime(0.2f);
                 }
             }
 
-            if (console != null)
+            if (console)
             {
                 var consoleMessage = warning
                     ? "<color=#FFA500>" + message + "</color>"

@@ -5,6 +5,7 @@ using System.Linq;
 using System.Reflection;
 using BepInEx.Bootstrap;
 using UnityEngine;
+using Object = UnityEngine.Object;
 
 namespace CUCoreLib.Helpers
 {
@@ -15,6 +16,7 @@ namespace CUCoreLib.Helpers
 
         private static readonly List<WatchDescriptor> AllDescriptors = new List<WatchDescriptor>();
         private static readonly List<WatchDescriptor> ActiveWatches = new List<WatchDescriptor>();
+
         private static readonly List<string> RootAutofill = new List<string>
         {
             "add",
@@ -38,7 +40,7 @@ namespace CUCoreLib.Helpers
             RebuildDescriptorCache();
 
             _overlayRoot = new GameObject("CUCoreLib.DebugWatchOverlay");
-            UnityEngine.Object.DontDestroyOnLoad(_overlayRoot);
+            Object.DontDestroyOnLoad(_overlayRoot);
             _overlayRoot.hideFlags = HideFlags.HideAndDontSave;
             _overlayRoot.AddComponent<DebugWatchOverlayBehaviour>();
         }
@@ -156,12 +158,8 @@ namespace CUCoreLib.Helpers
 
         private static IEnumerable<Assembly> GetCandidateAssemblies()
         {
-            foreach (var plugin in Chainloader.PluginInfos.Values)
-            {
-                var assembly = plugin?.Instance?.GetType().Assembly;
-                if (assembly == null) continue;
-                yield return assembly;
-            }
+            return Chainloader.PluginInfos.Values.Select(plugin => plugin?.Instance?.GetType().Assembly)
+                .Where(assembly => assembly != null);
         }
 
         private static bool IsSupportedField(FieldInfo field)
@@ -253,7 +251,7 @@ namespace CUCoreLib.Helpers
 
             var underlying = Nullable.GetUnderlyingType(declaredType) ?? declaredType;
             if (underlying == typeof(string)) return (string)value;
-            if (underlying == typeof(bool)) return ((bool)value) ? "true" : "false";
+            if (underlying == typeof(bool)) return (bool)value ? "true" : "false";
             if (underlying.IsEnum) return value.ToString();
 
             if (underlying == typeof(float))
@@ -284,8 +282,8 @@ namespace CUCoreLib.Helpers
         {
             if (!_overlayVisible) return false;
             if (ActiveWatches.Count == 0) return false;
-            if (WorldGeneration.world == null) return false;
-            return PlayerCamera.main != null;
+            if (!WorldGeneration.world) return false;
+            return PlayerCamera.main;
         }
 
         private static GUIStyle GetOverlayStyle()

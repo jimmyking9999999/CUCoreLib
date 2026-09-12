@@ -30,8 +30,9 @@ namespace CUCoreLib.Patches
         {
             foreach (var instruction in instructions)
             {
-                if (LiquidsRegistryField != null && GetMiniBarrelLiquidsMethod != null &&
-                    instruction.LoadsField(LiquidsRegistryField))
+                if (LiquidsRegistryField != null
+                    && GetMiniBarrelLiquidsMethod != null
+                    && instruction.LoadsField(LiquidsRegistryField))
                 {
                     yield return new CodeInstruction(OpCodes.Call, GetMiniBarrelLiquidsMethod)
                     {

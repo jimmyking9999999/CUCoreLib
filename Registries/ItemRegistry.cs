@@ -4,8 +4,8 @@ using System.Collections.ObjectModel;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.CompilerServices;
-using CUCoreLib.ContentReload;
 using CUCoreLib.Data;
+using CUCoreLib.DevTools.HotReload;
 using CUCoreLib.Helpers;
 using CUCoreLib.Networking;
 using CUCoreLib.Patches;
@@ -171,10 +171,10 @@ namespace CUCoreLib.Registries
             // Store or replace the registry entry, apply defaults and inject into runtime tables.
             var replacingExisting = RegisteredItems.ContainsKey(id);
             RegisteredItems[id] = info;
-            
+
             if (replacingExisting)
                 CustomInstantiate.ClearTemplateCache(id);
-            
+
             TryRun(() => ItemOwners.Assign(id, ContentReloadSession.ResolveAmbientOwnerId()));
 
             TryRun(() => DropPoolRegistry.RegisterItem(id, info));
@@ -254,7 +254,6 @@ namespace CUCoreLib.Registries
         {
             var root = new JObject();
             foreach (var entry in RegisteredItems.ToArray())
-            {
                 try
                 {
                     var info = entry.Value;
@@ -308,7 +307,8 @@ namespace CUCoreLib.Registries
                         ["wearableSortingOrder"] = info.WearableSortingOrder.HasValue
                             ? new JValue(info.WearableSortingOrder.Value)
                             : JValue.CreateNull(),
-                        ["multiWornSprites"] = NetworkSnapshotSerialization.WriteSpriteDictionary(info.MultiWornSprites),
+                        ["multiWornSprites"] =
+                            NetworkSnapshotSerialization.WriteSpriteDictionary(info.MultiWornSprites),
                         ["liquidMask"] = NetworkSnapshotSerialization.WriteSprite(info.LiquidMask),
                         ["liquidMaskAnimationId"] = info.LiquidMaskAnimationId ?? string.Empty,
                         ["iconAnimationId"] = info.IconAnimationId ?? string.Empty,
@@ -385,7 +385,6 @@ namespace CUCoreLib.Registries
                 catch
                 {
                 }
-            }
 
             return root;
         }
@@ -416,139 +415,142 @@ namespace CUCoreLib.Registries
                         fullName = obj.Value<string>("fullName"),
                         description = obj.Value<string>("description"),
                         category = obj.Value<string>("category"),
-                    slotRotation = obj.Value<float?>("slotRotation") ?? 0f,
-                    usable = obj.Value<bool?>("usable") ?? false,
-                    usableOnLimb = obj.Value<bool?>("usableOnLimb") ?? false,
-                    rotSpeed = obj.Value<float?>("rotSpeed") ?? 0f,
-                    destroyAtZeroCondition = obj.Value<bool?>("destroyAtZeroCondition") ?? false,
-                    weight = obj.Value<float?>("weight") ?? 0f,
-                    scaleWeightWithCondition = obj.Value<bool?>("scaleWeightWithCondition") ?? false,
-                    scaleConditionToward = obj.Value<float?>("scaleConditionToward") ?? 0f,
-                    onlyHoldInHands = obj.Value<bool?>("onlyHoldInHands") ?? false,
-                    autoAttack = obj.Value<bool?>("autoAttack") ?? false,
-                    usableWithLMB = obj.Value<bool?>("usableWithLMB") ?? false,
-                    wearableCanBeHeld = obj.Value<bool?>("wearableCanBeHeld") ?? false,
-                    desiredWearLimb = obj.Value<string>("desiredWearLimb"),
-                    wearSlotId = obj.Value<string>("wearSlotId"),
-                    wearableArmor = obj.Value<float?>("wearableArmor") ?? 0f,
-                    wearableIsolation = obj.Value<float?>("wearableIsolation") ?? 0f,
-                    wearableHitDurabilityLossMultiplier =
-                        obj.Value<float?>("wearableHitDurabilityLossMultiplier") ?? 0f,
-                    jumpHeightMultChange = obj.Value<float?>("jumpHeightMultChange") ?? 0f,
-                    combineable = obj.Value<bool?>("combineable") ?? false,
-                    ignoreDepression = obj.Value<bool?>("ignoreDepression") ?? false,
-                    value = obj.Value<int?>("value") ?? 0,
-                    wearableVisualOffset = obj.Value<int?>("wearableVisualOffset") ?? 0,
-                    tags = obj.Value<string>("tags") ?? string.Empty,
-                    decayInfo = obj.Value<byte?>("decayInfo") ?? 0,
-                    decayMinutes = obj.Value<float?>("decayMinutes") ?? 0f,
-                    SpawnFrequency = obj.Value<int?>("spawnFrequency") ?? 1,
-                    DropPool = obj["dropPool"]?.Type == JTokenType.Null
-                        ? (DropPool?)null
-                        : (DropPool?)obj.Value<ushort?>("dropPool"),
-                    WorldSpawnPerChunk = obj["worldSpawnPerChunk"]?.Type == JTokenType.Null
-                        ? (float?)null
-                        : obj.Value<float?>("worldSpawnPerChunk"),
-                    rec = new Recognition(obj.Value<int?>("recognitionMin") ?? 0),
-                    capacity = obj.Value<float?>("capacity") ?? 0f,
-                    autoFill = obj.Value<bool?>("autoFill") ?? true,
-                    defaultContents = NetworkSnapshotSerialization.ReadLiquidStacks(obj["defaultContents"]),
-                    Icon = NetworkSnapshotSerialization.ReadSprite(obj["icon"]),
-                    InventoryIconScale = obj.Value<float?>("inventoryIconScale") ?? 1f,
-                    WornSprite = NetworkSnapshotSerialization.ReadSprite(obj["wornSprite"]),
-                    WearableSortingOrder = obj["wearableSortingOrder"]?.Type == JTokenType.Null
-                        ? (int?)null
-                        : obj.Value<int?>("wearableSortingOrder"),
-                    MultiWornSprites = NetworkSnapshotSerialization.ReadSpriteDictionary(obj["multiWornSprites"]),
-                    LiquidMask = NetworkSnapshotSerialization.ReadSprite(obj["liquidMask"]),
-                    LiquidMaskAnimationId = obj.Value<string>("liquidMaskAnimationId"),
-                    IconAnimationId = obj.Value<string>("iconAnimationId") ?? localInfo?.IconAnimationId,
-                    WornSpriteAnimationId = obj.Value<string>("wornSpriteAnimationId") ?? localInfo?.WornSpriteAnimationId,
-                    SpriteScale = obj.Value<float?>("spriteScale") ?? 1f,
-                    SpriteScaleDimensions = new SpriteScaleDimensions(
-                        obj.Value<float?>("spriteScaleWidth") ?? 0f,
-                        obj.Value<float?>("spriteScaleHeight") ?? 0f,
-                        obj.Value<bool?>("spriteScaleExpandToFirstMetCondition") ?? false),
-                    VisualOffset = new Vector2(
-                        obj.Value<float?>("visualOffsetX") ?? 0f,
-                        obj.Value<float?>("visualOffsetY") ?? 0f),
-                    HeldSpriteOffset = new Vector2(
-                        obj.Value<float?>("heldSpriteOffsetX") ?? 0f,
-                        obj.Value<float?>("heldSpriteOffsetY") ?? 0f),
-                    WornSpriteOffset = new Vector2(
-                        obj.Value<float?>("wornSpriteOffsetX") ?? 0f,
-                        obj.Value<float?>("wornSpriteOffsetY") ?? 0f),
-                    MultiWornSpriteOffsets =
-                        NetworkSnapshotSerialization.ReadVector2Dictionary(obj["multiWornSpriteOffsets"])
-                };
-
-                if (obj["wearable"] != null)
-                    info.wearable = obj.Value<bool?>("wearable") ?? false;
-
-                var container = obj["container"] as JObject;
-                if (container != null) info.Container = container.ToObject<ContainerProperties>();
-
-                var battery = obj["battery"] as JObject;
-                if (battery != null) info.Battery = battery.ToObject<BatteryProperties>();
-
-                var light = obj["light"] as JObject;
-                if (light != null)
-                    info.Light = new LightProperties
-                    {
-                        Intensity = light.Value<float?>("intensity") ?? 0.75f,
-                        Color = NetworkSnapshotSerialization.ReadColor(light["color"], Color.white),
-                        FalloffIntensity = light.Value<float?>("falloffIntensity") ?? 0.5f,
-                        PointLightOuterRadius = light.Value<float?>("pointLightOuterRadius") ?? 0f,
-                        PointLightInnerRadius = light.Value<float?>("pointLightInnerRadius") ?? 0f,
-                        PointLightOuterAngle = light.Value<float?>("pointLightOuterAngle") ?? 360f,
-                        PointLightInnerAngle = light.Value<float?>("pointLightInnerAngle") ?? 360f,
-                        LightType = (CustomLightType)(light.Value<int?>("lightType") ?? 3),
-                        Offset =
-                            new Vector2(light.Value<float?>("offsetX") ?? 0f, light.Value<float?>("offsetY") ?? 0f),
-                        AddLightItem = light.Value<bool?>("addLightItem") ?? true
+                        slotRotation = obj.Value<float?>("slotRotation") ?? 0f,
+                        usable = obj.Value<bool?>("usable") ?? false,
+                        usableOnLimb = obj.Value<bool?>("usableOnLimb") ?? false,
+                        rotSpeed = obj.Value<float?>("rotSpeed") ?? 0f,
+                        destroyAtZeroCondition = obj.Value<bool?>("destroyAtZeroCondition") ?? false,
+                        weight = obj.Value<float?>("weight") ?? 0f,
+                        scaleWeightWithCondition = obj.Value<bool?>("scaleWeightWithCondition") ?? false,
+                        scaleConditionToward = obj.Value<float?>("scaleConditionToward") ?? 0f,
+                        onlyHoldInHands = obj.Value<bool?>("onlyHoldInHands") ?? false,
+                        autoAttack = obj.Value<bool?>("autoAttack") ?? false,
+                        usableWithLMB = obj.Value<bool?>("usableWithLMB") ?? false,
+                        wearableCanBeHeld = obj.Value<bool?>("wearableCanBeHeld") ?? false,
+                        desiredWearLimb = obj.Value<string>("desiredWearLimb"),
+                        wearSlotId = obj.Value<string>("wearSlotId"),
+                        wearableArmor = obj.Value<float?>("wearableArmor") ?? 0f,
+                        wearableIsolation = obj.Value<float?>("wearableIsolation") ?? 0f,
+                        wearableHitDurabilityLossMultiplier =
+                            obj.Value<float?>("wearableHitDurabilityLossMultiplier") ?? 0f,
+                        jumpHeightMultChange = obj.Value<float?>("jumpHeightMultChange") ?? 0f,
+                        combineable = obj.Value<bool?>("combineable") ?? false,
+                        ignoreDepression = obj.Value<bool?>("ignoreDepression") ?? false,
+                        value = obj.Value<int?>("value") ?? 0,
+                        wearableVisualOffset = obj.Value<int?>("wearableVisualOffset") ?? 0,
+                        tags = obj.Value<string>("tags") ?? string.Empty,
+                        decayInfo = obj.Value<byte?>("decayInfo") ?? 0,
+                        decayMinutes = obj.Value<float?>("decayMinutes") ?? 0f,
+                        SpawnFrequency = obj.Value<int?>("spawnFrequency") ?? 1,
+                        DropPool = obj["dropPool"]?.Type == JTokenType.Null
+                            ? null
+                            : (DropPool?)obj.Value<ushort?>("dropPool"),
+                        WorldSpawnPerChunk = obj["worldSpawnPerChunk"]?.Type == JTokenType.Null
+                            ? null
+                            : obj.Value<float?>("worldSpawnPerChunk"),
+                        rec = new Recognition(obj.Value<int?>("recognitionMin") ?? 0),
+                        capacity = obj.Value<float?>("capacity") ?? 0f,
+                        autoFill = obj.Value<bool?>("autoFill") ?? true,
+                        defaultContents = NetworkSnapshotSerialization.ReadLiquidStacks(obj["defaultContents"]),
+                        Icon = NetworkSnapshotSerialization.ReadSprite(obj["icon"]),
+                        InventoryIconScale = obj.Value<float?>("inventoryIconScale") ?? 1f,
+                        WornSprite = NetworkSnapshotSerialization.ReadSprite(obj["wornSprite"]),
+                        WearableSortingOrder = obj["wearableSortingOrder"]?.Type == JTokenType.Null
+                            ? null
+                            : obj.Value<int?>("wearableSortingOrder"),
+                        MultiWornSprites = NetworkSnapshotSerialization.ReadSpriteDictionary(obj["multiWornSprites"]),
+                        LiquidMask = NetworkSnapshotSerialization.ReadSprite(obj["liquidMask"]),
+                        LiquidMaskAnimationId = obj.Value<string>("liquidMaskAnimationId"),
+                        IconAnimationId = obj.Value<string>("iconAnimationId") ?? localInfo?.IconAnimationId,
+                        WornSpriteAnimationId = obj.Value<string>("wornSpriteAnimationId") ??
+                                                localInfo?.WornSpriteAnimationId,
+                        SpriteScale = obj.Value<float?>("spriteScale") ?? 1f,
+                        SpriteScaleDimensions = new SpriteScaleDimensions(
+                            obj.Value<float?>("spriteScaleWidth") ?? 0f,
+                            obj.Value<float?>("spriteScaleHeight") ?? 0f,
+                            obj.Value<bool?>("spriteScaleExpandToFirstMetCondition") ?? false),
+                        VisualOffset = new Vector2(
+                            obj.Value<float?>("visualOffsetX") ?? 0f,
+                            obj.Value<float?>("visualOffsetY") ?? 0f),
+                        HeldSpriteOffset = new Vector2(
+                            obj.Value<float?>("heldSpriteOffsetX") ?? 0f,
+                            obj.Value<float?>("heldSpriteOffsetY") ?? 0f),
+                        WornSpriteOffset = new Vector2(
+                            obj.Value<float?>("wornSpriteOffsetX") ?? 0f,
+                            obj.Value<float?>("wornSpriteOffsetY") ?? 0f),
+                        MultiWornSpriteOffsets =
+                            NetworkSnapshotSerialization.ReadVector2Dictionary(obj["multiWornSpriteOffsets"])
                     };
 
-                var bandage = obj["bandage"] as JObject;
-                if (bandage != null) info.Bandage = bandage.ToObject<BandageProperties>();
+                    if (obj["wearable"] != null)
+                        info.wearable = obj.Value<bool?>("wearable") ?? false;
 
-                var syringe = obj["syringe"] as JObject;
-                if (syringe != null)
-                    info.Syringe = new SyringeProperties
+                    var container = obj["container"] as JObject;
+                    if (container != null) info.Container = container.ToObject<ContainerProperties>();
+
+                    var battery = obj["battery"] as JObject;
+                    if (battery != null) info.Battery = battery.ToObject<BatteryProperties>();
+
+                    var light = obj["light"] as JObject;
+                    if (light != null)
+                        info.Light = new LightProperties
+                        {
+                            Intensity = light.Value<float?>("intensity") ?? 0.75f,
+                            Color = NetworkSnapshotSerialization.ReadColor(light["color"], Color.white),
+                            FalloffIntensity = light.Value<float?>("falloffIntensity") ?? 0.5f,
+                            PointLightOuterRadius = light.Value<float?>("pointLightOuterRadius") ?? 0f,
+                            PointLightInnerRadius = light.Value<float?>("pointLightInnerRadius") ?? 0f,
+                            PointLightOuterAngle = light.Value<float?>("pointLightOuterAngle") ?? 360f,
+                            PointLightInnerAngle = light.Value<float?>("pointLightInnerAngle") ?? 360f,
+                            LightType = (CustomLightType)(light.Value<int?>("lightType") ?? 3),
+                            Offset =
+                                new Vector2(light.Value<float?>("offsetX") ?? 0f, light.Value<float?>("offsetY") ?? 0f),
+                            AddLightItem = light.Value<bool?>("addLightItem") ?? true
+                        };
+
+                    var bandage = obj["bandage"] as JObject;
+                    if (bandage != null) info.Bandage = bandage.ToObject<BandageProperties>();
+
+                    var syringe = obj["syringe"] as JObject;
+                    if (syringe != null)
+                        info.Syringe = new SyringeProperties
+                        {
+                            Capacity = syringe.Value<float?>("capacity") ?? 0f,
+                            AutoFill = syringe.Value<bool?>("autoFill") ?? true,
+                            AmountPerFullUse = syringe.Value<float?>("amountPerFullUse") ?? 0f,
+                            UseAverageColor = syringe.Value<bool?>("useAverageColor") ?? true,
+                            MinigameColor =
+                                NetworkSnapshotSerialization.ReadColor(syringe["minigameColor"], Color.white),
+                            DefaultContents = NetworkSnapshotSerialization.ReadLiquidStacks(syringe["defaultContents"])
+                        };
+
+                    var tool = obj["tool"] as JObject;
+                    if (tool != null) info.Tool = tool.ToObject<ToolProperties>();
+
+                    var gun = obj["gun"] as JObject;
+                    if (gun != null)
                     {
-                        Capacity = syringe.Value<float?>("capacity") ?? 0f,
-                        AutoFill = syringe.Value<bool?>("autoFill") ?? true,
-                        AmountPerFullUse = syringe.Value<float?>("amountPerFullUse") ?? 0f,
-                        UseAverageColor = syringe.Value<bool?>("useAverageColor") ?? true,
-                        MinigameColor = NetworkSnapshotSerialization.ReadColor(syringe["minigameColor"], Color.white),
-                        DefaultContents = NetworkSnapshotSerialization.ReadLiquidStacks(syringe["defaultContents"])
-                    };
-
-                var tool = obj["tool"] as JObject;
-                if (tool != null) info.Tool = tool.ToObject<ToolProperties>();
-
-                var gun = obj["gun"] as JObject;
-                if (gun != null)
-                {
-                    info.Gun = RestoreGunProperties(gun);
-                    if (info.Gun != null && localGun != null)
-                    {
-                        info.Gun.FireSound = localGun.FireSound;
-                        info.Gun.CustomRack = localGun.CustomRack;
-                        info.Gun.CustomUnrack = localGun.CustomUnrack;
+                        info.Gun = RestoreGunProperties(gun);
+                        if (info.Gun != null && localGun != null)
+                        {
+                            info.Gun.FireSound = localGun.FireSound;
+                            info.Gun.CustomRack = localGun.CustomRack;
+                            info.Gun.CustomUnrack = localGun.CustomUnrack;
+                        }
                     }
-                }
 
-                var qualities = obj["qualities"];
-                if (qualities != null) info.qualities = NetworkSnapshotSerialization.ReadCraftingQualities(qualities);
+                    var qualities = obj["qualities"];
+                    if (qualities != null)
+                        info.qualities = NetworkSnapshotSerialization.ReadCraftingQualities(qualities);
 
-                if (obj["customData"] is JObject customData)
-                    info.CustomData = customData.ToObject<Dictionary<string, object>>() ??
-                                      new Dictionary<string, object>();
+                    if (obj["customData"] is JObject customData)
+                        info.CustomData = customData.ToObject<Dictionary<string, object>>() ??
+                                          new Dictionary<string, object>();
 
-                if (obj["spawnComponents"] is JArray)
-                    WarnIgnoredNetworkSpawnComponents();
+                    if (obj["spawnComponents"] is JArray)
+                        WarnIgnoredNetworkSpawnComponents();
 
-                // Recreate registry entries from the net request
+                    // Recreate registry entries from the net request
                     Register(id, info);
                 }
                 catch
@@ -613,7 +615,8 @@ namespace CUCoreLib.Registries
             }
         }
 
-        private static string BuildInvalidLiquidStackWarningKey(string itemId, string sourceName, int index, string liquidId)
+        private static string BuildInvalidLiquidStackWarningKey(string itemId, string sourceName, int index,
+            string liquidId)
         {
             return string.Concat(itemId ?? string.Empty, "|", sourceName, "|", index.ToString(), "|", liquidId);
         }
@@ -852,8 +855,8 @@ namespace CUCoreLib.Registries
         }
 
         /// <summary>
-        /// Returns a <see cref="CustomItemInfo"/> view of an item definition.
-        /// Existing custom definitions are returned unchanged; vanilla <see cref="ItemInfo"/> instances are shallow-copied.
+        ///     Returns a <see cref="CustomItemInfo" /> view of an item definition.
+        ///     Existing custom definitions are returned unchanged; vanilla <see cref="ItemInfo" /> instances are shallow-copied.
         /// </summary>
         /// <param name="info">The item definition to convert. May be <c>null</c>.</param>
         /// <returns>A custom item definition containing the source's public fields, or an empty definition for <c>null</c>.</returns>
@@ -1168,18 +1171,36 @@ namespace CUCoreLib.Registries
         {
             var result = new JObject
             {
-                ["ammoType"] = gun.AmmoType.HasValue ? (JToken)new JValue((int)gun.AmmoType.Value) : JValue.CreateNull(),
-                ["firingMode"] = gun.FiringMode.HasValue ? (JToken)new JValue((int)gun.FiringMode.Value) : JValue.CreateNull(),
-                ["feedType"] = gun.FeedType.HasValue ? (JToken)new JValue((int)gun.FeedType.Value) : JValue.CreateNull(),
-                ["magCapacity"] = gun.MagCapacity.HasValue ? (JToken)new JValue(gun.MagCapacity.Value) : JValue.CreateNull(),
+                ["ammoType"] =
+                    gun.AmmoType.HasValue ? (JToken)new JValue((int)gun.AmmoType.Value) : JValue.CreateNull(),
+                ["firingMode"] = gun.FiringMode.HasValue
+                    ? (JToken)new JValue((int)gun.FiringMode.Value)
+                    : JValue.CreateNull(),
+                ["feedType"] =
+                    gun.FeedType.HasValue ? (JToken)new JValue((int)gun.FeedType.Value) : JValue.CreateNull(),
+                ["magCapacity"] = gun.MagCapacity.HasValue
+                    ? (JToken)new JValue(gun.MagCapacity.Value)
+                    : JValue.CreateNull(),
                 ["knockBack"] = gun.KnockBack.HasValue ? (JToken)new JValue(gun.KnockBack.Value) : JValue.CreateNull(),
-                ["structureDamage"] = gun.StructureDamage.HasValue ? (JToken)new JValue(gun.StructureDamage.Value) : JValue.CreateNull(),
-                ["animalDamage"] = gun.AnimalDamage.HasValue ? (JToken)new JValue(gun.AnimalDamage.Value) : JValue.CreateNull(),
+                ["structureDamage"] = gun.StructureDamage.HasValue
+                    ? (JToken)new JValue(gun.StructureDamage.Value)
+                    : JValue.CreateNull(),
+                ["animalDamage"] = gun.AnimalDamage.HasValue
+                    ? (JToken)new JValue(gun.AnimalDamage.Value)
+                    : JValue.CreateNull(),
                 ["loudness"] = gun.Loudness.HasValue ? (JToken)new JValue(gun.Loudness.Value) : JValue.CreateNull(),
-                ["desiredGasTime"] = gun.DesiredGasTime.HasValue ? (JToken)new JValue(gun.DesiredGasTime.Value) : JValue.CreateNull(),
-                ["shotsPerFire"] = gun.ShotsPerFire.HasValue ? (JToken)new JValue(gun.ShotsPerFire.Value) : JValue.CreateNull(),
-                ["verticalSpread"] = gun.VerticalSpread.HasValue ? (JToken)new JValue(gun.VerticalSpread.Value) : JValue.CreateNull(),
-                ["conditionLossPerShot"] = gun.ConditionLossPerShot.HasValue ? (JToken)new JValue(gun.ConditionLossPerShot.Value) : JValue.CreateNull(),
+                ["desiredGasTime"] = gun.DesiredGasTime.HasValue
+                    ? (JToken)new JValue(gun.DesiredGasTime.Value)
+                    : JValue.CreateNull(),
+                ["shotsPerFire"] = gun.ShotsPerFire.HasValue
+                    ? (JToken)new JValue(gun.ShotsPerFire.Value)
+                    : JValue.CreateNull(),
+                ["verticalSpread"] = gun.VerticalSpread.HasValue
+                    ? (JToken)new JValue(gun.VerticalSpread.Value)
+                    : JValue.CreateNull(),
+                ["conditionLossPerShot"] = gun.ConditionLossPerShot.HasValue
+                    ? (JToken)new JValue(gun.ConditionLossPerShot.Value)
+                    : JValue.CreateNull(),
                 ["normalSprite"] = NetworkSnapshotSerialization.WriteSprite(gun.NormalSprite),
                 ["rackedSprite"] = NetworkSnapshotSerialization.WriteSprite(gun.RackedSprite),
                 ["normalSpriteNoMag"] = NetworkSnapshotSerialization.WriteSprite(gun.NormalSpriteNoMag),
@@ -1187,9 +1208,11 @@ namespace CUCoreLib.Registries
             };
 
             if (gun.BarrelOffset.HasValue)
-                result["barrelOffset"] = new JObject { ["x"] = gun.BarrelOffset.Value.x, ["y"] = gun.BarrelOffset.Value.y };
+                result["barrelOffset"] = new JObject
+                    { ["x"] = gun.BarrelOffset.Value.x, ["y"] = gun.BarrelOffset.Value.y };
             if (gun.MuzzleOffset.HasValue)
-                result["muzzleOffset"] = new JObject { ["x"] = gun.MuzzleOffset.Value.x, ["y"] = gun.MuzzleOffset.Value.y };
+                result["muzzleOffset"] = new JObject
+                    { ["x"] = gun.MuzzleOffset.Value.x, ["y"] = gun.MuzzleOffset.Value.y };
 
             return result;
         }
@@ -1229,18 +1252,20 @@ namespace CUCoreLib.Registries
 
         private static int? ReadNullableInt(JObject obj, string key)
         {
-            return obj[key] == null || obj[key].Type == JTokenType.Null ? (int?)null : obj.Value<int?>(key);
+            return obj[key] == null || obj[key].Type == JTokenType.Null ? null : obj.Value<int?>(key);
         }
 
         private static float? ReadNullableFloat(JObject obj, string key)
         {
-            return obj[key] == null || obj[key].Type == JTokenType.Null ? (float?)null : obj.Value<float?>(key);
+            return obj[key] == null || obj[key].Type == JTokenType.Null ? null : obj.Value<float?>(key);
         }
 
         private static Vector2? ReadNullableVector2(JToken token)
         {
             var obj = token as JObject;
-            return obj == null ? (Vector2?)null : new Vector2(obj.Value<float?>("x") ?? 0f, obj.Value<float?>("y") ?? 0f);
+            return obj == null
+                ? (Vector2?)null
+                : new Vector2(obj.Value<float?>("x") ?? 0f, obj.Value<float?>("y") ?? 0f);
         }
 
         private static string AddTag(string tags, string tag)
@@ -1269,6 +1294,26 @@ namespace CUCoreLib.Registries
             AddQualityForTag(info, "flammable");
             AddQualityForTag(info, "nails");
             // I don't like hardcoding these. TODO make this more dynamic
+        }
+
+        private static void AddQualityForTag(ItemInfo info, string tag)
+        {
+            var tags = info.tags.Split(',');
+            if (!tags.Any(t => t.Trim() == tag)) return;
+            if (info.qualities.Any(q => q != null && q.id == tag)) return;
+
+            info.qualities.Add(new CraftingQuality(tag));
+        }
+
+        private static void RemoveLootPoolEntries(string id)
+        {
+            if (string.IsNullOrWhiteSpace(id)) return;
+
+            if (ItemLootPool.pool != null)
+                foreach (var poolItems in ItemLootPool.pool.Values)
+                    poolItems.RemoveAll(itemId => string.Equals(itemId, id, StringComparison.OrdinalIgnoreCase));
+
+            DropPoolRegistry.RemoveItem(id);
         }
 
         internal sealed class ItemCustomDataState
@@ -1356,26 +1401,5 @@ namespace CUCoreLib.Registries
                 _initialized = true;
             }
         }
-
-        private static void AddQualityForTag(ItemInfo info, string tag)
-        {
-            var tags = info.tags.Split(',');
-            if (!tags.Any(t => t.Trim() == tag)) return;
-            if (info.qualities.Any(q => q != null && q.id == tag)) return;
-
-            info.qualities.Add(new CraftingQuality(tag));
-        }
-
-        private static void RemoveLootPoolEntries(string id)
-        {
-            if (string.IsNullOrWhiteSpace(id)) return;
-
-            if (ItemLootPool.pool != null)
-                foreach (var poolItems in ItemLootPool.pool.Values)
-                    poolItems.RemoveAll(itemId => string.Equals(itemId, id, StringComparison.OrdinalIgnoreCase));
-
-            DropPoolRegistry.RemoveItem(id);
-        }
-
     }
 }

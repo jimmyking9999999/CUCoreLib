@@ -4,31 +4,33 @@ using System.Collections.Generic;
 using System.Linq;
 using CUCoreLib.Helpers;
 using UnityEngine;
+using Object = UnityEngine.Object;
 
 namespace CUCoreLib.BugReporting
 {
     internal static class BugReportService
     {
         private const int CooldownSeconds = 60;
+
+        private const int MaxTotalUploadBytes = 12 * 1024 * 1024; // 12mb
+        private const int MaxScreenshotBytes = 5 * 1024 * 1024; // 5mb
+
         private static readonly string[] BuiltInWebhookParts =
         {
-            /* Hey! This is open source, so anyone can realistically take this webhook link and 
-            * delete it or send whatever in it.
-            *
-            * I trust the modding community enough though, I would hate to have to obfuscate it more
-            * or host it on google bucket or my own server.
-            *
-            * Thanks in advance ^^
-            */
+            /* Hey! This is open source, so anyone can realistically take this webhook link and
+             * delete it or send whatever in it.
+             *
+             * I trust the modding community enough though, I would hate to have to obfuscate it more
+             * or host it on google bucket or my own server.
+             *
+             * Thanks in advance ^^
+             */
             "https://ptb.dis",
             "cord.com/api/web",
             "hooks/1531032922969346299/",
             "M2yjvU7X7otXredLGQbnzSdJZIi7-",
             "ksEMKXgBjSVlRFHtjWFf21GvM5SF_8MkqDr1kTA"
         };
-
-        private const int MaxTotalUploadBytes = 12 * 1024 * 1024; // 12mb
-        private const int MaxScreenshotBytes = 5 * 1024 * 1024; // 5mb
 
         private static bool _sending;
         private static float _lastStartedAt = float.NegativeInfinity;
@@ -38,7 +40,7 @@ namespace CUCoreLib.BugReporting
             if (!TryParseCommand(args, out var reportRequest, out var error))
                 throw new Exception(error);
 
-          
+
             if (_sending)
                 throw new Exception("A bug report is already being sent.");
 
@@ -207,7 +209,7 @@ namespace CUCoreLib.BugReporting
             }
             finally
             {
-                if (texture != null) UnityEngine.Object.Destroy(texture);
+                if (texture != null) Object.Destroy(texture);
             }
         }
 

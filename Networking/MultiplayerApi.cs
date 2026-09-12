@@ -1,7 +1,7 @@
 using System;
 using System.Linq;
 using System.Reflection;
-using CUCoreLib.ContentReload;
+using CUCoreLib.DevTools.HotReload;
 using CUCoreLib.Registries;
 using Newtonsoft.Json.Linq;
 
@@ -51,8 +51,8 @@ namespace CUCoreLib.Networking
         }
 
         /// <summary>
-        /// Sends to the selected client when called on the server; otherwise sends to the server.
-        /// The target client ID is ignored on clients. Does not relay between clients or broadcast.
+        ///     Sends to the selected client when called on the server; otherwise sends to the server.
+        ///     The target client ID is ignored on clients. Does not relay between clients or broadcast.
         /// </summary>
         public static bool SendToPeer(uint targetClientId, string channel, object payload = null, bool reliable = true)
         {
@@ -192,7 +192,7 @@ namespace CUCoreLib.Networking
             if (!TryResolveNetPlayerReflection()) return false;
 
             var clientIdType = _tryGetNetPlayerAndBodyFromClientIdMethod.GetParameters()[0].ParameterType;
-            var args = new object[] { MultiplayerBridge.ConvertClientId(clientId, clientIdType), null, null };
+            var args = new[] { MultiplayerBridge.ConvertClientId(clientId, clientIdType), null, null };
             var found = _tryGetNetPlayerAndBodyFromClientIdMethod.Invoke(null, args) is bool flag && flag;
             if (!found) return false;
 
@@ -215,11 +215,11 @@ namespace CUCoreLib.Networking
                         return false;
 
                     var parameters = method.GetParameters();
-                    return parameters.Length == 3 &&
-                           MultiplayerBridge.IsClientIdType(parameters[0].ParameterType) &&
-                           parameters[1].IsOut &&
-                           parameters[2].IsOut &&
-                           parameters[2].ParameterType == typeof(Body).MakeByRefType();
+                    return parameters.Length == 3 
+                           && MultiplayerBridge.IsClientIdType(parameters[0].ParameterType)
+                           && parameters[1].IsOut 
+                           && parameters[2].IsOut 
+                           && parameters[2].ParameterType == typeof(Body).MakeByRefType();
                 });
 
             return _tryGetNetPlayerAndBodyFromClientIdMethod != null;

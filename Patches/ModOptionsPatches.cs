@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using CUCoreLib.Data;
 using CUCoreLib.Helpers;
 using CUCoreLib.Registries;
@@ -7,9 +8,9 @@ using UnityEngine;
 
 namespace CUCoreLib.Patches
 {
-    [HarmonyPatch(typeof(Locale), nameof(Locale.GetOther), typeof(string))]
     internal static class LocalePatch
     {
+        [HarmonyPatch(typeof(Locale), nameof(Locale.GetOther), typeof(string))]
         [HarmonyPrefix]
         private static bool HateGameset(string __0, ref string __result)
         {
@@ -21,9 +22,9 @@ namespace CUCoreLib.Patches
         }
     }
 
-    [HarmonyPatch(typeof(Settings), nameof(Settings.DefaultSettings))]
     internal static class ModOptionsPatches
     {
+        [HarmonyPatch(typeof(Settings), nameof(Settings.DefaultSettings))]
         [HarmonyPostfix]
         private static void AppendRegisteredOptions(List<Setting> __result)
         {
@@ -32,9 +33,9 @@ namespace CUCoreLib.Patches
         }
     }
 
-    [HarmonyPatch(typeof(SettingsMenu), "Start")]
     internal static class SettingsMenuStartPatch
     {
+        [HarmonyPatch(typeof(SettingsMenu), "Start")]
         [HarmonyPostfix]
         private static void Postfix(SettingsMenu __instance)
         {
@@ -45,9 +46,9 @@ namespace CUCoreLib.Patches
         }
     }
 
-    [HarmonyPatch(typeof(SettingsMenu), nameof(SettingsMenu.SelectTab), typeof(Setting.SettingCategory))]
     internal static class SettingsMenuSelectTabPatch
     {
+        [HarmonyPatch(typeof(SettingsMenu), nameof(SettingsMenu.SelectTab), typeof(Setting.SettingCategory))]
         [HarmonyPostfix]
         private static void Postfix(SettingsMenu __instance, Setting.SettingCategory category)
         {
@@ -66,9 +67,8 @@ namespace CUCoreLib.Patches
             if (!menu || !menu.content) return;
 
             var displayedSettingIndex = 0;
-            foreach (var setting in Settings.GetAllSettings())
+            foreach (var setting in Settings.GetAllSettings().Where(setting => setting != null && setting.category == category))
             {
-                if (setting == null || setting.category != category) continue;
                 if (displayedSettingIndex >= menu.content.childCount) return;
 
                 if (setting is SettingKeybind)
@@ -89,9 +89,9 @@ namespace CUCoreLib.Patches
         }
     }
 
-    [HarmonyPatch(typeof(KeyBinds), nameof(KeyBinds.GetBindName), typeof(string))]
     internal static class KeyBindsGetBindNamePatch
     {
+        [HarmonyPatch(typeof(KeyBinds), nameof(KeyBinds.GetBindName), typeof(string))]
         [HarmonyPrefix]
         private static bool Prefix(string action, ref string __result)
         {
@@ -102,9 +102,9 @@ namespace CUCoreLib.Patches
         }
     }
 
-    [HarmonyPatch(typeof(KeyBinds), nameof(KeyBinds.GetBind), typeof(string))]
     internal static class KeyBindsGetBindPatch
     {
+        [HarmonyPatch(typeof(KeyBinds), nameof(KeyBinds.GetBind), typeof(string))]
         [HarmonyPrefix]
         private static bool Prefix(string action, ref KeyCode __result)
         {

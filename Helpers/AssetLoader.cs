@@ -8,11 +8,12 @@ using System.Reflection;
 using BepInEx;
 using BepInEx.Bootstrap;
 using BepInEx.Logging;
-using CUCoreLib.ContentReload;
 using CUCoreLib.Data;
+using CUCoreLib.DevTools.HotReload;
 using NAudio.Wave;
 using UnityEngine;
 using UnityEngine.UI;
+using Object = UnityEngine.Object;
 
 namespace CUCoreLib.Helpers
 {
@@ -21,6 +22,8 @@ namespace CUCoreLib.Helpers
         public const float PPU_WORLD = 8f;
         public const float PPU_UI = 100f;
         private const float EmbeddedSpritePreloadFrameBudgetSeconds = 0.004f;
+
+        private const string MissingResourceName = "\0";
 
         private static ManualLogSource Logger;
 
@@ -47,8 +50,6 @@ namespace CUCoreLib.Helpers
 
         private static readonly Dictionary<string, string> ResolvedResourceNameCache =
             new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-
-        private const string MissingResourceName = "\0";
 
         private static readonly Dictionary<string, Texture2D> EmbeddedTextureCache =
             new Dictionary<string, Texture2D>(StringComparer.OrdinalIgnoreCase);
@@ -88,8 +89,8 @@ namespace CUCoreLib.Helpers
         private static readonly Dictionary<string, RegisteredAssetBundle> RegisteredBundles =
             new Dictionary<string, RegisteredAssetBundle>(StringComparer.OrdinalIgnoreCase);
 
-        private static readonly Dictionary<string, UnityEngine.Object> BundleAssetCache =
-            new Dictionary<string, UnityEngine.Object>(StringComparer.OrdinalIgnoreCase);
+        private static readonly Dictionary<string, Object> BundleAssetCache =
+            new Dictionary<string, Object>(StringComparer.OrdinalIgnoreCase);
 
         private static readonly Dictionary<string, HashSet<string>> BundleAssetCacheKeysByBundleId =
             new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
@@ -171,13 +172,16 @@ namespace CUCoreLib.Helpers
             var normalizedId = NormalizeCacheKey(id);
             if (string.IsNullOrEmpty(normalizedId)) return null;
 
-            return AudioClipCache.TryGetValue(normalizedId, out var clip) ? clip : null;
+            return AudioClipCache.TryGetValue(normalizedId, out var clip)
+                ? clip
+                : null;
         }
 
         public static void CacheSpriteAnimation(string id, RegisteredSpriteAnimation animation)
         {
-            if (string.IsNullOrWhiteSpace(id) || animation == null || animation.Frames == null ||
-                animation.Frames.Length == 0) return;
+            if (string.IsNullOrWhiteSpace(id)
+                || animation?.Frames == null
+                || animation.Frames.Length == 0) return;
 
             var normalizedId = NormalizeCacheKey(id);
             if (string.IsNullOrEmpty(normalizedId)) return;
@@ -193,7 +197,9 @@ namespace CUCoreLib.Helpers
             var normalizedId = NormalizeCacheKey(id);
             if (string.IsNullOrEmpty(normalizedId)) return null;
 
-            return SpriteAnimationCache.TryGetValue(normalizedId, out var animation) ? animation : null;
+            return SpriteAnimationCache.TryGetValue(normalizedId, out var animation)
+                ? animation
+                : null;
         }
 
         public static Sprite LoadEmbeddedSprite(string resourcePath, float pixelsPerUnit = PPU_WORLD,
@@ -217,8 +223,6 @@ namespace CUCoreLib.Helpers
         {
             if (sourceAssembly == null)
                 sourceAssembly = ContentReloadSession.GetSourceAssemblyOverride() ?? Assembly.GetCallingAssembly();
-
-            if (sourceAssembly == null) return null;
 
             var resolvedResourceName = FindEmbeddedResourceName(resourcePath, sourceAssembly);
             if (string.IsNullOrEmpty(resolvedResourceName))
@@ -272,7 +276,9 @@ namespace CUCoreLib.Helpers
 
             if (Chainloader.PluginInfos.TryGetValue(modGuid, out var pluginInfo))
             {
-                var assembly = pluginInfo?.Instance != null ? pluginInfo.Instance.GetType().Assembly : null;
+                var assembly = pluginInfo?.Instance != null
+                    ? pluginInfo.Instance.GetType().Assembly
+                    : null;
                 InvalidateEmbeddedCachesForAssembly(assembly);
             }
 
@@ -283,16 +289,16 @@ namespace CUCoreLib.Helpers
         {
             if (string.IsNullOrWhiteSpace(modGuid)) return;
 
-            if (!ModGuidBundleIds.TryGetValue(modGuid, out var bundleIds) || bundleIds == null || bundleIds.Count == 0)
+            if (!ModGuidBundleIds.TryGetValue(modGuid, out var bundleIds) 
+                || bundleIds == null
+                || bundleIds.Count == 0)
                 return;
 
             foreach (var bundleId in bundleIds.ToArray())
-            {
                 if (unregister)
                     UnregisterBundle(bundleId);
                 else
                     InvalidateBundle(bundleId);
-            }
 
             if (unregister) ModGuidBundleIds.Remove(modGuid);
         }
@@ -311,7 +317,7 @@ namespace CUCoreLib.Helpers
                     if (!EmbeddedSpriteVariantCache.TryGetValue(spriteKey, out var sprite) || sprite == null) continue;
 
                     EmbeddedSpriteVariantCache.Remove(spriteKey);
-                    UnityEngine.Object.Destroy(sprite);
+                    Object.Destroy(sprite);
                 }
 
                 AssemblySpriteVariantKeys.Remove(assemblyKey);
@@ -324,7 +330,7 @@ namespace CUCoreLib.Helpers
                     if (!EmbeddedTextureCache.TryGetValue(textureKey, out var texture) || texture == null) continue;
 
                     EmbeddedTextureCache.Remove(textureKey);
-                    UnityEngine.Object.Destroy(texture);
+                    Object.Destroy(texture);
                 }
 
                 AssemblyTextureKeys.Remove(assemblyKey);
@@ -335,7 +341,8 @@ namespace CUCoreLib.Helpers
             foreach (var cacheKey in ResolvedResourceNameCache.Keys
                          .Where(key => key.StartsWith(resolutionPrefix, StringComparison.OrdinalIgnoreCase)).ToArray())
                 ResolvedResourceNameCache.Remove(cacheKey);
-            LoggedMissingResources.RemoveWhere(key => key.IndexOf(assemblyKey, StringComparison.OrdinalIgnoreCase) >= 0);
+            LoggedMissingResources.RemoveWhere(key =>
+                key.IndexOf(assemblyKey, StringComparison.OrdinalIgnoreCase) >= 0);
 
             InvalidateSpriteAnimationsForAssembly(assemblyKey);
         }
@@ -345,16 +352,16 @@ namespace CUCoreLib.Helpers
             var assemblyKey = GetAssemblyCacheKey(assembly);
             if (string.IsNullOrWhiteSpace(assemblyKey)) return;
 
-            if (!AssemblyBundleIds.TryGetValue(assemblyKey, out var bundleIds) || bundleIds == null || bundleIds.Count == 0)
+            if (!AssemblyBundleIds.TryGetValue(assemblyKey, out var bundleIds)
+                || bundleIds == null 
+                || bundleIds.Count == 0)
                 return;
 
             foreach (var bundleId in bundleIds.ToArray())
-            {
                 if (unregister)
                     UnregisterBundle(bundleId);
                 else
                     InvalidateBundle(bundleId);
-            }
 
             if (unregister) AssemblyBundleIds.Remove(assemblyKey);
         }
@@ -421,8 +428,6 @@ namespace CUCoreLib.Helpers
             if (sourceAssembly == null)
                 sourceAssembly = ContentReloadSession.GetSourceAssemblyOverride() ?? Assembly.GetCallingAssembly();
 
-            if (sourceAssembly == null) return false;
-
             var resolvedResourceName = FindEmbeddedResourceName(resourcePath, sourceAssembly);
             if (string.IsNullOrEmpty(resolvedResourceName))
             {
@@ -463,9 +468,9 @@ namespace CUCoreLib.Helpers
 
             removedAnything |= ClearBundleAssetCaches(normalizedBundleId);
             LoggedMissingResources.RemoveWhere(key => key.IndexOf("bundle-asset:" + normalizedBundleId + ":",
-                StringComparison.OrdinalIgnoreCase) >= 0 ||
-                                                   key.IndexOf("bundle-curve:" + normalizedBundleId + ":",
-                                                       StringComparison.OrdinalIgnoreCase) >= 0);
+                                                          StringComparison.OrdinalIgnoreCase) >= 0
+                                                      || key.IndexOf("bundle-curve:" + normalizedBundleId + ":",
+                                                          StringComparison.OrdinalIgnoreCase) >= 0);
             return removedAnything;
         }
 
@@ -491,7 +496,7 @@ namespace CUCoreLib.Helpers
         }
 
         public static bool TryLoadBundleAsset<T>(string bundleId, string assetName, out T asset)
-            where T : UnityEngine.Object
+            where T : Object
         {
             asset = null;
 
@@ -592,8 +597,8 @@ namespace CUCoreLib.Helpers
         }
 
         /// <summary>
-        /// Loads an ordered list of embedded image resources as a registered frame animation. Frame order is exactly
-        /// the order supplied by <paramref name="frameResourcePaths"/>.
+        ///     Loads an ordered list of embedded image resources as a registered frame animation. Frame order is exactly
+        ///     the order supplied by <paramref name="frameResourcePaths" />.
         /// </summary>
         public static RegisteredSpriteAnimation LoadFrameAnimationFromEmbeddedResources(string id,
             IEnumerable<string> frameResourcePaths, float pixelsPerUnit = PPU_WORLD, float framesPerSecond = 12f,
@@ -603,8 +608,6 @@ namespace CUCoreLib.Helpers
 
             if (sourceAssembly == null)
                 sourceAssembly = ContentReloadSession.GetSourceAssemblyOverride() ?? Assembly.GetCallingAssembly();
-
-            if (sourceAssembly == null) return null;
 
             var frames = frameResourcePaths
                 .Where(path => !string.IsNullOrWhiteSpace(path))
@@ -620,8 +623,8 @@ namespace CUCoreLib.Helpers
         public static object LoadAnimationAsVideoClip(string pathOrResource, Assembly sourceAssembly = null)
         {
             var extension = Path.GetExtension(pathOrResource ?? string.Empty);
-            if (!extension.Equals(".gif", StringComparison.OrdinalIgnoreCase) &&
-                !extension.Equals(".mp4", StringComparison.OrdinalIgnoreCase)) return null;
+            if (!extension.Equals(".gif", StringComparison.OrdinalIgnoreCase)
+                && !extension.Equals(".mp4", StringComparison.OrdinalIgnoreCase)) return null;
 
             Logger?.LogWarning(
                 "Runtime .gif/.mp4 import into Unity VideoClip assets is not supported in this game build. Use RegisterFrameAnimation instead!");
@@ -634,8 +637,6 @@ namespace CUCoreLib.Helpers
         {
             if (sourceAssembly == null)
                 sourceAssembly = ContentReloadSession.GetSourceAssemblyOverride() ?? Assembly.GetCallingAssembly();
-
-            if (sourceAssembly == null) return null;
 
             var clipCacheKey = $"{sourceAssembly.FullName}:{NormalizeResourcePath(resourcePath)}";
             if (AudioClipCache.TryGetValue(clipCacheKey, out var cachedClip)) return cachedClip;
@@ -674,7 +675,7 @@ namespace CUCoreLib.Helpers
                 var clip = LoadAudioFromStream(stream, Path.GetFileName(fullPath));
                 if (clip == null) return null;
 
-                clip.name = Path.GetFileNameWithoutExtension(fullPath) ?? fullPath;
+                clip.name = Path.GetFileNameWithoutExtension(fullPath);
                 AudioClipCache[fullPath] = clip;
                 return clip;
             }
@@ -706,8 +707,6 @@ namespace CUCoreLib.Helpers
         {
             if (sourceAssembly == null)
                 sourceAssembly = ContentReloadSession.GetSourceAssemblyOverride() ?? Assembly.GetCallingAssembly();
-
-            if (sourceAssembly == null) return null;
 
             var foundResource = FindEmbeddedResourceName(resourcePath, sourceAssembly);
             if (string.IsNullOrEmpty(foundResource))
@@ -890,7 +889,7 @@ namespace CUCoreLib.Helpers
                          .ToArray())
             {
                 SpriteVariantCache.Remove(entry.Key);
-                if (entry.Value != null) UnityEngine.Object.Destroy(entry.Value);
+                if (entry.Value != null) Object.Destroy(entry.Value);
             }
         }
 
@@ -900,8 +899,11 @@ namespace CUCoreLib.Helpers
             if (sourceTexture == null) return null;
 
             var finalTexture = sourceTexture;
-            var needsUniqueTexture = !useSourceTextureDirectly || filterMode != FilterMode.Point ||
-                                     widthMultiplier > 1 || heightMultiplier > 1;
+            var needsUniqueTexture =
+                !useSourceTextureDirectly
+                || filterMode != FilterMode.Point
+                || widthMultiplier > 1
+                || heightMultiplier > 1;
 
             if (needsUniqueTexture)
             {
@@ -910,9 +912,7 @@ namespace CUCoreLib.Helpers
             }
 
             if (widthMultiplier > 1 || heightMultiplier > 1)
-            {
                 finalTexture = ModifyTextures.ResizeTexture(finalTexture, widthMultiplier, heightMultiplier);
-            }
 
             finalTexture.filterMode = filterMode;
             finalTexture.wrapMode = TextureWrapMode.Clamp;
@@ -942,7 +942,7 @@ namespace CUCoreLib.Helpers
             }
             catch (Exception ex)
             {
-                Logger?.LogWarning("Could not duplicate texture '" + (sourceTexture.name ?? textureName) +
+                Logger?.LogWarning("Could not duplicate texture '" + sourceTexture.name +
                                    "' for a custom sprite variant.\n" + ex);
                 return null;
             }
@@ -970,8 +970,8 @@ namespace CUCoreLib.Helpers
                     if (EmbeddedTextureCache.ContainsKey(entry.TextureCacheKey)) continue;
 
                     _ = LoadEmbeddedTextureByResolvedResourceName(entry.Assembly, entry.ResourceName);
-                } while (EmbeddedSpritePreloadQueue.Count > 0 &&
-                         Time.realtimeSinceStartup - frameStart < EmbeddedSpritePreloadFrameBudgetSeconds);
+                } while (EmbeddedSpritePreloadQueue.Count > 0
+                         && Time.realtimeSinceStartup - frameStart < EmbeddedSpritePreloadFrameBudgetSeconds);
 
                 yield return null;
             }
@@ -988,7 +988,9 @@ namespace CUCoreLib.Helpers
             foreach (var pluginInfo in Chainloader.PluginInfos.Values
                          .OrderBy(info => info.Metadata?.GUID ?? string.Empty, StringComparer.OrdinalIgnoreCase))
             {
-                var assembly = pluginInfo?.Instance != null ? pluginInfo.Instance.GetType().Assembly : null;
+                var assembly = pluginInfo.Instance != null
+                    ? pluginInfo.Instance.GetType().Assembly
+                    : null;
                 if (assembly == null) continue;
 
                 var assemblyKey = GetAssemblyCacheKey(assembly);
@@ -1040,13 +1042,14 @@ namespace CUCoreLib.Helpers
 
             foreach (var animationId in animationIds.ToArray())
             {
-                if (!SpriteAnimationOwnerAssemblyKeys.TryGetValue(animationId, out var ownerAssemblyKey) ||
-                    !string.Equals(ownerAssemblyKey, assemblyKey, StringComparison.OrdinalIgnoreCase))
+                if (!SpriteAnimationOwnerAssemblyKeys.TryGetValue(animationId, out var ownerAssemblyKey) 
+                    || !string.Equals(ownerAssemblyKey, assemblyKey, StringComparison.OrdinalIgnoreCase))
                     continue;
 
-                if (SpriteAnimationCache.TryGetValue(animationId, out var animation) && animation?.Frames?.Length > 0 &&
-                    SpriteCache.TryGetValue(animationId, out var cachedSprite) &&
-                    ReferenceEquals(cachedSprite, animation.Frames[0]))
+                if (SpriteAnimationCache.TryGetValue(animationId, out var animation)
+                    && animation?.Frames?.Length > 0
+                    && SpriteCache.TryGetValue(animationId, out var cachedSprite)
+                    && ReferenceEquals(cachedSprite, animation.Frames[0]))
                 {
                     SpriteCache.Remove(animationId);
                     ClearCachedSpriteVariants(animationId);
@@ -1061,12 +1064,13 @@ namespace CUCoreLib.Helpers
 
         private static void RemoveSpriteAnimationOwnership(string animationId)
         {
-            if (string.IsNullOrWhiteSpace(animationId) ||
-                !SpriteAnimationOwnerAssemblyKeys.TryGetValue(animationId, out var assemblyKey))
+            if (string.IsNullOrWhiteSpace(animationId)
+                || !SpriteAnimationOwnerAssemblyKeys.TryGetValue(animationId, out var assemblyKey))
                 return;
 
             SpriteAnimationOwnerAssemblyKeys.Remove(animationId);
-            if (!AssemblySpriteAnimationIds.TryGetValue(assemblyKey, out var animationIds) || animationIds == null) return;
+            if (!AssemblySpriteAnimationIds.TryGetValue(assemblyKey, out var animationIds)
+                || animationIds == null) return;
 
             animationIds.Remove(animationId);
             if (animationIds.Count == 0) AssemblySpriteAnimationIds.Remove(assemblyKey);
@@ -1087,7 +1091,9 @@ namespace CUCoreLib.Helpers
             while (end >= 0 && char.IsDigit(fileNameWithoutExtension[end])) end--;
 
             var numericSuffix = fileNameWithoutExtension.Substring(end + 1);
-            return int.TryParse(numericSuffix, out var frameNumber) ? frameNumber : int.MaxValue;
+            return int.TryParse(numericSuffix, out var frameNumber)
+                ? frameNumber
+                : int.MaxValue;
         }
 
         private static string FindEmbeddedResourceName(string resourcePath, Assembly sourceAssembly)
@@ -1101,9 +1107,11 @@ namespace CUCoreLib.Helpers
             var resolutionCacheKey = string.IsNullOrWhiteSpace(assemblyKey)
                 ? null
                 : assemblyKey + "|" + resourcePath.Trim();
-            if (resolutionCacheKey != null &&
-                ResolvedResourceNameCache.TryGetValue(resolutionCacheKey, out var cachedResourceName))
-                return cachedResourceName == MissingResourceName ? null : cachedResourceName;
+            if (resolutionCacheKey != null
+                && ResolvedResourceNameCache.TryGetValue(resolutionCacheKey, out var cachedResourceName))
+                return cachedResourceName == MissingResourceName
+                    ? null
+                    : cachedResourceName;
 
             var searchPatternWithoutExtension = NormalizeResourceStem(resourcePath);
             var resourceNames = GetManifestResourceNames(sourceAssembly);
@@ -1126,8 +1134,8 @@ namespace CUCoreLib.Helpers
             if (!string.IsNullOrEmpty(filenamePattern))
             {
                 var filenameMatch = resourceNames.FirstOrDefault(r =>
-                    r.EndsWith(filenamePattern, StringComparison.OrdinalIgnoreCase) ||
-                    NormalizeResourcePath(r).EndsWith(filenamePattern, StringComparison.OrdinalIgnoreCase));
+                    r.EndsWith(filenamePattern, StringComparison.OrdinalIgnoreCase)
+                    || NormalizeResourcePath(r).EndsWith(filenamePattern, StringComparison.OrdinalIgnoreCase));
 
                 if (!string.IsNullOrEmpty(filenameMatch))
                     return CacheResolvedResourceName(resolutionCacheKey, filenameMatch);
@@ -1231,6 +1239,8 @@ namespace CUCoreLib.Helpers
                         Logger?.LogWarning(
                             $"Could not load embedded asset bundle '{registration.Descriptor}' for bundle id '{bundleId}'.");
                     break;
+                default:
+                    throw new ArgumentOutOfRangeException();
             }
 
             if (bundle == null) return false;
@@ -1245,10 +1255,8 @@ namespace CUCoreLib.Helpers
 
             if (BundleAssetCacheKeysByBundleId.TryGetValue(bundleId, out var assetCacheKeys) && assetCacheKeys != null)
             {
-                foreach (var cacheKey in assetCacheKeys.ToArray())
-                {
-                    clearedAny |= BundleAssetCache.Remove(cacheKey);
-                }
+                clearedAny = assetCacheKeys.ToArray().Aggregate(false,
+                    (current, cacheKey) => current | BundleAssetCache.Remove(cacheKey));
 
                 BundleAssetCacheKeysByBundleId.Remove(bundleId);
             }
@@ -1275,7 +1283,8 @@ namespace CUCoreLib.Helpers
             bundleIds.Add(bundleId);
         }
 
-        private static void RemoveBundleOwner(string ownerKey, string bundleId, Dictionary<string, HashSet<string>> index)
+        private static void RemoveBundleOwner(string ownerKey, string bundleId,
+            Dictionary<string, HashSet<string>> index)
         {
             if (string.IsNullOrWhiteSpace(ownerKey) || string.IsNullOrWhiteSpace(bundleId)) return;
             if (!index.TryGetValue(ownerKey, out var bundleIds) || bundleIds == null) return;
@@ -1284,7 +1293,8 @@ namespace CUCoreLib.Helpers
             if (bundleIds.Count == 0) index.Remove(ownerKey);
         }
 
-        private static void AddBundleCacheKey(Dictionary<string, HashSet<string>> index, string bundleId, string cacheKey)
+        private static void AddBundleCacheKey(Dictionary<string, HashSet<string>> index, string bundleId,
+            string cacheKey)
         {
             if (string.IsNullOrWhiteSpace(bundleId) || string.IsNullOrWhiteSpace(cacheKey)) return;
 
@@ -1337,16 +1347,13 @@ namespace CUCoreLib.Helpers
             if (!string.IsNullOrWhiteSpace(modGuid)) return modGuid;
             if (sourceAssembly == null) return null;
 
-            foreach (var pluginInfo in Chainloader.PluginInfos.Values)
-            {
-                var pluginAssembly = pluginInfo?.Instance != null ? pluginInfo.Instance.GetType().Assembly : null;
-                if (pluginAssembly == null) continue;
-                if (!ReferenceEquals(pluginAssembly, sourceAssembly)) continue;
-
-                return pluginInfo.Metadata?.GUID;
-            }
-
-            return null;
+            return (from pluginInfo in Chainloader.PluginInfos.Values
+                let pluginAssembly = pluginInfo?.Instance != null 
+                    ? pluginInfo.Instance.GetType().Assembly
+                    : null
+                where pluginAssembly != null
+                where ReferenceEquals(pluginAssembly, sourceAssembly)
+                select pluginInfo.Metadata?.GUID).FirstOrDefault();
         }
 
         private static string BuildEmbeddedTextureCacheKey(string assemblyKey, string resourceName)
@@ -1361,7 +1368,7 @@ namespace CUCoreLib.Helpers
 
         private static string BuildBundleAssetCacheKey(string bundleId, Type assetType, string assetName)
         {
-            return bundleId + "|" + (assetType?.FullName ?? typeof(UnityEngine.Object).FullName) + "|" + assetName;
+            return bundleId + "|" + (assetType?.FullName ?? typeof(Object).FullName) + "|" + assetName;
         }
 
         private static void AddAssemblyKey(Dictionary<string, HashSet<string>> index, string assemblyKey, string key)
@@ -1465,10 +1472,14 @@ namespace CUCoreLib.Helpers
                     return null;
             }
 
-            var samples = new List<float>();
             var buffer = new float[provider.WaveFormat.SampleRate * provider.WaveFormat.Channels];
+            var samples = new List<float>();
             int read;
-            while ((read = provider.Read(buffer, 0, buffer.Length)) > 0) samples.AddRange(buffer.Take(read));
+            while ((read = provider.Read(buffer, 0, buffer.Length)) > 0)
+            {
+                for (var i = 0; i < read; i++)
+                    samples.Add(buffer[i]);
+            }
 
             var waveFormat = provider.WaveFormat;
             var sampleRate = waveFormat.SampleRate;
@@ -1478,6 +1489,7 @@ namespace CUCoreLib.Helpers
             var clip = AudioClip.Create(resourceName, samplesPerChannel, channels, sampleRate, false);
             clip.SetData(samples.ToArray(), 0);
             return clip;
+
         }
 
         private sealed class EmbeddedSpritePreloadEntry

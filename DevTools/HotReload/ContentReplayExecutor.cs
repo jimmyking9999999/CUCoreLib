@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Reflection;
 using System.Runtime.Serialization;
 using BepInEx.Bootstrap;
@@ -11,7 +10,7 @@ using CUCoreLib.Helpers;
 using CUCoreLib.Patches;
 using CUCoreLib.Registries;
 
-namespace CUCoreLib.ContentReload
+namespace CUCoreLib.DevTools.HotReload
 {
     internal static class ContentReplayExecutor
     {
@@ -66,7 +65,7 @@ namespace CUCoreLib.ContentReload
 
             var existingContent = CaptureExistingContent(report.ModGuid);
             AssetLoader.InvalidateEmbeddedCachesForModGuid(report.ModGuid);
-            AssetLoader.InvalidateBundlesForModGuid(report.ModGuid, unregister: true);
+            AssetLoader.InvalidateBundlesForModGuid(report.ModGuid, true);
             ClearExistingContent(report.ModGuid, result);
             var reloadMode = ContentReloadManager.GetReloadMode(report.ModGuid);
 
@@ -79,7 +78,6 @@ namespace CUCoreLib.ContentReload
             using (BuildingEntityRegistry.BeginOwnerRegistration(report.ModGuid))
             {
                 foreach (var invocation in invocations)
-                {
                     try
                     {
                         invocation.Method.Invoke(invocation.Method.IsStatic ? null : invocation.Target, null);
@@ -105,7 +103,6 @@ namespace CUCoreLib.ContentReload
                                                         ex);
                         return result;
                     }
-                }
             }
 
             FinalizeRuntimeRefresh(existingContent.Buildings?.Keys);
@@ -253,7 +250,8 @@ namespace CUCoreLib.ContentReload
             }
             catch (Exception ex)
             {
-                CUCoreLibPlugin.Log?.LogWarning("CUCoreLib strict content reload console autofill refresh failed.\n" + ex);
+                CUCoreLibPlugin.Log?.LogWarning("CUCoreLib strict content reload console autofill refresh failed.\n" +
+                                                ex);
             }
 
             try

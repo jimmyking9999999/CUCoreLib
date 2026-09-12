@@ -11,9 +11,9 @@ using UnityEngine;
 namespace CUCoreLib.Patches
 {
     /// <summary>
-    /// Optional integration for QoL Unknown's multiplayer client-inventory restore.
-    /// QoL stores vanilla save JSON, but its restore path used Resources.Load directly; that cannot find
-    /// CUCoreLib's runtime custom-item templates and silently drops those entries.
+    ///     Optional integration for QoL Unknown's multiplayer client-inventory restore.
+    ///     QoL stores vanilla save JSON, but its restore path used Resources.Load directly; that cannot find
+    ///     CUCoreLib's runtime custom-item templates and silently drops those entries.
     /// </summary>
     internal static class QoLUnknownCompatibilityPatches
     {
@@ -47,12 +47,14 @@ namespace CUCoreLib.Patches
             ScheduleRetry(harmony);
         }
 
-        private static IEnumerable<CodeInstruction> ApplySavedItems_Transpiler(IEnumerable<CodeInstruction> instructions)
+        private static IEnumerable<CodeInstruction> ApplySavedItems_Transpiler(
+            IEnumerable<CodeInstruction> instructions)
         {
             var resourcesLoad = typeof(Resources).GetMethods(BindingFlags.Public | BindingFlags.Static)
-                .FirstOrDefault(method => method.Name == nameof(Resources.Load) && !method.IsGenericMethod &&
-                                          method.GetParameters().Length == 1 &&
-                                          method.GetParameters()[0].ParameterType == typeof(string));
+                .FirstOrDefault(method => method.Name == nameof(Resources.Load) 
+                                          && !method.IsGenericMethod
+                                          && method.GetParameters().Length == 1
+                                          && method.GetParameters()[0].ParameterType == typeof(string));
             var resolveSavedResource = AccessTools.Method(typeof(CustomInstantiate),
                 nameof(CustomInstantiate.ResolveSavedResource));
 

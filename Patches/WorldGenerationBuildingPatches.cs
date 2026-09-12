@@ -4,21 +4,10 @@ using HarmonyLib;
 
 namespace CUCoreLib.Patches
 {
-    [HarmonyPatch(typeof(WorldGeneration), "Clear")]
-    internal static class WorldGenerationCleanupPatches
-    {
-        [HarmonyPrefix]
-        private static void ClearCUCoreLibWorldState()
-        {
-            BuildingEntityRegistry.ClearWorldInstances();
-            LiquidTileRegistry.ClearWorldState();
-            ItemRegistryPatches.ClearWorldState();
-        }
-    }
-
-    [HarmonyPatch(typeof(WorldGeneration), "PlaceCrystals")]
+    [HarmonyPatch(typeof(WorldGeneration))]
     internal static class WorldGenerationBuildingPatches
     {
+        [HarmonyPatch("PlaceCrystals")]
         [HarmonyPostfix]
         private static void DistributeRegisteredBuildings(WorldGeneration __instance)
         {
@@ -31,6 +20,15 @@ namespace CUCoreLib.Patches
             }
 
             DropPoolRegistry.ScatterWorldSpawns(__instance);
+        }
+        
+        [HarmonyPatch("Clear")]
+        [HarmonyPrefix]
+        private static void ClearCUCoreLibWorldState()
+        {
+            BuildingEntityRegistry.ClearWorldInstances();
+            LiquidTileRegistry.ClearWorldState();
+            ItemRegistryPatches.ClearWorldState();
         }
     }
 }

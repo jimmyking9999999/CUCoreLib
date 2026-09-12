@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using CUCoreLib.Data;
 using CUCoreLib.Registries;
 using UnityEngine;
@@ -11,10 +12,10 @@ namespace CUCoreLib.Helpers
 
         private BuildingEntity _building;
         private CustomBuildingEntityDefinition _definition;
+        private float _heatElapsed;
         private bool _isQuitting;
         private bool _registered;
         private bool _spawnedDrops;
-        private float _heatElapsed;
 
         private void Awake()
         {
@@ -29,8 +30,8 @@ namespace CUCoreLib.Helpers
             if (_definition == null || _definition.HeatRadius <= 0f || _definition.HeatPerSecond == 0f) return;
 
             var playerCamera = PlayerCamera.main;
-            var body = playerCamera != null ? playerCamera.body : null;
-            if (body == null)
+            var body = playerCamera ? playerCamera.body : null;
+            if (!body)
             {
                 _heatElapsed = 0f;
                 return;
@@ -102,17 +103,18 @@ namespace CUCoreLib.Helpers
 
         private void ApplySpawnComponents()
         {
-            if (_definition == null || _definition.SpawnComponents == null ||
-                _definition.SpawnComponents.Count == 0) return;
+            if (_definition?.SpawnComponents == null
+                || _definition.SpawnComponents.Count == 0) return;
 
-            foreach (var componentName in _definition.SpawnComponents)
+            foreach (var componentType in from componentName in _definition.SpawnComponents
+                     where !string.IsNullOrWhiteSpace(componentName)
+                     select Type.GetType(componentName, false)
+                     into componentType
+                     where componentType != null && typeof(MonoBehaviour).IsAssignableFrom(componentType)
+                     where GetComponent(componentType) == null
+                     select componentType)
             {
-                if (string.IsNullOrWhiteSpace(componentName)) continue;
-
-                var componentType = Type.GetType(componentName, false);
-                if (componentType == null || !typeof(MonoBehaviour).IsAssignableFrom(componentType)) continue;
-
-                if (GetComponent(componentType) == null) gameObject.AddComponent(componentType);
+                gameObject.AddComponent(componentType);
             }
         }
     }

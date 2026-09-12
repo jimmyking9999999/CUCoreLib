@@ -33,8 +33,8 @@ namespace CUCoreLib.Helpers
             id = SpawnIdHelpers.NormalizeSpawnId(id);
 
             var prefab = ResolvePrefab(id);
-            return prefab == null 
-                ? null 
+            return prefab == null
+                ? null
                 : PrepareInstantiatedObject(Object.Instantiate(prefab, position, rotation), condition);
         }
 
@@ -56,8 +56,8 @@ namespace CUCoreLib.Helpers
         }
 
         /// <summary>
-        /// Resolves a saved or externally-restored item resource.  Vanilla resources are returned unchanged;
-        /// CUCoreLib runtime item templates are returned when the ID is registered by a dependent mod.
+        ///     Resolves a saved or externally-restored item resource.  Vanilla resources are returned unchanged;
+        ///     CUCoreLib runtime item templates are returned when the ID is registered by a dependent mod.
         /// </summary>
         public static Object ResolveSavedResource(string id)
         {
@@ -126,10 +126,7 @@ namespace CUCoreLib.Helpers
                 }
                 default:
                 {
-                    if (info.Light != null)
-                    {
-                        EnsureLightItemHasLight(obj, info.Light);
-                    }
+                    if (info.Light != null) EnsureLightItemHasLight(obj, info.Light);
 
                     break;
                 }
@@ -144,10 +141,7 @@ namespace CUCoreLib.Helpers
                 ItemRegistryPatches.ApplyContainerProperties(item, info);
             }
 
-            if (item != null && info.wearable && obj.GetComponent<Wearable>() == null)
-            {
-                obj.AddComponent<Wearable>();
-            }
+            if (item != null && info.wearable && obj.GetComponent<Wearable>() == null) obj.AddComponent<Wearable>();
 
             if (item != null && info.Gun != null)
                 ItemRegistryPatches.ApplyGunProperties(item, info);
@@ -167,7 +161,7 @@ namespace CUCoreLib.Helpers
             if (info.Battery != null)
             {
                 var batteryItem = obj.GetComponent<BatteryItem>();
-                var createdBattery = batteryItem == null;   // not use
+                var createdBattery = batteryItem == null; // not use
                 if (batteryItem == null) batteryItem = obj.AddComponent<BatteryItem>();
 
                 ItemRegistryPatches.ApplyBatteryProperties(item, batteryItem, info, true);
@@ -183,13 +177,11 @@ namespace CUCoreLib.Helpers
             if (obj == null || sprite == null) return;
 
             if (!TryGetTrimmedColliderData(sprite, out var trimmedCollider))
-            {
                 trimmedCollider = CreateFullSpriteColliderData(sprite);
-            }
 
             // Preserve current collider settings
             var existingCollider = obj.GetComponent<Collider2D>();
-            
+
             // For some reason the first time items are spawned existingCollider gives us the incorrect collider data
             // sloppiest fix ever but without this items just dont have collision on first spawn
             if (TryApplyPolygonCollider(obj, sprite, null, trimmedCollider)) return;
@@ -213,9 +205,8 @@ namespace CUCoreLib.Helpers
                 SharedPhysicsShapeBuffer.Clear();
                 sprite.GetPhysicsShape(i, SharedPhysicsShapeBuffer);
                 for (var j = 0; j < SharedPhysicsShapeBuffer.Count; j++)
-                {
-                    SharedPhysicsShapeBuffer[j] = ClampPointToTrimmedBounds(SharedPhysicsShapeBuffer[j], trimmedCollider);
-                }
+                    SharedPhysicsShapeBuffer[j] =
+                        ClampPointToTrimmedBounds(SharedPhysicsShapeBuffer[j], trimmedCollider);
 
                 polygon.SetPath(i, SharedPhysicsShapeBuffer);
             }
@@ -225,7 +216,8 @@ namespace CUCoreLib.Helpers
             return true;
         }
 
-        private static void ApplyBoxCollider(GameObject obj, Collider2D existingCollider, TrimmedColliderData trimmedCollider)
+        private static void ApplyBoxCollider(GameObject obj, Collider2D existingCollider,
+            TrimmedColliderData trimmedCollider)
         {
             var box = obj.GetComponent<BoxCollider2D>();
             if (box == null) box = obj.AddComponent<BoxCollider2D>();
@@ -358,12 +350,17 @@ namespace CUCoreLib.Helpers
         {
             if (target == null) return;
 
-            // Disabled objects/components do not affect templates instantiated before Unity completes
-            // the deferred destroy, and Object.Destroy is permitted from physics callbacks.
-            if (target is GameObject gameObject)
-                gameObject.SetActive(false);
-            else if (target is Behaviour behaviour)
-                behaviour.enabled = false;
+            switch (target)
+            {
+                // Disabled objects/components do not affect templates instantiated before Unity completes
+                // the deferred destroy, and Object.Destroy is permitted from physics callbacks.
+                case GameObject gameObject:
+                    gameObject.SetActive(false);
+                    break;
+                case Behaviour behaviour:
+                    behaviour.enabled = false;
+                    break;
+            }
 
             Object.Destroy(target);
         }

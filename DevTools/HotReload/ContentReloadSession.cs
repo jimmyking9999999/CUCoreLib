@@ -7,7 +7,7 @@ using System.Reflection;
 using BepInEx.Bootstrap;
 using CUCoreLib.Helpers;
 
-namespace CUCoreLib.ContentReload
+namespace CUCoreLib.DevTools.HotReload
 {
     internal static class ContentReloadSession
     {
@@ -15,6 +15,8 @@ namespace CUCoreLib.ContentReload
         [ThreadStatic] private static HashSet<string> warningKeys;
 
         internal static bool IsActive => current != null;
+
+        internal static HotReloadMode CurrentMode => current?.Mode ?? HotReloadMode.Strict;
 
         internal static Assembly GetSourceAssemblyOverride()
         {
@@ -49,10 +51,9 @@ namespace CUCoreLib.ContentReload
 
                     foreach (var pluginInfo in Chainloader.PluginInfos.Values
                                  .Where(pluginInfo => pluginInfo?.Metadata != null)
-                                 .Where(pluginInfo => string.Equals(pluginInfo.Location, location, StringComparison.OrdinalIgnoreCase)))
-                    {
+                                 .Where(pluginInfo => string.Equals(pluginInfo.Location, location,
+                                     StringComparison.OrdinalIgnoreCase)))
                         return pluginInfo.Metadata.GUID;
-                    }
                 }
             }
             catch
@@ -69,8 +70,6 @@ namespace CUCoreLib.ContentReload
 
             return Path.GetDirectoryName(current.SourceDllPath);
         }
-
-        internal static HotReloadMode CurrentMode => current?.Mode ?? HotReloadMode.Strict;
 
         internal static IDisposable Begin(string modGuid, Assembly sourceAssembly, string sourceDllPath,
             ContentReloadSurface allowedSurfaces, HotReloadMode mode)
@@ -96,26 +95,18 @@ namespace CUCoreLib.ContentReload
 
             if ((current.AllowedSurfaces & surface) != 0) return;
 
-            if (CurrentMode == HotReloadMode.FlexibleGuarded)
-            {
-                WarnBlocked(apiName, guidance);
-                return;
-            }
-
-            throw new InvalidOperationException(BuildDisallowedMessage(apiName, guidance));
+            if (CurrentMode != HotReloadMode.FlexibleGuarded)
+                throw new InvalidOperationException(BuildDisallowedMessage(apiName, guidance));
+            WarnBlocked(apiName, guidance);
         }
 
         internal static void AssertNotActive(string apiName, string guidance = null)
         {
             if (current == null) return;
 
-            if (CurrentMode == HotReloadMode.FlexibleGuarded)
-            {
-                WarnBlocked(apiName, guidance);
-                return;
-            }
-
-            throw new InvalidOperationException(BuildDisallowedMessage(apiName, guidance));
+            if (CurrentMode != HotReloadMode.FlexibleGuarded)
+                throw new InvalidOperationException(BuildDisallowedMessage(apiName, guidance));
+            WarnBlocked(apiName, guidance);
         }
 
         private static void WarnBlocked(string apiName, string guidance)

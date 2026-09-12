@@ -2,7 +2,7 @@ using System.Collections;
 using CUCoreLib.Helpers;
 using UnityEngine;
 
-namespace CUCoreLib.ContentReload
+namespace CUCoreLib.DevTools.HotReload
 {
     internal static class ContentWatchService
     {
