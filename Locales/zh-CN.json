@@ -1,0 +1,13 @@
+﻿{
+  "command": {
+    "createLocale.description": "写入或更新CUCoreLib生成的本地化数据。警告：将覆盖EN.json",
+    "createLocale.message": "本地化文件生成在 {0}",
+    "createLocale.path": "可选输出目录，默认为 BepInEx/config/CUCoreLib/Locales/EN.json.",
+    "modlist.description": "将加载的BepInEx插件列表打印到游戏内控制台和Unity日志。",
+    "modlist.unknown_name": "未知名称",
+    "modlist.unknown_version": "未知版本",
+    "modlist.unknown_guid": "未知Guid",
+    "modlist.loaded": "共加载 {0} 个模组"
+  }
+}
+  

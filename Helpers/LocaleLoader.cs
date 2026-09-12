@@ -183,7 +183,8 @@ namespace CUCoreLib.Helpers
             MergeSection(target.other, source["command"]);
             MergeSection(target.other, source["option"]);
             MergeSection(target.other, source["liquid"]);
-            MergeSection(target.other, source["title"]);
+            MergeSection(target.other, source["tile"]);
+            MergeSection(target.other, source["ui"]);
         }
 
         private static void MergeSection(Dictionary<string, string> target, JToken sectionToken)

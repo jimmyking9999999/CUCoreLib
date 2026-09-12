@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using BepInEx;
 using CUCoreLib.ContentReload;
 using CUCoreLib.Helpers;
@@ -38,6 +39,14 @@ namespace CUCoreLib.Registries
 
         private static string ActiveOwnerId;
 
+        private static readonly Dictionary<string, int> LocaleRegistrationCounts =
+            new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+
+        private static readonly Dictionary<string, int> LocaleLookupCounts =
+            new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+
+        private static readonly Regex PlaceholderPattern = new Regex(@"\{(\d+)\}", RegexOptions.Compiled);
+
         /// <summary>
         ///     Registers a localized string
         /// </summary>
@@ -69,14 +78,17 @@ namespace CUCoreLib.Registries
                 LocaleOwners[type] = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
             var value = text ?? string.Empty;
-            if (CustomLocales[type].TryGetValue(key, out var existing) && !string.IsNullOrWhiteSpace(existing) &&
-                string.IsNullOrWhiteSpace(value)) return;
+            if (CustomLocales[type].TryGetValue(key, out var existing)
+                && !string.IsNullOrWhiteSpace(existing)
+                && string.IsNullOrWhiteSpace(value)) return;
 
             CustomLocales[type][key] = value;
             var ownerId = !string.IsNullOrWhiteSpace(ActiveOwnerId)
                 ? ActiveOwnerId
                 : ContentReloadSession.ResolveAmbientOwnerId();
             if (!string.IsNullOrWhiteSpace(ownerId)) LocaleOwners[type][key] = ownerId;
+
+            RecordRegistration(TypeToCategory(type), key);
         }
 
         /// <summary>
@@ -110,7 +122,7 @@ namespace CUCoreLib.Registries
         {
             return Get("other", key, optionalFallbackIfLocaleValueNullOrWhitespace);
         }
-
+        
         public static string Get(string category, string key,
             // Methods with optional parameters are overloaded and hidden
             string optionalFallbackIfLocaleValueNullOrWhitespace = null)
@@ -121,14 +133,80 @@ namespace CUCoreLib.Registries
             if (string.IsNullOrWhiteSpace(optionalFallbackIfLocaleValueNullOrWhitespace))
             {
                 Require(category, normalizedKey);
+                RecordLookup(category, normalizedKey);
                 var runtimeValue = LocaleLoader.GetLocalizedText(category, normalizedKey);
                 return string.IsNullOrWhiteSpace(runtimeValue) ? normalizedKey : runtimeValue;
             }
 
             Register(category, normalizedKey, optionalFallbackIfLocaleValueNullOrWhitespace);
+            RecordLookup(category, normalizedKey);
             var value = LocaleLoader.GetLocalizedText(category, normalizedKey,
                 optionalFallbackIfLocaleValueNullOrWhitespace);
             return string.IsNullOrWhiteSpace(value) ? optionalFallbackIfLocaleValueNullOrWhitespace : value;
+        }
+
+        /// <summary>
+        ///     Gets a localized string and replaces {0}, {1}, ... placeholders with the supplied arguments.
+        /// </summary>
+        /// <param name="category">Locale category such as "item", "building", "log", or "other".</param>
+        /// <param name="key">Locale key within the selected category.</param>
+        /// <param name="args">
+        ///     Values injected into {0}, {1}, ... placeholders. Out-of-range placeholders are preserved verbatim.
+        /// </param>
+        /// <returns>
+        ///     The formatted localized text. Falls back to the formatted raw key when no translation exists,
+        ///     so the result is never null.
+        /// </returns>
+        public static string GetFormatted(string category, string key, params object[] args)
+        {
+            return Format(Get(category, key, null), key, args);
+        }
+
+        /// <summary>
+        ///     Gets a localized string from the "other" category and replaces {0}, {1}, ... placeholders.
+        /// </summary>
+        /// <param name="key">Locale key within the "other" category.</param>
+        /// <param name="args">Values injected into {0}, {1}, ... placeholders.</param>
+        /// <returns>The formatted localized text; never null.</returns>
+        public static string GetFormatted(string key, params object[] args)
+        {
+            return Format(Get("other", key, null), key, args);
+        }
+
+        /// <summary>
+        ///     Gets a localized string and replaces {0}, {1}, ... placeholders, using an explicit fallback.
+        /// </summary>
+        /// <param name="category">Locale category such as "item", "building", "log", or "other".</param>
+        /// <param name="key">Locale key within the selected category.</param>
+        /// <param name="args">
+        ///     Values injected into {0}, {1}, ... placeholders. Out-of-range placeholders are preserved verbatim.
+        /// </param>
+        /// <returns>The formatted localized text; never null.</returns>
+        public static string GetFormattedWithFallback(string category, string key, string fallback,
+            params object[] args)
+        {
+            return Format(Get(category, key, fallback), key, args);
+        }
+
+        internal static string FormatText(string text, string key, object[] args)
+        {
+            return Format(text, key, args);
+        }
+
+        private static string Format(string text, string key, object[] args)
+        {
+            if (args == null || args.Length == 0) return text ?? string.Empty;
+            if (string.IsNullOrEmpty(text)) return string.Empty;
+
+            return PlaceholderPattern.Replace(text, match =>
+            {
+                if (!int.TryParse(match.Groups[1].Value, out var index)) return match.Value;
+                if (index >= 0 && index < args.Length) return args[index]?.ToString() ?? string.Empty;
+
+                CUCoreLibPlugin.Log.LogWarning(
+                    $"Locale placeholder {{{index}}} is out of range for key '{key}' (args: {args.Length}).");
+                return match.Value;
+            });
         }
 
         public static void RegisterCraftingQuality(string id, string displayName = null)
@@ -216,6 +294,89 @@ namespace CUCoreLib.Registries
         public static string GetDefaultLocalePath()
         {
             return Path.Combine(Paths.ConfigPath, "CUCoreLib", "Locales", "EN.json");
+        }
+
+        /// <summary>
+        ///     Returns how many times a locale key was registered through <see cref="Register(string,string,string)" />.
+        /// </summary>
+        /// <param name="category">Locale category to inspect.</param>
+        /// <param name="key">Locale key within the category.</param>
+        /// <returns>The registration count, or 0 when the key was never registered.</returns>
+        public static int GetRegistrationCount(string category, string key)
+        {
+            if (string.IsNullOrWhiteSpace(key)) return 0;
+
+            return LocaleRegistrationCounts.TryGetValue(BuildDiagnosticKey(category, key), out var count) 
+                ? count
+                : 0;
+        }
+
+        /// <summary>
+        ///     Returns how many times a locale key was queried through <see cref="Get(string,string,string)" />.
+        /// </summary>
+        /// <param name="category">Locale category to inspect.</param>
+        /// <param name="key">Locale key within the category.</param>
+        /// <returns>The lookup count, or 0 when the key was never queried.</returns>
+        public static int GetLookupCount(string category, string key)
+        {
+            if (string.IsNullOrWhiteSpace(key)) return 0;
+
+            return LocaleLookupCounts.TryGetValue(BuildDiagnosticKey(category, key), out var count) 
+                ? count
+                : 0;
+        }
+
+        /// <summary>
+        ///     Returns a snapshot of every locale key that was queried at least once, mapped to its lookup count.
+        /// </summary>
+        /// <returns>A new dictionary keyed by "{category}.{key}"; never null.</returns>
+        public static Dictionary<string, int> GetLookupCounts()
+        {
+            return new Dictionary<string, int>(LocaleLookupCounts, StringComparer.OrdinalIgnoreCase);
+        }
+
+        /// <summary>
+        ///     Returns a snapshot of every locale key that was registered at least once, mapped to its registration count.
+        /// </summary>
+        /// <returns>A new dictionary keyed by "{category}.{key}"; never null.</returns>
+        public static Dictionary<string, int> GetRegistrationCounts()
+        {
+            return new Dictionary<string, int>(LocaleRegistrationCounts, StringComparer.OrdinalIgnoreCase);
+        }
+
+        /// <summary>
+        ///     Clears both the registration and lookup diagnostics without touching registered translations.
+        /// </summary>
+        public static void ResetDiagnostics()
+        {
+            LocaleRegistrationCounts.Clear();
+            LocaleLookupCounts.Clear();
+        }
+
+        private static void RecordRegistration(string category, string key)
+        {
+            if (string.IsNullOrWhiteSpace(key)) return;
+
+            var diagnosticKey = BuildDiagnosticKey(category, key);
+            LocaleRegistrationCounts[diagnosticKey] =
+                LocaleRegistrationCounts.TryGetValue(diagnosticKey, out var count) ? count + 1 : 1;
+        }
+
+        private static void RecordLookup(string category, string key)
+        {
+            if (string.IsNullOrWhiteSpace(key)) return;
+
+            var diagnosticKey = BuildDiagnosticKey(category, key);
+            LocaleLookupCounts[diagnosticKey] =
+                LocaleLookupCounts.TryGetValue(diagnosticKey, out var count) ? count + 1 : 1;
+        }
+
+        private static string BuildDiagnosticKey(string category, string key)
+        {
+            var normalizedCategory = (category ?? string.Empty).Trim().ToLowerInvariant();
+            if (normalizedCategory.Length == 0) normalizedCategory = "other";
+
+            return normalizedCategory + "." + key.Trim();
         }
 
         public static IDisposable BeginOwnerRegistration(string ownerId)

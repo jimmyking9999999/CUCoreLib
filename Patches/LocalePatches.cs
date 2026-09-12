@@ -6,34 +6,35 @@ using HarmonyLib;
 
 namespace CUCoreLib.Patches
 {
-    [HarmonyPatch(typeof(Locale), "GetString")]
+    [HarmonyPatch(typeof(Locale))]
     internal static class LocalePatches
     {
+        [HarmonyPatch("GetString")]
         [HarmonyPrefix]
         private static bool InterceptLocale(string str, int type, ref string __result)
         {
             if (Locale.currentLang != null)
             {
-                var section = type == 0 ? Locale.currentLang.main :
-                    type == 1 ? Locale.currentLang.buildings :
-                    type == 2 ? Locale.currentLang.moodles :
-                    Locale.currentLang.other;
+                var section = type == 0
+                    ? Locale.currentLang.main
+                    : type == 1
+                        ? Locale.currentLang.buildings
+                        : type == 2
+                            ? Locale.currentLang.moodles
+                            : Locale.currentLang.other;
 
-                if (section != null && section.TryGetValue(str, out var localizedText) &&
-                    !string.IsNullOrWhiteSpace(localizedText))
+                if (section != null
+                    && section.TryGetValue(str, out var localizedText)
+                    && !string.IsNullOrWhiteSpace(localizedText))
                 {
                     __result = localizedText;
                     return false;
                 }
             }
 
-            if (TryGetCustomLocaleText(type, str, out var fallbackText))
-            {
-                __result = fallbackText;
-                return false;
-            }
-
-            return true;
+            if (!TryGetCustomLocaleText(type, str, out var fallbackText)) return true;
+            __result = fallbackText;
+            return false;
         }
 
         private static bool TryGetCustomLocaleText(int type, string key, out string text)
@@ -47,8 +48,47 @@ namespace CUCoreLib.Patches
             // even though CUCoreLib exports those keys into dedicated sections.
             if (type != (int)LocaleRegistry.LocaleCategory.Other) return false;
 
-            return TryGetCustomLocaleTextForType((int)LocaleRegistry.LocaleCategory.Liquid, key, out text) ||
-                   TryGetCustomLocaleTextForType((int)LocaleRegistry.LocaleCategory.Tile, key, out text);
+            return TryGetCustomLocaleTextForType((int)LocaleRegistry.LocaleCategory.Liquid, key, out text)
+                   || TryGetCustomLocaleTextForType((int)LocaleRegistry.LocaleCategory.Tile, key, out text);
+        }
+
+        // Mod-facing helper that mirrors the Locale.GetString interception order
+        // (registered overlay -> CUCoreLib custom locales) and then applies {0} placeholders.
+        internal static string ResolveFormatted(int type, string key, params object[] args)
+        {
+            if (string.IsNullOrWhiteSpace(key)) return string.Empty;
+
+            if (TryGetInterceptedText(type, key, out var resolved)) return LocaleRegistry.FormatText(resolved, key, args);
+
+            return LocaleRegistry.FormatText(key, key, args);
+        }
+
+        private static bool TryGetInterceptedText(int type, string key, out string text)
+        {
+            text = null;
+
+            if (Locale.currentLang != null)
+            {
+                var section = type == 0
+                    ? Locale.currentLang.main
+                    : type == 1
+                        ? Locale.currentLang.buildings
+                        : type == 2
+                            ? Locale.currentLang.moodles
+                            : Locale.currentLang.other;
+
+                if (section != null
+                    && section.TryGetValue(key, out var localizedText)
+                    && !string.IsNullOrWhiteSpace(localizedText))
+                {
+                    text = localizedText;
+                    return true;
+                }
+            }
+
+            if (!TryGetCustomLocaleText(type, key, out var customText)) return false;
+            text = customText;
+            return true;
         }
 
         private static bool TryGetCustomLocaleTextForType(int type, string key, out string text)
@@ -56,30 +96,25 @@ namespace CUCoreLib.Patches
             text = null;
 
             if (!LocaleRegistry.CustomLocales.TryGetValue(type, out var dict) ||
-                !dict.TryGetValue(key, out var fallbackText) ||
-                string.IsNullOrWhiteSpace(fallbackText)) return false;
+                !dict.TryGetValue(key, out var fallbackText) 
+                || string.IsNullOrWhiteSpace(fallbackText)) return false;
 
             text = fallbackText;
             return true;
         }
-    }
 
-    [HarmonyPatch(typeof(Locale), "LoadLanguage")]
-    internal static class LocaleLoadPatches
-    {
+
+        [HarmonyPatch("LoadLanguage")]
         [HarmonyPostfix]
         private static void ApplyLocaleOverlays()
         {
             LocaleLoader.ApplyActiveLocaleOverlay();
         }
-    }
 
-    [HarmonyPatch(typeof(Locale), nameof(Locale.GetCharacter), typeof(string), typeof(int))]
-    internal static class LocaleCharacterDialoguePatch
-    {
         private static readonly ConditionalWeakTable<List<string>, DialogueSource> DialogueSources =
             new ConditionalWeakTable<List<string>, DialogueSource>();
 
+        [HarmonyPatch(nameof(Locale.GetCharacter), typeof(string), typeof(int))]
         [HarmonyPostfix]
         private static void Postfix(string str, List<string> __result)
         {
@@ -91,7 +126,9 @@ namespace CUCoreLib.Patches
 
         internal static string GetDialogueId(List<string> lines)
         {
-            return lines != null && DialogueSources.TryGetValue(lines, out var source) ? source.Id : null;
+            return lines != null && DialogueSources.TryGetValue(lines, out var source)
+                ? source.Id
+                : null;
         }
 
         private sealed class DialogueSource
@@ -100,7 +137,13 @@ namespace CUCoreLib.Patches
         }
     }
 
-    [HarmonyPatch(typeof(Talker), nameof(Talker.Talk), typeof(List<string>), typeof(Limb), typeof(bool), typeof(bool))]
+    [HarmonyPatch(
+        typeof(Talker),
+        nameof(Talker.Talk),
+        typeof(List<string>),
+        typeof(Limb),
+        typeof(bool),
+        typeof(bool))]
     internal static class TalkerDialoguePatch
     {
         [HarmonyPrefix]
@@ -121,7 +164,7 @@ namespace CUCoreLib.Patches
         {
             if (!__state || __instance == null || string.IsNullOrEmpty(___currentString)) return;
 
-            CUCoreUtils.SetLastDialogue(LocaleCharacterDialoguePatch.GetDialogueId(lines), ___currentString);
+            CUCoreUtils.SetLastDialogue(LocalePatches.GetDialogueId(lines), ___currentString);
         }
     }
 }

@@ -47,7 +47,6 @@
     </PropertyGroup>
     <ItemGroup>
         <Compile Include="Bootstrap\BepInExConfigurationGuard.cs"/>
-        <Compile Include="Bootstrap\BuiltInCommandRegistrar.cs"/>
         <Compile Include="BugReporting\BugReportCollector.cs"/>
         <Compile Include="BugReporting\BugReportModels.cs"/>
         <Compile Include="BugReporting\BugReportService.cs"/>

@@ -26,7 +26,7 @@ namespace CUCoreLib
         private static readonly Mutex ConfigFileMutex = new Mutex(false, ConfigFileMutexName);
 
         internal static ManualLogSource Log;
-        // Alllright. Let's get this party rolling.
+        // Alright. Let's get this party rolling.
 
 
         public static CUCoreLibPlugin Instance { get; private set; }
@@ -52,7 +52,6 @@ namespace CUCoreLib
             SaveRegistry.RegisterBuiltIns();
             LiquidTileRegistry.RegisterBuiltIns();
             MultiplayerApi.RegisterBuiltIns();
-            BuiltInCommandRegistrar.Register();
             UpdateChecker.Initialize(Logger);
 
             // Patches
