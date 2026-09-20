@@ -5,6 +5,7 @@ using CUCoreLib.Patches;
 using CUCoreLib.Registries;
 using UnityEngine;
 using UnityEngine.Rendering.Universal;
+using UnityEngine.SceneManagement;
 using Object = UnityEngine.Object;
 
 namespace CUCoreLib.Helpers
@@ -33,9 +34,18 @@ namespace CUCoreLib.Helpers
             id = SpawnIdHelpers.NormalizeSpawnId(id);
 
             var prefab = ResolvePrefab(id);
-            return prefab == null 
-                ? null 
-                : PrepareInstantiatedObject(Object.Instantiate(prefab, position, rotation), condition);
+            return prefab == null
+                ? null
+                : PrepareInstantiatedObject(InstantiateInActiveScene(prefab, position, rotation), condition);
+        }
+
+        // Makes gameobjects scene-bound, to hopefully retain them specifically 
+        internal static GameObject InstantiateInActiveScene(GameObject prefab, Vector3 position, Quaternion rotation)
+        {
+            var instance = Object.Instantiate(prefab, position, rotation);
+            if (instance == null) return null;
+            SceneManager.MoveGameObjectToScene(instance, SceneManager.GetActiveScene());
+            return instance;
         }
 
         public static GameObject ResolvePrefab(string id)

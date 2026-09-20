@@ -317,7 +317,7 @@ namespace CUCoreLib.Patches
 
             var position = (Vector2)_posField.GetValue(packet);
             var instance = CustomInstantiate.PrepareInstantiatedObject(
-                Object.Instantiate(prefab, position, Quaternion.identity));
+                CustomInstantiate.InstantiateInActiveScene(prefab, position, Quaternion.identity));
             if (instance == null) return null;
 
             var registered = RegisterPacketObject(packet, instance);
@@ -418,7 +418,7 @@ namespace CUCoreLib.Patches
                 prefab == null) return true;
 
             var instance = CustomInstantiate.PrepareInstantiatedObject(
-                Object.Instantiate(prefab, pos, Quaternion.identity));
+                CustomInstantiate.InstantiateInActiveScene(prefab, pos, Quaternion.identity));
             if (instance == null)
             {
                 __result = null;

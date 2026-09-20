@@ -409,7 +409,7 @@ namespace CUCoreLib.Registries
                 return null;
             }
 
-            var instance = Object.Instantiate(prefab, position, rotation);
+            var instance = CustomInstantiate.InstantiateInActiveScene(prefab, position, rotation);
             instance.SetActive(true);
             return instance;
         }

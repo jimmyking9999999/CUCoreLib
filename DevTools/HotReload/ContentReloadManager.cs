@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using BepInEx;
 using BepInEx.Bootstrap;
 using CUCoreLib.Helpers;
 using CUCoreLib.Networking;
@@ -96,8 +95,17 @@ namespace CUCoreLib.ContentReload
             if (string.IsNullOrWhiteSpace(normalizedModGuid))
                 throw new ArgumentException("Mod GUID was empty.", nameof(modGuid));
 
-            if (!TryFindCallingPluginType(normalizedModGuid, out var pluginType, out var reason))
-                throw new InvalidOperationException(reason);
+            // Never throw past this point (#29)
+            if (!Chainloader.PluginInfos.TryGetValue(normalizedModGuid, out var pluginInfo) ||
+                pluginInfo == null ||
+                string.Equals(normalizedModGuid, CUCoreLibPlugin.GUID, StringComparison.OrdinalIgnoreCase))
+            {
+                CUCoreLibPlugin.Log?.LogWarning(
+                    "EnableHotReload('" + normalizedModGuid +
+                    "') was ignored: that GUID does not match a loaded plugin's [BepInPlugin] GUID. " +
+                    "The calling plugin keeps loading normally; hot reload stays disabled for it.");
+                return;
+            }
 
             EnabledModGuids.Add(normalizedModGuid);
             EnsureModConfigBound(normalizedModGuid);
@@ -322,49 +330,6 @@ namespace CUCoreLib.ContentReload
             if (string.IsNullOrWhiteSpace(modGuid)) return HotReloadMode.FlexibleGuarded;
 
             return GetOrCreateState(modGuid).Mode;
-        }
-
-        private static bool TryFindCallingPluginType(string modGuid, out Type pluginType, out string reason)
-        {
-            pluginType = null;
-            reason = "ContentReloadManager.EnableHotReload() must be called from the owning plugin Awake().";
-
-            var frames = new System.Diagnostics.StackTrace().GetFrames();
-            if (frames == null || frames.Length == 0) return false;
-
-            foreach (var frame in frames)
-            {
-                var method = frame.GetMethod();
-                var declaringType = method?.DeclaringType;
-                if (declaringType == null) continue;
-
-                if (!typeof(BaseUnityPlugin).IsAssignableFrom(declaringType)) continue;
-                if (!string.Equals(method.Name, "Awake", StringComparison.Ordinal)) continue;
-
-                var candidateGuid = TryGetPluginGuidFromType(declaringType);
-                if (!string.Equals(candidateGuid, modGuid, StringComparison.Ordinal))
-                {
-                    reason = "EnableHotReload('" + modGuid + "') was called from '" +
-                             (candidateGuid ?? declaringType.FullName) +
-                             "'. The GUID must match the owning plugin's [BepInPlugin] GUID.";
-                    return false;
-                }
-
-                pluginType = declaringType;
-                return true;
-            }
-
-            return false;
-        }
-
-        private static string TryGetPluginGuidFromType(Type pluginType)
-        {
-            if (pluginType == null) return null;
-
-            var attribute = pluginType.GetCustomAttributes(typeof(BepInPlugin), true)
-                .OfType<BepInPlugin>()
-                .FirstOrDefault();
-            return attribute?.GUID;
         }
 
         // not use BuildResultHeadline

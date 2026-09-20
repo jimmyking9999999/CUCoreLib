@@ -19,8 +19,10 @@ I figured that this would be nice to have, as to easily take a look at everythin
 ### Changes
 - Moodle queues now default to .5s refresh (this matches vanilla, so it should fix mismatched animations)
 - Explicit MP support for buildingEntites, tiles. Note this might break for people using v1.0.4/1.0.5 <-> v1.0.6 in terms of crossplay
+- Custom buildings (and items) no longer stick around between scene changes in certain cases. This shouldn't (?) break your mods, but do tell me if it does
 
 ### Fixes
+- `EnableHotReload` warns instead of throws when it can't see `Awake()`
 - Terrain tiles now use IDs 0-255 (Fixing multiplayer tiles breaking for people without ccl joining)
 - Fixed mod keybind descriptions missing, I'm honestly not sure why it took this long to fix >.>
 - Fixed custom battery charge resetting (Thanks, MCPO-Spartan-117!)
