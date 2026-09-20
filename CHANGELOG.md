@@ -18,6 +18,7 @@ I figured that this would be nice to have, as to easily take a look at everythin
 - `createLocale` now accepts an optional mod GUID, e.g. `createLocale net.Jimmyking.netdescents`
 - Locale files can now be scoped per mod with the `{LangCode}-{modGuid}.json` naming scheme (e.g. `EN-net.Jimmyking.netdescents.json`), both as embedded resources/loose files, to avoid locale conflict. 
 - ^ that is, any given locale with the mod GUID inside the file name takes priority for said mod
+- `AssetLoader` audio loading now supports `.ogg` files. Rejoice, `.ogg` enjoyers!
 
 ### Changes
 - Moodle queues now default to .5s refresh (this matches vanilla, so it should fix mismatched animations)

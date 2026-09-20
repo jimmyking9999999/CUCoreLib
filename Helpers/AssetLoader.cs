@@ -11,6 +11,7 @@ using BepInEx.Logging;
 using CUCoreLib.ContentReload;
 using CUCoreLib.Data;
 using NAudio.Wave;
+using NAudio.Vorbis;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -72,6 +73,7 @@ namespace CUCoreLib.Helpers
                 ".mp1",
                 ".mp2",
                 ".mp3",
+                ".ogg",
                 ".cue",
                 ".aif",
                 ".aiff"
@@ -1448,6 +1450,10 @@ namespace CUCoreLib.Helpers
                 case ".mp2":
                 case ".mp3":
                     provider = new Mp3FileReader(stream).ToSampleProvider();
+                    break;
+
+                case ".ogg":
+                    provider = new VorbisWaveReader(stream).ToSampleProvider();
                     break;
 
                 case ".cue":

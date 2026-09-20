@@ -3543,8 +3543,7 @@ private void StopSound()
       <summary>Supported formats and tips</summary>
       <div class="details-body">
         <ul>
-          <li><span class="inline-code">AssetLoader</span> supports <span class="inline-code">.wav</span>, <span class="inline-code">.mp1</span>, <span class="inline-code">.mp2</span>, <span class="inline-code">.mp3</span>, <span class="inline-code">.cue</span>, <span class="inline-code">.aif</span>, and <span class="inline-code">.aiff</span>.</li>
-          <li>Sorry, <span class="inline-code">.ogg</span> enjoyers.</li>
+          <li><span class="inline-code">AssetLoader</span> supports <span class="inline-code">.wav</span>, <span class="inline-code">.mp1</span>, <span class="inline-code">.mp2</span>, <span class="inline-code">.mp3</span>, <span class="inline-code">.ogg</span>, <span class="inline-code">.cue</span>, <span class="inline-code">.aif</span>, and <span class="inline-code">.aiff</span>.</li>
           <li>Like images, it is preferred to use embedded clips for required defaults and loose files for player-replaceable audio packs.</li>
         </ul>
       </div>

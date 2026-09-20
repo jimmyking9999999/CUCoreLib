@@ -87,6 +87,7 @@
         <PackageReference Include="NAudio.Core" Version="2.2.1" />
         <PackageReference Include="NAudio.Wasapi" Version="2.2.1" />
         <PackageReference Include="NAudio.WinMM" Version="2.2.1" />
+        <PackageReference Include="NAudio.Vorbis" Version="1.5.0" />
         <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
         <Reference Include="Assembly-CSharp" Publicize="true">
             <HintPath>$(AssemblyCSharpPath)</HintPath>
