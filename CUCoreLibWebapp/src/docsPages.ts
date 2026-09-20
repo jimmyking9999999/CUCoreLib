@@ -2385,6 +2385,9 @@ function localePage(): string {
       <p>Run <span class="inline-code">createLocale</span> in the in-game console after your mod registers its content. CUCoreLib writes or updates <span class="inline-code">BepInEx/config/CUCoreLib/Locales/EN.json</span>. You can pass a path if you want to write somewhere else.</p>
       <pre><code>createLocale
 createLocale C:/Temp/EN.json</code></pre>
+      <p>To generate a starter file scoped to just your mod, pass your BepInEx plugin GUID as the first argument. It tab-autofills from the loaded mods, and CUCoreLib writes only the locale entries your mod owns to <span class="inline-code">EN-&lt;modGuid&gt;.json</span>. A path or folder still works as a second argument.</p>
+      <pre><code>createLocale net.Jimmyking.netdescents
+createLocale net.Jimmyking.netdescents C:/Temp</code></pre>
       <p>Existing user-written values are preserved for manual required keys. Generated item, building, liquid, and ad hoc keys are refreshed from the current registered names and descriptions, so changing <span class="inline-code">fullName</span>, <span class="inline-code">description</span>, <span class="inline-code">Name</span>, <span class="inline-code">Description</span>, <span class="inline-code">name</span>, or liquid <span class="inline-code">description</span> updates the file on the next run.</p>
     </section>
 
@@ -2401,6 +2404,7 @@ createLocale C:/Temp/EN.json</code></pre>
         </table>
       </div>
       <p>The older shared overlay folder still works too: <span class="inline-code">BepInEx/config/CUCoreLib/Locales/zh-CN.json</span>. Load order is English fallback first, then embedded mod locale files, then loose plugin/config overlays, so external files can still override shipped defaults.</p>
+      <p>You can also scope a locale file to your mod by inserting your plugin GUID into the file name: <span class="inline-code">zh-CN-net.Jimmyking.netdescents.json</span>. This works for <em>every</em> language code (EN, de-DE, zh-CN, ar-001, ...), both embedded and loose. Scoped files load after their generic <span class="inline-code">zh-CN.json</span> counterparts, so your mod's own file always wins for its keys, and <span class="inline-code">createLocale &lt;modGuid&gt;</span> can autogenerate the EN version for you. This is the recommended pattern when several mods ship translations and you want clean, per-mod files instead of one shared overlay.</p>
       <pre><code>&lt;ItemGroup&gt;
   &lt;EmbeddedResource Include="Locales\\zh-CN.json" /&gt;
 &lt;/ItemGroup&gt;</code></pre>

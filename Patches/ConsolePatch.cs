@@ -31,6 +31,7 @@ namespace CUCoreLib.Patches
             RefreshFloodFillAutofill();
             RefreshDebugWatchAutofill();
             RefreshReloadContentAutofill();
+            RefreshCreateLocaleAutofill();
             RefreshSetTileAutofill();
             RefreshStatusFieldAutofill();
         }
@@ -691,6 +692,22 @@ namespace CUCoreLib.Patches
             if (reloadContentCommand == null) return;
 
             reloadContentCommand.argAutofill = BuildReloadContentAutofill();
+        }
+
+        private static Dictionary<int, List<string>> BuildCreateLocaleAutofill()
+        {
+            return new Dictionary<int, List<string>>
+            {
+                { 0, ContentReloadManager.GetLoadedModGuids().ToList() }
+            };
+        }
+
+        private static void RefreshCreateLocaleAutofill()
+        {
+            var createLocaleCommand = ConsoleScript.SearchExact("createLocale");
+            if (createLocaleCommand == null) return;
+
+            createLocaleCommand.argAutofill = BuildCreateLocaleAutofill();
         }
 
         private static void RefreshDebugWatchAutofill()

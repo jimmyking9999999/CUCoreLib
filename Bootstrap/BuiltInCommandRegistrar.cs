@@ -14,15 +14,37 @@ namespace CUCoreLib.Bootstrap
         internal static void Register()
         {
             ConsoleCommandRegistry.Register("createLocale",
-                "Writes or updates CUCoreLib generated locale data. WARNING: Overrides EN.json",
+                "Writes or updates CUCoreLib generated locale data. WARNING: Overrides generated keys in the target file",
                 delegate(string[] args)
                 {
-                    var path = args.Length > 1 ? args[1] : null;
-                    var writtenPath = LocaleRegistry.WriteLocaleFile(path);
-                    var message = $"created locale at {writtenPath}";
+                    string modGuid = null;
+                    string path = null;
+
+                    if (args.Length > 1)
+                    {
+                        if (LooksLikeLocalePath(args[1])) path = args[1];
+                        else modGuid = args[1];
+                    }
+
+                    if (args.Length > 2) path = args[2];
+
+                    var writtenPath = LocaleRegistry.WriteLocaleFile(path, modGuid);
+                    var message = !string.IsNullOrWhiteSpace(writtenPath)
+                        ? $"created locale at {writtenPath}"
+                        : !string.IsNullOrWhiteSpace(modGuid)
+                            ? $"no locale entries were registered by '{modGuid.Trim()}'! Nothing was written :("
+                            : "no locale entries were registered in your mods. Nothing was written as such :(";
                     CUCoreLibPlugin.Log.LogInfo(message);
                     CUCoreUtils.ConsoleLog(ConsoleScript.instance, message);
-                }, null, ("path", "Optional output path. Defaults to BepInEx/config/CUCoreLib/Locales/EN.json."));
+                },
+                new Dictionary<int, List<string>>
+                {
+                    [0] = ContentReloadManager.GetLoadedModGuids().ToList()
+                },
+                ("modGuid",
+                    "Optional (you should really have it though) BepInEx plugin GUID. When given, writes only that mod's entries to EN-<modGuid>.json."),
+                ("path",
+                    "Optional output file or folder. Defaults to BepInEx/config/CUCoreLib/Locales/EN-<modGuid>.json"));
 
             ConsoleCommandRegistry.Register("modlist",
                 "Prints the loaded BepInEx plugin list to the in-game console and Unity log.",
@@ -91,6 +113,15 @@ namespace CUCoreLib.Bootstrap
                 delegate(string[] args) { DebugWatchConsoleCommands.Run(ConsoleScript.instance, args); }, null,
                 ("action", "add, remove, list, clear, show, or hide."),
                 ("Type.member", "Reflected static field to watch, such as Namespace.Plugin.healthRate."));
+        }
+
+        private static bool LooksLikeLocalePath(string arg)
+        {
+            if (string.IsNullOrWhiteSpace(arg)) return false;
+
+            var trimmed = arg.Trim();
+            return trimmed.IndexOf('/') >= 0 || trimmed.IndexOf('\\') >= 0 ||
+                   trimmed.EndsWith(".json", StringComparison.OrdinalIgnoreCase);
         }
     }
 }

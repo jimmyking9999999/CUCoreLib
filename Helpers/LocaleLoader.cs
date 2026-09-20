@@ -85,21 +85,31 @@ namespace CUCoreLib.Helpers
 
         private static List<string> FindOverlayFiles(string localeName)
         {
-            var results = new List<string>();
-            var fileName = localeName + ".json";
+            var visitedPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var genericFileName = localeName + ".json";
+            var scopedFileNames = new HashSet<string>(
+                GetLoadedPluginGuidsOrdered().Select(guid => localeName + "-" + guid + ".json"),
+                StringComparer.OrdinalIgnoreCase);
 
-            var configPath = Path.Combine(Paths.ConfigPath, "CUCoreLib", "Locales", fileName);
-            if (File.Exists(configPath)) results.Add(configPath);
+            var genericFiles = new List<string>();
+            AddIfExists(genericFiles, visitedPaths,
+                Path.Combine(Paths.ConfigPath, "CUCoreLib", "Locales", genericFileName));
+            AddRangeIfExists(genericFiles, visitedPaths, FindPluginGenericOverlayFiles(genericFileName));
 
-            results.AddRange(FindPluginOverlayFiles(fileName));
+            var scopedFiles = new List<string>();
+            foreach (var scopedFileName in scopedFileNames.OrderBy(name => name, StringComparer.OrdinalIgnoreCase))
+                AddIfExists(scopedFiles, visitedPaths,
+                    Path.Combine(Paths.ConfigPath, "CUCoreLib", "Locales", scopedFileName));
+            AddRangeIfExists(scopedFiles, visitedPaths,
+                FindPluginScopedOverlayFiles(localeName, scopedFileNames));
 
-            return results
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
+            // Generic files merge first so scoped '{LangCode}-{modGuid}.json' files win within the loose layer.
+            return genericFiles.OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
+                .Concat(scopedFiles.OrderBy(path => path, StringComparer.OrdinalIgnoreCase))
                 .ToList();
         }
 
-        private static List<string> FindPluginOverlayFiles(string fileName)
+        private static List<string> FindPluginGenericOverlayFiles(string fileName)
         {
             var results = new List<string>();
             var visitedPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -127,32 +137,92 @@ namespace CUCoreLib.Helpers
             return results;
         }
 
-        private static List<EmbeddedLocaleResource> FindEmbeddedOverlayResources(string localeName)
+        private static List<string> FindPluginScopedOverlayFiles(string localeName, ISet<string> scopedFileNames)
         {
-            var fileName = localeName + ".json";
-            var normalizedFileName = NormalizeResourceName(fileName);
-            var results = new List<EmbeddedLocaleResource>();
-            var visited = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var results = new List<string>();
+            var visitedPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
             foreach (var pluginInfo in Chainloader.PluginInfos.Values
                          .Where(info => info != null)
                          .OrderBy(GetPluginSortKey, StringComparer.OrdinalIgnoreCase))
             {
-                var assembly = ResolvePluginAssembly(pluginInfo);
-                if (assembly == null) continue;
+                var pluginLocation = NormalizeExistingPath(pluginInfo.Location);
+                if (string.IsNullOrWhiteSpace(pluginLocation)) continue;
 
-                foreach (var resourceName in assembly.GetManifestResourceNames()
-                             .Where(name => ResourceNameMatchesLocale(name, normalizedFileName))
-                             .OrderBy(name => name, StringComparer.OrdinalIgnoreCase))
+                var pluginDirectory = Path.GetDirectoryName(pluginLocation);
+                if (string.IsNullOrWhiteSpace(pluginDirectory)) continue;
+
+                foreach (var scopedFileName in scopedFileNames)
                 {
-                    var uniqueKey = (assembly.FullName ?? assembly.GetName().Name ?? string.Empty) + "|" + resourceName;
-                    if (!visited.Add(uniqueKey)) continue;
-
-                    results.Add(new EmbeddedLocaleResource(assembly, resourceName));
+                    AddIfExists(results, visitedPaths, Path.Combine(pluginDirectory, scopedFileName));
+                    AddIfExists(results, visitedPaths, Path.Combine(pluginDirectory, "Locales", scopedFileName));
                 }
+
+                AddRangeIfExists(results, visitedPaths,
+                    EnumerateMatchingFiles(pluginDirectory, localeName + "-*.json")
+                        .Where(path => scopedFileNames.Contains(Path.GetFileName(path))));
+            }
+
+            var pluginRoot = Path.Combine(Path.GetDirectoryName(Paths.ConfigPath) ?? string.Empty, "plugins");
+            if (!Directory.Exists(pluginRoot)) return results;
+
+            AddRangeIfExists(results, visitedPaths,
+                EnumerateMatchingFiles(pluginRoot, localeName + "-*.json")
+                    .Where(path => scopedFileNames.Contains(Path.GetFileName(path))));
+
+            return results;
+        }
+
+        private static List<EmbeddedLocaleResource> FindEmbeddedOverlayResources(string localeName)
+        {
+            var results = new List<EmbeddedLocaleResource>();
+            var visited = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var plugins = Chainloader.PluginInfos.Values
+                .Where(info => info != null)
+                .OrderBy(GetPluginSortKey, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            foreach (var pluginInfo in plugins)
+                AddMatchingEmbeddedResources(results, visited, pluginInfo, localeName + ".json");
+
+            foreach (var pluginInfo in plugins)
+            {
+                var guid = pluginInfo.Metadata?.GUID;
+                if (string.IsNullOrWhiteSpace(guid)) continue;
+
+                AddMatchingEmbeddedResources(results, visited, pluginInfo, localeName + "-" + guid.Trim() + ".json");
             }
 
             return results;
+        }
+
+        private static void AddMatchingEmbeddedResources(List<EmbeddedLocaleResource> results, ISet<string> visited,
+            PluginInfo pluginInfo, string fileName)
+        {
+            var assembly = ResolvePluginAssembly(pluginInfo);
+            if (assembly == null) return;
+
+            var normalizedFileName = NormalizeResourceName(fileName);
+            foreach (var resourceName in assembly.GetManifestResourceNames()
+                         .Where(name => ResourceNameMatchesLocale(name, normalizedFileName))
+                         .OrderBy(name => name, StringComparer.OrdinalIgnoreCase))
+            {
+                var uniqueKey = (assembly.FullName ?? assembly.GetName().Name ?? string.Empty) + "|" + resourceName;
+                if (!visited.Add(uniqueKey)) continue;
+
+                results.Add(new EmbeddedLocaleResource(assembly, resourceName));
+            }
+        }
+
+        private static List<string> GetLoadedPluginGuidsOrdered()
+        {
+            return Chainloader.PluginInfos.Values
+                .Where(info => info != null && info.Metadata != null &&
+                               !string.IsNullOrWhiteSpace(info.Metadata.GUID))
+                .Select(info => info.Metadata.GUID.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(guid => guid, StringComparer.OrdinalIgnoreCase)
+                .ToList();
         }
 
         private static JObject LoadEmbeddedLocaleJson(EmbeddedLocaleResource resource)

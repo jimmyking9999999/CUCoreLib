@@ -15,6 +15,9 @@ I figured that this would be nice to have, as to easily take a look at everythin
 - `setbodyfield` and `setlimbfield` can now change fields on attached CUCoreLib statuses with `StatusType.Field`. (I.e. ToxicStatuses.Toxicity)
 - Added `CUCoreUtils.CheckModVersion("com.example.mymod");` for automated-ish version checking, see [https://cucorelib.web.app/docs/utils/](https://cucorelib.web.app/docs/utils/) for more info
 - `SpawnFrequency` now has a float overload! Pass fractions such as `1.5f`, `0.01f`, or `12.42f` through the new overload for a chance to spawn more (or less) entires of your item into the lootpool (Thanks, @Jetfire).
+- `createLocale` now accepts an optional mod GUID, e.g. `createLocale net.Jimmyking.netdescents`
+- Locale files can now be scoped per mod with the `{LangCode}-{modGuid}.json` naming scheme (e.g. `EN-net.Jimmyking.netdescents.json`), both as embedded resources/loose files, to avoid locale conflict. 
+- ^ that is, any given locale with the mod GUID inside the file name takes priority for said mod
 
 ### Changes
 - Moodle queues now default to .5s refresh (this matches vanilla, so it should fix mismatched animations)

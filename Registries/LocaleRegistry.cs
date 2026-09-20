@@ -158,9 +158,10 @@ namespace CUCoreLib.Registries
             }
         }
 
-        public static JObject BuildLocaleJson(JObject existing = null)
+        public static JObject BuildLocaleJson(JObject existing = null, string ownerId = null)
         {
             var root = existing != null ? (JObject)existing.DeepClone() : new JObject();
+            var ownerEntries = string.IsNullOrWhiteSpace(ownerId) ? null : CaptureOwnerEntries(ownerId);
 
             for (var type = 0; type <= 8; type++)
             {
@@ -169,6 +170,15 @@ namespace CUCoreLib.Registries
                 {
                     categoryObject = new JObject();
                     root[category] = categoryObject;
+                }
+
+                if (ownerEntries != null)
+                {
+                    if (ownerEntries.TryGetValue(type, out var owned))
+                        foreach (var entry in owned)
+                            categoryObject[entry.Key] = entry.Value ?? string.Empty;
+
+                    continue;
                 }
 
                 if (CustomLocales.TryGetValue(type, out var generated))
@@ -183,9 +193,18 @@ namespace CUCoreLib.Registries
             return root;
         }
 
-        public static string WriteLocaleFile(string path = null)
+        public static string WriteLocaleFile(string path = null, string ownerId = null)
         {
-            if (string.IsNullOrWhiteSpace(path)) path = GetDefaultLocalePath();
+            var normalizedOwnerId = string.IsNullOrWhiteSpace(ownerId) ? null : ownerId.Trim();
+            if (normalizedOwnerId != null && CaptureOwnerEntries(normalizedOwnerId).Count == 0)
+            {
+                CUCoreLibPlugin.Log.LogWarning(
+                    $"Locale file was not written because no locale entries are owned by '{normalizedOwnerId}'. Is the mod loaded?");
+                return null;
+            }
+
+            if (string.IsNullOrWhiteSpace(path)) path = GetDefaultLocalePath(normalizedOwnerId);
+            else path = ResolveOutputPath(path, normalizedOwnerId);
 
             JObject existing = null;
             if (File.Exists(path))
@@ -199,7 +218,7 @@ namespace CUCoreLib.Registries
                         $"Existing locale file could not be parsed and will be replaced: {ex.Message}");
                 }
 
-            var output = BuildLocaleJson(existing);
+            var output = BuildLocaleJson(existing, normalizedOwnerId);
             var directory = Path.GetDirectoryName(path);
             if (!string.IsNullOrEmpty(directory)) Directory.CreateDirectory(directory);
 
@@ -211,9 +230,25 @@ namespace CUCoreLib.Registries
             return path;
         }
 
-        public static string GetDefaultLocalePath()
+        public static string GetDefaultLocalePath(string ownerId = null)
         {
-            return Path.Combine(Paths.ConfigPath, "CUCoreLib", "Locales", "EN.json");
+            var fileName = string.IsNullOrWhiteSpace(ownerId)
+                ? "EN.json"
+                : $"EN-{ownerId.Trim()}.json";
+            return Path.Combine(Paths.ConfigPath, "CUCoreLib", "Locales", fileName);
+        }
+
+        private static string ResolveOutputPath(string path, string ownerId)
+        {
+            if (Directory.Exists(path)) return Path.Combine(path, Path.GetFileName(GetDefaultLocalePath(ownerId)));
+
+            if (string.IsNullOrWhiteSpace(Path.GetExtension(path)))
+            {
+                Directory.CreateDirectory(path);
+                return Path.Combine(path, Path.GetFileName(GetDefaultLocalePath(ownerId)));
+            }
+
+            return path;
         }
 
         public static IDisposable BeginOwnerRegistration(string ownerId)
