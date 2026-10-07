@@ -17,6 +17,7 @@
         <Product>$(Title)</Product>
         <Copyright>LGPLv3</Copyright>
         <Version>1.1</Version>
+        <LangVersion>12.0</LangVersion>
         <RestoreAdditionalProjectSources>
           https://api.nuget.org/v3/index.json;
           https://nuget.bepinex.dev/v3/index.json
