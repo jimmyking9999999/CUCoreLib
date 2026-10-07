@@ -29,7 +29,7 @@
         <AppDesignerFolder>Properties</AppDesignerFolder>
         <RootNamespace>CUCoreLib</RootNamespace>
         <AssemblyName>CUCoreLib</AssemblyName>
-        <TargetFramework>net472</TargetFramework>
+        <TargetFramework>net48</TargetFramework>
         <FileAlignment>512</FileAlignment>
         <Deterministic>true</Deterministic>
         <DocumentationFile>bin\$(Configuration)\CUCoreLib.xml</DocumentationFile>
