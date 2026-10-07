@@ -78,6 +78,7 @@
         <PackageReference Include="BepInEx.Analyzers" Version="1.0.8" GeneratePathProperty="true" PrivateAssets="All" />
         <PackageReference Include="BepInEx.BaseLib" Version="5.4.20" />
         <PackageReference Include="BepInEx.Core" Version="5.4.21" GeneratePathProperty="true" />
+        <PackageReference Include="BepInEx.AssemblyPublicizer.MSBuild" Version="0.4.2" PrivateAssets="all" />
         <PackageReference Include="Costura.Fody" Version="6.0.0" GeneratePathProperty="true" PrivateAssets="All" />
         <PackageReference Include="Fody" Version="6.9.3" GeneratePathProperty="true" PrivateAssets="All" />
         <PackageReference Include="HarmonyX" Version="2.7.0" />
