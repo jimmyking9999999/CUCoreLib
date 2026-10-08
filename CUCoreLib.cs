@@ -167,7 +167,7 @@ namespace CUCoreLib
 
             // Patches
             var harmony = new Harmony(GUID);
-            harmony.PatchAll();
+            PatchApplier.ApplyAll(harmony);
             KrokMpCompatibilityPatches.Install(harmony);
             QoLUnknownCompatibilityPatches.Install(harmony);
 

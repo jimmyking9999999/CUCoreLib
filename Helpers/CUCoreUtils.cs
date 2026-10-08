@@ -158,6 +158,15 @@ namespace CUCoreLib.Helpers
             new Dictionary<string, FriendlyKeybindEntry>(StringComparer.Ordinal);
         private static readonly int ItemLayerMask = LayerMask.GetMask("Item");
 
+        // ;)
+        private static readonly string[] FullGameOnlyTypeNames =
+        {
+            "GuardScript",
+            "GuardSpawner",
+            "EndLabScript",
+        };
+        private static bool? IsDemoCached;
+
         private static Talker ElectronicTalkerProxy;
         private static FieldInfo KrokMpChatFocusedField;
         private static bool KrokMpChatFocusFieldResolved;
@@ -433,6 +442,50 @@ namespace CUCoreLib.Helpers
         public static bool isInWorld()
         {
             return IsInWorld();
+        }
+
+        /// <summary>
+        /// True when running against the Casualties Unknown demo build, false for the full game.
+        /// The demo is frozen and never gains full-game content (e.g. the Guard/End Lab characters),
+        /// so this scans for full-game-only types. Two or more distinct matches are required to declare the
+        /// full game, so a mod that happens to add a single same-named type won't fool the check. Cached after the first call.
+        /// </summary>
+        public static bool IsDemo()
+        {
+            if (IsDemoCached.HasValue) return IsDemoCached.Value;
+
+            var matched = new HashSet<string>(StringComparer.Ordinal);
+            var assemblies = AppDomain.CurrentDomain.GetAssemblies();
+            foreach (var typeName in FullGameOnlyTypeNames)
+            {
+                foreach (var assembly in assemblies)
+                {
+                    Type resolved;
+                    try
+                    {
+                        resolved = assembly.GetType(typeName, false);
+                    }
+                    catch
+                    {
+                        resolved = null;
+                    }
+
+                    if (resolved == null) continue;
+
+                    matched.Add(typeName);
+                    break;
+                }
+
+                if (matched.Count >= 2) break;
+            }
+
+            IsDemoCached = matched.Count < 2;
+            return IsDemoCached.Value;
+        }
+
+        public static bool isDemo()
+        {
+            return IsDemo();
         }
 
         public static bool TryGetHeldItem(out Item item)

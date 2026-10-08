@@ -2,7 +2,7 @@
   "version": "1.0",
   "library": "CUCoreLib",
   "description": "Machine-readable CUCoreLib web docs generated from the interactive docs sources.",
-  "generatedAt": "2026-09-28T02:21:22.857Z",
+  "generatedAt": "2026-10-08T19:18:10.160Z",
   "baseUrl": "/",
   "topics": [
     {
@@ -40,6 +40,15 @@
       "lead": "What is this, music theory?",
       "appUrl": "/docs/harmony0/",
       "machineUrl": "/api/topics/harmony0.json"
+    },
+    {
+      "id": "full-game-transition",
+      "label": "Full Game Transition",
+      "crumb": "Getting Started",
+      "title": "Transitioning to the full game",
+      "lead": "What changes when Casualties Unknown leaves the demo, what breaks in a mod compiled against it, and how to ship one DLL that runs on both.",
+      "appUrl": "/docs/full-game-transition/",
+      "machineUrl": "/api/topics/full-game-transition.json"
     },
     {
       "id": "tutorial-first-mod",

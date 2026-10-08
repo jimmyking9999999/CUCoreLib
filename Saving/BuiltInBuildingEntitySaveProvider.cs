@@ -1,3 +1,4 @@
+using CUCoreLib.Helpers;
 using CUCoreLib.Registries;
 using Newtonsoft.Json.Linq;
 using UnityEngine;
@@ -25,7 +26,7 @@ namespace CUCoreLib.Saving
                     ["position"] = Vector2Token(runtime.transform.position),
                     ["rotation"] = runtime.transform.eulerAngles.z,
                     ["scale"] = Vector3Token(runtime.transform.localScale),
-                    ["health"] = building.health,
+                    ["health"] = building.GetHealth(),
                     ["blockPlacedOn"] = Vector2IntToken(building.blockPlacedOn)
                 });
             }
@@ -71,7 +72,7 @@ namespace CUCoreLib.Saving
 
                     instance.transform.localScale = ReadVector3(token["scale"], instance.transform.localScale);
                     if (!instance.TryGetComponent(out BuildingEntity building)) continue;
-                    building.health = (float?)token["health"] ?? building.health;
+                    building.SetHealth((float?)token["health"] ?? building.GetHealth());
                     BuildingEntityRegistry.RestoreSeating(instance, context.World,
                         ReadVector2Int(token["blockPlacedOn"]));
                 }

@@ -1273,7 +1273,7 @@ namespace CUCoreLib.Registries
                     definition.CustomProperties.TryGetValue(HealthKey, out var rawHealth) &&
                     float.TryParse(rawHealth, NumberStyles.Float, CultureInfo.InvariantCulture, out var health) &&
                     health > 0f)
-                    building.health = health;
+                    building.SetHealth(health);
             }
         }
 

@@ -677,7 +677,7 @@ namespace CUCoreLib.Registries
         private static void ApplyBuildingFields(BuildingEntity building, CustomBuildingEntityDefinition definition)
         {
             building.id = definition.ID;
-            building.health = definition.Health;
+            building.SetHealth(definition.Health);
             building.requireGround = definition.RequireGround;
             building.metallic = definition.Metallic;
             building.cantHit = definition.CantHit;

@@ -68,7 +68,7 @@ namespace CUCoreLib.Helpers
             }
 
             if (_isQuitting || _spawnedDrops) return;
-            if (_building == null || _building.health >= 0.5f) return;
+            if (_building == null || _building.GetHealth() >= 0.5f) return;
 
             _spawnedDrops = true;
             BuildingEntityRegistry.SpawnDrops(_building, DefinitionId);

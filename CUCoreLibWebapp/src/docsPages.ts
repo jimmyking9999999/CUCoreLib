@@ -30,6 +30,13 @@ export const pages: Page[] = [
     lead: "What is this, music theory?"
   },
   {
+    id: "full-game-transition",
+    label: "Full Game Transition",
+    crumb: "Getting Started",
+    title: "Transitioning to the full game",
+    lead: "Updating your mod to the full game (soon!)."
+  },
+  {
     id: "tutorial-first-mod",
     label: "Making A First Mod",
     crumb: "Tutorial",
@@ -153,7 +160,7 @@ export const pages: Page[] = [
     label: "Tiles",
     crumb: "World",
     title: "Tile API",
-    lead: "Register terrain tiles with stable names, vanilla block behavior, and normal world or Tilemap placement."
+    lead: "Register terrain tiles."
   },
   {
     id: "traps",
@@ -167,14 +174,14 @@ export const pages: Page[] = [
     label: "Enemies",
     crumb: "World",
     title: "Enemies",
-    lead: "Planned documentation for enemy registration or enemy-adjacent helpers."
+    lead: "Enemy registration."
   },
   {
     id: "multi-block-structures",
     label: "Multi-Block Structures",
     crumb: "World",
     title: "Multi-block structures",
-    lead: "Planned documentation for structures made from multiple world blocks."
+    lead: "Creating structures in your mods."
   },
   {
     id: "visuals",
@@ -195,7 +202,7 @@ export const pages: Page[] = [
     label: "Settings API",
     crumb: "Misc / API",
     title: "Settings API",
-    lead: "Register native settings rows in the vanilla options menu with CUCoreLib handling save, reset, apply, and labels."
+    lead: "Register native settings rows in the vanilla options menu with CUCoreLib!"
   },
   {
     id: "locale",
@@ -223,7 +230,7 @@ export const pages: Page[] = [
     label: "Multiplayer Sync",
     crumb: "Misc / API",
     title: "Multiplayer sync",
-    lead: "KrokMP compatibility: automatic sync for registered content, plus a host-authoritative snapshot and message API."
+    lead: "v4.0.0/v4.1.2/v5.0.0 Multiplayer Sync."
   },
   {
     id: "console",
@@ -273,6 +280,7 @@ export function pageBody(page: PageId, nextItemState: ItemState, nextRecipeState
   else if (page === "unity-csharp") content = unityCsharpPage();
   else if (page === "setup") content = setupPage();
   else if (page === "harmony0") content = harmony0Page();
+  else if (page === "full-game-transition") content = fullGameTransitionPage();
   else if (page === "tutorial-first-mod") content = tutorialFirstModPage();
   else if (page === "recipe") content = recipePage();
   else if (page === "assets") content = assetPage();
@@ -1290,6 +1298,73 @@ function welcomePage(): string {
       <p>This guide may not be for you.</p>
       <p>Consider watching <a href="https://www.youtube.com/watch?v=Zrt0iEBBkRM">this tutorial</a> to get a feel for the basics.</p>
     </section>
+  `;
+}
+
+function fullGameTransitionPage(): string {
+  return `
+    <section class="lesson-card">
+      <h2>How can I migrate my mod to the full game?</h2>
+      <p>CUCoreLib is planned to have support initally for mods for both the demo and the full game during the transition period, though this is subject to change later down the line.</p>
+      <p>This is only possible due to the lower amount of mechanics changes between the demo and the full game.</p>
+      <p>As such, this page is meant to address the challenges of migrating mods between these builds.</p>
+      <p>There are two failure classes to plan for:</p>
+      <ul>
+        <li><strong>Method signature changes.</strong> A method gains, loses, or reorders parameters. A <span class="inline-code">[HarmonyPatch]</span> pinned to the old signature can no longer find its target and throws <span class="inline-code">ArgumentException: Undefined target method</span> during patching.</li>
+        <li><strong>Member-shape changes.</strong> A field becomes a property (or a member is renamed). This will throw <span class="inline-code">MissingFieldException: Field not found</span>.</li>
+      </ul>
+    </section>
+
+    <section class="lesson-card">
+      <h2>Detecting which build is running</h2>
+      <p>Below is a list of inital functions that can help determine what version is running, and how to handle specific version logic:</p>
+      <table>
+        <thead>
+          <tr><th>Member</th><th>Meaning</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><span class="inline-code">CUCoreUtils.IsDemo()</span></td><td><span class="inline-code">true</span> on the demo, <span class="inline-code">false</span> on the full game.</td></tr>
+          <tr><td><span class="inline-code">GameBuildInfo.Matches(GameBuild)</span></td><td><span class="inline-code">true</span> when the target flag includes the running build.</tr>
+          <tr><td><span class="inline-code">[AppliesToBuild(GameBuild.Full)]</span></td><td>Restricts a patch family to the full game. Families without it apply to both builds.</td></tr>
+        </tbody>
+      </table>
+      <pre><code>using CUCoreLib.Helpers;
+
+if (GameBuildInfo.IsFullGame)
+{
+    // Full-game-only behavior.
+}
+
+// Gate an entire Harmony family to one build:
+[AppliesToBuild(GameBuild.Full)]
+[HarmonyPatch(typeof(SomeFullGameOnlyType), "SomeMethod")]
+public static class FullGameOnlyPatch
+{
+    // Skipped cleanly on the demo
+}</code></pre>
+    </section>
+
+    <section class="lesson-card">
+      <h2>Initial changes to help with migration.</h2>
+      <p>In your mods, some code references the demo's Assembly-CSharp.dll, which is different in the full game's version. Some of the known breakages include:</p>
+      
+      <p>- <span class="inline-code">Body.Eat</span> is <span class="inline-code">Eat(float hungerAmount, float weightGain)</span>. On the full game it is <span class="inline-code">Eat(float hungerAmount, float weightGain, int foodType)</span>.</p>
+      <p>To resolve this, you can use (todo finish this <3).</p>
+  
+      <p>- <span class="inline-code">BuildingEntity.health</span> is a public field. On the full game it is a public property backed by <span class="inline-code">_health</span>, and its setter also runs <span class="inline-code">CheckDamage()</span>.</p>
+      <p>To resolve this, use CUCoreLib's accessor instead of touching the member directly:</p>
+      <pre><code>using CUCoreLib.Helpers;
+
+// Before (breaks on the full game):
+// building.health -= damage;
+// if (building.health < 0.5f) return;
+
+// After (works on demo, Playtest, and full):
+building.SetHealth(building.GetHealth() - damage);
+if (building.GetHealth() < 0.5f) return;</code></pre>
+    <p>- </p>
+    </section>
+
   `;
 }
 

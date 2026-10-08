@@ -219,6 +219,7 @@
         <Compile Include="Helpers\AnimatedImage.cs"/>
         <Compile Include="Helpers\AnimatedSpriteRenderer.cs"/>
         <Compile Include="Helpers\BodyAnimationPlayer.cs"/>
+        <Compile Include="Helpers\BuildingEntityHealth.cs"/>
         <Compile Include="Helpers\CCLBase.cs"/>
         <Compile Include="Helpers\CUCoreUtils.cs"/>
         <Compile Include="Helpers\LiquidVisualHelper.cs"/>
@@ -235,6 +236,7 @@
         <Compile Include="Helpers\LaunchOverrideManager.cs"/>
         <Compile Include="Helpers\ModSettingsConfigSyncRegistry.cs"/>
         <Compile Include="Helpers\SettingsMenuCategoryExtender.cs"/>
+        <Compile Include="Helpers\GameBuild.cs"/>
         <Compile Include="Networking\MultiplayerApi.cs"/>
         <Compile Include="Networking\MultiplayerBridge.cs"/>
         <Compile Include="Networking\MultiplayerSyncRegistry.cs"/>
@@ -268,6 +270,7 @@
         <Compile Include="Patches\UtilsCreatePatches.cs"/>
         <Compile Include="Patches\WorldGenerationBuildingPatches.cs"/>
         <Compile Include="Patches\WorldGenerationStructurePatches.cs"/>
+        <Compile Include="Patches\PatchApplier.cs"/>
         <Compile Include="Registries\DropPoolRegistry.cs"/>
         <Compile Include="Registries\BuildingEntityRegistry.cs"/>
         <Compile Include="Registries\ItemRegistry.cs"/>

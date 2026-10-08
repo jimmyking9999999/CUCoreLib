@@ -131,7 +131,7 @@ namespace CUCoreLib.Patches
             if (__instance == null || item == null) return false;
 
             var build = __instance.GetComponent<BuildingEntity>();
-            if (build != null && build.health < 200f) return false;
+            if (build != null && build.GetHealth() < 200f) return false;
 
             var camera = PlayerCamera.main;
             var body = camera != null ? camera.body : null;

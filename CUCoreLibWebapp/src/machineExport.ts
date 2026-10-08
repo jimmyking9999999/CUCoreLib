@@ -5,6 +5,7 @@ export const machineExportEnabledPageIds = [
   "unity-csharp",
   "setup",
   "harmony0",
+  "full-game-transition",
   "tutorial-first-mod",
   "assets",
   "audio",

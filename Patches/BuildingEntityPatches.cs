@@ -67,9 +67,19 @@ namespace CUCoreLib.Patches
         }
     }
 
-    [HarmonyPatch(typeof(BuildingEntity), "Update")]
+    internal static class BuildingEntityDestruction
+    {
+        internal static readonly MethodInfo Host =
+            AccessTools.Method(typeof(BuildingEntity), "CheckDamage") ??
+            AccessTools.Method(typeof(BuildingEntity), "Update");
+    }
+
+    [HarmonyPatch(typeof(BuildingEntity))]
     internal static class BuildingEntityCustomDropResolutionPatch
     {
+        [HarmonyTargetMethod]
+        private static MethodInfo Target() => BuildingEntityDestruction.Host;
+
         private static readonly MethodInfo ResourcesLoadMethod = typeof(Resources)
             .GetMethods(BindingFlags.Public | BindingFlags.Static)
             .First(method =>
@@ -98,14 +108,22 @@ namespace CUCoreLib.Patches
         }
     }
 
-    [HarmonyPatch(typeof(BuildingEntity), "Update")]
+    [HarmonyPatch(typeof(BuildingEntity))]
     internal static class BuildingEntityDropPoolPatches
     {
+        private static readonly FieldInfo DidDestroyRoutineField =
+            AccessTools.Field(typeof(BuildingEntity), "didDestroyRoutine");
+
+        [HarmonyTargetMethod]
+        private static MethodInfo Target() => BuildingEntityDestruction.Host;
+
         [HarmonyPrefix]
         private static bool HandleBuiltInDropPools(BuildingEntity __instance)
         {
-            if (__instance == null || __instance.health >= 0.5f) return true;
+            if (__instance == null || __instance.GetHealth() >= 0.5f) return true;
+            if (DidDestroyRoutineField != null && (bool)DidDestroyRoutineField.GetValue(__instance)) return false;
             if (!TryResolveBuiltInSource(__instance.id, out var source)) return true;
+            DidDestroyRoutineField?.SetValue(__instance, true);
 
             TryGetComponent<SpriteRenderer>(__instance, out var spriteRenderer);
             if (spriteRenderer != null)

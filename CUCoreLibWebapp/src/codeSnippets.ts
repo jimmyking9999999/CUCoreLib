@@ -535,6 +535,7 @@ export function currentCode(nextPage: PageId, nextItemState: ItemState, nextReci
   if (currentPage === "unity-csharp") return unityCsharpCode();
   if (currentPage === "setup") return setupCode();
   if (currentPage === "harmony0") return harmony0Code();
+  if (currentPage === "full-game-transition") return fullGameTransitionCode();
   if (currentPage === "tutorial-first-mod") return tutorialFirstModCode();
   if (currentPage === "recipe") return recipeCode();
   if (currentPage === "assets") return assetCode();
@@ -572,6 +573,7 @@ export function codeTitle(currentPage: PageId): string {
   if (currentPage === "unity-csharp") return "MyFirstPlugin.cs";
   if (currentPage === "setup") return "Plugin.cs";
   if (currentPage === "harmony0") return "HarmonyPatches.cs";
+  if (currentPage === "full-game-transition") return "FullGameCompat.cs";
   if (currentPage === "tutorial-first-mod") return "AcidShroomTutorial.cs";
   if (currentPage === "recipe") return "RegisterRecipes.cs";
   if (currentPage === "saving") return "MarkerSaveProvider.cs";
@@ -1252,6 +1254,10 @@ public static class ItemDisplayNamePatch
         }
     }
 }`;
+}
+
+function fullGameTransitionCode(): string {
+  return `// Soon...`;
 }
 
 function placeholderCode(): string {

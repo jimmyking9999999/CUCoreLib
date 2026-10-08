@@ -23,6 +23,7 @@ I figured that this would be nice to have, as to easily take a look at everythin
 - Added `MultiplayerApi.BroadcastEverywhere(channel, payload, reliable)`,`MultiplayerApi.BroadcastToPeer(channel, clientId, payload, reliable)` 
 - Multiplayer `Heal` commands now trigger the OnHeal CUCoreUtils delegate
 - `LiquidTileRegistry` now has the same layer-mask helpers as tiles and buildings (`LayerToMask`, `LayersToMask`, `AllLayersExcept`)
+- It is time. (for fullgame preperations)
 
 ### Changes
 - Moodle queues now default to .5s refresh (this matches vanilla, so it should fix mismatched animations)
@@ -44,7 +45,6 @@ I figured that this would be nice to have, as to easily take a look at everythin
 - `setbodyfield` and `setlimbfield` now autofill custom statuses too
 - Fixed liquidStack<> containers from always spawning at 100%
 - Multi-stage (same name) moodles no longer stack queued copies when their intensity changes
-
 
 ## v1.0.5 (Stable)
 
