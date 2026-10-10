@@ -12,6 +12,12 @@
         <BepInExDir Condition="'$(BepInExDir)' == '' and '$(BaseGamePath)' != ''">$(BaseGamePath)\BepInEx</BepInExDir>
     </PropertyGroup>
     <PropertyGroup>
+        <Title>CUCoreLib</Title>
+        <Company>HP</Company>
+        <Product>$(Title)</Product>
+        <Copyright>LGPLv3</Copyright>
+        <Version>1.0.6.0</Version>
+        <LangVersion>12.0</LangVersion>
         <RestoreAdditionalProjectSources>
           https://api.nuget.org/v3/index.json;
           https://nuget.bepinex.dev/v3/index.json
@@ -23,13 +29,12 @@
         <AppDesignerFolder>Properties</AppDesignerFolder>
         <RootNamespace>CUCoreLib</RootNamespace>
         <AssemblyName>CUCoreLib</AssemblyName>
-        <TargetFramework>net472</TargetFramework>
+        <TargetFramework>net48</TargetFramework>
         <FileAlignment>512</FileAlignment>
         <Deterministic>true</Deterministic>
         <DocumentationFile>bin\$(Configuration)\CUCoreLib.xml</DocumentationFile>
         <NuGetPackageImportStamp>
         </NuGetPackageImportStamp>
-        <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
         <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
         <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     </PropertyGroup>
@@ -78,11 +83,12 @@
         <PackageReference Include="BepInEx.Analyzers" Version="1.0.8" GeneratePathProperty="true" PrivateAssets="All" />
         <PackageReference Include="BepInEx.BaseLib" Version="5.4.20" />
         <PackageReference Include="BepInEx.Core" Version="5.4.21" GeneratePathProperty="true" />
+        <PackageReference Include="BepInEx.AssemblyPublicizer.MSBuild" Version="0.4.2" PrivateAssets="all" />
         <PackageReference Include="Costura.Fody" Version="6.0.0" GeneratePathProperty="true" PrivateAssets="All" />
         <PackageReference Include="Fody" Version="6.9.3" GeneratePathProperty="true" PrivateAssets="All" />
-        <PackageReference Include="HarmonyX" Version="2.7.0" />
+        <PackageReference Include="HarmonyX" Version="2.9.0" />
         <PackageReference Include="Mono.Cecil" Version="0.11.4" />
-        <PackageReference Include="MonoMod.RuntimeDetour" Version="21.12.13.1" />
+        <PackageReference Include="MonoMod.RuntimeDetour" Version="22.7.31.1" />
         <PackageReference Include="MonoMod.Utils" Version="22.7.31.1" />
         <PackageReference Include="NAudio" Version="2.2.1" />
         <PackageReference Include="NAudio.Core" Version="2.2.1" />
