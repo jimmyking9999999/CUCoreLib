@@ -22,7 +22,7 @@ namespace CUCoreLib
     {
         public const string GUID = "net.cucorelib";
         public const string MODNAME = "CUCoreLib";
-        public const string VERSION = "1.0.6";
+        public const string VERSION = "1.0.7";
         private const string BepInExCoreConfigFileName = "BepInEx.cfg";
         private const string ConfigFileMutexName = @"Local\CUCoreLib.ConfigFile";
         private static readonly Mutex ConfigFileMutex = new Mutex(false, ConfigFileMutexName);

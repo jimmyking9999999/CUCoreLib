@@ -7,9 +7,34 @@ I figured that this would be nice to have, as to easily take a look at everythin
 
 **Fixes** refers to bugfixes that will not or are very unlikely to break your mod
 
-## v1.0.6 (Nightly)
+## v1.0.7 (Nightly)
 
 ### New Stuff!
+- ...update mod version for a cool github release tag..?
+
+### Changes
+- (WIP)
+
+### Fixes
+- (WIP)
+
+## v1.0.6 (Stable)
+
+### New Stuff!
+- Multiplayer snapshots now sync custom locale strings and recipes, and supports v5
+- It is time. (for fullgame preperations)
+
+### Changes
+- Multiplayer support now targets **Together v5.0.0** (plugin GUID `CasualtiesMP`). KrokMP 4.0.1 and 4.1.2 support has been deprecated. (If you need v4 support, you'll need to download CUCoreLib `v1.0.5` - mods written with cucorelib's api should still work!)
+- Custom building and custom liquid save data now carries the layer it was captured on (for saving + loading, in case the layer changes)
+
+### Fixes
+- Multiplayer liquid sync now uses the host's liquid ordering, if possible
+
+## v1.0.5 (MPV4 LTS)
+
+### New Stuff!
+- Added `CustomItemInfo.scaleConditionToward` to choose the weight to scale to. E.g. you can now have something that goes up in weight when lower condition
 - Added `CUCoreUtils.GetLastDialogue(...)` for checking the last dialogue ID or selected text.
 - Added `DamagePlayerOnImpact` for `AddRigidbody2D` buildingEntites
 - `setbodyfield` and `setlimbfield` can now change fields on attached CUCoreLib statuses with `StatusType.Field`. (I.e. ToxicStatuses.Toxicity)
@@ -22,18 +47,17 @@ I figured that this would be nice to have, as to easily take a look at everythin
 - Added `MultiplayerApi.BroadcastEverywhere(channel, payload, reliable)`,`MultiplayerApi.BroadcastToPeer(channel, clientId, payload, reliable)` 
 - Multiplayer `Heal` commands now trigger the OnHeal CUCoreUtils delegate
 - `LiquidTileRegistry` now has the same layer-mask helpers as tiles and buildings (`LayerToMask`, `LayersToMask`, `AllLayersExcept`)
-- Multiplayer snapshots now sync custom locale strings and recipes, and supports v5
-- It is time. (for fullgame preperations)
 
 ### Changes
+- I guess the mod's v1.0.5 now? I pushed a hotfix, but that had the v1.0.5 version. I guess the stable is v1.0.5 now and next nightly is v1.0.6 then :p
 - Moodle queues now default to .5s refresh (this matches vanilla, so it should fix mismatched animations)
 - Explicit MP support for buildingEntites, tiles. Note this might break for people using v1.0.4/1.0.5 <-> v1.0.6 in terms of crossplay
 - Custom buildings (and items) no longer stick around between scene changes in certain cases. This shouldn't (?) break your mods, but do tell me if it does
 - Dropped the KrokMP v3 compat backfill, surely there's no one using v3 nowadays
-- Multiplayer support now targets **Together v5.0.0** (plugin GUID `CasualtiesMP`). KrokMP 4.0.1 and 4.1.2 support has been deprecated. (If you need v4 support, you'll need to download an older version of CUCoreLib - mods written with cucorelib's api should still work)
-- Custom building and custom liquid save data now carries the layer it was captured on (for saving + loading, in case the layer changes)
 
 ### Fixes
+- Invalid recipe item or result IDs are rejected with an error instead of breaking the crafting menu.
+- Liquid track hotfixes for client multiplayer
 - `EnableHotReload` warns instead of throws when it can't see `Awake()`
 - Terrain tiles now use IDs 0-255 (Fixing multiplayer tiles breaking for people without ccl joining)
 - Fixed mod keybind descriptions missing, I'm honestly not sure why it took this long to fix >.>
@@ -42,22 +66,10 @@ I figured that this would be nice to have, as to easily take a look at everythin
 - Fixed `AddRigidbody2D` (t'was a layer issue)
 - Fixed modded buildingEntites ignoring locale overlays for buildingEntites
 - Reworked settings UI
-- Multiplayer liquid sync now uses the host's liquid ordering, if possible
 - `setbodyfield` and `setlimbfield` now autofill custom statuses too
 - Fixed liquidStack<> containers from always spawning at 100%
 - Multi-stage (same name) moodles no longer stack queued copies when their intensity changes
 
-## v1.0.5 (Stable)
-
-### New Stuff!
-- Added `CustomItemInfo.scaleConditionToward` to choose the weight to scale to. E.g. you can now have something that goes up in weight when lower condition
-
-### Changes
-- I guess the mod's v1.0.5 now? I pushed a hotfix, but that had the v1.0.5 version. I guess the stable is v1.0.5 now and next nightly is v1.0.6 then :p
-
-### Fixes
-- Invalid recipe item or result IDs are rejected with an error instead of breaking the crafting menu.
-- Liquid track hotfixes for client multiplayer
 
 ## v1.0.4 
 
