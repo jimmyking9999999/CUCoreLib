@@ -71,14 +71,17 @@ namespace CUCoreLib.Helpers
             set => SetValue(value, data => data.Immunity);
         }
 
+        public static float MaxSpeed
+
+        {
+            get => GetValue(data => data.MaxSpeed);
+            set => SetValue(value, data => data.MaxSpeed);
+        }
+
         public static float JumpSpeed
         {
             get => GetValue(data => data.JumpSpeed);
-            set
-            {
-                SetValue(value, data => data.JumpSpeed);
-                BodyFormulaPatches.ApplyJumpSpeedContribution(GetBody());
-            }
+            set => SetValue(value, data => data.JumpSpeed);
         }
 
         public static float AveragePain

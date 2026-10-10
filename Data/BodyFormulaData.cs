@@ -13,11 +13,9 @@ namespace CUCoreLib.Data
         public Dictionary<string, float> MaxEncumberance = new Dictionary<string, float>();
         public Dictionary<string, float> TotalEncumberance = new Dictionary<string, float>();
         public Dictionary<string, float> Immunity = new Dictionary<string, float>();
+        public Dictionary<string, float> MaxSpeed = new Dictionary<string, float>();
         public Dictionary<string, float> JumpSpeed = new Dictionary<string, float>();
         public Dictionary<string, float> AveragePain = new Dictionary<string, float>();
-
-        [JsonIgnore]
-        public float AppliedJumpSpeedContribution;
 
         [JsonIgnore]
         public float AppliedAveragePainContribution;
@@ -30,6 +28,7 @@ namespace CUCoreLib.Data
             HasContributions(MaxEncumberance) ||
             HasContributions(TotalEncumberance) ||
             HasContributions(Immunity) ||
+            HasContributions(MaxSpeed) ||
             HasContributions(JumpSpeed) ||
             HasContributions(AveragePain);
 

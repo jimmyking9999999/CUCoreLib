@@ -66,7 +66,6 @@ namespace CUCoreLib.Registries
 
             var collection = Get(body);
             foreach (var token in payloads) RestoreStatusToken(collection, token, true);
-            BodyFormulaPatches.ApplyJumpSpeedContribution(body);
         }
 
         internal static void RestoreLimbStatuses(Limb limb, JArray payloads)
@@ -192,7 +191,6 @@ namespace CUCoreLib.Registries
 
             var collection = Get(body);
             foreach (var token in payloads) ApplySnapshotToken(collection, token, true);
-            BodyFormulaPatches.ApplyJumpSpeedContribution(body);
         }
 
         private static void ApplyLimbSnapshot(Body body, JArray payloads)
