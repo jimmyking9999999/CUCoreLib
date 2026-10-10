@@ -15,8 +15,9 @@ using HarmonyLib;
 
 namespace CUCoreLib
 {
-    [BepInPlugin(GUID, MODNAME, VERSION)]
-    [BepInDependency("KrokoshaCasualtiesMP", BepInDependency.DependencyFlags.SoftDependency)]
+    [BepInPlugin(GUID, MODNAME, VERSION)] 
+    // Why would you rename this
+    [BepInDependency("CasualtiesMP", BepInDependency.DependencyFlags.SoftDependency)] 
     public class CUCoreLibPlugin : BaseUnityPlugin
     {
         public const string GUID = "net.cucorelib";

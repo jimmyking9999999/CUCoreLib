@@ -1301,7 +1301,7 @@ namespace CUCoreLib.Helpers
                 Type chatType;
                 try
                 {
-                    chatType = assembly.GetType("KrokoshaCasualtiesMP.Chat", false);
+                    chatType = assembly.GetType("Together.Chat", false);
                 }
                 catch
                 {

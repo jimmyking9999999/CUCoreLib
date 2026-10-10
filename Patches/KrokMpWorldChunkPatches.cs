@@ -26,9 +26,12 @@ namespace CUCoreLib.Patches
             {
                 receiver = AccessTools.Method(chunkSync, "ClientReceiver_WorldTilemapChunk");
                 var parameters = receiver?.GetParameters();
-                if (parameters == null || parameters.Length != 2 || !parameters[1].ParameterType.IsByRef)
+                if (parameters == null || parameters.Length != 2)
                     throw new MissingMethodException("KrokMP tile chunk receiver signature changed.");
-                var reader = parameters[1].ParameterType.GetElementType();
+                // v4 declared the reader `ref`, v5 declares it by value
+                // Both are okay in ccl
+                var readerParameter = parameters[1].ParameterType;
+                var reader = readerParameter.IsByRef ? readerParameter.GetElementType() : readerParameter;
                 _getByte = AccessTools.Method(reader, "GetByte", Type.EmptyTypes);
                 _getBytes = AccessTools.Method(reader, "GetBytesWithLength", Type.EmptyTypes);
                 if (_getByte?.ReturnType != typeof(byte) || _getBytes?.ReturnType != typeof(byte[]) ||

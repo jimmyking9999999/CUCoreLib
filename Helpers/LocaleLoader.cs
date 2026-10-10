@@ -68,6 +68,69 @@ namespace CUCoreLib.Helpers
                 }
         }
 
+        internal static JObject BuildOverlayJsonForLanguage(string languageName)
+        {
+            var accumulator = new JObject();
+            if (string.IsNullOrWhiteSpace(languageName)) return accumulator;
+
+            var normalized = languageName.Trim();
+            if (!string.Equals(normalized, "EN", StringComparison.OrdinalIgnoreCase))
+                AccumulateLocaleFiles("EN", accumulator);
+
+            AccumulateLocaleFiles(normalized, accumulator);
+            return accumulator;
+        }
+
+        private static void AccumulateLocaleFiles(string localeName, JObject accumulator)
+        {
+            foreach (var resource in FindEmbeddedOverlayResources(localeName))
+                try
+                {
+                    var localeJson = LoadEmbeddedLocaleJson(resource);
+                    if (localeJson != null) MergeJsonInto(accumulator, localeJson);
+                }
+                catch (Exception ex)
+                {
+                    Logger?.LogWarning(
+                        $"Failed to read embedded locale overlay '{resource.DisplayName}' for '{localeName}': {ex.Message}");
+                }
+
+            foreach (var path in FindOverlayFiles(localeName))
+                try
+                {
+                    MergeJsonInto(accumulator, JObject.Parse(File.ReadAllText(path)));
+                }
+                catch (Exception ex)
+                {
+                    Logger?.LogWarning(
+                        $"Failed to read locale overlay '{path}' for '{localeName}': {ex.Message}");
+                }
+        }
+
+        // Fill-only merge (e.g., Existing non-empty values (the client's own overlay files) win, so a client that has the parent mod keeps its translations while a client with only CUCoreLib receives the host's.
+        internal static void ApplyNetworkLocaleOverlay(JObject source)
+        {
+            if (source == null || Locale.currentLang == null) return;
+
+            var target = Locale.currentLang;
+
+            MergeSectionIfAbsent(target.main, source["item"]);
+            MergeSectionIfAbsent(target.main, source["main"]);
+
+            MergeSectionIfAbsent(target.buildings, source["building"]);
+            MergeSectionIfAbsent(target.buildings, source["buildings"]);
+
+            MergeSectionIfAbsent(target.moodles, source["moodle"]);
+            MergeSectionIfAbsent(target.moodles, source["moodles"]);
+
+            MergeSectionIfAbsent(target.other, source["other"]);
+            MergeSectionIfAbsent(target.other, source["log"]);
+            MergeSectionIfAbsent(target.other, source["command"]);
+            MergeSectionIfAbsent(target.other, source["option"]);
+            MergeSectionIfAbsent(target.other, source["liquid"]);
+            MergeSectionIfAbsent(target.other, source["title"]);
+        }
+
         public static string GetLocalizedText(string category, string key, string fallback = null)
         {
             if (string.IsNullOrWhiteSpace(key)) return string.IsNullOrWhiteSpace(fallback) ? string.Empty : fallback;
@@ -272,6 +335,56 @@ namespace CUCoreLib.Helpers
                 if (string.IsNullOrWhiteSpace(value)) continue;
 
                 target[property.Name.Trim()] = value;
+            }
+        }
+
+        private static void MergeSectionIfAbsent(Dictionary<string, string> target, JToken sectionToken)
+        {
+            if (target == null || sectionToken == null) return;
+
+            if (!(sectionToken is JObject section)) return;
+
+            foreach (var property in section.Properties())
+            {
+                if (string.IsNullOrWhiteSpace(property.Name)) continue;
+
+                var value = property.Value.Type == JTokenType.String
+                    ? property.Value.Value<string>()
+                    : property.Value.ToString();
+                if (string.IsNullOrWhiteSpace(value)) continue;
+
+                var key = property.Name.Trim();
+                if (target.TryGetValue(key, out var existing) && !string.IsNullOrWhiteSpace(existing)) continue;
+
+                target[key] = value;
+            }
+        }
+
+        internal static void MergeJsonInto(JObject target, JObject source)
+        {
+            if (target == null || source == null) return;
+
+            foreach (var section in source.Properties())
+            {
+                if (!(section.Value is JObject sourceSection)) continue;
+
+                if (!(target[section.Name] is JObject targetSection))
+                {
+                    targetSection = new JObject();
+                    target[section.Name] = targetSection;
+                }
+
+                foreach (var entry in sourceSection.Properties())
+                {
+                    if (string.IsNullOrWhiteSpace(entry.Name)) continue;
+
+                    var value = entry.Value.Type == JTokenType.String
+                        ? entry.Value.Value<string>()
+                        : entry.Value.ToString();
+                    if (string.IsNullOrWhiteSpace(value)) continue;
+
+                    targetSection[entry.Name.Trim()] = value;
+                }
             }
         }
 

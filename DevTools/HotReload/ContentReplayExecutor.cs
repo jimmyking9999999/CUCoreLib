@@ -68,6 +68,7 @@ namespace CUCoreLib.ContentReload
             AssetLoader.InvalidateEmbeddedCachesForModGuid(report.ModGuid);
             AssetLoader.InvalidateBundlesForModGuid(report.ModGuid, unregister: true);
             ClearExistingContent(report.ModGuid, result);
+            NetworkSnapshotSerialization.InvalidateSpritePayloadCache();
             var reloadMode = ContentReloadManager.GetReloadMode(report.ModGuid);
 
             using (ContentReloadSession.Begin(report.ModGuid, assembly, report.SelectedPath,

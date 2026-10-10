@@ -4,7 +4,7 @@ using HarmonyLib;
 namespace CUCoreLib.Patches
 {
     [HarmonyPatch(typeof(SaveSystem))]
-    [HarmonyAfter("KrokoshaCasualtiesMP")]
+    [HarmonyAfter("CasualtiesMP")]
     internal static class SaveSystemPatches
     {
         [HarmonyPatch("SaveGame")]

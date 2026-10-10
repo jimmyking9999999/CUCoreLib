@@ -1,5 +1,6 @@
 using System.Collections;
 using CUCoreLib.Helpers;
+using CUCoreLib.Patches;
 using CUCoreLib.Registries;
 using Newtonsoft.Json.Linq;
 using UnityEngine;
@@ -17,6 +18,18 @@ namespace CUCoreLib.Networking
                 (senderClientId, _) => MultiplayerApi.TryGetBodyFromClientId(senderClientId, out var body)
                     ? StatusRegistry.CaptureBodyNetworkSnapshot(body)
                     : new JObject());
+
+            MultiplayerBridge.RegisterServerHandler(MultiplayerSyncRegistry.PlayerStatusSetFieldChannel,
+                (senderClientId, payload) =>
+                {
+                    var message = ConsolePatch.ApplyStatusFieldOnHost(
+                        payload?.Value<string>("slot"),
+                        payload?.Value<string>("field"),
+                        payload?.Value<string>("value"),
+                        payload?.Value<string>("target"),
+                        senderClientId);
+                    return new JObject { ["message"] = message };
+                });
         }
 
         internal static void Schedule()

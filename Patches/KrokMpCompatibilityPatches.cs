@@ -14,15 +14,15 @@ namespace CUCoreLib.Patches
     // The root of all evil...
     internal static class KrokMpCompatibilityPatches
     {
-        private const string KrokMpPluginGuid = "KrokoshaCasualtiesMP";
-        private const string WorldChunkSyncTypeName = "KrokoshaCasualtiesMP.WorldChunkSync";
-        private const string NetObjectRegistryTypeName = "KrokoshaCasualtiesMP.NetObjectRegistry";
-        private const string NewObjectSystemTypeName = "KrokoshaCasualtiesMP.NewCoolerObjectPacketWriteReadSystem";
-        private const string ItemSetupListenerTypeName = "KrokoshaCasualtiesMP.Item_SetupItems_Listener";
+        private const string KrokMpPluginGuid = "CasualtiesMP";
+        private const string WorldChunkSyncTypeName = "Together.WorldChunkSync";
+        private const string NetObjectRegistryTypeName = "Together.NetObjectRegistry";
+        private const string SyncInfoTypeName = "Together.SyncInfo";
+        private const string ItemSetupListenerTypeName = "Together.Item_SetupItems_Listener";
         private static bool _installed;
         private static bool _retryScheduled;
         private static bool _chunkRetryScheduled;
-        private static bool _newLoaderPatched;
+        private static bool _syncInfoPatched;
         private static bool _liquidRegistryPatched;
         private static List<string> _canonicalLiquidOrder;
         private static MethodInfo _serverEnsureItemNetworkRegisteredMethod;
@@ -40,24 +40,20 @@ namespace CUCoreLib.Patches
             }
             if (harmony == null || _installed) return;
 
-            if (!_newLoaderPatched)
+            if (!_syncInfoPatched)
             {
-                var newObjectSystemType = ResolveLoadedType(NewObjectSystemTypeName);
-                if (newObjectSystemType != null)
+                var syncInfoType = ResolveLoadedType(SyncInfoTypeName);
+                if (syncInfoType != null)
                 {
-                    var loadObjectResources = AccessTools.GetDeclaredMethods(newObjectSystemType)
-                        ?.Where(method => string.Equals(method.Name, "LoadObjectResource", StringComparison.Ordinal))
-                        ?.ToArray();
-                    if (loadObjectResources != null)
+                    var instantiateResource = AccessTools.GetDeclaredMethods(syncInfoType)
+                        ?.FirstOrDefault(method =>
+                            string.Equals(method.Name, "InstantiateResource", StringComparison.Ordinal));
+                    if (instantiateResource != null)
                     {
-                        foreach (var loadObjectResource in loadObjectResources)
-                        {
-                            harmony.Patch(loadObjectResource,
-                                prefix: new HarmonyMethod(typeof(KrokMpCompatibilityPatches),
-                                    nameof(LoadObjectResource_Prefix)));
-                        }
-
-                        _newLoaderPatched = loadObjectResources.Any();
+                        harmony.Patch(instantiateResource,
+                            prefix: new HarmonyMethod(typeof(KrokMpCompatibilityPatches),
+                                nameof(InstantiateResource_Prefix)));
+                        _syncInfoPatched = true;
                     }
                 }
             }
@@ -77,7 +73,7 @@ namespace CUCoreLib.Patches
                 }
             }
 
-            if (!_newLoaderPatched && !_liquidRegistryPatched)
+            if (!_syncInfoPatched && !_liquidRegistryPatched)
             {
                 ScheduleRetry(harmony);
                 return;
@@ -88,9 +84,6 @@ namespace CUCoreLib.Patches
             CUCoreLibPlugin.Log?.LogInfo("CUCoreLib, with friends!");
         }
 
-        // KrokMP's liquid wire IDs are positional indexes into Liquids.Registry, so every peer has to
-        // enumerate the same way. The host publishes its order in the multiplayer snapshot and clients
-        // adopt it here; null means "this peer is the source, use its own insertion order".
         internal static void SetCanonicalLiquidOrder(List<string> order)
         {
             _canonicalLiquidOrder = order != null && order.Count > 0 ? order : null;
@@ -198,7 +191,7 @@ namespace CUCoreLib.Patches
             return prefab != null;
         }
 
-        private static bool LoadObjectResource_Prefix(string resourceid, object[] __args, ref GameObject __result)
+        private static bool InstantiateResource_Prefix(string resourceId, object[] __args, ref GameObject __result)
         {
             var pos = default(Vector2);
             if (__args != null && __args.Length > 1 && __args[1] is Vector2 vector)
@@ -206,7 +199,7 @@ namespace CUCoreLib.Patches
                 pos = vector;
             }
 
-            if (!TryResolveResourcePrefab(resourceid, out var prefab) ||
+            if (!TryResolveResourcePrefab(resourceId, out var prefab) ||
                 prefab == null) return true;
 
             var instance = CustomInstantiate.PrepareInstantiatedObject(

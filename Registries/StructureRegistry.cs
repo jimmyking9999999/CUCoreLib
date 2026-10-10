@@ -208,6 +208,8 @@ namespace CUCoreLib.Registries
 
                     world.SetLoadingTextNoLocale("Generating CUCoreLib Structures..\n " + definition.ID + " (" +
                                                  (i + 1) + "/" + countToSpawn + ")\n\n");
+                    Networking.MultiplayerLoadingProgress.Report(
+                        "Generating CUCoreLib Structures..\n " + definition.ID, i + 1, countToSpawn);
                     yield return null;
                 }
             }

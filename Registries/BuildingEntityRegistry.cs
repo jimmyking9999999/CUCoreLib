@@ -6,6 +6,7 @@ using CUCoreLib.ContentReload;
 using CUCoreLib.Data;
 using CUCoreLib.Helpers;
 using CUCoreLib.Networking;
+using CUCoreLib.Patches;
 using CUCoreLib.Registries.Infrastructure;
 using Newtonsoft.Json.Linq;
 using UnityEngine;
@@ -388,9 +389,10 @@ namespace CUCoreLib.Registries
             if (NetworkSpawnComponentsWarningLogged) return;
 
             NetworkSpawnComponentsWarningLogged = true;
-            CUCoreLibPlugin.Log?.LogWarning(
+            // Assume it's a given now tbh, will uncomment once more support for custom components is added
+           /* CUCoreLibPlugin.Log?.LogWarning(
                 "CUCoreLib Buildings: Ignoring network snapshot 'spawnComponents'. SpawnComponents are only honored from local registration.");
-        }
+        */}
 
         public static bool Contains(string id)
         {
@@ -967,6 +969,9 @@ namespace CUCoreLib.Registries
 
             if (isNearPlayer && obj.GetComponent<Rigidbody2D>() != null && obj.GetComponent<SpriteRenderer>() != null)
                 obj.AddComponent<FreshItemDrop>();
+
+            // Drops spawn through a raw Object.Instantiate, which bypasses Together's network hooks, thus a host-side drop never reaches clients without this
+            KrokMpCompatibilityPatches.EnsureItemNetworkRegistered(obj);
 
             return obj;
         }

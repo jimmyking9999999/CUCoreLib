@@ -19,10 +19,10 @@ I figured that this would be nice to have, as to easily take a look at everythin
 - Locale files can now be scoped per mod with the `{LangCode}-{modGuid}.json` naming scheme (e.g. `EN-net.Jimmyking.netdescents.json`), both as embedded resources/loose files, to avoid locale conflict. 
 - ^ that is, any given locale with the mod GUID inside the file name takes priority for said mod
 - `AssetLoader` audio loading now supports `.ogg` files. Rejoice, `.ogg` enjoyers!
-- KrokMP 4.1.2 support for some mods developed on 4.0.1 and 4.1.2. For mods using cucorelib's net send/recieve, it'll now work. For mods using reflection or harmony patchers on the affected renames, not much can be done sadly :(
 - Added `MultiplayerApi.BroadcastEverywhere(channel, payload, reliable)`,`MultiplayerApi.BroadcastToPeer(channel, clientId, payload, reliable)` 
 - Multiplayer `Heal` commands now trigger the OnHeal CUCoreUtils delegate
 - `LiquidTileRegistry` now has the same layer-mask helpers as tiles and buildings (`LayerToMask`, `LayersToMask`, `AllLayersExcept`)
+- Multiplayer snapshots now sync custom locale strings and recipes, and supports v5
 - It is time. (for fullgame preperations)
 
 ### Changes
@@ -30,6 +30,7 @@ I figured that this would be nice to have, as to easily take a look at everythin
 - Explicit MP support for buildingEntites, tiles. Note this might break for people using v1.0.4/1.0.5 <-> v1.0.6 in terms of crossplay
 - Custom buildings (and items) no longer stick around between scene changes in certain cases. This shouldn't (?) break your mods, but do tell me if it does
 - Dropped the KrokMP v3 compat backfill, surely there's no one using v3 nowadays
+- Multiplayer support now targets **Together v5.0.0** (plugin GUID `CasualtiesMP`). KrokMP 4.0.1 and 4.1.2 support has been deprecated. (If you need v4 support, you'll need to download an older version of CUCoreLib - mods written with cucorelib's api should still work)
 - Custom building and custom liquid save data now carries the layer it was captured on (for saving + loading, in case the layer changes)
 
 ### Fixes

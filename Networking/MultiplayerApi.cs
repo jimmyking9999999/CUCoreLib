@@ -13,32 +13,65 @@ namespace CUCoreLib.Networking
     {
         private const string CustomPlayerDataChannel = "cucorelib.playerdata.get";
         private const string CustomPlayerLimbDataChannel = "cucorelib.playerdata.limbs.get";
-        private const string NetPlayerTypeName = "KrokoshaCasualtiesMP.NetPlayer";
-        private const string KrokMpPluginGuid = "KrokoshaCasualtiesMP";
+        private const string NetPlayerTypeName = "Together.ScavPlayer";
+        private const string KrokMpPluginGuid = "CasualtiesMP";
 
-        // Just in case
-        // Aliases for krokMP, and eventual support for future MP mods (potentially)
+        // Yay! It was used :)
         private static readonly string[][] KrokMpMemberAliases =
         {
-            new[] { "NetPlayer", "steam_id", "SteamId" },
-            new[] { "NetPlayer", "plrcolor", "playerColor" },
-            new[] { "NetPlayer", "additional_profile_tag_icons", "KnownUserTagIcons" }
+            new[] { "ScavPlayer", "steam_id", "SteamId" },
+            new[] { "ScavPlayer", "plrcolor", "playerColor" },
+            new[] { "ScavPlayer", "additional_profile_tag_icons", "KnownUserTagIcons" },
+            new[] { "ScavPlayer", "LOCAL_PLAYER", "LocalPlayer" },
+            new[] { "ScavPlayer", "clientId", "playerId" },
+            new[] { "ScavPlayer", "is_local", "IsLocal" },
+            new[] { "ScavPlayer", "TryGetNetPlayerAndBodyFromClientId", "TryGetPlayerAndBodyFromClientId" },
+            new[] { "NetBody", "is_player", "IsPlayer" },
+            new[] { "NetBody", "is_local", "IsLocal" },
+            new[] { "Net", "running", "IsRunning" },
+            new[] { "Net", "is_client", "IsClient" },
+            new[] { "Net", "is_server", "IsServer" },
+            new[] { "Net", "is_host", "IsHost" },
+            new[] { "Net", "is_connected", "IsConnected" },
+            new[] { "Net", "type", "Type" },
+            new[] { "Net", "TRANSPORT", "Transport" },
+            new[] { "NetObjectRegistry", "ObjectCanBeIgnoredForNetwork", "ObjectShouldNotBeSynced" },
+            new[] { "NetObjectRegistry", "Server_EnsureItemNetworkRegistered", "Server_EnsureItemIsNetworkRegistered" },
+            new[] { "Net", "MY_SERVER_INFO", "MyServerInfo" },
+            new[] { "SyncInfo", "LoadObjectResource", "InstantiateResource" }
         };
 
         private static readonly string[][] KrokMpTypeAliases =
         {
-            new[] { "KrokoshaCasualtiesMP.KrokoshaCoopModAssets", "KrokoshaCasualtiesMP.CoopModAssets" },
+            new[] { "KrokoshaCasualtiesMP.NetPlayer", "Together.ScavPlayer" },
+            new[] { "KrokoshaCasualtiesMP.KrokoshaScavMultiplayer", "Together.Multiplayer" },
+            new[] { "KrokoshaCasualtiesMP.NewCoolerObjectPacketWriteReadSystem", "Together.SyncInfo" },
+            new[]
+            {
+                "KrokoshaCasualtiesMP.Krokosha_BuildingEntity_Rope_TrackerComponent",
+                "Together.TrackerClimbableEntity"
+            },
+            new[]
+            {
+                "KrokoshaCasualtiesMP.KrokoshaCoopModAssets", "KrokoshaCasualtiesMP.CoopModAssets",
+                "Together.CoopModAssets"
+            },
             new[] { "KrokoshaCasualtiesMP.FontUntils", "Together.FontUtils" },
-            new[] { "KrokoshaCasualtiesMP.HingeJointState", "Together.HingeJointState" },
+            new[] { "KrokoshaCasualtiesMP.HingeJointState", "Together.ClientMain+SavedHingeJointState" },
             new[] { "KrokoshaCasualtiesMP.StatePrinter", "Together.StatePrinter" }
         };
 
-        private static readonly string[] KrokMpNamespaces = { "KrokoshaCasualtiesMP", "Together" };
+        private static readonly string[] KrokMpNamespaces =
+            { "Together", "CasualtiesMultiplayerAPI", "CasualtiesTogetherUtils" };
 
         private static Version _krokMpVersion;
         private static Type _netPlayerType;
         private static MethodInfo _tryGetNetPlayerAndBodyFromClientIdMethod;
+        private static MethodInfo _getPlayerFromBodyMethod;
         private static MemberInfo _localPlayerMember;
+        private static MemberInfo _clientIdToPlayerDictMember;
+        private static MemberInfo _playerNameMember;
+        private static MemberInfo _playerBodyMember;
         private static FieldInfo _netPlayerBodyField;
         private static bool _playerDataHandlersRegistered;
 
@@ -47,6 +80,8 @@ namespace CUCoreLib.Networking
         public static bool IsClient => MultiplayerBridge.IsClient;
         public static bool IsServer => MultiplayerBridge.IsServer;
         public static bool IsHost => MultiplayerBridge.IsHost;
+
+        public static bool BridgeReceiversInstalled => MultiplayerBridge.ReceiversInstalled;
 
         public static Version KrokMpVersion
         {
@@ -58,6 +93,8 @@ namespace CUCoreLib.Networking
                 return _krokMpVersion;
             }
         }
+
+        public static Assembly KrokMpAssembly => MultiplayerBridge.KrokMpAssembly;
 
         public static Type ResolveKrokMpType(string name)
         {
@@ -93,6 +130,52 @@ namespace CUCoreLib.Networking
         public static MemberInfo FindKrokMpMember(string typeName, string name)
         {
             return FindKrokMpMember(ResolveKrokMpType(typeName), name);
+        }
+
+        public static MethodInfo FindKrokMpMethod(Type type, string name, Type[] parameterTypes = null)
+        {
+            if (type == null || string.IsNullOrWhiteSpace(name)) return null;
+
+            const BindingFlags flags = BindingFlags.Public | BindingFlags.NonPublic |
+                                       BindingFlags.Instance | BindingFlags.Static;
+
+            foreach (var candidate in MemberCandidates(type.Name, name.Trim()))
+            foreach (var method in type.GetMethods(flags))
+            {
+                if (string.Equals(method.Name, candidate, StringComparison.Ordinal) &&
+                    ParametersMatch(method, parameterTypes))
+                    return method;
+            }
+
+            return null;
+        }
+
+        public static MethodInfo FindKrokMpMethod(string typeName, string name, Type[] parameterTypes = null)
+        {
+            return FindKrokMpMethod(ResolveKrokMpType(typeName), name, parameterTypes);
+        }
+
+        private static bool ParametersMatch(MethodInfo method, Type[] parameterTypes)
+        {
+            if (parameterTypes == null) return true;
+
+            var parameters = method.GetParameters();
+            if (parameters.Length != parameterTypes.Length) return false;
+
+            for (var index = 0; index < parameters.Length; index++)
+            {
+                var expected = UnwrapByRef(parameterTypes[index]);
+                var actual = UnwrapByRef(parameters[index].ParameterType);
+                if (expected == null || actual == null) return false;
+                if (expected != actual && !expected.IsAssignableFrom(actual)) return false;
+            }
+
+            return true;
+        }
+
+        private static Type UnwrapByRef(Type type)
+        {
+            return type != null && type.IsByRef ? type.GetElementType() : type;
         }
 
         public static void RegisterServerHandler(string channel, Func<JToken, JToken> handler)
@@ -180,9 +263,9 @@ namespace CUCoreLib.Networking
             MultiplayerSyncRegistry.RegisterModule(key, capture, apply);
         }
 
-        public static JObject CaptureSnapshot()
+        public static JObject CaptureSnapshot(string targetLanguage = null)
         {
-            return MultiplayerSyncRegistry.CaptureSnapshot();
+            return MultiplayerSyncRegistry.CaptureSnapshot(targetLanguage);
         }
 
         public static void ApplySnapshot(JObject snapshot)
@@ -203,6 +286,12 @@ namespace CUCoreLib.Networking
         public static bool BroadcastSnapshot(bool includeHost = false)
         {
             return MultiplayerSyncRegistry.BroadcastSnapshot(includeHost);
+        }
+
+        // Loadbar progress, for slow connections
+        public static void ReportLoadingProgress(string label, int current, int total)
+        {
+            MultiplayerLoadingProgress.Report(label, current, total);
         }
 
         public static void RegisterBuiltIns()
@@ -337,6 +426,52 @@ namespace CUCoreLib.Networking
             return body != null;
         }
 
+        internal static bool TryGetClientIdFromBody(Body body, out uint clientId)
+        {
+            clientId = 0u;
+            if (body == null) return false;
+
+            if (_getPlayerFromBodyMethod == null)
+                _getPlayerFromBodyMethod = FindKrokMpMethod("NetPlayer", "GetPlayerFromBody", new[] { typeof(Body) });
+            if (_getPlayerFromBodyMethod == null) return false;
+
+            var player = _getPlayerFromBodyMethod.Invoke(null, new object[] { body });
+            if (player == null) return false;
+
+            clientId = MultiplayerBridge.ConvertPlayerToClientId(player);
+            return true;
+        }
+
+        internal static List<KeyValuePair<string, Body>> EnumeratePlayers()
+        {
+            var result = new List<KeyValuePair<string, Body>>();
+
+            var playerType = ResolveLoadedType(NetPlayerTypeName);
+            if (playerType == null) return result;
+
+            if (_clientIdToPlayerDictMember == null)
+                _clientIdToPlayerDictMember = FindKrokMpMember(playerType, "ClientIdToPlayerDict");
+
+            var dict = ReadMember(_clientIdToPlayerDictMember, null) as System.Collections.IDictionary;
+            if (dict == null) return result;
+
+            foreach (var value in dict.Values)
+            {
+                if (value == null) continue;
+
+                var type = value.GetType();
+                if (_playerNameMember == null) _playerNameMember = FindKrokMpMember(type, "playerName");
+                if (_playerBodyMember == null) _playerBodyMember = FindKrokMpMember(type, "body");
+
+                var body = ReadMember(_playerBodyMember, value) as Body;
+                if (body == null) continue;
+
+                result.Add(new KeyValuePair<string, Body>(ReadMember(_playerNameMember, value) as string, body));
+            }
+
+            return result;
+        }
+
         private static bool TryResolveNetPlayerReflection()
         {
             if (_tryGetNetPlayerAndBodyFromClientIdMethod != null) return true;
@@ -344,12 +479,12 @@ namespace CUCoreLib.Networking
             _netPlayerType = ResolveLoadedType(NetPlayerTypeName);
             if (_netPlayerType == null) return false;
 
+            var names = MemberCandidates(_netPlayerType.Name, "TryGetNetPlayerAndBodyFromClientId").ToArray();
             _tryGetNetPlayerAndBodyFromClientIdMethod = _netPlayerType
                 .GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static)
                 .FirstOrDefault(method =>
                 {
-                    if (!string.Equals(method.Name, "TryGetNetPlayerAndBodyFromClientId", StringComparison.Ordinal))
-                        return false;
+                    if (!names.Contains(method.Name)) return false;
 
                     var parameters = method.GetParameters();
                     return parameters.Length == 3 &&
@@ -365,6 +500,9 @@ namespace CUCoreLib.Networking
         private static Type ResolveLoadedType(string fullName)
         {
             if (string.IsNullOrWhiteSpace(fullName)) return null;
+
+            var scoped = MultiplayerBridge.KrokMpAssembly?.GetType(fullName, false);
+            if (scoped != null) return scoped;
 
             return AppDomain.CurrentDomain.GetAssemblies()
                 .Select(assembly => assembly.GetType(fullName, false))

@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using CUCoreLib.ContentReload;
@@ -18,6 +19,7 @@ namespace CUCoreLib.Networking
 
         private const string SnapshotChannel = "cucorelib.sync.snapshot";
         internal const string PlayerStatusSnapshotChannel = "cucorelib.sync.statuses.player";
+        internal const string PlayerStatusSetFieldChannel = "cucorelib.sync.statuses.setfield";
         private const string SnapshotModuleKey = "modules";
 
         private static readonly Dictionary<string, Func<JObject>> CaptureModules =
@@ -29,9 +31,15 @@ namespace CUCoreLib.Networking
         private static bool _builtInsRegistered;
         private static bool _initialSnapshotRequested;
         private static bool _initialSnapshotScheduled;
+        private static bool _initialSnapshotRetryRunning;
         private static JObject _cachedSnapshot;
         private static bool _retryScheduled;
         private static bool _hostSnapshotBroadcastQueued;
+
+        // Set once a snapshot has been applied for the current KrokMP transport session, to prevent redundancy
+        private static bool _snapshotAppliedSinceTransport;
+
+        [ThreadStatic] private static string _snapshotLanguage;
 
         public static void RegisterModule(string key, Func<JObject> capture, Action<JObject> apply = null)
         {
@@ -45,7 +53,7 @@ namespace CUCoreLib.Networking
             if (apply != null) ApplyModules[key] = apply;
         }
 
-        public static JObject CaptureSnapshot()
+        public static JObject CaptureSnapshot(string targetLanguage = null)
         {
             var root = new JObject
             {
@@ -54,18 +62,26 @@ namespace CUCoreLib.Networking
             };
 
             var modules = new JObject();
-            using (NetworkSnapshotSerialization.BeginSpriteDedupeScope())
+            _snapshotLanguage = targetLanguage;
+            try
             {
-                foreach (var entry in CaptureModules)
-                    try
-                    {
-                        modules[entry.Key] = entry.Value?.Invoke() ?? new JObject();
-                    }
-                    catch (Exception ex)
-                    {
-                        CUCoreLibPlugin.Log?.LogWarning("CUCoreLib multiplayer snapshot capture failed for module '" +
-                                                        entry.Key + "'.\n" + ex);
-                    }
+                using (NetworkSnapshotSerialization.BeginSpriteDedupeScope())
+                {
+                    foreach (var entry in CaptureModules)
+                        try
+                        {
+                            modules[entry.Key] = entry.Value?.Invoke() ?? new JObject();
+                        }
+                        catch (Exception ex)
+                        {
+                            CUCoreLibPlugin.Log?.LogWarning("CUCoreLib multiplayer snapshot capture failed for module '" +
+                                                            entry.Key + "'.\n" + ex);
+                        }
+                }
+            }
+            finally
+            {
+                _snapshotLanguage = null;
             }
 
             root[SnapshotModuleKey] = modules;
@@ -77,6 +93,7 @@ namespace CUCoreLib.Networking
             if (snapshot == null) return;
 
             _cachedSnapshot = snapshot;
+            _snapshotAppliedSinceTransport = true;
             ApplySnapshotInternal(snapshot);
             ScheduleReplayIfNeeded();
         }
@@ -87,8 +104,8 @@ namespace CUCoreLib.Networking
 
             var modules = snapshot[SnapshotModuleKey] as JObject ?? snapshot;
 
-            // Pool counts depend on item definitions, regardless of JSON property ordering.
-            foreach (var property in modules.Properties().OrderBy(property => property.Name == "lootpools" ? 1 : 0))
+            foreach (var property in modules.Properties().OrderBy(property =>
+                         property.Name == "locale" ? -1 : property.Name == "lootpools" ? 1 : 0))
             {
                 if (!ApplyModules.TryGetValue(property.Name, out var apply)) continue;
 
@@ -103,9 +120,6 @@ namespace CUCoreLib.Networking
                 }
             }
 
-            // WorldGeneration can resize/rebuild its tile array while a join is
-            // being applied. Restore the authoritative registry after every module
-            // pass so custom block indices cannot fall back to vanilla/air tiles.
             if (CUCoreUtils.IsInWorld())
                 TileRegistry.InjectRegisteredTiles(WorldGeneration.world);
         }
@@ -139,14 +153,17 @@ namespace CUCoreLib.Networking
         public static void RegisterBuiltIns()
         {
             ContentReloadSession.AssertNotActive("MultiplayerSyncRegistry.RegisterBuiltIns()",
-                "Multiplayer registration is excluded from strict content reload.");
+                "Multiplayer registration is excluded from reload :(");
 
             if (_builtInsRegistered) return;
 
             _builtInsRegistered = true;
 
+            RegisterModule("locale", () => LocaleRegistry.CaptureNetworkSnapshot(_snapshotLanguage),
+                LocaleRegistry.ApplyNetworkSnapshot);
             RegisterModule("liquids", CaptureLiquidManifest, LiquidRegistry.ApplyNetworkSnapshot);
             RegisterModule("items", CaptureItemManifest, ItemRegistry.ApplyNetworkSnapshot);
+            RegisterModule("recipes", RecipeRegistry.CaptureNetworkSnapshot, RecipeRegistry.ApplyNetworkSnapshot);
             RegisterModule("lootpools", DropPoolRegistry.CaptureNetworkSnapshot, DropPoolRegistry.ApplyNetworkSnapshot);
             RegisterModule("tiles", TileRegistry.CaptureNetworkSnapshot, TileRegistry.ApplyNetworkSnapshot);
             RegisterModule("buildings", CaptureBuildingManifest, BuildingEntityRegistry.ApplyNetworkSnapshot);
@@ -156,8 +173,10 @@ namespace CUCoreLib.Networking
             RegisterModule("settings", ModOptionsRegistry.CaptureNetworkSnapshot,
                 ModOptionsRegistry.ApplyNetworkSnapshot);
 
-            MultiplayerBridge.RegisterServerHandler(SnapshotChannel, _ => CaptureSnapshot());
+            MultiplayerBridge.RegisterServerHandler(SnapshotChannel,
+                payload => CaptureSnapshot(payload?.Value<string>("lang")));
             MultiplayerPlayerStatusSync.RegisterServerHandler();
+            MultiplayerLoadingProgress.Register();
             MultiplayerBridge.RegisterClientHandler(SnapshotChannel, payload =>
             {
                 if (payload is JObject snapshotObject) ApplySnapshot(snapshotObject);
@@ -169,38 +188,61 @@ namespace CUCoreLib.Networking
             if (_initialSnapshotScheduled) return;
 
             _initialSnapshotScheduled = true;
-            CUCoreUtils.CallWhen(
-                () => MultiplayerBridge.IsAvailable && MultiplayerBridge.IsRunning && MultiplayerBridge.IsClient &&
-                      MultiplayerBridge.IsConnected,
-                RequestInitialSnapshot,
-                1f);
+            StartInitialSnapshotRetry();
             MultiplayerPlayerStatusSync.Schedule();
+            SpawnHandshakeRecovery.Schedule();
         }
 
-        public static void RequestInitialSnapshot()
+        // Together flips IsConnected true briefly before the client transport can actually send (its CLIENT_PEER is still null, so IsConnecting() reports false)...
+        private static void StartInitialSnapshotRetry()
         {
-            if (_initialSnapshotRequested || !MultiplayerBridge.IsAvailable || !MultiplayerBridge.IsRunning ||
-                !MultiplayerBridge.IsClient || !MultiplayerBridge.IsConnected) return;
+            if (_initialSnapshotRetryRunning) return;
+
+            _initialSnapshotRetryRunning = true;
+            CUCoreUtils.StartCoroutine(InitialSnapshotRetryRoutine());
+        }
+
+        private static IEnumerator InitialSnapshotRetryRoutine()
+        {
+            var wait = new WaitForSecondsRealtime(0.1f);
+            while (!RequestInitialSnapshot())
+            {
+                if (!MultiplayerBridge.IsAvailable || !MultiplayerBridge.IsRunning || !MultiplayerBridge.IsClient)
+                    break;
+
+                yield return wait;
+            }
+
+            _initialSnapshotRetryRunning = false;
+        }
+
+        public static bool RequestInitialSnapshot()
+        {
+            if (_initialSnapshotRequested) return true;
+            if (!MultiplayerBridge.IsAvailable || !MultiplayerBridge.IsRunning ||
+                !MultiplayerBridge.IsClient || !MultiplayerBridge.IsConnected) return false;
 
             _initialSnapshotRequested = MultiplayerBridge.RequestServer(
                 SnapshotChannel,
-                null,
+                new JObject { ["lang"] = Locale.currentLangName ?? string.Empty },
                 snapshot =>
                 {
                     if (snapshot is JObject snapshotObject) ApplySnapshot(snapshotObject);
                 });
+            return _initialSnapshotRequested;
         }
 
         internal static void RequestInitialSnapshotForNewSession()
         {
-            // Mirrors KrokMpCucorelibBridgeFix's "snapshot re-request" recovery:
-            // every time a new KrokMP transport is created, the one-shot guard is
-            // cleared and the request re-issued so a client that already consumed
-            // the snapshot in a previous session (where the response may have been
-            // dropped when KrokMP's ShutdownReset cleared its handler tables)
-            // still pulls a fresh snapshot for this session.
+            if (_snapshotAppliedSinceTransport) return;
+
             _initialSnapshotRequested = false;
-            RequestInitialSnapshot();
+            StartInitialSnapshotRetry();
+        }
+
+        internal static void MarkNewTransportSession()
+        {
+            _snapshotAppliedSinceTransport = false;
         }
 
         public static bool BroadcastSnapshot(bool includeHost = false)
@@ -219,13 +261,19 @@ namespace CUCoreLib.Networking
 
             _hostSnapshotBroadcastQueued = true;
             CUCoreUtils.CallWhen(
-                () => MultiplayerBridge.IsAvailable && MultiplayerBridge.IsServer,
+                () => MultiplayerBridge.IsAvailable && MultiplayerBridge.IsServer && !IsHostGeneratingWorld(),
                 () =>
                 {
                     _hostSnapshotBroadcastQueued = false;
                     BroadcastSnapshot();
                 },
                 1f);
+        }
+
+        private static bool IsHostGeneratingWorld()
+        {
+            var world = WorldGeneration.world;
+            return world != null && world.generatingWorld;
         }
 
         private static JObject CaptureItemManifest()

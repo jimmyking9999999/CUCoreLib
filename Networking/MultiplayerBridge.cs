@@ -26,21 +26,27 @@ namespace CUCoreLib.Networking
 
     public static class MultiplayerBridge
     {
-        private const string PluginGuid = "KrokoshaCasualtiesMP";
-        private const string MpTypeName = "KrokoshaCasualtiesMP.KrokoshaScavMultiplayer";
-        private const string NetTypeName = "KrokoshaCasualtiesMP.Net";
-        private const string NetTypeEnumName = "KrokoshaCasualtiesMP.Net+NetType";
-        private const string ServerMainTypeName = "KrokoshaCasualtiesMP.ServerMain";
-        private const string ClientMainTypeName = "KrokoshaCasualtiesMP.ClientMain";
-        private const string LiteNetTransportTypeName = "KrokoshaCasualtiesMP.TransportLiteNetLib";
+        private const string PluginGuid = "CasualtiesMP";
+        private const string MpTypeName = "Together.Multiplayer";
+        private const string NetTypeName = "Together.Net";
+        private const string NetTypeEnumName = "Together.Net+NetType";
+        private const string ServerMainTypeName = "Together.ServerMain";
+        private const string ClientMainTypeName = "Together.ClientMain";
+        private const string LiteNetTransportTypeName = "Together.TransportLiteNetLib";
+        private const string MainMenuTypeName = "Together.UIMainMenu";
+        private const string SavesystemPatchTypeName = "Together.SavesystemPatch";
+        private const string ExtensionsTypeName = "Together.MyLiteNetLibExtensions";
         private const string MessageField = "msg";
         private const string ChannelField = "channel";
         private const string KindField = "kind";
         private const string RequestIdField = "requestId";
         private const string SenderField = "sender";
         private const string PayloadField = "payload";
-        private const ushort RequestMessageId = 56420;
-        private const ushort ResponseMessageId = 56421;
+
+        // C:Tv5 identifies messages by a single byte,so we need to use the custom-message channel instead of claiming raw message ids, 
+        // thus the name is hashed to a uint for CustomMessage
+        private const string RequestChannel = "cucorelib.bridge.request";
+        private const string ResponseChannel = "cucorelib.bridge.response";
         private const string RelayChannel = "cucorelib.mp.broadcast";
 
         private static readonly Dictionary<string, Func<JToken, JToken>> ServerHandlers =
@@ -67,15 +73,19 @@ namespace CUCoreLib.Networking
         private static Type _serverMainType;
         private static Type _clientMainType;
         private static Type _liteNetTransportType;
+        private static Type _mainMenuType;
         private static Type _deliveryMethodType;
         private static Type _readerType;
         private static Type _writerType;
-        private static MethodInfo _createWriterMethod;
+        private static MethodInfo _createNamedWriterMethod;
         private static MethodInfo _clientSendMethod;
         private static MethodInfo _serverSendToMethod;
         private static MethodInfo _serverSendToClientsMethod;
-        private static MethodInfo _registerServerReceiverMethod;
-        private static MethodInfo _registerClientReceiverMethod;
+        private static MethodInfo _registerCustomServerReceiverMethod;
+        private static MethodInfo _registerCustomClientReceiverMethod;
+        private static MemberInfo _playerIdMember;
+        private static bool _playerIdMemberWarned;
+        private static bool _receiversInstalled;
         private static MethodInfo _writerPutStringMethod;
         private static MethodInfo _readerGetStringMethod;
         private static MethodInfo _writerPutUShortMethod;
@@ -90,43 +100,27 @@ namespace CUCoreLib.Networking
         private static MethodInfo _serverAnnounceGameStartMethod;
         private static object _reliableOrdered;
         private static object _reliableUnordered;
-
-        // KrokMP's Net.Server_SendToClients overloads take `in` (byref) parameters.
-        // Mono's reflection invoke requires every byref argument in the argument
-        // array to be the EXACT parameter type (it must be able to write the value
-        // back through the pointer), while CUCoreLib passes the AllClientIds /
-        // AllClientIdsExceptHost collections whose runtime type is List<knetid>.
-        // That never matches the byref IEnumerable<knetid> parameter exactly, so a
-        // plain _serverSendToClientsMethod.Invoke(...) throws ArgumentException and
-        // every server-side Broadcast silently fails. _serverSendToClientsInvoker is
-        // a DynamicMethod with plain (non-byref) parameters that forwards the call
-        // with proper managed pointers; because all of its parameters are value
-        // parameters, MethodInfo.Invoke only performs a normal assignability check.
-        // _serverSendToClientsInvokerSource tracks which MethodInfo the invoker was
-        // built for, because TryResolveRuntime re-resolves the field on its retry
-        // schedule and the invoker must be rebuilt whenever the source changes.
         private static MethodInfo _serverSendToClientsInvoker;
         private static MethodInfo _serverSendToClientsInvokerSource;
         private static int _dynamicMethodCounter;
 
-        // KrokMP's Net.ShutdownReset() clears the SERVER_MESSAGE_HANDLERS /
-        // CLIENT_MESSAGE_HANDLERS tables where CUCoreLib registers its 56420/56421
-        // receivers, and KrokMP does not re-run any third-party registration when
-        // the next transport is created. Net.TransportCreated is therefore hooked
-        // with Harmony (the same proven approach KrokMpCucorelibBridgeFix used) so
-        // CUCoreLib can re-install its receivers right when every new session
-        // starts; otherwise the bridge silently stops receiving every message from
-        // the second session onward.
         private static Harmony _harmony;
         private static bool _transportHookInstalled;
 
         public static bool IsAvailable { get; private set; }
 
-        public static bool IsRunning => GetNetBool("running");
-        public static bool IsClient => GetNetBool("is_client");
-        public static bool IsServer => GetNetBool("is_server");
-        public static bool IsHost => GetNetBool("is_host");
-        public static bool IsConnected => GetNetBool("is_connected");
+        public static bool ReceiversInstalled => _receiversInstalled;
+
+        internal static Assembly KrokMpAssembly =>
+            _krokAssembly ?? (_krokAssembly = AppDomain.CurrentDomain.GetAssemblies()
+                .FirstOrDefault(assembly =>
+                    string.Equals(assembly.GetName().Name, PluginGuid, StringComparison.OrdinalIgnoreCase)));
+
+        public static bool IsRunning => GetNetBool("IsRunning");
+        public static bool IsClient => GetNetBool("IsClient");
+        public static bool IsServer => GetNetBool("IsServer");
+        public static bool IsHost => GetNetBool("IsHost");
+        public static bool IsConnected => GetNetBool("IsConnected");
 
         internal static KrokMpSaveScope GetKrokMpSaveScope(out string directory)
         {
@@ -140,17 +134,17 @@ namespace CUCoreLib.Networking
                         assembly.GetType(MpTypeName, false) != null);
 
                 var netType = _krokAssembly?.GetType(NetTypeName, false);
-                var running = netType?.GetProperty("running", BindingFlags.Public | BindingFlags.Static);
+                var running = netType?.GetProperty("IsRunning", BindingFlags.Public | BindingFlags.Static);
                 if (running?.PropertyType != typeof(bool))
                     return KrokMpSaveScope.Unsupported;
                 if (!GetStaticBool(running))
                     return KrokMpSaveScope.NotActive;
 
-                var isClient = netType.GetProperty("is_client", BindingFlags.Public | BindingFlags.Static);
+                var isClient = netType.GetProperty("IsClient", BindingFlags.Public | BindingFlags.Static);
                 if (isClient?.PropertyType == typeof(bool) && GetStaticBool(isClient))
                     return KrokMpSaveScope.Client;
 
-                var savesType = _krokAssembly.GetType("KrokoshaCasualtiesMP.SavesystemPatch", false);
+                var savesType = _krokAssembly.GetType(SavesystemPatchTypeName, false);
                 var replacement = savesType?.GetField("savedatapathreplacement",
                     BindingFlags.Public | BindingFlags.Static)?.GetValue(null) as string;
                 var root = savesType?.GetProperty("mpsavefolder", BindingFlags.Public | BindingFlags.Static)
@@ -172,9 +166,9 @@ namespace CUCoreLib.Networking
                     ? KrokMpSaveScope.Player
                     : KrokMpSaveScope.Unsupported;
             }
-            catch (Exception ex)
+            catch (Exception /*ex*/)
             {
-                CUCoreLibPlugin.Log?.LogWarning("CUCoreLib could not resolve the KrokMP save scope.\n" + ex);
+                // CUCoreLibPlugin.Log?.LogWarning("CUCoreLib could not resolve the KrokMP save scope.\n" + ex);
                 return KrokMpSaveScope.Unsupported;
             }
         }
@@ -182,12 +176,12 @@ namespace CUCoreLib.Networking
         public static bool TryConfigureLocalIdentity(string username, string address)
         {
             if (!TryResolveRuntime()) return false;
-            if (_mpType == null) return false;
+            if (_mainMenuType == null) return false;
 
             try
             {
-                SetStaticStringProperty(_mpType, "INPUT_USERNAME", username);
-                SetStaticStringProperty(_mpType, "INPUT_IPPORT", address);
+                SetStaticString(_mainMenuType, "USERINPUT_NAME", username);
+                SetStaticString(_mainMenuType, "USERINPUT_IPPORT", address);
                 return true;
             }
             catch (Exception ex)
@@ -233,7 +227,7 @@ namespace CUCoreLib.Networking
 
             if (TryResolveRuntime())
             {
-                InstallReceivers();
+                InstallNamedReceivers();
                 InstallKrokMpTransportHook();
                 IsAvailable = true;
                 return;
@@ -260,7 +254,7 @@ namespace CUCoreLib.Networking
 
         public static bool SendToServer(string channel, object payload = null, bool reliable = true)
         {
-            return SendMessage(RequestMessageId, channel, "event", payload, reliable, null, 0u, null);
+            return SendMessage(RequestChannel, channel, "event", payload, reliable, null, 0u, null);
         }
 
         public static bool RequestServer(string channel, object payload, Action<JToken> onResponse,
@@ -269,14 +263,14 @@ namespace CUCoreLib.Networking
             var requestId = Guid.NewGuid().ToString("N");
             if (onResponse != null) PendingResponses[requestId] = onResponse;
 
-            var sent = SendMessage(RequestMessageId, channel, "request", payload, reliable, requestId, 0u, null);
+            var sent = SendMessage(RequestChannel, channel, "request", payload, reliable, requestId, 0u, null);
             if (!sent) PendingResponses.Remove(requestId);
             return sent;
         }
 
         public static bool SendToClient(uint clientId, string channel, object payload = null, bool reliable = true)
         {
-            return SendMessage(ResponseMessageId, channel, "event", payload, reliable, null, clientId, null);
+            return SendMessage(ResponseChannel, channel, "event", payload, reliable, null, clientId, null);
         }
 
         public static bool Broadcast(string channel, object payload = null, bool includeHost = false,
@@ -285,7 +279,7 @@ namespace CUCoreLib.Networking
             if (!IsAvailable || !IsServer) return false;
 
             var targets = includeHost ? GetMemberList("AllClientIds") : GetMemberList("AllClientIdsExceptHost");
-            return SendMessage(ResponseMessageId, channel, "event", payload, reliable, null, 0u, targets);
+            return SendMessage(ResponseChannel, channel, "event", payload, reliable, null, 0u, targets);
         }
 
         public static bool BroadcastEverywhere(string channel, object payload = null, bool reliable = true)
@@ -374,14 +368,53 @@ namespace CUCoreLib.Networking
             return payload is JToken token ? token : JToken.FromObject(payload);
         }
 
-        internal static void HandleServerMessageObject(object senderClientId, object reader)
+        internal static void HandleServerMessageObject(object senderPlayer, object reader)
         {
-            HandleEnvelope(ConvertClientIdToUInt(senderClientId), reader, true);
+            HandleEnvelope(ConvertPlayerToClientId(senderPlayer), reader, true);
         }
 
-        internal static void HandleClientMessageObject(object senderClientId, object reader)
+        internal static void HandleClientMessageObject(object reader)
         {
-            HandleEnvelope(ConvertClientIdToUInt(senderClientId), reader, false);
+            HandleEnvelope(0u, reader, false);
+        }
+
+        // The named server receiver hands over the sender's player object instead of a client id
+        internal static uint ConvertPlayerToClientId(object player)
+        {
+            if (player == null) return 0u;
+
+            try
+            {
+                if (_playerIdMember == null)
+                    _playerIdMember = MultiplayerApi.FindKrokMpMember(player.GetType(), "clientId");
+
+                object clientId;
+                switch (_playerIdMember)
+                {
+                    case FieldInfo field:
+                        clientId = field.GetValue(player);
+                        break;
+                    case PropertyInfo property when property.CanRead:
+                        clientId = property.GetValue(player, null);
+                        break;
+                    default:
+                        if (!_playerIdMemberWarned)
+                        {
+                            _playerIdMemberWarned = true;
+                            CUCoreLibPlugin.Log?.LogWarning(
+                                "CUCoreLib could not resolve the multiplayer sender id; server replies will be dropped.");
+                        }
+
+                        return 0u;
+                }
+
+                return ConvertClientIdToUInt(clientId);
+            }
+            catch (Exception ex)
+            {
+                CUCoreLibPlugin.Log?.LogWarning("CUCoreLib could not read the multiplayer sender id.\n" + ex);
+                return 0u;
+            }
         }
 
         private static void HandleEnvelope(uint senderClientId, object reader, bool serverSide)
@@ -446,7 +479,7 @@ namespace CUCoreLib.Networking
             }
         }
 
-        private static bool SendMessage(ushort messageId, string channel, string kind, object payload, bool reliable,
+        private static bool SendMessage(string netChannel, string channel, string kind, object payload, bool reliable,
             string requestId, uint clientId, object targets)
         {
             if (!IsAvailable || string.IsNullOrWhiteSpace(channel)) return false;
@@ -460,7 +493,7 @@ namespace CUCoreLib.Networking
                 [PayloadField] = NormalizePayload(payload)
             };
 
-            return SendEnvelope(messageId, envelope, reliable, clientId, targets);
+            return SendEnvelope(netChannel, envelope, reliable, clientId, targets);
         }
 
         private static bool SendEnvelopeToClient(uint clientId, string channel, string kind, JToken payload,
@@ -475,24 +508,19 @@ namespace CUCoreLib.Networking
                 [PayloadField] = payload
             };
 
-            return SendEnvelope(ResponseMessageId, envelope, reliable, clientId, null);
+            return SendEnvelope(ResponseChannel, envelope, reliable, clientId, null);
         }
 
-        private static bool SendEnvelope(ushort messageId, JObject envelope, bool reliable, uint clientId,
+        private static bool SendEnvelope(string netChannel, JObject envelope, bool reliable, uint clientId,
             object targets)
         {
-            if (!TryBuildWriter(messageId, envelope, out var writer)) return false;
+            if (!TryBuildWriter(netChannel, envelope, out var writer)) return false;
 
             var delivery = reliable ? _reliableOrdered : _reliableUnordered;
             try
             {
                 if (targets != null)
                 {
-                    // Never invoke _serverSendToClientsMethod directly: KrokMP
-                    // declares it with `in` parameters, and Mono's reflection
-                    // invoke requires exact types for byref arguments, which the
-                    // List<knetid> targets collection can never satisfy. The
-                    // invoker wraps the call with plain value parameters.
                     var invoker = GetSendToClientsInvoker();
                     if (invoker == null) return false;
 
@@ -522,14 +550,14 @@ namespace CUCoreLib.Networking
             }
         }
 
-        private static bool TryBuildWriter(ushort messageId, JObject envelope, out object writer)
+        private static bool TryBuildWriter(string netChannel, JObject envelope, out object writer)
         {
             writer = null;
-            if (_createWriterMethod == null) return false;
+            if (_createNamedWriterMethod == null) return false;
 
             try
             {
-                writer = _createWriterMethod.Invoke(null, new object[] { messageId });
+                writer = _createNamedWriterMethod.Invoke(null, new object[] { netChannel });
                 if (writer == null) return false;
 
                 var json = JsonConvert.SerializeObject(envelope, Formatting.None);
@@ -597,61 +625,45 @@ namespace CUCoreLib.Networking
 
         }
 
-        private static void InstallReceivers()
+        private static void InstallNamedReceivers()
         {
-            var registerServer = _registerServerReceiverMethod;
-            var registerClient = _registerClientReceiverMethod;
-            if (registerServer != null)
-            {
-                var serverDelegate = CreateReceiverDelegate(registerServer,
-                    typeof(MultiplayerBridge).GetMethod(nameof(HandleServerMessageObject),
-                        BindingFlags.NonPublic | BindingFlags.Static));
-                if (serverDelegate != null)
-                    TryInstallReceiver(registerServer, "SERVER_MESSAGE_HANDLERS", RequestMessageId, serverDelegate);
-            }
+            if (_receiversInstalled) return;
+            if (_registerCustomServerReceiverMethod == null || _registerCustomClientReceiverMethod == null) return;
 
-            if (registerClient == null) return;
-            var clientDelegate = CreateReceiverDelegate(registerClient,
+            var serverDelegate = CreateReceiverDelegate(_registerCustomServerReceiverMethod,
+                typeof(MultiplayerBridge).GetMethod(nameof(HandleServerMessageObject),
+                    BindingFlags.NonPublic | BindingFlags.Static));
+            var clientDelegate = CreateReceiverDelegate(_registerCustomClientReceiverMethod,
                 typeof(MultiplayerBridge).GetMethod(nameof(HandleClientMessageObject),
                     BindingFlags.NonPublic | BindingFlags.Static));
-            if (clientDelegate != null)
-                TryInstallReceiver(registerClient, "CLIENT_MESSAGE_HANDLERS", ResponseMessageId, clientDelegate);
+            if (serverDelegate == null || clientDelegate == null) return;
+
+            var serverInstalled = TryRegisterNamedReceiver(_registerCustomServerReceiverMethod, RequestChannel,
+                serverDelegate);
+            var clientInstalled = TryRegisterNamedReceiver(_registerCustomClientReceiverMethod, ResponseChannel,
+                clientDelegate);
+            _receiversInstalled = serverInstalled && clientInstalled;
         }
 
-        private static bool TryInstallReceiver(MethodInfo registerMethod, string handlerFieldName, ushort messageId,
-            Delegate receiver)
+        private static bool TryRegisterNamedReceiver(MethodInfo registerMethod, string name, Delegate receiver)
         {
-            if (registerMethod == null || receiver == null) return false;
-
-            if (IsReceiverRegistered(registerMethod.DeclaringType, handlerFieldName, messageId)) return true;
-
             try
             {
-                registerMethod.Invoke(null, new object[] { messageId, receiver });
+                registerMethod.Invoke(null, new object[] { name, receiver });
                 return true;
             }
-            catch (TargetInvocationException ex) when (ex.InnerException is ArgumentException &&
-                                                        IsReceiverRegistered(registerMethod.DeclaringType,
-                                                            handlerFieldName, messageId))
+            catch (TargetInvocationException ex) when (ex.InnerException != null &&
+                                                       ex.InnerException.GetType().Name == "DuplicateNameException")
             {
+                // An earlier attempt registered this name already, we're fine
                 return true;
             }
             catch (Exception ex)
             {
-                CUCoreLibPlugin.Log?.LogWarning("CUCoreLib could not register KrokMP receiver " + messageId + ".\n" +
-                                                ex);
+                CUCoreLibPlugin.Log?.LogWarning("CUCoreLib could not register the multiplayer receiver '" + name +
+                                                "'.\n" + ex);
                 return false;
             }
-        }
-
-        private static bool IsReceiverRegistered(Type netType, string handlerFieldName, ushort messageId)
-        {
-            if (netType == null || string.IsNullOrWhiteSpace(handlerFieldName)) return false;
-
-            var field = netType.GetField(handlerFieldName, BindingFlags.NonPublic | BindingFlags.Static);
-            if (!(field?.GetValue(null) is IDictionary handlers)) return false;
-
-            return handlers.Contains(messageId);
         }
 
         private static void InstallKrokMpTransportHook()
@@ -660,10 +672,7 @@ namespace CUCoreLib.Networking
 
             try
             {
-                // Same proven approach as KrokMpCucorelibBridgeFix: hook KrokMP's
-                // Net.TransportCreated with a Harmony postfix so the receivers are
-                // re-registered exactly when every new session's transport starts,
-                // immediately after KrokMP's ShutdownReset has wiped them.
+               // Prevent net.shutdownreset
                 var transportCreated = AccessTools.Method(_netType, "TransportCreated",
                     new[] { _netModeType, typeof(bool) });
                 if (transportCreated == null) return;
@@ -675,23 +684,18 @@ namespace CUCoreLib.Networking
             }
             catch (Exception ex)
             {
-                CUCoreLibPlugin.Log?.LogWarning("CUCoreLib could not hook KrokMP transport creation; " +
-                                                "multiplayer receivers will not be re-installed after a session restart.\n" +
+                CUCoreLibPlugin.Log?.LogWarning("CUCoreLib could not hook KrokMP transport creation, consider reloading the session \n" +
                                                 ex);
                 return;
             }
 
-            // If a transport was already created before this hook could be
-            // installed (for example while the bridge was still waiting for the
-            // KrokMP assembly to load), run the same recovery path once now so the
-            // receivers are present for the session that is already active.
             try
             {
                 if (IsRunning) HandleKrokMpTransportCreated();
             }
             catch (Exception ex)
             {
-                CUCoreLibPlugin.Log?.LogWarning("CUCoreLib failed to restore receivers for an active KrokMP session.\n" +
+                CUCoreLibPlugin.Log?.LogWarning("CUCoreLib failed to restore multiplayer state for an active KrokMP session.\n" +
                                                 ex);
             }
         }
@@ -699,21 +703,13 @@ namespace CUCoreLib.Networking
         private static void HandleKrokMpTransportCreated()
         {
             if (!IsAvailable) return;
-
-            // Re-register the 56420/56421 receivers that KrokMP's ShutdownReset()
-            // wiped from the handler tables. InstallReceivers is idempotent: it
-            // checks whether each message id is already registered before
-            // registering it, so running it on every transport creation is safe.
-            InstallReceivers();
-
-            // A client may have already consumed its one-shot initial snapshot
-            // guards in a previous session; re-arm them and pull a fresh snapshot
-            // for the newly created transport after a short delay (the connection
-            // handshake usually completes within that window).
             if (IsClient && !IsServer)
             {
                 DropPoolRegistry.ResetGeneration();
-                CUCoreUtils.DelayCall(3f, MultiplayerSyncRegistry.RequestInitialSnapshotForNewSession);
+                MultiplayerSyncRegistry.MarkNewTransportSession();
+              // I hate doing it this way, but keep on requesting the initial snapshot until we get it
+              // guh.
+                MultiplayerSyncRegistry.RequestInitialSnapshotForNewSession();
             }
         }
 
@@ -729,26 +725,30 @@ namespace CUCoreLib.Networking
             if (invokeMethod == null) return null;
 
             var invokeParams = invokeMethod.GetParameters();
-            if (invokeParams.Length < 2) return null;
-
-            var readerRefType = invokeParams[1].ParameterType;
-            var readerType = readerRefType.IsByRef ? readerRefType.GetElementType() : readerRefType;
-            if (readerType == null) return null;
+            if (invokeParams.Length != helperMethod.GetParameters().Length) return null;
 
             var method = new DynamicMethod(
                 "CUCoreLib_MP_Receiver_" + helperMethod.Name,
                 typeof(void),
-                new[] { invokeParams[0].ParameterType, readerRefType },
+                invokeParams.Select(parameter => parameter.ParameterType).ToArray(),
                 typeof(MultiplayerBridge).Module,
                 true);
 
             var il = method.GetILGenerator();
-            il.Emit(OpCodes.Ldarg_0);
-            var senderType = invokeParams[0].ParameterType;
-            if (senderType.IsValueType)
-                il.Emit(OpCodes.Box, senderType);
-            il.Emit(OpCodes.Ldarg_1);
-            il.Emit(OpCodes.Ldind_Ref);
+            foreach (var parameter in invokeParams)
+            {
+                var parameterType = parameter.ParameterType;
+                il.Emit(OpCodes.Ldarg, parameter.Position);
+
+                if (parameterType.IsByRef)
+                {
+                    il.Emit(OpCodes.Ldind_Ref);
+                    parameterType = parameterType.GetElementType();
+                }
+
+                if (parameterType != null && parameterType.IsValueType) il.Emit(OpCodes.Box, parameterType);
+            }
+
             il.Emit(OpCodes.Call, helperMethod);
             il.Emit(OpCodes.Ret);
             return method.CreateDelegate(delegateType);
@@ -765,7 +765,7 @@ namespace CUCoreLib.Networking
         private static void BootstrapIfPossible()
         {
             if (!TryResolveRuntime()) return;
-            InstallReceivers();
+            InstallNamedReceivers();
             InstallKrokMpTransportHook();
             IsAvailable = true;
         }
@@ -791,8 +791,9 @@ namespace CUCoreLib.Networking
             _serverMainType = _krokAssembly.GetType(ServerMainTypeName, false);
             _clientMainType = _krokAssembly.GetType(ClientMainTypeName, false);
             _liteNetTransportType = _krokAssembly.GetType(LiteNetTransportTypeName, false);
+            _mainMenuType = _krokAssembly.GetType(MainMenuTypeName, false);
             if (_mpType == null || _netType == null || _netModeType == null || _serverMainType == null ||
-                _clientMainType == null || _liteNetTransportType == null) return false;
+                _clientMainType == null || _liteNetTransportType == null || _mainMenuType == null) return false;
 
             var liteNetLibAssembly = AppDomain.CurrentDomain.GetAssemblies().FirstOrDefault(assembly =>
                 string.Equals(assembly.GetName().Name, "LiteNetLib", StringComparison.OrdinalIgnoreCase));
@@ -805,16 +806,17 @@ namespace CUCoreLib.Networking
             _deliveryMethodType = ResolveDeliveryMethodType();
             if (_deliveryMethodType == null) return false;
 
-            _createWriterMethod = ResolveMethod(_netType, new[] { "CreateWriter" }, new[] { typeof(ushort) });
+            _createNamedWriterMethod = ResolveMethod(_mpType, new[] { "CreateNamedWriter" },
+                new[] { typeof(string) });
             _clientSendMethod = ResolveMethod(_netType, new[] { "Client_Send" },
                 new[] { _deliveryMethodType, _writerType });
             _serverSendToMethod = ResolveMethod(_netType, new[] { "Server_SendTo" },
                 new[] { _deliveryMethodType, _writerType, typeof(uint) });
             _serverSendToClientsMethod = ResolveSendToClientsMethod(_netType, _deliveryMethodType, _writerType);
-            _registerServerReceiverMethod = ResolveMethod(_netType, new[] { "RegisterServerReceiver" },
-                new[] { typeof(ushort), null });
-            _registerClientReceiverMethod = ResolveMethod(_netType, new[] { "RegisterClientReceiver" },
-                new[] { typeof(ushort), null });
+            _registerCustomServerReceiverMethod = ResolveMethod(_mpType,
+                new[] { "RegisterCustomServerReceiver" }, new[] { typeof(string), null });
+            _registerCustomClientReceiverMethod = ResolveMethod(_mpType,
+                new[] { "RegisterCustomClientReceiver" }, new[] { typeof(string), null });
             _writerPutStringMethod = ResolveStringPutMethod();
             _readerGetStringMethod = ResolveStringGetMethod();
             _writerPutUShortMethod = _writerType.GetMethod("Put", new[] { typeof(ushort) });
@@ -830,9 +832,9 @@ namespace CUCoreLib.Networking
             _serverAnnounceGameStartMethod = ResolveMethod(_serverMainType, new[] { "Server_Announce_GAME_START" },
                 Type.EmptyTypes);
 
-            if (_createWriterMethod == null || _clientSendMethod == null || _serverSendToMethod == null ||
-                _serverSendToClientsMethod == null || _registerServerReceiverMethod == null ||
-                _registerClientReceiverMethod == null || _liteNetConnectMethod == null ||
+            if (_createNamedWriterMethod == null || _clientSendMethod == null || _serverSendToMethod == null ||
+                _serverSendToClientsMethod == null || _registerCustomServerReceiverMethod == null ||
+                _registerCustomClientReceiverMethod == null || _liteNetConnectMethod == null ||
                 _serverAnnounceGameStartMethod == null) return false;
 
             _reliableOrdered = Enum.Parse(_deliveryMethodType, "ReliableOrdered");
@@ -874,16 +876,9 @@ namespace CUCoreLib.Networking
         {
             // KrokMP ships several Server_SendToClients overloads:
             //   (in DeliveryMethod, in NetDataWriter, in knetid)
-            //   (in DeliveryMethod, in NetDataWriter, in IReadOnlyList<NetPlayer>)
+            //   (in DeliveryMethod, in NetDataWriter, in IReadOnlyList<ScavPlayer>)
             //   (in DeliveryMethod, in NetDataWriter, in IEnumerable<knetid>)
-            // A loose typeof(IEnumerable) filter matches every one of them, and the
-            // enumeration order of GetMethods is not contractual, so the generic
-            // ResolveMethod call could pick the IReadOnlyList<NetPlayer> overload
-            // even though Broadcast passes a List<knetid>. Pick the overload whose
-            // target collection is an IEnumerable<T> of a client-id-like element
-            // type (knetid is a struct carrying a public "id" field) - that is the
-            // overload CUCoreLib actually needs, and it makes the runtime cast
-            // inside the DynamicMethod invoker succeed for the real target lists.
+            
             var candidates = netType
                 .GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static)
                 .Where(candidate => string.Equals(candidate.Name, "Server_SendToClients", StringComparison.Ordinal))
@@ -911,9 +906,6 @@ namespace CUCoreLib.Networking
 
         private static MethodInfo GetSendToClientsInvoker()
         {
-            // TryResolveRuntime re-runs on the retry schedule and re-resolves the
-            // field every time, so the invoker must be rebuilt whenever the
-            // underlying MethodInfo reference changes.
             if (_serverSendToClientsInvoker != null &&
                 ReferenceEquals(_serverSendToClientsInvokerSource, _serverSendToClientsMethod))
                 return _serverSendToClientsInvoker;
@@ -930,9 +922,6 @@ namespace CUCoreLib.Networking
             var parameters = method.GetParameters();
             if (parameters.Length != 3) return method;
 
-            // If the resolved overload is already declared with plain value
-            // parameters, MethodInfo.Invoke performs a standard assignability
-            // check on each argument and no wrapper is needed.
             if (!parameters.Any(parameter => parameter.ParameterType.IsByRef)) return method;
 
             var deliveryType = UnwrapByRef(parameters[0].ParameterType);
@@ -942,17 +931,6 @@ namespace CUCoreLib.Networking
             if (deliveryType == null || writerType == null || targetsType == null || targetsType.IsValueType)
                 return method;
 
-            // The wrapper forwards to the original `in` signature. C# `in`
-            // parameters are emitted as byref parameters carrying a
-            // modreq(IsReadOnlyAttribute)
-            //
-            // IL:
-            //   ldarg.0                -> stloc.0 (delivery)
-            //   ldarg.1                -> stloc.1 (writer)
-            //   ldarg.2 (object)       -> castclass targetsType -> stloc.2
-            //   ldloca.0, ldloca.1, ldloca.2
-            //   call Server_SendToClients
-            //   ret
         
             var invoker = new DynamicMethod(
                 "CUCoreLib_MP_SendToClients_Invoker_" + _dynamicMethodCounter++,
@@ -1002,7 +980,7 @@ namespace CUCoreLib.Networking
 
         private static MethodInfo ResolveStringPutMethod()
         {
-            var extensions = _krokAssembly.GetType("KrokoshaCasualtiesMP.MyLiteNetLibExtensions", false);
+            var extensions = _krokAssembly.GetType(ExtensionsTypeName, false);
             if (extensions == null) return null;    // Use null propagation
 
             return extensions.GetMethods(BindingFlags.Public | BindingFlags.Static)
@@ -1019,7 +997,7 @@ namespace CUCoreLib.Networking
 
         private static MethodInfo ResolveStringGetMethod()
         {
-            var extensions = _krokAssembly.GetType("KrokoshaCasualtiesMP.MyLiteNetLibExtensions", false);
+            var extensions = _krokAssembly.GetType(ExtensionsTypeName, false);
             if (extensions == null) return null;
 
             return extensions.GetMethods(BindingFlags.Public | BindingFlags.Static)
@@ -1150,13 +1128,23 @@ namespace CUCoreLib.Networking
             }
         }
 
-        private static void SetStaticStringProperty(Type type, string propertyName, string value)
+        private static void SetStaticString(Type type, string memberName, string value)
         {
-            var property = type.GetProperty(propertyName, BindingFlags.Public | BindingFlags.Static);
-            if (property == null || !property.CanWrite || property.PropertyType != typeof(string))
-                throw new MissingMemberException(type.FullName, propertyName);
+            var field = type.GetField(memberName, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static);
+            if (field != null && field.FieldType == typeof(string))
+            {
+                field.SetValue(null, value ?? string.Empty);
+                return;
+            }
 
-            property.SetValue(null, value ?? string.Empty, null);
+            var property = type.GetProperty(memberName, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static);
+            if (property != null && property.CanWrite && property.PropertyType == typeof(string))
+            {
+                property.SetValue(null, value ?? string.Empty, null);
+                return;
+            }
+
+            throw new MissingMemberException(type.FullName, memberName);
         }
     }
 }

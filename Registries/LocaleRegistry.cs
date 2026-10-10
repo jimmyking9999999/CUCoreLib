@@ -193,6 +193,24 @@ namespace CUCoreLib.Registries
             return root;
         }
 
+        internal static JObject CaptureNetworkSnapshot(string targetLanguage)
+        {
+            var root = BuildLocaleJson();
+            if (string.IsNullOrWhiteSpace(targetLanguage)) return root;
+
+            var normalized = targetLanguage.Trim();
+            var active = Locale.currentLangName?.Trim();
+            if (string.Equals(normalized, active, StringComparison.OrdinalIgnoreCase)) return root;
+
+            LocaleLoader.MergeJsonInto(root, LocaleLoader.BuildOverlayJsonForLanguage(normalized));
+            return root;
+        }
+
+        internal static void ApplyNetworkSnapshot(JObject snapshot)
+        {
+            LocaleLoader.ApplyNetworkLocaleOverlay(snapshot);
+        }
+
         public static string WriteLocaleFile(string path = null, string ownerId = null)
         {
             var normalizedOwnerId = string.IsNullOrWhiteSpace(ownerId) ? null : ownerId.Trim();

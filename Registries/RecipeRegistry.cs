@@ -4,7 +4,9 @@ using System.Globalization;
 using System.Linq;
 using System.Text;
 using CUCoreLib.ContentReload;
+using CUCoreLib.Helpers;
 using CUCoreLib.Registries.Infrastructure;
+using Newtonsoft.Json.Linq;
 using UnityEngine;
 
 namespace CUCoreLib.Registries
@@ -344,6 +346,113 @@ namespace CUCoreLib.Registries
             }
 
             return builder.ToString();
+        }
+
+        // MP Sync for recipes
+        internal static JObject CaptureNetworkSnapshot()
+        {
+            var recipes = new JArray();
+            foreach (var recipe in RegisteredRecipes.ToArray())
+            {
+                try
+                {
+                    if (recipe?.result == null || string.IsNullOrWhiteSpace(recipe.result.id)) continue;
+
+                    var items = new JArray();
+                    if (recipe.items != null)
+                        foreach (var item in recipe.items)
+                        {
+                            if (item == null) continue;
+                            items.Add(new JObject
+                            {
+                                ["specificId"] = item.specificId ?? string.Empty,
+                                ["isLiquid"] = item.isLiquid,
+                                ["minimumCondition"] = item.minimumCondition,
+                                ["destroyItem"] = item.destroyItem,
+                                ["quality"] = NetworkSnapshotSerialization.WriteCraftingQualities(
+                                    item.quality != null ? new[] { item.quality } : null)
+                            });
+                        }
+
+                    recipes.Add(new JObject
+                    {
+                        ["INT"] = recipe.INT,
+                        ["specialKnown"] = recipe.specialKnown,
+                        ["category"] = (int)recipe.category,
+                        ["isRepair"] = recipe.isRepair,
+                        ["result"] = new JObject
+                        {
+                            ["id"] = recipe.result.id,
+                            ["isLiquid"] = recipe.result.isLiquid,
+                            ["amount"] = recipe.result.amount,
+                            ["resultCondition"] = recipe.result.resultCondition,
+                            ["dontDrainResultLiquid"] = recipe.result.dontDrainResultLiquid
+                        },
+                        ["items"] = items
+                    });
+                }
+                catch
+                {
+                }
+            }
+
+            return new JObject { ["recipes"] = recipes };
+        }
+
+        internal static void ApplyNetworkSnapshot(JObject snapshot)
+        {
+            if (!(snapshot?["recipes"] is JArray recipes)) return;
+
+            foreach (var token in recipes)
+            {
+                try
+                {
+                    if (!(token is JObject obj) || !(obj["result"] is JObject res)) continue;
+
+                    var result = new RecipeResult
+                    {
+                        id = res.Value<string>("id"),
+                        isLiquid = res.Value<bool?>("isLiquid") ?? false,
+                        amount = res.Value<int?>("amount") ?? 1,
+                        resultCondition = res.Value<float?>("resultCondition") ?? 1f,
+                        dontDrainResultLiquid = res.Value<bool?>("dontDrainResultLiquid") ?? false
+                    };
+                    if (string.IsNullOrWhiteSpace(result.id)) continue;
+
+                    var items = new List<RecipeItem>();
+                    if (obj["items"] is JArray itemArray)
+                        foreach (var it in itemArray.OfType<JObject>())
+                        {
+                            var qualities = NetworkSnapshotSerialization.ReadCraftingQualities(it["quality"]);
+                            items.Add(new RecipeItem(it.Value<float?>("minimumCondition") ?? 0.9f)
+                            {
+                                specificId = it.Value<string>("specificId"),
+                                isLiquid = it.Value<bool?>("isLiquid") ?? false,
+                                destroyItem = it.Value<bool?>("destroyItem") ?? true,
+                                quality = qualities.Count > 0 ? qualities[0] : null
+                            });
+                        }
+
+                    var recipe = new Recipe
+                    {
+                        INT = obj.Value<int?>("INT") ?? 0,
+                        specialKnown = obj.Value<bool?>("specialKnown") ?? false,
+                        category = (Recipes.RecipeCategory)(obj.Value<int?>("category") ?? 0),
+                        isRepair = obj.Value<bool?>("isRepair") ?? false,
+                        result = result,
+                        items = items
+                    };
+
+                    // Gotta normalize the recipe ingredients before checking for duplicates, since the network snapshot may have been serialized differently
+                    NormalizeRecipeIngredients(recipe);
+                    if (RegisteredRecipeKeys.Contains(BuildRecipeKey(recipe))) continue;
+
+                    Register(recipe);
+                }
+                catch
+                {
+                }
+            }
         }
 
     }

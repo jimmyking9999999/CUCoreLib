@@ -594,9 +594,9 @@ namespace CUCoreLib.Registries
             if (NetworkSpawnComponentsWarningLogged) return;
 
             NetworkSpawnComponentsWarningLogged = true;
-            CUCoreLibPlugin.Log?.LogWarning(
+            /*CUCoreLibPlugin.Log?.LogWarning(
                 "CUCoreLib Items: Ignoring network snapshot 'spawnComponents'. SpawnComponents are only honored from local registration.");
-        }
+        */}
 
         private static void ValidateLiquidReferences(string itemId, CustomItemInfo info)
         {

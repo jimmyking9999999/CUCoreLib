@@ -12,23 +12,23 @@ namespace CUCoreLib.Helpers
             new Dictionary<SpritePayloadKey, string>();
 
         private static int _spriteDedupeDepth;
-
-        // Wraps a snapshot capture so sprites sliced from one shared texture (tile
-        // variants, animation frames) encode their sheet region once and reuse the
-        // base64 payload for every entry. Scopes may nest; the cache lives exactly
-        // as long as the outermost scope so no Texture2D references are held between
-        // captures.
+        // Make cache persistant across multiple snapshots
         internal static IDisposable BeginSpriteDedupeScope()
         {
-            if (_spriteDedupeDepth++ == 0) SpritePayloadCache.Clear();
+            _spriteDedupeDepth++;
             return new SpriteDedupeScope();
+        }
+
+        internal static void InvalidateSpritePayloadCache()
+        {
+            SpritePayloadCache.Clear();
         }
 
         private sealed class SpriteDedupeScope : IDisposable
         {
             public void Dispose()
             {
-                if (_spriteDedupeDepth > 0 && --_spriteDedupeDepth == 0) SpritePayloadCache.Clear();
+                if (_spriteDedupeDepth > 0) _spriteDedupeDepth--;
             }
         }
 
@@ -37,15 +37,14 @@ namespace CUCoreLib.Helpers
             if (sprite == null || sprite.texture == null) return null;
 
             var key = SpritePayloadKey.From(sprite);
-            string cachedData;
-            if (_spriteDedupeDepth > 0 && SpritePayloadCache.TryGetValue(key, out cachedData))
+            if (SpritePayloadCache.TryGetValue(key, out var cachedData))
                 return BuildSpritePayload(sprite, cachedData);
 
             var png = WriteTextureRegion(sprite);
             if (png == null || png.Length == 0) return null;
 
             var data = Convert.ToBase64String(png);
-            if (_spriteDedupeDepth > 0) SpritePayloadCache[key] = data;
+            SpritePayloadCache[key] = data;
 
             return BuildSpritePayload(sprite, data);
         }
@@ -53,7 +52,7 @@ namespace CUCoreLib.Helpers
         private static JObject BuildSpritePayload(Sprite sprite, string data)
         {
             // Sprite pivots are normalized against the sprite rect, so store them
-            // normalized too; readers rebuild the sprite from the (possibly cropped)
+            // normalized too, readers rebuild the sprite from the (possibly cropped)
             // PNG with the same normalized pivot.
             var rectSize = sprite.rect.size;
             var pivot = rectSize.x > 0f && rectSize.y > 0f

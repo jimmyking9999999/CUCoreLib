@@ -230,7 +230,7 @@ export const pages: Page[] = [
     label: "Multiplayer Sync",
     crumb: "Misc / API",
     title: "Multiplayer sync",
-    lead: "v4.0.0/v4.1.2/v5.0.0 Multiplayer Sync."
+    lead: "Together v5.0.0 Multiplayer Sync."
   },
   {
     id: "console",
@@ -2555,6 +2555,7 @@ function multiplayerPage(): string {
             <tr><td><span class="inline-code">buildings</span></td><td>Custom building entity definitions.</td></tr>
             <tr><td><span class="inline-code">moodles</span></td><td>Custom moodle definitions.</td></tr>
             <tr><td><span class="inline-code">settings</span></td><td>Registered mod options and their values.</td></tr>
+            <tr><td><span class="inline-code">locale</span></td><td>Custom locale strings (item, liquid, building, moodle, and option names/descriptions), resolved into each client's own language.</td></tr>
           </tbody>
         </table>
       </div>
@@ -2877,7 +2878,7 @@ function savingPage(): string {
       <h2>How CUCoreLib saving works</h2>
       <p>CUCoreLib hooks the normal vanilla <span class="inline-code">SaveSystem.SaveGame()</span> and <span class="inline-code">SaveSystem.TryLoadGame()</span> flow, then stores a <span class="inline-code">CUCoreLib</span> object inside the existing compressed <span class="inline-code">save.sv</span> JSON.</p>
       <p>On save, vanilla writes the run first, then CUCoreLib reopens <span class="inline-code">save.sv</span> and appends its payload. On load, CUCoreLib reads that payload before vanilla finishes loading, then restores it after the player body and world exist.</p>
-      <p>With KrokMP v4, CUCoreLib follows KrokMP's save layout: item, body, and limb providers are stored with each player, while global and world providers are stored once in the shared multiplayer save. Save-provider data is deliberately not sent through the normal multiplayer snapshot.</p>
+      <p>With <span class="inline-code">Casualties: Together</span>, CUCoreLib follows the multiplayer mod's save layout. That is, item, body, and limb providers are stored with each player, while global and world providers are stored once in the shared multiplayer save.</p>
     </section>
     <section class="lesson-card">
       <h2>What is automatic</h2>

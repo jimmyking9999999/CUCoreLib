@@ -9,6 +9,7 @@ using CUCoreLib.Helpers;
 using CUCoreLib.Networking;
 using CUCoreLib.Registries;
 using HarmonyLib;
+using Newtonsoft.Json.Linq;
 using UnityEngine;
 
 namespace CUCoreLib.Patches
@@ -287,11 +288,15 @@ namespace CUCoreLib.Patches
         {
             if (args == null || args.Length < 3 || typeof(Body).GetField(args[1]) != null) return false;
 
+            var target = args.Length > 3 ? args[3] : null;
             var body = PlayerCamera.main != null ? PlayerCamera.main.body : null;
-            if (body == null || !TrySetStatusField(StatusRegistry.EnumerateBodyStatuses(body), args[1], args[2],
-                    out var value)) return false;
+            var resolvesLocally = body != null &&
+                                  IsCustomStatusField(StatusRegistry.EnumerateBodyStatuses(body), args[1]);
 
-            CUCoreUtils.ConsoleLog(console, "Set player body field \"" + args[1] + "\" to \"" + value + "\".");
+            // No explicit target and not a custom status on the local body: leave it to vanilla (unchanged).
+            if (!resolvesLocally && string.IsNullOrWhiteSpace(target)) return false;
+
+            DispatchStatusField(console, "body", args[1], args[2], target);
             return true;
         }
 
@@ -299,14 +304,164 @@ namespace CUCoreLib.Patches
         {
             if (args == null || args.Length < 4 || typeof(Limb).GetField(args[2]) != null) return false;
 
+            var target = args.Length > 4 ? args[4] : null;
             var body = PlayerCamera.main != null ? PlayerCamera.main.body : null;
-            var limb = body != null ? body.LimbByName(args[1]) : null;
-            if (limb == null || !TrySetStatusField(StatusRegistry.EnumerateLimbStatuses(limb), args[2], args[3],
-                    out var value)) return false;
+            var resolvesLocally = BodyHasCustomLimbStatusField(body, args[1], args[2]);
 
-            CUCoreUtils.ConsoleLog(console,
-                "Set \"" + limb.fullName + "\" field \"" + args[2] + "\" to \"" + value + "\".");
+            if (!resolvesLocally && string.IsNullOrWhiteSpace(target)) return false;
+
+            DispatchStatusField(console, args[1], args[2], args[3], target);
             return true;
+        }
+
+        private static bool BodyHasCustomLimbStatusField(Body body, string limbQuery, string fieldQuery)
+        {
+            if (body == null || body.limbs == null || string.IsNullOrWhiteSpace(limbQuery)) return false;
+
+            if (string.Equals(limbQuery, "all", StringComparison.OrdinalIgnoreCase))
+            {
+                foreach (var limb in body.limbs)
+                    if (limb != null && IsCustomStatusField(StatusRegistry.EnumerateLimbStatuses(limb), fieldQuery))
+                        return true;
+                return false;
+            }
+
+            var limb2 = body.LimbByName(limbQuery);
+            return limb2 != null && IsCustomStatusField(StatusRegistry.EnumerateLimbStatuses(limb2), fieldQuery);
+        }
+
+        // Custom statuses are host-authoritative: a client's write is forwarded to the host and applied to
+        // the host's copy of the target body, then carried back by the normal per-second status poll. On the
+        // host (or in singleplayer) the write is applied directly.
+        private static void DispatchStatusField(ConsoleScript console, string slot, string fieldQuery,
+            string rawValue, string target)
+        {
+            if (MultiplayerBridge.IsRunning && !MultiplayerBridge.IsServer)
+            {
+                var payload = new JObject
+                {
+                    ["slot"] = slot,
+                    ["field"] = fieldQuery,
+                    ["value"] = rawValue
+                };
+                if (!string.IsNullOrWhiteSpace(target)) payload["target"] = target;
+
+                if (!MultiplayerApi.RequestServer(MultiplayerSyncRegistry.PlayerStatusSetFieldChannel, payload,
+                        response => CUCoreUtils.ConsoleLog(console,
+                            response?.Value<string>("message") ?? "Set custom status field.")))
+                    CUCoreUtils.ConsoleLog(console, "ERROR: could not reach the host to set the custom status field.");
+                return;
+            }
+
+            CUCoreUtils.ConsoleLog(console, ApplyStatusFieldOnHost(slot, fieldQuery, rawValue, target, 0u));
+        }
+
+        internal static string ApplyStatusFieldOnHost(string slot, string fieldQuery, string rawValue, string target,
+            uint senderClientId)
+        {
+            if (string.IsNullOrWhiteSpace(fieldQuery)) return "ERROR: missing status field.";
+
+            var bodies = ResolveStatusTargetBodies(target, senderClientId);
+            if (bodies.Count == 0)
+                return "ERROR: no target player found for \"" + (string.IsNullOrWhiteSpace(target) ? "self" : target) +
+                       "\".";
+
+            var applied = 0;
+            object lastValue = null;
+            foreach (var body in bodies)
+            {
+                if (body == null) continue;
+
+                if (string.Equals(slot, "body", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (TrySetStatusField(StatusRegistry.EnumerateBodyStatuses(body), fieldQuery, rawValue,
+                            out lastValue))
+                        applied++;
+                }
+                else if (ApplyLimbStatusField(body, slot, fieldQuery, rawValue, out lastValue))
+                {
+                    applied++;
+                }
+            }
+
+            return applied > 0
+                ? "Set custom status field \"" + fieldQuery + "\" to \"" + lastValue + "\" on " + applied +
+                  " target(s)."
+                : "ERROR: no custom status field \"" + fieldQuery + "\" found on the target(s).";
+        }
+
+        private static bool ApplyLimbStatusField(Body body, string limbQuery, string fieldQuery, string rawValue,
+            out object value)
+        {
+            value = null;
+            if (body == null || body.limbs == null || string.IsNullOrWhiteSpace(limbQuery)) return false;
+
+            if (string.Equals(limbQuery, "all", StringComparison.OrdinalIgnoreCase))
+            {
+                var any = false;
+                foreach (var limb in body.limbs)
+                    if (limb != null && TrySetStatusField(StatusRegistry.EnumerateLimbStatuses(limb), fieldQuery,
+                            rawValue, out value))
+                        any = true;
+                return any;
+            }
+
+            var target = body.LimbByName(limbQuery);
+            return target != null &&
+                   TrySetStatusField(StatusRegistry.EnumerateLimbStatuses(target), fieldQuery, rawValue, out value);
+        }
+
+        private static List<Body> ResolveStatusTargetBodies(string target, uint senderClientId)
+        {
+            var result = new List<Body>();
+
+            if (string.IsNullOrWhiteSpace(target))
+            {
+                // No explicit target: the sender's own body for a forwarded client write, else the local player.
+                Body senderBody;
+                if (senderClientId != 0u && MultiplayerApi.TryGetBodyFromClientId(senderClientId, out senderBody) &&
+                    senderBody != null)
+                    result.Add(senderBody);
+                else if (PlayerCamera.main != null && PlayerCamera.main.body != null)
+                    result.Add(PlayerCamera.main.body);
+                return result;
+            }
+
+            if (MultiplayerBridge.IsRunning)
+            {
+                var all = string.Equals(target, "@a", StringComparison.OrdinalIgnoreCase);
+                foreach (var player in MultiplayerApi.EnumeratePlayers())
+                {
+                    if (player.Value == null) continue;
+                    if (all || string.Equals(player.Key, target, StringComparison.OrdinalIgnoreCase))
+                        result.Add(player.Value);
+                }
+
+                return result;
+            }
+
+            // Singleplayer: only the local player exists, so any named target resolves to it.
+            if (PlayerCamera.main != null && PlayerCamera.main.body != null)
+                result.Add(PlayerCamera.main.body);
+            return result;
+        }
+
+        private static bool IsCustomStatusField<TStatus>(IEnumerable<KeyValuePair<Type, TStatus>> statuses,
+            string fieldQuery) where TStatus : StatusBase
+        {
+            if (statuses == null || string.IsNullOrWhiteSpace(fieldQuery)) return false;
+
+            var separator = fieldQuery.LastIndexOf('.');
+            var statusName = separator > 0 ? fieldQuery.Substring(0, separator) : null;
+            var fieldName = separator > 0 ? fieldQuery.Substring(separator + 1) : fieldQuery;
+
+            foreach (var entry in statuses)
+            {
+                if (entry.Value == null || (statusName != null && !StatusNameMatches(entry.Key, statusName))) continue;
+                if (entry.Key.GetField(fieldName, BindingFlags.Instance | BindingFlags.Public) != null) return true;
+            }
+
+            return false;
         }
 
         private static bool TrySetStatusField<TStatus>(IEnumerable<KeyValuePair<Type, TStatus>> statuses,

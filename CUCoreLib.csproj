@@ -241,6 +241,8 @@
         <Compile Include="Networking\MultiplayerBridge.cs"/>
         <Compile Include="Networking\MultiplayerSyncRegistry.cs"/>
         <Compile Include="Networking\MultiplayerPlayerStatusSync.cs"/>
+        <Compile Include="Networking\MultiplayerLoadingProgress.cs"/>
+        <Compile Include="Networking\SpawnHandshakeRecovery.cs"/>
         <Compile Include="Networking\MultiplayerPayloadFrame.cs"/>
         <Compile Include="Networking\MultiplayerTileChunk.cs"/>
         <Compile Include="Patches\BodyFormulaPatches.cs"/>
