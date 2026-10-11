@@ -378,3 +378,8 @@ TODO.md
 # CU Shortcut 
 CasualtiesUnknown.exe
 CasualtiesUnknown.exe.lnk
+
+# OpenSpec + local agent session files
+openspec/
+.opencode/
+AGENTS.md

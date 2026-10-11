@@ -10,7 +10,8 @@ I figured that this would be nice to have, as to easily take a look at everythin
 ## v1.0.7 (Nightly)
 
 ### New Stuff!
-- ...update mod version for a cool github release tag..?
+- Added `RecipeRegistry.EditVanillaRecipes(resultId, edit)` and `RecipeRegistry.EditVanillaRecipes(match, edit)` for modifying existing vanilla recipes in place.
+- Vanilla recipe edits now compose in queue order across result-ID and predicate targeting.
 
 ### Changes
 - (WIP)

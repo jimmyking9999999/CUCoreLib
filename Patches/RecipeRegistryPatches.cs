@@ -17,15 +17,28 @@ namespace CUCoreLib.Patches
             var camera = PlayerCamera.main;
             if (camera == null || Recipes.recipes == null) return;
 
+            // Vanilla's RefreshCurrentlySelectedRecipe dereferences craftingPanel unguarded, and
+            // other mods' prefixes run on the same path. The panel only exists/visible while the
+            // menu is open; OpenCraftScreen() rebuilds the list on every open, so a closed menu
+            // needs no refresh at all.
+            if (camera.craftingPanel == null || !camera.craftingPanel.activeInHierarchy) return;
+
             var recipeCount = Recipes.recipes.Count;
             camera.selectedRecipe = recipeCount <= 0
                 ? 0
                 : Mathf.Clamp(camera.selectedRecipe, 0, recipeCount - 1);
 
-            var refreshCount = selectedRecipeRefreshCount;
-            camera.RefreshRecipeList();
-            if (selectedRecipeRefreshCount == refreshCount)
-                camera.RefreshCurrentlySelectedRecipe();
+            try
+            {
+                var refreshCount = selectedRecipeRefreshCount;
+                camera.RefreshRecipeList();
+                if (selectedRecipeRefreshCount == refreshCount)
+                    camera.RefreshCurrentlySelectedRecipe();
+            }
+            catch (System.Exception ex)
+            {
+                CUCoreLibPlugin.Log?.LogWarning($"Crafting UI refresh skipped after recipe edit: {ex.Message}");
+            }
         }
 
         [HarmonyPatch(typeof(Recipes), "SetUpRecipes")]
@@ -33,6 +46,7 @@ namespace CUCoreLib.Patches
         private static void InjectRecipes()
         {
             LiquidRegistry.InjectRegisteredLiquids(true);
+            RecipeRegistry.ApplyVanillaRecipeEdits();
             RecipeRegistry.InjectRegisteredRecipes();
         }
 

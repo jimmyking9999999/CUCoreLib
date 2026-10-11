@@ -8,6 +8,7 @@ using CUCoreLib.Helpers;
 using CUCoreLib.Registries.Infrastructure;
 using Newtonsoft.Json.Linq;
 using UnityEngine;
+using CUCoreLib.Registries.Modules;
 
 namespace CUCoreLib.Registries
 {
@@ -15,7 +16,7 @@ namespace CUCoreLib.Registries
     {
         internal static List<Recipe> RegisteredRecipes = new List<Recipe>();
 
-        private static readonly HashSet<string> RegisteredRecipeKeys =
+        internal static readonly HashSet<string> RegisteredRecipeKeys =
             new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         private static readonly RegistrationOwnershipIndex<string> RecipeOwners =
@@ -94,15 +95,6 @@ namespace CUCoreLib.Registries
                 InjectedRecipeKeys.Add(recipeKey);
                 return false;
             }
-
-            if (recipe.items != null)
-                foreach (var item in recipe.items)
-                {
-                    if (!string.IsNullOrEmpty(item.specificId))
-                        item.specific = true;
-
-                    item.ignoredId = recipe.isRepair ? string.Empty : recipe.result.id;
-                }
 
             recipe.index = Recipes.recipes.Count;
             Recipes.recipes.Add(recipe);
@@ -190,7 +182,38 @@ namespace CUCoreLib.Registries
             result?.AddInfo("Cleared " + ownedKeys.Length + " recipes owned by '" + normalizedOwnerId + "'.");
         }
 
-        private static void NormalizeRecipeIngredients(Recipe recipe)
+        /// <summary>
+        /// Applies an edit to every vanilla recipe producing the given result item or liquid ID.
+        /// The edit is queued automatically when called before the vanilla recipe list exists and is
+        /// reapplied whenever the vanilla list is rebuilt. Library-registered recipes are never edited.
+        /// </summary>
+        /// <param name="resultId">Vanilla result ID, such as <c>flimsyknife</c>.</param>
+        /// <param name="edit">Mutation to apply to each matching vanilla <see cref="Recipe"/>.</param>
+        public static int EditVanillaRecipes(string resultId, Action<Recipe> edit)
+        {
+            return RecipeVanillaEditQueue.QueueVanillaRecipeEdit(resultId, edit);
+        }
+
+        /// <summary>
+        /// Applies an edit to every vanilla recipe the predicate selects.
+        /// The edit is queued automatically when called before the vanilla recipe list exists and is
+        /// reapplied whenever the vanilla list is rebuilt. Library-registered recipes are never edited.
+        /// Predicates run at apply time, so they must not capture disposable per-call state.
+        /// </summary>
+        /// <param name="match">Predicate selecting which vanilla <see cref="Recipe"/> entries to edit.</param>
+        /// <param name="edit">Mutation to apply to each matching vanilla <see cref="Recipe"/>.</param>
+        public static int EditVanillaRecipes(Func<Recipe, bool> match, Action<Recipe> edit)
+        {
+            return RecipeVanillaEditQueue.QueueVanillaRecipeEdit(match, edit);
+        }
+
+        internal static int ApplyVanillaRecipeEdits()
+        {
+            return RecipeVanillaEditQueue.ApplyVanillaRecipeEdits();
+        }
+
+        // Mirrors vanilla's SetUpRecipes normalization loop.
+        internal static void NormalizeRecipeIngredients(Recipe recipe)
         {
             if (recipe == null) return;
 
@@ -199,12 +222,22 @@ namespace CUCoreLib.Registries
             if (recipe.result != null && !string.IsNullOrWhiteSpace(recipe.result.id))
                 recipe.result.id = recipe.result.id.Trim();
 
+            var ignoredId = recipe.isRepair || recipe.result == null ||
+                            string.IsNullOrWhiteSpace(recipe.result.id)
+                ? string.Empty
+                : recipe.result.id;
+
             foreach (var item in recipe.items)
             {
-                if (item == null || string.IsNullOrWhiteSpace(item.specificId)) continue;
+                if (item == null) continue;
 
-                item.specificId = item.specificId.Trim();
-                item.specific = true;
+                if (!string.IsNullOrWhiteSpace(item.specificId))
+                {
+                    item.specificId = item.specificId.Trim();
+                    item.specific = true;
+                }
+
+                item.ignoredId = ignoredId;
             }
         }
 
