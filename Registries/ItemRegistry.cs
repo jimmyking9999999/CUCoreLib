@@ -24,11 +24,14 @@ namespace CUCoreLib.Registries
 
         private static Sprite missingItemIcon;
 
-        private static readonly Dictionary<string, List<Action<ItemInfo>>> VanillaItemEdits =
-            new Dictionary<string, List<Action<ItemInfo>>>(StringComparer.OrdinalIgnoreCase);
+        private static readonly Dictionary<string, List<Action<ItemInfo>>>
+            VanillaItemEdits =
+                new Dictionary<string, List<Action<ItemInfo>>>(StringComparer
+                    .OrdinalIgnoreCase);
 
-        private static readonly Dictionary<string, ItemInfo> AppliedVanillaItemEditTables =
-            new Dictionary<string, ItemInfo>(StringComparer.OrdinalIgnoreCase);
+        private static readonly Dictionary<string, ItemInfo>
+            AppliedVanillaItemEditTables =
+                new Dictionary<string, ItemInfo>(StringComparer.OrdinalIgnoreCase);
 
         private static readonly RegistrationOwnershipIndex<string> ItemOwners =
             new RegistrationOwnershipIndex<string>(StringComparer.OrdinalIgnoreCase);
@@ -61,17 +64,23 @@ namespace CUCoreLib.Registries
         private static readonly HashSet<string> WarnedInvalidLiquidStackKeys =
             new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        private static readonly ConditionalWeakTable<Item, ItemCustomDataState> ItemCustomDataStates =
-            new ConditionalWeakTable<Item, ItemCustomDataState>();
+        private static readonly ConditionalWeakTable<Item, ItemCustomDataState>
+            ItemCustomDataStates =
+                new ConditionalWeakTable<Item, ItemCustomDataState>();
 
         private static readonly Dictionary<Type, FieldInfo[]> PublicInstanceFieldCache =
             new Dictionary<Type, FieldInfo[]>();
 
-        public static void Register(string id, ItemInfo info, Sprite icon, int spawnFrequency = 1)
+        public static void Register(
+            string id,
+            ItemInfo info,
+            Sprite icon,
+            int spawnFrequency = 1)
         {
             if (string.IsNullOrWhiteSpace(id))
             {
-                CUCoreLibPlugin.Log?.LogWarning("Ignored custom item registration with no ID.");
+                CUCoreLibPlugin.Log?.LogWarning(
+                    "Ignored custom item registration with no ID.");
                 return;
             }
 
@@ -84,20 +93,24 @@ namespace CUCoreLib.Registries
         }
 
         /// <summary>
-        /// Registers fractional pool entries, independently rounded once per pool each world generation.
+        ///     Registers fractional pool entries, independently rounded once per pool each world generation.
         /// </summary>
-        public static void Register(string id, ItemInfo info, Sprite icon, float spawnFrequency)
+        public static void Register(string id, ItemInfo info, Sprite icon,
+            float spawnFrequency)
         {
             if (string.IsNullOrWhiteSpace(id))
             {
-                CUCoreLibPlugin.Log?.LogWarning("Ignored custom item registration with no ID.");
+                CUCoreLibPlugin.Log?.LogWarning(
+                    "Ignored custom item registration with no ID.");
                 return;
             }
 
             var customInfo = ToCustomItemInfo(info);
             customInfo.Icon = icon;
-            customInfo.FractionalSpawnFrequency = DropPoolRegistry.ValidateSpawnFrequency(id, spawnFrequency);
-            customInfo.SpawnFrequency = (int)Math.Floor(customInfo.FractionalSpawnFrequency.Value);
+            customInfo.FractionalSpawnFrequency =
+                DropPoolRegistry.ValidateSpawnFrequency(id, spawnFrequency);
+            customInfo.SpawnFrequency =
+                (int)Math.Floor(customInfo.FractionalSpawnFrequency.Value);
             Register(id, customInfo);
         }
 
@@ -116,7 +129,8 @@ namespace CUCoreLib.Registries
 
             edits.Add(edit);
 
-            if (Item.GlobalItems != null && Item.GlobalItems.TryGetValue(normalizedId, out var info))
+            if (Item.GlobalItems != null
+                && Item.GlobalItems.TryGetValue(normalizedId, out var info))
                 ApplyVanillaItemEdits(normalizedId, info, new[] { edit });
         }
 
@@ -127,15 +141,17 @@ namespace CUCoreLib.Registries
             foreach (var entry in VanillaItemEdits.ToArray())
                 if (Item.GlobalItems.TryGetValue(entry.Key, out var info))
                 {
-                    if (AppliedVanillaItemEditTables.TryGetValue(entry.Key, out var appliedInfo) &&
-                        ReferenceEquals(appliedInfo, info))
+                    if (AppliedVanillaItemEditTables.TryGetValue(entry.Key,
+                            out var appliedInfo)
+                        && ReferenceEquals(appliedInfo, info))
                         continue;
 
                     ApplyVanillaItemEdits(entry.Key, info, entry.Value);
                 }
         }
 
-        private static void ApplyVanillaItemEdits(string id, ItemInfo info, IEnumerable<Action<ItemInfo>> edits)
+        private static void ApplyVanillaItemEdits(string id, ItemInfo info,
+            IEnumerable<Action<ItemInfo>> edits)
         {
             if (info == null || edits == null) return;
 
@@ -158,7 +174,8 @@ namespace CUCoreLib.Registries
         {
             if (string.IsNullOrWhiteSpace(id))
             {
-                CUCoreLibPlugin.Log?.LogWarning("Ignored custom item registration with no ID.");
+                CUCoreLibPlugin.Log?.LogWarning(
+                    "Ignored custom item registration with no ID.");
                 return;
             }
 
@@ -167,7 +184,9 @@ namespace CUCoreLib.Registries
             id = id.Trim();
             info.ID = id;
             if (info.FractionalSpawnFrequency.HasValue)
-                info.FractionalSpawnFrequency = DropPoolRegistry.ValidateSpawnFrequency(id, info.FractionalSpawnFrequency.Value);
+                info.FractionalSpawnFrequency =
+                    DropPoolRegistry.ValidateSpawnFrequency(id,
+                        info.FractionalSpawnFrequency.Value);
             info.tags = info.tags ?? string.Empty;
             NormalizeIcon(info);
             var normalizedId = SpawnIdHelpers.NormalizeSpawnId(id);
@@ -182,27 +201,33 @@ namespace CUCoreLib.Registries
             TryRun(() => ValidateLiquidReferences(id, info));
 
             if (!string.IsNullOrEmpty(info.fullName))
-                TryRun(() => info.fullName = LocaleRegistry.Get("item", id, info.fullName));
+                TryRun(() =>
+                    info.fullName = LocaleRegistry.Get("item", id, info.fullName));
 
             if (!string.IsNullOrEmpty(info.description))
-                TryRun(() => info.description = LocaleRegistry.Get("item", id + "dsc", info.description));
+                TryRun(() =>
+                    info.description =
+                        LocaleRegistry.Get("item", id + "dsc", info.description));
 
             TryRun(() => WarnMissingCustomIcon(id, info));
 
             // Store or replace the registry entry, apply defaults and inject into runtime tables.
             var replacingExisting = RegisteredItems.ContainsKey(id);
             RegisteredItems[id] = info;
-            
+
             if (replacingExisting)
                 CustomInstantiate.ClearTemplateCache(id);
-            
-            TryRun(() => ItemOwners.Assign(id, ContentReloadSession.ResolveAmbientOwnerId()));
+
+            TryRun(() =>
+                ItemOwners.Assign(id, ContentReloadSession.ResolveAmbientOwnerId()));
 
             TryRun(() => DropPoolRegistry.RegisterItem(id, info));
 
-            if (Item.GlobalItems != null) TryRun(() => InjectSingleItem(id, info, replacingExisting));
+            if (Item.GlobalItems != null)
+                TryRun(() => InjectSingleItem(id, info, replacingExisting));
 
-            if (ItemLootPool.pool != null) TryRun(() => ItemLootPoolPatch.EnsureItemInLootPool(id, info));
+            if (ItemLootPool.pool != null)
+                TryRun(() => ItemLootPoolPatch.EnsureItemInLootPool(id, info));
 
             TryRun(MultiplayerSyncRegistry.QueueHostSnapshotBroadcast);
         }
@@ -223,7 +248,8 @@ namespace CUCoreLib.Registries
             if (string.IsNullOrWhiteSpace(id)) return false;
 
             var normalizedId = SpawnIdHelpers.NormalizeSpawnId(id);
-            return ItemOwners.TryGetOwner(normalizedId, out modGuid) && !string.IsNullOrWhiteSpace(modGuid);
+            return ItemOwners.TryGetOwner(normalizedId, out modGuid)
+                && !string.IsNullOrWhiteSpace(modGuid);
         }
 
         internal static IEnumerable<string> GetRegisteredItemIdsForOwner(string ownerId)
@@ -233,17 +259,21 @@ namespace CUCoreLib.Registries
             return ItemOwners.GetKeys(ownerId);
         }
 
-        internal static Dictionary<string, CustomItemInfo> CaptureOwnerEntries(string ownerId)
+        internal static Dictionary<string, CustomItemInfo> CaptureOwnerEntries(
+            string ownerId)
         {
             if (string.IsNullOrWhiteSpace(ownerId))
-                return new Dictionary<string, CustomItemInfo>(StringComparer.OrdinalIgnoreCase);
+                return new Dictionary<string, CustomItemInfo>(StringComparer
+                    .OrdinalIgnoreCase);
 
             return ItemOwners.GetKeys(ownerId)
                 .Where(id => RegisteredItems.TryGetValue(id, out _))
-                .ToDictionary(id => id, id => RegisteredItems[id], StringComparer.OrdinalIgnoreCase);
+                .ToDictionary(id => id, id => RegisteredItems[id],
+                    StringComparer.OrdinalIgnoreCase);
         }
 
-        internal static void RestoreOwnerEntries(string ownerId, IDictionary<string, CustomItemInfo> entries)
+        internal static void RestoreOwnerEntries(string ownerId,
+            IDictionary<string, CustomItemInfo> entries)
         {
             if (entries == null || entries.Count == 0) return;
 
@@ -257,9 +287,8 @@ namespace CUCoreLib.Registries
             var normalizedOwnerId = ownerId.Trim();
             var ids = ItemOwners.GetKeys(normalizedOwnerId);
 
-            for (var i = 0; i < ids.Length; i++)
+            foreach (var id in ids)
             {
-                var id = ids[i];
                 RegisteredItems.Remove(id);
                 ItemOwners.Remove(id);
                 Item.GlobalItems?.Remove(id);
@@ -269,7 +298,11 @@ namespace CUCoreLib.Registries
             if (ids.Length > 0)
             {
                 MultiplayerSyncRegistry.QueueHostSnapshotBroadcast();
-                result?.AddInfo("Cleared " + ids.Length + " item registrations owned by '" + normalizedOwnerId + "'.");
+                result?.AddInfo("Cleared "
+                    + ids.Length
+                    + " item registrations owned by '"
+                    + normalizedOwnerId
+                    + "'.");
             }
         }
 
@@ -278,7 +311,6 @@ namespace CUCoreLib.Registries
         {
             var root = new JObject();
             foreach (var entry in RegisteredItems.ToArray())
-            {
                 try
                 {
                     var info = entry.Value;
@@ -306,7 +338,8 @@ namespace CUCoreLib.Registries
                         ["wearSlotId"] = info.wearSlotId ?? string.Empty,
                         ["wearableArmor"] = info.wearableArmor,
                         ["wearableIsolation"] = info.wearableIsolation,
-                        ["wearableHitDurabilityLossMultiplier"] = info.wearableHitDurabilityLossMultiplier,
+                        ["wearableHitDurabilityLossMultiplier"] =
+                            info.wearableHitDurabilityLossMultiplier,
                         ["jumpHeightMultChange"] = info.jumpHeightMultChange,
                         ["combineable"] = info.combineable,
                         ["ignoreDepression"] = info.ignoreDepression,
@@ -316,30 +349,40 @@ namespace CUCoreLib.Registries
                         ["decayInfo"] = info.decayInfo,
                         ["decayMinutes"] = info.decayMinutes,
                         ["spawnFrequency"] = info.SpawnFrequency,
-                        ["fractionalSpawnFrequency"] = info.FractionalSpawnFrequency.HasValue
-                            ? new JValue(info.FractionalSpawnFrequency.Value)
-                            : JValue.CreateNull(),
+                        ["fractionalSpawnFrequency"] =
+                            info.FractionalSpawnFrequency.HasValue
+                                ? new JValue(info.FractionalSpawnFrequency.Value)
+                                : JValue.CreateNull(),
                         ["dropPool"] = info.DropPool.HasValue
                             ? new JValue((ushort)info.DropPool.Value)
                             : JValue.CreateNull(),
                         ["worldSpawnPerChunk"] = info.WorldSpawnPerChunk.HasValue
                             ? new JValue(info.WorldSpawnPerChunk.Value)
                             : JValue.CreateNull(),
-                        ["recognitionMin"] = info.rec != null ? info.rec.min : 0,
+                        ["recognitionMin"] = info.rec?.min ?? 0,
                         ["capacity"] = info.capacity,
                         ["autoFill"] = info.autoFill,
-                        ["defaultContents"] = NetworkSnapshotSerialization.WriteLiquidStacks(info.defaultContents),
-                        ["icon"] = NetworkSnapshotSerialization.WriteSprite(GetIcon(info)),
+                        ["defaultContents"] =
+                            NetworkSnapshotSerialization.WriteLiquidStacks(
+                                info.defaultContents),
+                        ["icon"] =
+                            NetworkSnapshotSerialization.WriteSprite(GetIcon(info)),
                         ["inventoryIconScale"] = info.InventoryIconScale,
-                        ["wornSprite"] = NetworkSnapshotSerialization.WriteSprite(info.WornSprite),
+                        ["wornSprite"] =
+                            NetworkSnapshotSerialization.WriteSprite(info.WornSprite),
                         ["wearableSortingOrder"] = info.WearableSortingOrder.HasValue
                             ? new JValue(info.WearableSortingOrder.Value)
                             : JValue.CreateNull(),
-                        ["multiWornSprites"] = NetworkSnapshotSerialization.WriteSpriteDictionary(info.MultiWornSprites),
-                        ["liquidMask"] = NetworkSnapshotSerialization.WriteSprite(info.LiquidMask),
-                        ["liquidMaskAnimationId"] = info.LiquidMaskAnimationId ?? string.Empty,
+                        ["multiWornSprites"] =
+                            NetworkSnapshotSerialization.WriteSpriteDictionary(
+                                info.MultiWornSprites),
+                        ["liquidMask"] =
+                            NetworkSnapshotSerialization.WriteSprite(info.LiquidMask),
+                        ["liquidMaskAnimationId"] =
+                            info.LiquidMaskAnimationId ?? string.Empty,
                         ["iconAnimationId"] = info.IconAnimationId ?? string.Empty,
-                        ["wornSpriteAnimationId"] = info.WornSpriteAnimationId ?? string.Empty,
+                        ["wornSpriteAnimationId"] =
+                            info.WornSpriteAnimationId ?? string.Empty,
                         ["visualOffsetX"] = info.VisualOffset.x,
                         ["visualOffsetY"] = info.VisualOffset.y,
                         ["heldSpriteOffsetX"] = info.HeldSpriteOffset.x,
@@ -347,27 +390,34 @@ namespace CUCoreLib.Registries
                         ["wornSpriteOffsetX"] = info.WornSpriteOffset.x,
                         ["wornSpriteOffsetY"] = info.WornSpriteOffset.y,
                         ["multiWornSpriteOffsets"] =
-                            NetworkSnapshotSerialization.WriteVector2Dictionary(info.MultiWornSpriteOffsets),
+                            NetworkSnapshotSerialization.WriteVector2Dictionary(
+                                info.MultiWornSpriteOffsets),
                         ["spriteScale"] = info.SpriteScale,
                         ["spriteScaleWidth"] = info.SpriteScaleDimensions.Width,
                         ["spriteScaleHeight"] = info.SpriteScaleDimensions.Height,
-                        ["spriteScaleExpandToFirstMetCondition"] = info.SpriteScaleDimensions.ExpandToFirstMetCondition,
+                        ["spriteScaleExpandToFirstMetCondition"] =
+                            info.SpriteScaleDimensions.ExpandToFirstMetCondition,
                         ["spawnComponents"] = info.SpawnComponents != null
                             ? JArray.FromObject(info.SpawnComponents)
                             : new JArray(),
-                        ["customData"] = info.CustomData != null ? JObject.FromObject(info.CustomData) : new JObject()
+                        ["customData"] = info.CustomData != null
+                            ? JObject.FromObject(info.CustomData)
+                            : new JObject()
                     };
 
-                    if (info.Container != null) item["container"] = JObject.FromObject(info.Container);
+                    if (info.Container != null)
+                        item["container"] = JObject.FromObject(info.Container);
 
-                    if (info.Battery != null) item["battery"] = JObject.FromObject(info.Battery);
+                    if (info.Battery != null)
+                        item["battery"] = JObject.FromObject(info.Battery);
 
                     if (info.Light != null)
                     {
                         var light = new JObject
                         {
                             ["intensity"] = info.Light.Intensity,
-                            ["color"] = NetworkSnapshotSerialization.WriteColor(info.Light.Color),
+                            ["color"] =
+                                NetworkSnapshotSerialization.WriteColor(info.Light.Color),
                             ["falloffIntensity"] = info.Light.FalloffIntensity,
                             ["volumeIntensity"] = info.Light.VolumeIntensity,
                             ["pointLightOuterRadius"] = info.Light.PointLightOuterRadius,
@@ -384,7 +434,8 @@ namespace CUCoreLib.Registries
                         item["light"] = light;
                     }
 
-                    if (info.Bandage != null) item["bandage"] = JObject.FromObject(info.Bandage);
+                    if (info.Bandage != null)
+                        item["bandage"] = JObject.FromObject(info.Bandage);
 
                     if (info.Syringe != null)
                     {
@@ -394,9 +445,12 @@ namespace CUCoreLib.Registries
                             ["autoFill"] = info.Syringe.AutoFill,
                             ["amountPerFullUse"] = info.Syringe.AmountPerFullUse,
                             ["useAverageColor"] = info.Syringe.UseAverageColor,
-                            ["minigameColor"] = NetworkSnapshotSerialization.WriteColor(info.Syringe.MinigameColor),
+                            ["minigameColor"] =
+                                NetworkSnapshotSerialization.WriteColor(info.Syringe
+                                    .MinigameColor),
                             ["defaultContents"] =
-                                NetworkSnapshotSerialization.WriteLiquidStacks(info.Syringe.DefaultContents)
+                                NetworkSnapshotSerialization.WriteLiquidStacks(
+                                    info.Syringe.DefaultContents)
                         };
 
                         item["syringe"] = syringe;
@@ -407,14 +461,16 @@ namespace CUCoreLib.Registries
                     if (info.Gun != null) item["gun"] = CaptureGunProperties(info.Gun);
 
                     if (info.qualities != null)
-                        item["qualities"] = NetworkSnapshotSerialization.WriteCraftingQualities(info.qualities);
+                        item["qualities"] =
+                            NetworkSnapshotSerialization.WriteCraftingQualities(
+                                info.qualities);
 
                     root[entry.Key] = item;
                 }
                 catch
                 {
+                    // ignored
                 }
-            }
 
             return root;
         }
@@ -426,8 +482,8 @@ namespace CUCoreLib.Registries
             foreach (var property in snapshot.Properties())
             {
                 var id = property.Name;
-                var obj = property.Value as JObject;
-                if (string.IsNullOrWhiteSpace(id) || obj == null) continue;
+                if (string.IsNullOrWhiteSpace(id) || !(property.Value is JObject obj))
+                    continue;
 
                 try
                 {
@@ -445,146 +501,183 @@ namespace CUCoreLib.Registries
                         fullName = obj.Value<string>("fullName"),
                         description = obj.Value<string>("description"),
                         category = obj.Value<string>("category"),
-                    slotRotation = obj.Value<float?>("slotRotation") ?? 0f,
-                    usable = obj.Value<bool?>("usable") ?? false,
-                    usableOnLimb = obj.Value<bool?>("usableOnLimb") ?? false,
-                    rotSpeed = obj.Value<float?>("rotSpeed") ?? 0f,
-                    destroyAtZeroCondition = obj.Value<bool?>("destroyAtZeroCondition") ?? false,
-                    weight = obj.Value<float?>("weight") ?? 0f,
-                    scaleWeightWithCondition = obj.Value<bool?>("scaleWeightWithCondition") ?? false,
-                    scaleConditionToward = obj.Value<float?>("scaleConditionToward") ?? 0f,
-                    onlyHoldInHands = obj.Value<bool?>("onlyHoldInHands") ?? false,
-                    autoAttack = obj.Value<bool?>("autoAttack") ?? false,
-                    usableWithLMB = obj.Value<bool?>("usableWithLMB") ?? false,
-                    wearableCanBeHeld = obj.Value<bool?>("wearableCanBeHeld") ?? false,
-                    desiredWearLimb = obj.Value<string>("desiredWearLimb"),
-                    wearSlotId = obj.Value<string>("wearSlotId"),
-                    wearableArmor = obj.Value<float?>("wearableArmor") ?? 0f,
-                    wearableIsolation = obj.Value<float?>("wearableIsolation") ?? 0f,
-                    wearableHitDurabilityLossMultiplier =
-                        obj.Value<float?>("wearableHitDurabilityLossMultiplier") ?? 0f,
-                    jumpHeightMultChange = obj.Value<float?>("jumpHeightMultChange") ?? 0f,
-                    combineable = obj.Value<bool?>("combineable") ?? false,
-                    ignoreDepression = obj.Value<bool?>("ignoreDepression") ?? false,
-                    value = obj.Value<int?>("value") ?? 0,
-                    wearableVisualOffset = obj.Value<int?>("wearableVisualOffset") ?? 0,
-                    tags = obj.Value<string>("tags") ?? string.Empty,
-                    decayInfo = obj.Value<byte?>("decayInfo") ?? 0,
-                    decayMinutes = obj.Value<float?>("decayMinutes") ?? 0f,
-                    SpawnFrequency = obj.Value<int?>("spawnFrequency") ?? 1,
-                    FractionalSpawnFrequency = obj.Value<float?>("fractionalSpawnFrequency"),
-                    DropPool = obj["dropPool"]?.Type == JTokenType.Null
-                        ? (DropPool?)null
-                        : (DropPool?)obj.Value<ushort?>("dropPool"),
-                    WorldSpawnPerChunk = obj["worldSpawnPerChunk"]?.Type == JTokenType.Null
-                        ? (float?)null
-                        : obj.Value<float?>("worldSpawnPerChunk"),
-                    rec = new Recognition(obj.Value<int?>("recognitionMin") ?? 0),
-                    capacity = obj.Value<float?>("capacity") ?? 0f,
-                    autoFill = obj.Value<bool?>("autoFill") ?? true,
-                    defaultContents = NetworkSnapshotSerialization.ReadLiquidStacks(obj["defaultContents"]),
-                    Icon = NetworkSnapshotSerialization.ReadSprite(obj["icon"]),
-                    InventoryIconScale = obj.Value<float?>("inventoryIconScale") ?? 1f,
-                    WornSprite = NetworkSnapshotSerialization.ReadSprite(obj["wornSprite"]),
-                    WearableSortingOrder = obj["wearableSortingOrder"]?.Type == JTokenType.Null
-                        ? (int?)null
-                        : obj.Value<int?>("wearableSortingOrder"),
-                    MultiWornSprites = NetworkSnapshotSerialization.ReadSpriteDictionary(obj["multiWornSprites"]),
-                    LiquidMask = NetworkSnapshotSerialization.ReadSprite(obj["liquidMask"]),
-                    LiquidMaskAnimationId = obj.Value<string>("liquidMaskAnimationId"),
-                    IconAnimationId = obj.Value<string>("iconAnimationId") ?? localInfo?.IconAnimationId,
-                    WornSpriteAnimationId = obj.Value<string>("wornSpriteAnimationId") ?? localInfo?.WornSpriteAnimationId,
-                    SpriteScale = obj.Value<float?>("spriteScale") ?? 1f,
-                    SpriteScaleDimensions = new SpriteScaleDimensions(
-                        obj.Value<float?>("spriteScaleWidth") ?? 0f,
-                        obj.Value<float?>("spriteScaleHeight") ?? 0f,
-                        obj.Value<bool?>("spriteScaleExpandToFirstMetCondition") ?? false),
-                    VisualOffset = new Vector2(
-                        obj.Value<float?>("visualOffsetX") ?? 0f,
-                        obj.Value<float?>("visualOffsetY") ?? 0f),
-                    HeldSpriteOffset = new Vector2(
-                        obj.Value<float?>("heldSpriteOffsetX") ?? 0f,
-                        obj.Value<float?>("heldSpriteOffsetY") ?? 0f),
-                    WornSpriteOffset = new Vector2(
-                        obj.Value<float?>("wornSpriteOffsetX") ?? 0f,
-                        obj.Value<float?>("wornSpriteOffsetY") ?? 0f),
-                    MultiWornSpriteOffsets =
-                        NetworkSnapshotSerialization.ReadVector2Dictionary(obj["multiWornSpriteOffsets"])
-                };
-
-                if (obj["wearable"] != null)
-                    info.wearable = obj.Value<bool?>("wearable") ?? false;
-
-                var container = obj["container"] as JObject;
-                if (container != null) info.Container = container.ToObject<ContainerProperties>();
-
-                var battery = obj["battery"] as JObject;
-                if (battery != null) info.Battery = battery.ToObject<BatteryProperties>();
-
-                var light = obj["light"] as JObject;
-                if (light != null)
-                    info.Light = new LightProperties
-                    {
-                        Intensity = light.Value<float?>("intensity") ?? 0.75f,
-                        Color = NetworkSnapshotSerialization.ReadColor(light["color"], Color.white),
-                        FalloffIntensity = light.Value<float?>("falloffIntensity") ?? 0.5f,
-                        VolumeIntensity = light.Value<float?>("volumeIntensity"),
-                        PointLightOuterRadius = light.Value<float?>("pointLightOuterRadius") ?? 0f,
-                        PointLightInnerRadius = light.Value<float?>("pointLightInnerRadius") ?? 0f,
-                        PointLightOuterAngle = light.Value<float?>("pointLightOuterAngle") ?? 360f,
-                        PointLightInnerAngle = light.Value<float?>("pointLightInnerAngle") ?? 360f,
-                        LightType = (CustomLightType)(light.Value<int?>("lightType") ?? 3),
-                        Offset =
-                            new Vector2(light.Value<float?>("offsetX") ?? 0f, light.Value<float?>("offsetY") ?? 0f),
-                        Enabled = light.Value<bool?>("enabled") ?? true,
-                        AddLightItem = light.Value<bool?>("addLightItem") ?? true
+                        slotRotation = obj.Value<float?>("slotRotation") ?? 0f,
+                        usable = obj.Value<bool?>("usable") ?? false,
+                        usableOnLimb = obj.Value<bool?>("usableOnLimb") ?? false,
+                        rotSpeed = obj.Value<float?>("rotSpeed") ?? 0f,
+                        destroyAtZeroCondition =
+                            obj.Value<bool?>("destroyAtZeroCondition") ?? false,
+                        weight = obj.Value<float?>("weight") ?? 0f,
+                        scaleWeightWithCondition =
+                            obj.Value<bool?>("scaleWeightWithCondition") ?? false,
+                        scaleConditionToward =
+                            obj.Value<float?>("scaleConditionToward") ?? 0f,
+                        onlyHoldInHands = obj.Value<bool?>("onlyHoldInHands") ?? false,
+                        autoAttack = obj.Value<bool?>("autoAttack") ?? false,
+                        usableWithLMB = obj.Value<bool?>("usableWithLMB") ?? false,
+                        wearableCanBeHeld =
+                            obj.Value<bool?>("wearableCanBeHeld") ?? false,
+                        desiredWearLimb = obj.Value<string>("desiredWearLimb"),
+                        wearSlotId = obj.Value<string>("wearSlotId"),
+                        wearableArmor = obj.Value<float?>("wearableArmor") ?? 0f,
+                        wearableIsolation = obj.Value<float?>("wearableIsolation") ?? 0f,
+                        wearableHitDurabilityLossMultiplier =
+                            obj.Value<float?>("wearableHitDurabilityLossMultiplier")
+                            ?? 0f,
+                        jumpHeightMultChange =
+                            obj.Value<float?>("jumpHeightMultChange") ?? 0f,
+                        combineable = obj.Value<bool?>("combineable") ?? false,
+                        ignoreDepression = obj.Value<bool?>("ignoreDepression") ?? false,
+                        value = obj.Value<int?>("value") ?? 0,
+                        wearableVisualOffset =
+                            obj.Value<int?>("wearableVisualOffset") ?? 0,
+                        tags = obj.Value<string>("tags") ?? string.Empty,
+                        decayInfo = obj.Value<byte?>("decayInfo") ?? 0,
+                        decayMinutes = obj.Value<float?>("decayMinutes") ?? 0f,
+                        SpawnFrequency = obj.Value<int?>("spawnFrequency") ?? 1,
+                        FractionalSpawnFrequency =
+                            obj.Value<float?>("fractionalSpawnFrequency"),
+                        DropPool = obj["dropPool"]?.Type == JTokenType.Null
+                            ? null
+                            : (DropPool?)obj.Value<ushort?>("dropPool"),
+                        WorldSpawnPerChunk =
+                            obj["worldSpawnPerChunk"]?.Type == JTokenType.Null
+                                ? null
+                                : obj.Value<float?>("worldSpawnPerChunk"),
+                        rec = new Recognition(obj.Value<int?>("recognitionMin") ?? 0),
+                        capacity = obj.Value<float?>("capacity") ?? 0f,
+                        autoFill = obj.Value<bool?>("autoFill") ?? true,
+                        defaultContents =
+                            NetworkSnapshotSerialization.ReadLiquidStacks(
+                                obj["defaultContents"]),
+                        Icon = NetworkSnapshotSerialization.ReadSprite(obj["icon"]),
+                        InventoryIconScale =
+                            obj.Value<float?>("inventoryIconScale") ?? 1f,
+                        WornSprite =
+                            NetworkSnapshotSerialization.ReadSprite(obj["wornSprite"]),
+                        WearableSortingOrder = obj["wearableSortingOrder"]?.Type
+                            == JTokenType.Null
+                                ? null
+                                : obj.Value<int?>("wearableSortingOrder"),
+                        MultiWornSprites =
+                            NetworkSnapshotSerialization.ReadSpriteDictionary(
+                                obj["multiWornSprites"]),
+                        LiquidMask =
+                            NetworkSnapshotSerialization.ReadSprite(obj["liquidMask"]),
+                        LiquidMaskAnimationId =
+                            obj.Value<string>("liquidMaskAnimationId"),
+                        IconAnimationId = obj.Value<string>("iconAnimationId")
+                            ?? localInfo?.IconAnimationId,
+                        WornSpriteAnimationId = obj.Value<string>("wornSpriteAnimationId")
+                            ?? localInfo?.WornSpriteAnimationId,
+                        SpriteScale = obj.Value<float?>("spriteScale") ?? 1f,
+                        SpriteScaleDimensions = new SpriteScaleDimensions(
+                            obj.Value<float?>("spriteScaleWidth") ?? 0f,
+                            obj.Value<float?>("spriteScaleHeight") ?? 0f,
+                            obj.Value<bool?>("spriteScaleExpandToFirstMetCondition")
+                            ?? false),
+                        VisualOffset = new Vector2(
+                            obj.Value<float?>("visualOffsetX") ?? 0f,
+                            obj.Value<float?>("visualOffsetY") ?? 0f),
+                        HeldSpriteOffset = new Vector2(
+                            obj.Value<float?>("heldSpriteOffsetX") ?? 0f,
+                            obj.Value<float?>("heldSpriteOffsetY") ?? 0f),
+                        WornSpriteOffset = new Vector2(
+                            obj.Value<float?>("wornSpriteOffsetX") ?? 0f,
+                            obj.Value<float?>("wornSpriteOffsetY") ?? 0f),
+                        MultiWornSpriteOffsets =
+                            NetworkSnapshotSerialization.ReadVector2Dictionary(
+                                obj["multiWornSpriteOffsets"])
                     };
 
-                var bandage = obj["bandage"] as JObject;
-                if (bandage != null) info.Bandage = bandage.ToObject<BandageProperties>();
+                    if (obj["wearable"] != null)
+                        info.wearable = obj.Value<bool?>("wearable") ?? false;
 
-                var syringe = obj["syringe"] as JObject;
-                if (syringe != null)
-                    info.Syringe = new SyringeProperties
+                    if (obj["container"] is JObject container)
+                        info.Container = container.ToObject<ContainerProperties>();
+
+                    if (obj["battery"] is JObject battery)
+                        info.Battery = battery.ToObject<BatteryProperties>();
+
+                    if (obj["light"] is JObject light)
+                        info.Light = new LightProperties
+                        {
+                            Intensity = light.Value<float?>("intensity") ?? 0.75f,
+                            Color = NetworkSnapshotSerialization.ReadColor(light["color"],
+                                Color.white),
+                            FalloffIntensity =
+                                light.Value<float?>("falloffIntensity") ?? 0.5f,
+                            VolumeIntensity = light.Value<float?>("volumeIntensity"),
+                            PointLightOuterRadius =
+                                light.Value<float?>("pointLightOuterRadius") ?? 0f,
+                            PointLightInnerRadius =
+                                light.Value<float?>("pointLightInnerRadius") ?? 0f,
+                            PointLightOuterAngle =
+                                light.Value<float?>("pointLightOuterAngle") ?? 360f,
+                            PointLightInnerAngle =
+                                light.Value<float?>("pointLightInnerAngle") ?? 360f,
+                            LightType =
+                                (CustomLightType)(light.Value<int?>("lightType") ?? 3),
+                            Offset =
+                                new Vector2(light.Value<float?>("offsetX") ?? 0f,
+                                    light.Value<float?>("offsetY") ?? 0f),
+                            Enabled = light.Value<bool?>("enabled") ?? true,
+                            AddLightItem = light.Value<bool?>("addLightItem") ?? true
+                        };
+
+                    if (obj["bandage"] is JObject bandage)
+                        info.Bandage = bandage.ToObject<BandageProperties>();
+
+                    if (obj["syringe"] is JObject syringe)
+                        info.Syringe = new SyringeProperties
+                        {
+                            Capacity = syringe.Value<float?>("capacity") ?? 0f,
+                            AutoFill = syringe.Value<bool?>("autoFill") ?? true,
+                            AmountPerFullUse =
+                                syringe.Value<float?>("amountPerFullUse") ?? 0f,
+                            UseAverageColor =
+                                syringe.Value<bool?>("useAverageColor") ?? true,
+                            MinigameColor =
+                                NetworkSnapshotSerialization.ReadColor(
+                                    syringe["minigameColor"], Color.white),
+                            DefaultContents =
+                                NetworkSnapshotSerialization.ReadLiquidStacks(
+                                    syringe["defaultContents"])
+                        };
+
+                    if (obj["tool"] is JObject tool)
+                        info.Tool = tool.ToObject<ToolProperties>();
+
+                    if (obj["gun"] is JObject gun)
                     {
-                        Capacity = syringe.Value<float?>("capacity") ?? 0f,
-                        AutoFill = syringe.Value<bool?>("autoFill") ?? true,
-                        AmountPerFullUse = syringe.Value<float?>("amountPerFullUse") ?? 0f,
-                        UseAverageColor = syringe.Value<bool?>("useAverageColor") ?? true,
-                        MinigameColor = NetworkSnapshotSerialization.ReadColor(syringe["minigameColor"], Color.white),
-                        DefaultContents = NetworkSnapshotSerialization.ReadLiquidStacks(syringe["defaultContents"])
-                    };
-
-                var tool = obj["tool"] as JObject;
-                if (tool != null) info.Tool = tool.ToObject<ToolProperties>();
-
-                var gun = obj["gun"] as JObject;
-                if (gun != null)
-                {
-                    info.Gun = RestoreGunProperties(gun);
-                    if (info.Gun != null && localGun != null)
-                    {
-                        info.Gun.FireSound = localGun.FireSound;
-                        info.Gun.CustomRack = localGun.CustomRack;
-                        info.Gun.CustomUnrack = localGun.CustomUnrack;
+                        info.Gun = RestoreGunProperties(gun);
+                        if (info.Gun != null && localGun != null)
+                        {
+                            info.Gun.FireSound = localGun.FireSound;
+                            info.Gun.CustomRack = localGun.CustomRack;
+                            info.Gun.CustomUnrack = localGun.CustomUnrack;
+                        }
                     }
-                }
 
-                var qualities = obj["qualities"];
-                if (qualities != null) info.qualities = NetworkSnapshotSerialization.ReadCraftingQualities(qualities);
+                    var qualities = obj["qualities"];
+                    if (qualities != null)
+                        info.qualities =
+                            NetworkSnapshotSerialization.ReadCraftingQualities(qualities);
 
-                if (obj["customData"] is JObject customData)
-                    info.CustomData = customData.ToObject<Dictionary<string, object>>() ??
-                                      new Dictionary<string, object>();
+                    if (obj["customData"] is JObject customData)
+                        info.CustomData =
+                            customData.ToObject<Dictionary<string, object>>()
+                            ?? new Dictionary<string, object>();
 
-                if (obj["spawnComponents"] is JArray)
-                    WarnIgnoredNetworkSpawnComponents();
+                    if (obj["spawnComponents"] is JArray)
+                        WarnIgnoredNetworkSpawnComponents();
 
-                // Recreate registry entries from the net request
+                    // Recreate registry entries from the net request
                     Register(id, info);
                 }
                 catch
                 {
+                    // ignored
                 }
             }
         }
@@ -596,17 +689,20 @@ namespace CUCoreLib.Registries
             NetworkSpawnComponentsWarningLogged = true;
             /*CUCoreLibPlugin.Log?.LogWarning(
                 "CUCoreLib Items: Ignoring network snapshot 'spawnComponents'. SpawnComponents are only honored from local registration.");
-        */}
+        */
+        }
 
         private static void ValidateLiquidReferences(string itemId, CustomItemInfo info)
         {
             if (info == null) return;
 
             ValidateLiquidStacks(itemId, "defaultContents", info.defaultContents);
-            ValidateLiquidStacks(itemId, "Syringe.DefaultContents", info.Syringe?.DefaultContents);
+            ValidateLiquidStacks(itemId, "Syringe.DefaultContents",
+                info.Syringe?.DefaultContents);
         }
 
-        private static void ValidateLiquidStacks(string itemId, string sourceName, IList<LiquidStack> stacks)
+        private static void ValidateLiquidStacks(string itemId, string sourceName,
+            IList<LiquidStack> stacks)
         {
             if (stacks == null) return;
 
@@ -615,7 +711,9 @@ namespace CUCoreLib.Registries
                 var stack = stacks[i];
                 if (stack == null)
                 {
-                    var nullKey = BuildInvalidLiquidStackWarningKey(itemId, sourceName, i, "<null>");
+                    var nullKey =
+                        BuildInvalidLiquidStackWarningKey(itemId, sourceName, i,
+                            "<null>");
                     if (!WarnedInvalidLiquidStackKeys.Add(nullKey)) continue;
 
                     CUCoreLibPlugin.Log?.LogWarning(
@@ -625,7 +723,9 @@ namespace CUCoreLib.Registries
 
                 if (string.IsNullOrWhiteSpace(stack.liquidId))
                 {
-                    var emptyKey = BuildInvalidLiquidStackWarningKey(itemId, sourceName, i, "<empty>");
+                    var emptyKey =
+                        BuildInvalidLiquidStackWarningKey(itemId, sourceName, i,
+                            "<empty>");
                     if (!WarnedInvalidLiquidStackKeys.Add(emptyKey)) continue;
 
                     CUCoreLibPlugin.Log?.LogWarning(
@@ -634,10 +734,13 @@ namespace CUCoreLib.Registries
                 }
 
                 var normalizedId = stack.liquidId.Trim();
-                if (LiquidRegistry.TryGetCustomInfo(normalizedId, out _) ||
-                    (Liquids.Registry != null && Liquids.Registry.ContainsKey(normalizedId))) continue;
+                if (LiquidRegistry.TryGetCustomInfo(normalizedId, out _)
+                    || (Liquids.Registry != null
+                        && Liquids.Registry.ContainsKey(normalizedId))) continue;
 
-                var warningKey = BuildInvalidLiquidStackWarningKey(itemId, sourceName, i, normalizedId);
+                var warningKey =
+                    BuildInvalidLiquidStackWarningKey(itemId, sourceName, i,
+                        normalizedId);
                 if (!WarnedInvalidLiquidStackKeys.Add(warningKey)) continue;
 
                 CUCoreLibPlugin.Log?.LogWarning(
@@ -645,9 +748,11 @@ namespace CUCoreLib.Registries
             }
         }
 
-        private static string BuildInvalidLiquidStackWarningKey(string itemId, string sourceName, int index, string liquidId)
+        private static string BuildInvalidLiquidStackWarningKey(string itemId,
+            string sourceName, int index, string liquidId)
         {
-            return string.Concat(itemId ?? string.Empty, "|", sourceName, "|", index.ToString(), "|", liquidId);
+            return string.Concat(itemId ?? string.Empty, "|", sourceName, "|",
+                index.ToString(), "|", liquidId);
         }
 
         public static bool TryGetCustomInfo(string id, out CustomItemInfo info)
@@ -655,7 +760,8 @@ namespace CUCoreLib.Registries
             info = null;
             if (string.IsNullOrWhiteSpace(id)) return false;
 
-            return RegisteredItems.TryGetValue(SpawnIdHelpers.NormalizeSpawnId(id), out info);
+            return RegisteredItems.TryGetValue(SpawnIdHelpers.NormalizeSpawnId(id),
+                out info);
         }
 
         public static bool TryGetCustomInfo(Item item, out CustomItemInfo info)
@@ -671,7 +777,8 @@ namespace CUCoreLib.Registries
             info = null;
             if (stats == null) return false;
 
-            info = stats as CustomItemInfo ?? ExtensionData.Get<ItemInfo, CustomItemInfo>(stats);
+            info = stats as CustomItemInfo
+                ?? ExtensionData.Get<ItemInfo, CustomItemInfo>(stats);
             return info != null;
         }
 
@@ -691,12 +798,15 @@ namespace CUCoreLib.Registries
         {
             if (item == null || string.IsNullOrWhiteSpace(key)) return false;
 
-            return TryGetRuntimeCustomDataState(item, out var state) && state.ContainsKey(key);
+            return TryGetRuntimeCustomDataState(item, out var state)
+                && state.ContainsKey(key);
         }
 
         public static T GetCustomData<T>(Item item, string key, T fallback = default)
         {
-            return TryGetCustomData<T>(item, key, out var value) ? value : fallback;
+            return TryGetCustomData<T>(item, key, out var value)
+                ? value
+                : fallback;
         }
 
         public static void SetCustomData(Item item, string key, object value)
@@ -721,7 +831,8 @@ namespace CUCoreLib.Registries
         public static IReadOnlyDictionary<string, object> GetAllCustomData(Item item)
         {
             if (!TryGetRuntimeCustomDataState(item, out var state))
-                return new ReadOnlyDictionary<string, object>(new Dictionary<string, object>(StringComparer.Ordinal));
+                return new ReadOnlyDictionary<string, object>(
+                    new Dictionary<string, object>(StringComparer.Ordinal));
 
             return state.CreateSnapshot();
         }
@@ -732,7 +843,8 @@ namespace CUCoreLib.Registries
             if (string.IsNullOrWhiteSpace(id)) return false;
 
             var normalizedId = SpawnIdHelpers.NormalizeSpawnId(id);
-            if (Item.GlobalItems != null && Item.GlobalItems.TryGetValue(normalizedId, out info)) return true;
+            if (Item.GlobalItems != null
+                && Item.GlobalItems.TryGetValue(normalizedId, out info)) return true;
 
             if (RegisteredItems.TryGetValue(normalizedId, out var customInfo))
             {
@@ -746,7 +858,9 @@ namespace CUCoreLib.Registries
                 return true;
             }
 
-            CUCoreLibPlugin.Log?.LogWarning("No item info was found for '" + normalizedId + "'.");
+            CUCoreLibPlugin.Log?.LogWarning("No item info was found for '"
+                + normalizedId
+                + "'.");
             return false;
         }
 
@@ -770,19 +884,23 @@ namespace CUCoreLib.Registries
             sprite = AssetLoader.GetCachedSprite(normalizedId);
             if (sprite != null) return true;
 
-            if (BuildingEntityRegistry.TryGetDefinition(normalizedId, out var buildingDefinition) &&
-                buildingDefinition != null && buildingDefinition.Sprite != null)
+            if (BuildingEntityRegistry.TryGetDefinition(normalizedId,
+                    out var buildingDefinition)
+                && buildingDefinition != null
+                && buildingDefinition.Sprite != null)
             {
                 sprite = buildingDefinition.Sprite;
                 AssetLoader.CacheSprite(normalizedId, sprite);
                 return true;
             }
 
-            WarnMissingCustomIcon(normalizedId, info);
+            WarnMissingCustomIcon(normalizedId, null);
 
             var customTemplate = CustomInstantiate.GetOrCreateTemplate(normalizedId);
-            if (customTemplate != null && customTemplate.TryGetComponent<SpriteRenderer>(out var customRenderer) &&
-                customRenderer != null && customRenderer.sprite != null)
+            if (customTemplate != null
+                && customTemplate.TryGetComponent<SpriteRenderer>(out var customRenderer)
+                && customRenderer != null
+                && customRenderer.sprite != null)
             {
                 sprite = customRenderer.sprite;
                 AssetLoader.CacheSprite(normalizedId, sprite);
@@ -791,8 +909,10 @@ namespace CUCoreLib.Registries
             }
 
             var prefab = Resources.Load<GameObject>(normalizedId);
-            if (prefab != null && prefab.TryGetComponent<SpriteRenderer>(out var renderer) && renderer != null &&
-                renderer.sprite != null)
+            if (prefab != null
+                && prefab.TryGetComponent<SpriteRenderer>(out var renderer)
+                && renderer != null
+                && renderer.sprite != null)
             {
                 sprite = renderer.sprite;
                 AssetLoader.CacheSprite(normalizedId, sprite);
@@ -801,7 +921,9 @@ namespace CUCoreLib.Registries
             }
 
             if (WarnedMissingIconIds.Add(normalizedId))
-                CUCoreLibPlugin.Log?.LogWarning("No item icon was found for '" + normalizedId + "'.");
+                CUCoreLibPlugin.Log?.LogWarning("No item icon was found for '"
+                    + normalizedId
+                    + "'.");
             return false;
         }
 
@@ -819,7 +941,9 @@ namespace CUCoreLib.Registries
             if (info == null || IsValidIcon(info.Icon)) return;
 
             var animation = AssetLoader.GetCachedSpriteAnimation(info.IconAnimationId);
-            if (animation?.Frames != null && animation.Frames.Length > 0 && IsValidIcon(animation.Frames[0]))
+            if (animation?.Frames != null
+                && animation.Frames.Length > 0
+                && IsValidIcon(animation.Frames[0]))
             {
                 info.Icon = animation.Frames[0];
                 return;
@@ -835,8 +959,11 @@ namespace CUCoreLib.Registries
             try
             {
                 var texture = sprite.texture;
-                return texture != null && texture.width > 0 && texture.height > 0 &&
-                       sprite.rect.width > 0f && sprite.rect.height > 0f;
+                return texture != null
+                    && texture.width > 0
+                    && texture.height > 0
+                    && sprite.rect.width > 0f
+                    && sprite.rect.height > 0f;
             }
             catch
             {
@@ -848,14 +975,18 @@ namespace CUCoreLib.Registries
         {
             if (IsValidIcon(missingItemIcon)) return missingItemIcon;
 
-            missingItemIcon = AssetLoader.LoadEmbeddedSprite(MissingItemIconResourcePath, AssetLoader.PPU_WORLD,
+            missingItemIcon = AssetLoader.LoadEmbeddedSprite(MissingItemIconResourcePath,
+                AssetLoader.PPU_WORLD,
                 typeof(ItemRegistry).Assembly);
             return missingItemIcon;
         }
 
-        internal static void InjectSingleItem(string id, CustomItemInfo info, bool replaceExisting = false)
+        internal static void InjectSingleItem(string id, CustomItemInfo info,
+            bool replaceExisting = false)
         {
-            if (string.IsNullOrWhiteSpace(id) || info == null || Item.GlobalItems == null) return;
+            if (string.IsNullOrWhiteSpace(id)
+                || info == null
+                || Item.GlobalItems == null) return;
             if (Item.GlobalItems.ContainsKey(id) && !replaceExisting) return;
 
             info.ID = id;
@@ -863,10 +994,13 @@ namespace CUCoreLib.Registries
             NormalizeIcon(info);
             TryRun(info.SetTags);
             if (!string.IsNullOrEmpty(info.fullName))
-                TryRun(() => info.fullName = LocaleRegistry.Get("item", id, info.fullName));
+                TryRun(() =>
+                    info.fullName = LocaleRegistry.Get("item", id, info.fullName));
 
             if (!string.IsNullOrEmpty(info.description))
-                TryRun(() => info.description = LocaleRegistry.Get("item", id + "dsc", info.description));
+                TryRun(() =>
+                    info.description =
+                        LocaleRegistry.Get("item", id + "dsc", info.description));
 
             if (info.decayMinutes > 0f) info.rotSpeed = 1.666f / info.decayMinutes;
 
@@ -874,25 +1008,30 @@ namespace CUCoreLib.Registries
 
             Item.GlobalItems[id] = info;
 
-            if (GetIcon(info) != null) TryRun(() => AssetLoader.CacheSprite(id, info.Icon));
-            if (info.WornSprite != null) TryRun(() => AssetLoader.CacheSprite(id + "_worn", info.WornSprite));
+            if (GetIcon(info) != null)
+                TryRun(() => AssetLoader.CacheSprite(id, info.Icon));
+            if (info.WornSprite != null)
+                TryRun(() => AssetLoader.CacheSprite(id + "_worn", info.WornSprite));
             if (info.MultiWornSprites != null)
-                foreach (var entry in info.MultiWornSprites)
-                    if (!string.IsNullOrWhiteSpace(entry.Key) && entry.Value != null)
-                        TryRun(() => AssetLoader.CacheSprite(id + "_worn_" + entry.Key, entry.Value));
+                foreach (var entry in info.MultiWornSprites.Where(entry =>
+                    !string.IsNullOrWhiteSpace(entry.Key) && entry.Value != null))
+                    TryRun(() =>
+                        AssetLoader.CacheSprite(id + "_worn_" + entry.Key,
+                            entry.Value));
 
             TryRun(() => WarnMissingCustomIcon(id, info));
         }
 
-        internal static void InjectSingleItem(CustomItemInfo info, bool replaceExisting = false)
+        internal static void InjectSingleItem(CustomItemInfo info,
+            bool replaceExisting = false)
         {
             if (info == null) return;
             InjectSingleItem(info.ID, info, replaceExisting);
         }
 
         /// <summary>
-        /// Returns a <see cref="CustomItemInfo"/> view of an item definition.
-        /// Existing custom definitions are returned unchanged; vanilla <see cref="ItemInfo"/> instances are shallow-copied.
+        ///     Returns a <see cref="CustomItemInfo" /> view of an item definition.
+        ///     Existing custom definitions are returned unchanged; vanilla <see cref="ItemInfo" /> instances are shallow-copied.
         /// </summary>
         /// <param name="info">The item definition to convert. May be <c>null</c>.</param>
         /// <returns>A custom item definition containing the source's public fields, or an empty definition for <c>null</c>.</returns>
@@ -918,10 +1057,12 @@ namespace CUCoreLib.Registries
             }
             catch
             {
+                // ignored
             }
         }
 
-        internal static bool EnsureRuntimeCustomDataState(Item item, out ItemCustomDataState state)
+        internal static bool EnsureRuntimeCustomDataState(Item item,
+            out ItemCustomDataState state)
         {
             state = null;
             if (item == null || !TryGetCustomInfo(item, out var info)) return false;
@@ -931,7 +1072,8 @@ namespace CUCoreLib.Registries
             return true;
         }
 
-        internal static bool TryGetRuntimeCustomDataState(Item item, out ItemCustomDataState state)
+        internal static bool TryGetRuntimeCustomDataState(Item item,
+            out ItemCustomDataState state)
         {
             state = null;
             if (item == null || !TryGetCustomInfo(item, out var info)) return false;
@@ -958,73 +1100,78 @@ namespace CUCoreLib.Registries
         private static bool TryConvertCustomDataValue<T>(object rawValue, out T value)
         {
             value = default;
-            if (rawValue == null)
+            switch (rawValue)
             {
-                if (default(T) == null) return true;
-                return false;
-            }
-
-            if (rawValue is T typedValue)
-            {
-                value = typedValue;
-                return true;
-            }
-
-            try
-            {
-                if (rawValue is JToken token)
-                {
-                    value = token.ToObject<T>();
+                case null when default(T) == null:
                     return true;
-                }
-
-                var targetType = typeof(T);
-                var underlyingType = Nullable.GetUnderlyingType(targetType) ?? targetType;
-
-                if (underlyingType.IsEnum)
-                {
-                    if (rawValue is string enumString)
+                case null:
+                    return false;
+                case T typedValue:
+                    value = typedValue;
+                    return true;
+                default:
+                    try
                     {
-                        value = (T)Enum.Parse(underlyingType, enumString, true);
+                        if (rawValue is JToken token)
+                        {
+                            value = token.ToObject<T>();
+                            return true;
+                        }
+
+                        var targetType = typeof(T);
+                        var underlyingType = Nullable.GetUnderlyingType(targetType)
+                            ?? targetType;
+
+                        if (underlyingType.IsEnum)
+                        {
+                            if (rawValue is string enumString)
+                            {
+                                value = (T)Enum.Parse(underlyingType, enumString, true);
+                                return true;
+                            }
+
+                            value = (T)Enum.ToObject(underlyingType, rawValue);
+                            return true;
+                        }
+
+                        if (underlyingType == typeof(Guid)
+                            && rawValue is string guidString)
+                        {
+                            value = (T)(object)Guid.Parse(guidString);
+                            return true;
+                        }
+
+                        if (rawValue is IConvertible
+                            && typeof(IConvertible).IsAssignableFrom(underlyingType))
+                        {
+                            value = (T)Convert.ChangeType(rawValue, underlyingType);
+                            return true;
+                        }
+
+                        value = JToken.FromObject(rawValue).ToObject<T>();
                         return true;
                     }
-
-                    value = (T)Enum.ToObject(underlyingType, rawValue);
-                    return true;
-                }
-
-                if (underlyingType == typeof(Guid) && rawValue is string guidString)
-                {
-                    value = (T)(object)Guid.Parse(guidString);
-                    return true;
-                }
-
-                if (rawValue is IConvertible && typeof(IConvertible).IsAssignableFrom(underlyingType))
-                {
-                    value = (T)Convert.ChangeType(rawValue, underlyingType);
-                    return true;
-                }
-
-                value = JToken.FromObject(rawValue).ToObject<T>();
-                return true;
-            }
-            catch
-            {
-                value = default;
-                return false;
+                    catch
+                    {
+                        value = default;
+                        return false;
+                    }
             }
         }
 
         private static void WarnMissingCustomIcon(string id, CustomItemInfo info)
         {
             var normalizedId = SpawnIdHelpers.NormalizeSpawnId(id);
-            if (string.IsNullOrWhiteSpace(normalizedId) || info == null || info.Icon != null) return;
+            if (string.IsNullOrWhiteSpace(normalizedId)
+                || info == null
+                || info.Icon != null) return;
             if (IgnoredMissingIconIds.Contains(normalizedId)) return;
             if (!WarnedMissingCustomIconIds.Add(normalizedId)) return;
 
             CUCoreLibPlugin.Log?.LogWarning(
-                "Custom item '" + normalizedId +
-                "' has no valid icon sprite. Runtime will use CUCoreLib's missing-item fallback until you assign one.");
+                "Custom item '"
+                + normalizedId
+                + "' has no valid icon sprite. Runtime will use CUCoreLib's missing-item fallback until you assign one.");
         }
 
         private static FieldInfo[] GetPublicInstanceFields(Type type)
@@ -1035,12 +1182,12 @@ namespace CUCoreLib.Registries
             var seen = new HashSet<string>();
             var fields = new List<FieldInfo>();
             for (var current = type;
-                 current != null && typeof(ItemInfo).IsAssignableFrom(current);
-                 current = current.BaseType)
-                foreach (var field in current.GetFields(BindingFlags.Public | BindingFlags.Instance |
-                                                        BindingFlags.DeclaredOnly))
-                    if (seen.Add(field.Name))
-                        fields.Add(field);
+                current != null && typeof(ItemInfo).IsAssignableFrom(current);
+                current = current.BaseType)
+                fields.AddRange(current.GetFields(BindingFlags.Public
+                        | BindingFlags.Instance
+                        | BindingFlags.DeclaredOnly)
+                    .Where(field => seen.Add(field.Name)));
 
             var result = fields.ToArray();
             PublicInstanceFieldCache[type] = result;
@@ -1058,7 +1205,9 @@ namespace CUCoreLib.Registries
 
         private static void ApplyDestroyAtZeroConditionDefault(CustomItemInfo info)
         {
-            if (info == null || info.WasExplicitlySet(CustomItemExplicitField.DestroyAtZeroCondition)) return;
+            if (info == null
+                || info.WasExplicitlySet(CustomItemExplicitField.DestroyAtZeroCondition))
+                return;
 
             if (info.Battery != null)
             {
@@ -1066,7 +1215,8 @@ namespace CUCoreLib.Registries
                 return;
             }
 
-            if (IsStandardLiquidContainer(info)) info.SetDefault(CustomItemExplicitField.DestroyAtZeroCondition, true);
+            if (IsStandardLiquidContainer(info))
+                info.SetDefault(CustomItemExplicitField.DestroyAtZeroCondition, true);
         }
 
         private static void ApplyUsableDefaults(CustomItemInfo info)
@@ -1074,17 +1224,18 @@ namespace CUCoreLib.Registries
             if (info == null) return;
 
             var shouldDefaultUsable =
-                info.useAction != null ||
-                info.useLimbAction != null ||
-                info.wearable;
+                info.useAction != null || info.useLimbAction != null || info.wearable;
 
-            if (shouldDefaultUsable && !info.WasExplicitlySet(CustomItemExplicitField.Usable))
+            if (shouldDefaultUsable
+                && !info.WasExplicitlySet(CustomItemExplicitField.Usable))
                 info.SetDefault(CustomItemExplicitField.Usable, true);
 
-            if (info.useLimbAction != null && !info.WasExplicitlySet(CustomItemExplicitField.UsableOnLimb))
+            if (info.useLimbAction != null
+                && !info.WasExplicitlySet(CustomItemExplicitField.UsableOnLimb))
                 info.SetDefault(CustomItemExplicitField.UsableOnLimb, true);
 
-            if (info.Tool != null && !info.WasExplicitlySet(CustomItemExplicitField.UsableWithLmb))
+            if (info.Tool != null
+                && !info.WasExplicitlySet(CustomItemExplicitField.UsableWithLmb))
                 info.SetDefault(CustomItemExplicitField.UsableWithLmb, true);
         }
 
@@ -1092,9 +1243,9 @@ namespace CUCoreLib.Registries
         {
             if (info == null) return;
 
-            if (!info.WasExplicitlySet(CustomItemExplicitField.Wearable) &&
-                !string.IsNullOrWhiteSpace(info.desiredWearLimb) &&
-                !string.IsNullOrWhiteSpace(info.wearSlotId))
+            if (!info.WasExplicitlySet(CustomItemExplicitField.Wearable)
+                && !string.IsNullOrWhiteSpace(info.desiredWearLimb)
+                && !string.IsNullOrWhiteSpace(info.wearSlotId))
                 info.SetDefault(CustomItemExplicitField.Wearable, true);
 
             if (!info.wearable || info.useAction != null) return;
@@ -1110,9 +1261,10 @@ namespace CUCoreLib.Registries
         {
             if (!(info is LiquidItemInfo liquidInfo)) return false;
 
-            return liquidInfo.capacity > 0f ||
-                   (liquidInfo.defaultContents != null && liquidInfo.defaultContents.Count > 0) ||
-                   liquidInfo.autoFill;
+            return liquidInfo.capacity > 0f
+                || (liquidInfo.defaultContents != null
+                    && liquidInfo.defaultContents.Count > 0)
+                || liquidInfo.autoFill;
         }
 
         private static void ApplyMedicalActions(CustomItemInfo info)
@@ -1132,11 +1284,14 @@ namespace CUCoreLib.Registries
                         limb.bandageSlowAmount += useAmount * bandage.BandageSlowAmount;
                         limb.pain -= useAmount * bandage.PainReduction;
                         limb.boneHealTimer -= useAmount * bandage.BoneHealTimerReduction;
-                        limb.dislocationTimer -= useAmount * bandage.DislocationTimerReduction;
+                        limb.dislocationTimer -=
+                            useAmount * bandage.DislocationTimerReduction;
                     }, bandage.MinigameColor, limb), item);
 
-                    if (bandage.CreateWrapSprite && !string.IsNullOrWhiteSpace(bandage.WrapSpritePath))
-                        limb.CreateTemporarySprite(Resources.Load<Sprite>(bandage.WrapSpritePath), 0f,
+                    if (bandage.CreateWrapSprite
+                        && !string.IsNullOrWhiteSpace(bandage.WrapSpritePath))
+                        limb.CreateTemporarySprite(
+                            Resources.Load<Sprite>(bandage.WrapSpritePath), 0f,
                             bandage.WrapSpriteColor, true);
                 };
 
@@ -1144,12 +1299,19 @@ namespace CUCoreLib.Registries
                 info.useLimbAction = (limb, item) =>
                 {
                     var wat = item.GetComponent<WaterContainerItem>();
-                    if (wat == null) wat = item.gameObject.AddComponent<WaterContainerItem>();
+                    if (wat == null)
+                        wat = item.gameObject.AddComponent<WaterContainerItem>();
 
                     var syringe = info.Syringe;
-                    var color = syringe.UseAverageColor ? wat.AverageColor() : syringe.MinigameColor;
+                    var color = syringe.UseAverageColor
+                        ? wat.AverageColor()
+                        : syringe.MinigameColor;
                     MinigameBase.main.StartMinigame(
-                        new SyringeMinigame(mult => { wat.Inject(limb, mult * syringe.AmountPerFullUse); }, limb,
+                        new SyringeMinigame(
+                            mult =>
+                            {
+                                wat.Inject(limb, mult * syringe.AmountPerFullUse);
+                            }, limb,
                             color), item);
                 };
 
@@ -1174,9 +1336,13 @@ namespace CUCoreLib.Registries
                             : Resources.Load<GameObject>(tool.AttackAnimation),
                         staminaUse = tool.StaminaUse,
                         piercing = tool.Piercing,
-                        swingSounds = tool.SwingSounds != null && tool.SwingSounds.Length > 0
-                            ? tool.SwingSounds
-                            : new[] { "BSSwing1", "BSSwing2", "BSSwing3", "BSSwing4" },
+                        swingSounds = tool.SwingSounds != null
+                            && tool.SwingSounds.Length > 0
+                                ? tool.SwingSounds
+                                : new[]
+                                {
+                                    "BSSwing1", "BSSwing2", "BSSwing3", "BSSwing4"
+                                },
                         volume = tool.Volume,
                         rotateAmount = tool.RotateAmount,
                         physicalSwing = tool.PhysicalSwing,
@@ -1185,15 +1351,12 @@ namespace CUCoreLib.Registries
                     };
 
                     object PassState = null;
-                    if (tool.BeforeAttack != null && !tool.BeforeAttack(ref PassState, attack, body, item)) {
-                        return;
-                    }
+                    if (tool.BeforeAttack != null
+                        && !tool.BeforeAttack(ref PassState, attack, body, item)) return;
 
                     if (body.Attack(attack, 0)) item.condition -= tool.ConditionLossOnHit;
 
-                    if (tool.AfterAttack != null) {
-                        tool.AfterAttack(ref PassState, attack, body, item);
-                    }
+                    tool.AfterAttack?.Invoke(ref PassState, attack, body, item);
                 };
             }
 
@@ -1203,22 +1366,19 @@ namespace CUCoreLib.Registries
                 info.usable = true;
                 info.usableWithLMB = true;
                 info.tags = AddTag(info.tags, "gun");
-                GunProperties guninfo = info.Gun;
+                var guninfo = info.Gun;
                 info.useAction = (body, item) =>
                 {
                     if (item == null) return;
                     var gun = item.GetComponent<GunScript>();
 
                     object PassState = null;
-                    if (guninfo.BeforeAttack != null && !guninfo.BeforeAttack(ref PassState, gun, body, item)) {
-                        return;
-                    }
+                    if (guninfo.BeforeAttack != null
+                        && !guninfo.BeforeAttack(ref PassState, gun, body, item)) return;
 
                     if (gun != null) gun.triggerPressed = true;
 
-                    if (guninfo.AfterAttack != null) {
-                        guninfo.AfterAttack(ref PassState, gun, body, item);
-                    }
+                    guninfo.AfterAttack?.Invoke(ref PassState, gun, body, item);
                 };
             }
         }
@@ -1227,28 +1387,62 @@ namespace CUCoreLib.Registries
         {
             var result = new JObject
             {
-                ["ammoType"] = gun.AmmoType.HasValue ? (JToken)new JValue((int)gun.AmmoType.Value) : JValue.CreateNull(),
-                ["firingMode"] = gun.FiringMode.HasValue ? (JToken)new JValue((int)gun.FiringMode.Value) : JValue.CreateNull(),
-                ["feedType"] = gun.FeedType.HasValue ? (JToken)new JValue((int)gun.FeedType.Value) : JValue.CreateNull(),
-                ["magCapacity"] = gun.MagCapacity.HasValue ? (JToken)new JValue(gun.MagCapacity.Value) : JValue.CreateNull(),
-                ["knockBack"] = gun.KnockBack.HasValue ? (JToken)new JValue(gun.KnockBack.Value) : JValue.CreateNull(),
-                ["structureDamage"] = gun.StructureDamage.HasValue ? (JToken)new JValue(gun.StructureDamage.Value) : JValue.CreateNull(),
-                ["animalDamage"] = gun.AnimalDamage.HasValue ? (JToken)new JValue(gun.AnimalDamage.Value) : JValue.CreateNull(),
-                ["loudness"] = gun.Loudness.HasValue ? (JToken)new JValue(gun.Loudness.Value) : JValue.CreateNull(),
-                ["desiredGasTime"] = gun.DesiredGasTime.HasValue ? (JToken)new JValue(gun.DesiredGasTime.Value) : JValue.CreateNull(),
-                ["shotsPerFire"] = gun.ShotsPerFire.HasValue ? (JToken)new JValue(gun.ShotsPerFire.Value) : JValue.CreateNull(),
-                ["verticalSpread"] = gun.VerticalSpread.HasValue ? (JToken)new JValue(gun.VerticalSpread.Value) : JValue.CreateNull(),
-                ["conditionLossPerShot"] = gun.ConditionLossPerShot.HasValue ? (JToken)new JValue(gun.ConditionLossPerShot.Value) : JValue.CreateNull(),
-                ["normalSprite"] = NetworkSnapshotSerialization.WriteSprite(gun.NormalSprite),
-                ["rackedSprite"] = NetworkSnapshotSerialization.WriteSprite(gun.RackedSprite),
-                ["normalSpriteNoMag"] = NetworkSnapshotSerialization.WriteSprite(gun.NormalSpriteNoMag),
-                ["rackedSpriteNoMag"] = NetworkSnapshotSerialization.WriteSprite(gun.RackedSpriteNoMag)
+                ["ammoType"] = gun.AmmoType.HasValue
+                    ? (JToken)new JValue((int)gun.AmmoType.Value)
+                    : JValue.CreateNull(),
+                ["firingMode"] = gun.FiringMode.HasValue
+                    ? (JToken)new JValue((int)gun.FiringMode.Value)
+                    : JValue.CreateNull(),
+                ["feedType"] = gun.FeedType.HasValue
+                    ? (JToken)new JValue((int)gun.FeedType.Value)
+                    : JValue.CreateNull(),
+                ["magCapacity"] = gun.MagCapacity.HasValue
+                    ? (JToken)new JValue(gun.MagCapacity.Value)
+                    : JValue.CreateNull(),
+                ["knockBack"] = gun.KnockBack.HasValue
+                    ? (JToken)new JValue(gun.KnockBack.Value)
+                    : JValue.CreateNull(),
+                ["structureDamage"] = gun.StructureDamage.HasValue
+                    ? (JToken)new JValue(gun.StructureDamage.Value)
+                    : JValue.CreateNull(),
+                ["animalDamage"] = gun.AnimalDamage.HasValue
+                    ? (JToken)new JValue(gun.AnimalDamage.Value)
+                    : JValue.CreateNull(),
+                ["loudness"] = gun.Loudness.HasValue
+                    ? (JToken)new JValue(gun.Loudness.Value)
+                    : JValue.CreateNull(),
+                ["desiredGasTime"] = gun.DesiredGasTime.HasValue
+                    ? (JToken)new JValue(gun.DesiredGasTime.Value)
+                    : JValue.CreateNull(),
+                ["shotsPerFire"] = gun.ShotsPerFire.HasValue
+                    ? (JToken)new JValue(gun.ShotsPerFire.Value)
+                    : JValue.CreateNull(),
+                ["verticalSpread"] = gun.VerticalSpread.HasValue
+                    ? (JToken)new JValue(gun.VerticalSpread.Value)
+                    : JValue.CreateNull(),
+                ["conditionLossPerShot"] = gun.ConditionLossPerShot.HasValue
+                    ? (JToken)new JValue(gun.ConditionLossPerShot.Value)
+                    : JValue.CreateNull(),
+                ["normalSprite"] =
+                    NetworkSnapshotSerialization.WriteSprite(gun.NormalSprite),
+                ["rackedSprite"] =
+                    NetworkSnapshotSerialization.WriteSprite(gun.RackedSprite),
+                ["normalSpriteNoMag"] =
+                    NetworkSnapshotSerialization.WriteSprite(gun.NormalSpriteNoMag),
+                ["rackedSpriteNoMag"] =
+                    NetworkSnapshotSerialization.WriteSprite(gun.RackedSpriteNoMag)
             };
 
             if (gun.BarrelOffset.HasValue)
-                result["barrelOffset"] = new JObject { ["x"] = gun.BarrelOffset.Value.x, ["y"] = gun.BarrelOffset.Value.y };
+                result["barrelOffset"] = new JObject
+                {
+                    ["x"] = gun.BarrelOffset.Value.x, ["y"] = gun.BarrelOffset.Value.y
+                };
             if (gun.MuzzleOffset.HasValue)
-                result["muzzleOffset"] = new JObject { ["x"] = gun.MuzzleOffset.Value.x, ["y"] = gun.MuzzleOffset.Value.y };
+                result["muzzleOffset"] = new JObject
+                {
+                    ["x"] = gun.MuzzleOffset.Value.x, ["y"] = gun.MuzzleOffset.Value.y
+                };
 
             return result;
         }
@@ -1269,14 +1463,18 @@ namespace CUCoreLib.Registries
                 ShotsPerFire = ReadNullableInt(obj, "shotsPerFire"),
                 VerticalSpread = ReadNullableFloat(obj, "verticalSpread"),
                 ConditionLossPerShot = ReadNullableFloat(obj, "conditionLossPerShot"),
-                NormalSprite = NetworkSnapshotSerialization.ReadSprite(obj["normalSprite"]),
-                RackedSprite = NetworkSnapshotSerialization.ReadSprite(obj["rackedSprite"]),
-                NormalSpriteNoMag = NetworkSnapshotSerialization.ReadSprite(obj["normalSpriteNoMag"]),
-                RackedSpriteNoMag = NetworkSnapshotSerialization.ReadSprite(obj["rackedSpriteNoMag"])
+                NormalSprite =
+                    NetworkSnapshotSerialization.ReadSprite(obj["normalSprite"]),
+                RackedSprite =
+                    NetworkSnapshotSerialization.ReadSprite(obj["rackedSprite"]),
+                NormalSpriteNoMag =
+                    NetworkSnapshotSerialization.ReadSprite(obj["normalSpriteNoMag"]),
+                RackedSpriteNoMag =
+                    NetworkSnapshotSerialization.ReadSprite(obj["rackedSpriteNoMag"]),
+                BarrelOffset = ReadNullableVector2(obj["barrelOffset"]),
+                MuzzleOffset = ReadNullableVector2(obj["muzzleOffset"])
             };
 
-            gun.BarrelOffset = ReadNullableVector2(obj["barrelOffset"]);
-            gun.MuzzleOffset = ReadNullableVector2(obj["muzzleOffset"]);
             return gun;
         }
 
@@ -1288,18 +1486,23 @@ namespace CUCoreLib.Registries
 
         private static int? ReadNullableInt(JObject obj, string key)
         {
-            return obj[key] == null || obj[key].Type == JTokenType.Null ? (int?)null : obj.Value<int?>(key);
+            return obj[key] == null || obj[key].Type == JTokenType.Null
+                ? null
+                : obj.Value<int?>(key);
         }
 
         private static float? ReadNullableFloat(JObject obj, string key)
         {
-            return obj[key] == null || obj[key].Type == JTokenType.Null ? (float?)null : obj.Value<float?>(key);
+            return obj[key] == null || obj[key].Type == JTokenType.Null
+                ? null
+                : obj.Value<float?>(key);
         }
 
         private static Vector2? ReadNullableVector2(JToken token)
         {
-            var obj = token as JObject;
-            return obj == null ? (Vector2?)null : new Vector2(obj.Value<float?>("x") ?? 0f, obj.Value<float?>("y") ?? 0f);
+            return !(token is JObject obj)
+                ? (Vector2?)null
+                : new Vector2(obj.Value<float?>("x") ?? 0f, obj.Value<float?>("y") ?? 0f);
         }
 
         private static string AddTag(string tags, string tag)
@@ -1307,7 +1510,7 @@ namespace CUCoreLib.Registries
             if (string.IsNullOrWhiteSpace(tag)) return tags ?? string.Empty;
             if (string.IsNullOrWhiteSpace(tags)) return tag;
             if (tags.Split(',').Any(existing => string.Equals(existing.Trim(), tag,
-                    StringComparison.OrdinalIgnoreCase))) return tags;
+                StringComparison.OrdinalIgnoreCase))) return tags;
             return tags.TrimEnd() + "," + tag;
         }
 
@@ -1328,6 +1531,27 @@ namespace CUCoreLib.Registries
             AddQualityForTag(info, "flammable");
             AddQualityForTag(info, "nails");
             // I don't like hardcoding these. TODO make this more dynamic
+        }
+
+        private static void AddQualityForTag(ItemInfo info, string tag)
+        {
+            var tags = info.tags.Split(',');
+            if (tags.All(t => t.Trim() != tag)) return;
+            if (info.qualities.Any(q => q != null && q.id == tag)) return;
+
+            info.qualities.Add(new CraftingQuality(tag));
+        }
+
+        private static void RemoveLootPoolEntries(string id)
+        {
+            if (string.IsNullOrWhiteSpace(id)) return;
+
+            if (ItemLootPool.pool != null)
+                foreach (var poolItems in ItemLootPool.pool.Values)
+                    poolItems.RemoveAll(itemId =>
+                        string.Equals(itemId, id, StringComparison.OrdinalIgnoreCase));
+
+            DropPoolRegistry.RemoveItem(id);
         }
 
         internal sealed class ItemCustomDataState
@@ -1356,7 +1580,8 @@ namespace CUCoreLib.Registries
             public bool TryGetValue(string key, out object value)
             {
                 value = null;
-                return !string.IsNullOrWhiteSpace(key) && _values.TryGetValue(key, out value);
+                return !string.IsNullOrWhiteSpace(key)
+                    && _values.TryGetValue(key, out value);
             }
 
             public void SetValue(string key, object value)
@@ -1382,10 +1607,9 @@ namespace CUCoreLib.Registries
                 if (_values.Count == 0) return null;
 
                 var result = new JObject();
-                foreach (var entry in _values)
+                foreach (var entry in _values.Where(entry =>
+                    !string.IsNullOrWhiteSpace(entry.Key)))
                 {
-                    if (string.IsNullOrWhiteSpace(entry.Key)) continue;
-
                     try
                     {
                         result[entry.Key] = entry.Value == null
@@ -1395,13 +1619,20 @@ namespace CUCoreLib.Registries
                     catch (Exception ex)
                     {
                         CUCoreLibPlugin.Log?.LogWarning(
-                            "CUCoreLib ItemRegistry: Skipped custom item data key '" + entry.Key +
-                            "' on item '" + (string.IsNullOrWhiteSpace(itemId) ? "<unknown>" : itemId) +
-                            "' because the value could not be serialized.\n" + ex);
+                            "CUCoreLib ItemRegistry: Skipped custom item data key '"
+                            + entry.Key
+                            + "' on item '"
+                            + (string.IsNullOrWhiteSpace(itemId)
+                                ? "<unknown>"
+                                : itemId)
+                            + "' because the value could not be serialized.\n"
+                            + ex);
                     }
                 }
 
-                return result.HasValues ? result : null;
+                return result.HasValues
+                    ? result
+                    : null;
             }
 
             public void Restore(JObject payload)
@@ -1410,31 +1641,10 @@ namespace CUCoreLib.Registries
 
                 _values.Clear();
                 foreach (var property in payload.Properties())
-                    _values[property.Name] = property.Value?.ToObject<object>();
+                    _values[property.Name] = property.Value.ToObject<object>();
 
                 _initialized = true;
             }
         }
-
-        private static void AddQualityForTag(ItemInfo info, string tag)
-        {
-            var tags = info.tags.Split(',');
-            if (!tags.Any(t => t.Trim() == tag)) return;
-            if (info.qualities.Any(q => q != null && q.id == tag)) return;
-
-            info.qualities.Add(new CraftingQuality(tag));
-        }
-
-        private static void RemoveLootPoolEntries(string id)
-        {
-            if (string.IsNullOrWhiteSpace(id)) return;
-
-            if (ItemLootPool.pool != null)
-                foreach (var poolItems in ItemLootPool.pool.Values)
-                    poolItems.RemoveAll(itemId => string.Equals(itemId, id, StringComparison.OrdinalIgnoreCase));
-
-            DropPoolRegistry.RemoveItem(id);
-        }
-
     }
 }

@@ -5,15 +5,16 @@ namespace CUCoreLib.Registries.Infrastructure
 {
     internal sealed class RegistrationOwnershipIndex<TKey>
     {
-        private readonly Dictionary<TKey, string> ownerByKey;
         private readonly Dictionary<string, HashSet<TKey>> keysByOwner;
+        private readonly Dictionary<TKey, string> ownerByKey;
         private string activeOwnerId;
 
         internal RegistrationOwnershipIndex(IEqualityComparer<TKey> keyComparer = null)
         {
             var comparer = keyComparer ?? EqualityComparer<TKey>.Default;
             ownerByKey = new Dictionary<TKey, string>(comparer);
-            keysByOwner = new Dictionary<string, HashSet<TKey>>(StringComparer.OrdinalIgnoreCase);
+            keysByOwner =
+                new Dictionary<string, HashSet<TKey>>(StringComparer.OrdinalIgnoreCase);
             KeyComparer = comparer;
         }
 
@@ -31,7 +32,8 @@ namespace CUCoreLib.Registries.Infrastructure
 
             if (ownerByKey.TryGetValue(key, out var previousOwnerId))
             {
-                if (string.Equals(previousOwnerId, ownerId, StringComparison.OrdinalIgnoreCase)) return;
+                if (string.Equals(previousOwnerId, ownerId,
+                    StringComparison.OrdinalIgnoreCase)) return;
 
                 RemoveFromOwner(previousOwnerId, key);
             }
@@ -49,7 +51,8 @@ namespace CUCoreLib.Registries.Infrastructure
         internal TKey[] GetKeys(string ownerId)
         {
             var normalizedOwnerId = NormalizeOwnerId(ownerId);
-            if (normalizedOwnerId == null || !keysByOwner.TryGetValue(normalizedOwnerId, out var keys))
+            if (normalizedOwnerId == null
+                || !keysByOwner.TryGetValue(normalizedOwnerId, out var keys))
                 return Array.Empty<TKey>();
 
             var snapshot = new TKey[keys.Count];
@@ -60,8 +63,10 @@ namespace CUCoreLib.Registries.Infrastructure
         internal bool IsOwnedBy(TKey key, string ownerId)
         {
             var normalizedOwnerId = NormalizeOwnerId(ownerId);
-            return normalizedOwnerId != null && ownerByKey.TryGetValue(key, out var registeredOwnerId) &&
-                   string.Equals(registeredOwnerId, normalizedOwnerId, StringComparison.OrdinalIgnoreCase);
+            return normalizedOwnerId != null
+                && ownerByKey.TryGetValue(key, out var registeredOwnerId)
+                && string.Equals(registeredOwnerId, normalizedOwnerId,
+                    StringComparison.OrdinalIgnoreCase);
         }
 
         internal bool TryGetOwner(TKey key, out string ownerId)
@@ -87,7 +92,9 @@ namespace CUCoreLib.Registries.Infrastructure
 
         private static string NormalizeOwnerId(string ownerId)
         {
-            return string.IsNullOrWhiteSpace(ownerId) ? null : ownerId.Trim();
+            return string.IsNullOrWhiteSpace(ownerId)
+                ? null
+                : ownerId.Trim();
         }
 
         private sealed class OwnerScope : IDisposable
