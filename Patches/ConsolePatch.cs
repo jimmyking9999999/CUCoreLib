@@ -398,11 +398,9 @@ namespace CUCoreLib.Patches
                 || string.IsNullOrWhiteSpace(limbQuery)) return false;
 
             if (string.Equals(limbQuery, "all", StringComparison.OrdinalIgnoreCase))
-            {
                 return body.limbs.Any(limb => limb != null
                     && IsCustomStatusField(StatusRegistry.EnumerateLimbStatuses(limb),
                         fieldQuery));
-            }
 
             var limb2 = body.LimbByName(limbQuery);
             return limb2 != null
@@ -459,7 +457,6 @@ namespace CUCoreLib.Patches
             var applied = 0;
             object lastValue = null;
             foreach (var body in bodies.Where(body => body != null))
-            {
                 if (string.Equals(slot, "body", StringComparison.OrdinalIgnoreCase))
                 {
                     if (TrySetStatusField(StatusRegistry.EnumerateBodyStatuses(body),
@@ -472,7 +469,6 @@ namespace CUCoreLib.Patches
                 {
                     applied++;
                 }
-            }
 
             return applied > 0
                 ? "Set custom status field \""

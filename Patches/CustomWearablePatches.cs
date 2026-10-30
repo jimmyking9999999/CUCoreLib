@@ -14,7 +14,8 @@ namespace CUCoreLib.Patches
     {
         [HarmonyPatch(typeof(Body), "AutoPickUpItem")]
         [HarmonyPrefix]
-        private static bool PreventAutoPickupWearableSlotReplacement(Body __instance, Item item)
+        private static bool PreventAutoPickupWearableSlotReplacement(Body __instance,
+            Item item)
         {
             if (!HasWearableSlotConflict(__instance, item, out _)) return true;
 
@@ -28,7 +29,8 @@ namespace CUCoreLib.Patches
         [HarmonyPrefix]
         private static bool PreventConflictingWearableSlots(Body __instance, Item item)
         {
-            if (!HasWearableSlotConflict(__instance, item, out var conflictingWearable)) return true;
+            if (!HasWearableSlotConflict(__instance, item, out var conflictingWearable))
+                return true;
 
             ShowWearableConflictAlert(item, conflictingWearable);
             return false;
@@ -76,9 +78,12 @@ namespace CUCoreLib.Patches
         private static void ResetWornSpriteOffsetBeforeDrop(Item item)
         {
             if (item == null || !ItemRegistry.TryGetCustomInfo(item, out var def)) return;
-            if (def.WornSprite == null && (def.MultiWornSprites == null || def.MultiWornSprites.Count == 0)) return;
+            if (def.WornSprite == null
+                && (def.MultiWornSprites == null || def.MultiWornSprites.Count == 0))
+                return;
 
-            item.transform.localPosition = new Vector3(0f, 0f, item.transform.localPosition.z);
+            item.transform.localPosition =
+                new Vector3(0f, 0f, item.transform.localPosition.z);
         }
 
         [HarmonyPatch(typeof(Body), "DropWearable")]
@@ -94,11 +99,14 @@ namespace CUCoreLib.Patches
 
         [HarmonyPatch(typeof(Body), "PickUpItem")]
         [HarmonyPrefix]
-        private static void ClearCustomWearableVisualsBeforePickup(Body __instance, Item item)
+        private static void ClearCustomWearableVisualsBeforePickup(Body __instance,
+            Item item)
         {
             if (__instance == null || item == null) return;
             if (!ItemRegistry.TryGetCustomInfo(item, out var def)) return;
-            if (def.WornSprite == null && (def.MultiWornSprites == null || def.MultiWornSprites.Count == 0)) return;
+            if (def.WornSprite == null
+                && (def.MultiWornSprites == null || def.MultiWornSprites.Count == 0))
+                return;
             if (!IsWorn(item)) return;
 
             __instance.DropWearable(item);
@@ -106,11 +114,14 @@ namespace CUCoreLib.Patches
 
         [HarmonyPatch(typeof(Body), "DropItem", typeof(Item))]
         [HarmonyPrefix]
-        private static bool RedirectWornWearablesToDropWearable(Body __instance, Item item)
+        private static bool RedirectWornWearablesToDropWearable(Body __instance,
+            Item item)
         {
             if (__instance == null || item == null) return true;
             if (!ItemRegistry.TryGetCustomInfo(item, out var def)) return true;
-            if (def.WornSprite == null && (def.MultiWornSprites == null || def.MultiWornSprites.Count == 0)) return true;
+            if (def.WornSprite == null
+                && (def.MultiWornSprites == null || def.MultiWornSprites.Count == 0))
+                return true;
             if (!IsWorn(item)) return true;
 
             __instance.DropWearable(item);
@@ -119,22 +130,27 @@ namespace CUCoreLib.Patches
 
         [HarmonyPatch(typeof(Body), "DropItem", typeof(Item))]
         [HarmonyPrefix]
-        private static void ClearCustomWearableVisualsBeforeGenericDrop(Item item, out bool __state)
+        private static void ClearCustomWearableVisualsBeforeGenericDrop(Item item,
+            out bool __state)
         {
             __state = false;
             if (item == null || !ItemRegistry.TryGetCustomInfo(item, out var def)) return;
             if (!IsWorn(item)) return;
             if (!item.TryGetComponent<Wearable>(out var wearable)) return;
-            if (def.WornSprite == null && (def.MultiWornSprites == null || def.MultiWornSprites.Count == 0)) return;
+            if (def.WornSprite == null
+                && (def.MultiWornSprites == null || def.MultiWornSprites.Count == 0))
+                return;
 
             wearable.ClearSprites();
-            item.transform.localPosition = new Vector3(0f, 0f, item.transform.localPosition.z);
+            item.transform.localPosition =
+                new Vector3(0f, 0f, item.transform.localPosition.z);
             __state = true;
         }
 
         [HarmonyPatch(typeof(Body), "DropItem", typeof(Item))]
         [HarmonyPostfix]
-        private static void RestoreCustomWearableVisualsAfterGenericDrop(Item item, bool __state)
+        private static void RestoreCustomWearableVisualsAfterGenericDrop(Item item,
+            bool __state)
         {
             if (!__state) return;
             if (item == null || !ItemRegistry.TryGetCustomInfo(item, out var def)) return;
@@ -148,9 +164,12 @@ namespace CUCoreLib.Patches
 
         [HarmonyPatch(typeof(Wearable), "CreateSprites")]
         [HarmonyPrefix]
-        private static void ConfigureSecondarySpritesForCustomWearables(Wearable __instance, Body body)
+        private static void ConfigureSecondarySpritesForCustomWearables(
+            Wearable __instance, Body body)
         {
-            var item = __instance != null ? __instance.GetComponent<Item>() : null;
+            var item = __instance != null
+                ? __instance.GetComponent<Item>()
+                : null;
             if (item == null || !ItemRegistry.TryGetCustomInfo(item, out var def)) return;
 
             ConfigureSecondarySprites(__instance, body, item, def);
@@ -158,9 +177,12 @@ namespace CUCoreLib.Patches
 
         [HarmonyPatch(typeof(Wearable), "CreateSprites")]
         [HarmonyPostfix]
-        private static void ApplySecondarySpriteOffsetsAfterCreateSprites(Wearable __instance)
+        private static void ApplySecondarySpriteOffsetsAfterCreateSprites(
+            Wearable __instance)
         {
-            var item = __instance != null ? __instance.GetComponent<Item>() : null;
+            var item = __instance != null
+                ? __instance.GetComponent<Item>()
+                : null;
             if (item == null || !ItemRegistry.TryGetCustomInfo(item, out var def)) return;
 
             ApplySecondarySpriteOffsets(__instance, def);
@@ -173,21 +195,27 @@ namespace CUCoreLib.Patches
             if (sr == null) return;
             sr.sprite = sprite;
 
-            if (ItemRegistry.TryGetCustomInfo(item, out var def) &&
-                !string.IsNullOrWhiteSpace(def.WornSpriteAnimationId))
+            if (ItemRegistry.TryGetCustomInfo(item, out var def)
+                && !string.IsNullOrWhiteSpace(def.WornSpriteAnimationId))
                 AssetLoader.TryApplyAnimation(sr, def.WornSpriteAnimationId);
         }
 
         private static bool IsWorn(Item item)
         {
-            var parent = item != null ? item.transform.parent : null;
+            var parent = item != null
+                ? item.transform.parent
+                : null;
             return parent != null && parent.GetComponent<Limb>() != null;
         }
 
-        private static bool HasWearableSlotConflict(Body body, Item item, out Item conflictingWearable)
+        private static bool HasWearableSlotConflict(Body body, Item item,
+            out Item conflictingWearable)
         {
             conflictingWearable = null;
-            if (body == null || item == null || item.Stats == null || !item.Stats.wearable)
+            if (body == null
+                || item == null
+                || item.Stats == null
+                || !item.Stats.wearable)
                 return false;
 
             var requestedSlots = GetWearableSlots(item.Stats.wearSlotId);
@@ -196,15 +224,16 @@ namespace CUCoreLib.Patches
             var wornWearables = body.GetAllWearables();
             if (wornWearables == null) return false;
 
-            foreach (var wornWearable in wornWearables)
+            foreach (var wornWearable in
+                from wornWearable in wornWearables
+                where wornWearable != null
+                    && wornWearable != item
+                    && wornWearable.Stats != null
+                let wornSlots = GetWearableSlots(wornWearable.Stats.wearSlotId)
+                where requestedSlots.Count > 1 || wornSlots.Count > 1
+                where requestedSlots.Overlaps(wornSlots)
+                select wornWearable)
             {
-                if (wornWearable == null || wornWearable == item || wornWearable.Stats == null)
-                    continue;
-
-                var wornSlots = GetWearableSlots(wornWearable.Stats.wearSlotId);
-                if (requestedSlots.Count <= 1 && wornSlots.Count <= 1) continue;
-                if (!requestedSlots.Overlaps(wornSlots)) continue;
-
                 conflictingWearable = wornWearable;
                 return true;
             }
@@ -216,8 +245,8 @@ namespace CUCoreLib.Patches
         {
             return new HashSet<string>(
                 (wearSlotId ?? string.Empty).Split(',')
-                    .Select(slot => slot.Trim())
-                    .Where(slot => !string.IsNullOrWhiteSpace(slot)),
+                .Select(slot => slot.Trim())
+                .Where(slot => !string.IsNullOrWhiteSpace(slot)),
                 StringComparer.OrdinalIgnoreCase);
         }
 
@@ -238,54 +267,69 @@ namespace CUCoreLib.Patches
                 .Replace("<2>", conflictingItemName));
         }
 
-        private static void ConfigureSecondarySprites(Wearable wearable, Body body, Item item, CustomItemInfo def)
+        private static void ConfigureSecondarySprites(Wearable wearable, Body body,
+            Item item, CustomItemInfo def)
         {
             if (wearable == null) return;
-            if (def.WornSprite == null && (def.MultiWornSprites == null || def.MultiWornSprites.Count == 0)) return;
+            if (def.WornSprite == null
+                && (def.MultiWornSprites == null || def.MultiWornSprites.Count == 0))
+                return;
 
             var configuredSprites = new List<KeyValuePair<string, Sprite>>();
             if (def.MultiWornSprites != null)
-                foreach (var entry in def.MultiWornSprites)
+                foreach (var entry in def.MultiWornSprites.Where(entry =>
+                    !string.IsNullOrWhiteSpace(entry.Key) && entry.Value != null))
                 {
-                    if (string.IsNullOrWhiteSpace(entry.Key) || entry.Value == null) continue;
-
                     if (body != null && body.LimbByName(entry.Key) == null)
                     {
                         CUCoreLibPlugin.Log?.LogWarning(
-                            "Skipping multi-worn sprite for item '" + item.id + "' because limb '" + entry.Key +
-                            "' does not exist on the target body.");
+                            "Skipping multi-worn sprite for item '"
+                            + item.id
+                            + "' because limb '"
+                            + entry.Key
+                            + "' does not exist on the target body.");
                         continue;
                     }
 
-                    configuredSprites.Add(new KeyValuePair<string, Sprite>(entry.Key, entry.Value));
+                    configuredSprites.Add(
+                        new KeyValuePair<string, Sprite>(entry.Key, entry.Value));
                 }
 
-            wearable.secondaryLimbs = configuredSprites.Select(entry => entry.Key).ToArray();
-            wearable.secondaryLimbSprites = configuredSprites.Select(entry => entry.Value).ToArray();
+            wearable.secondaryLimbs =
+                configuredSprites.Select(entry => entry.Key).ToArray();
+            wearable.secondaryLimbSprites =
+                configuredSprites.Select(entry => entry.Value).ToArray();
             wearable.secondaryObjects = new GameObject[configuredSprites.Count];
         }
 
-        private static void ApplySecondarySpriteOffsets(Wearable wearable, CustomItemInfo def)
+        private static void ApplySecondarySpriteOffsets(Wearable wearable,
+            CustomItemInfo def)
         {
-            if (wearable == null || def?.MultiWornSpriteOffsets == null || def.MultiWornSpriteOffsets.Count == 0)
+            if (wearable == null
+                || def?.MultiWornSpriteOffsets == null
+                || def.MultiWornSpriteOffsets.Count == 0)
                 return;
-            if (wearable.secondaryObjects == null || wearable.secondaryLimbs == null) return;
+            if (wearable.secondaryObjects == null
+                || wearable.secondaryLimbs == null) return;
 
-            var count = Math.Min(wearable.secondaryObjects.Length, wearable.secondaryLimbs.Length);
+            var count = Math.Min(wearable.secondaryObjects.Length,
+                wearable.secondaryLimbs.Length);
             for (var i = 0; i < count; i++)
             {
                 var obj = wearable.secondaryObjects[i];
                 var limb = wearable.secondaryLimbs[i];
                 if (obj == null || string.IsNullOrWhiteSpace(limb)) continue;
-                if (!def.MultiWornSpriteOffsets.TryGetValue(limb, out var offset)) continue;
+                if (!def.MultiWornSpriteOffsets.TryGetValue(limb, out var offset))
+                    continue;
 
-                obj.transform.localPosition = new Vector3(offset.x, offset.y, obj.transform.localPosition.z);
+                obj.transform.localPosition = new Vector3(offset.x, offset.y,
+                    obj.transform.localPosition.z);
             }
         }
 
         private static void ApplySortingOrder(Item item, CustomItemInfo def)
         {
-            if (item == null || def == null || !def.WearableSortingOrder.HasValue) return;
+            if (item == null || def?.WearableSortingOrder == null) return;
 
             var renderer = item.GetComponent<SpriteRenderer>();
             if (renderer == null) return;
@@ -293,9 +337,11 @@ namespace CUCoreLib.Patches
             renderer.sortingOrder = def.WearableSortingOrder.Value;
         }
 
-        private static void ApplySecondarySpriteSortingOrder(Wearable wearable, CustomItemInfo def)
+        private static void ApplySecondarySpriteSortingOrder(Wearable wearable,
+            CustomItemInfo def)
         {
-            if (wearable == null || def == null || !def.WearableSortingOrder.HasValue) return;
+            if (wearable == null
+                || def?.WearableSortingOrder == null) return;
             if (wearable.secondaryObjects == null) return;
 
             foreach (var obj in wearable.secondaryObjects)
@@ -314,7 +360,8 @@ namespace CUCoreLib.Patches
             if (item == null || def == null) return;
 
             item.transform.localPosition = def.WornSprite != null
-                ? new Vector3(def.WornSpriteOffset.x, def.WornSpriteOffset.y, item.transform.localPosition.z)
+                ? new Vector3(def.WornSpriteOffset.x, def.WornSpriteOffset.y,
+                    item.transform.localPosition.z)
                 : new Vector3(0f, 0f, item.transform.localPosition.z);
 
             ApplySortingOrder(item, def);
@@ -323,7 +370,9 @@ namespace CUCoreLib.Patches
         private static void EnsureWearableComponent(Item item, CustomItemInfo def)
         {
             if (item == null || def == null || !def.wearable) return;
-            if (def.WornSprite == null && (def.MultiWornSprites == null || def.MultiWornSprites.Count == 0)) return;
+            if (def.WornSprite == null
+                && (def.MultiWornSprites == null || def.MultiWornSprites.Count == 0))
+                return;
             if (item.GetComponent<Wearable>() != null) return;
 
             item.gameObject.AddComponent<Wearable>();

@@ -18,7 +18,10 @@ namespace CUCoreLib.Patches
         private const string WorldChunkSyncTypeName = "Together.WorldChunkSync";
         private const string NetObjectRegistryTypeName = "Together.NetObjectRegistry";
         private const string SyncInfoTypeName = "Together.SyncInfo";
-        private const string ItemSetupListenerTypeName = "Together.Item_SetupItems_Listener";
+
+        private const string ItemSetupListenerTypeName =
+            "Together.Item_SetupItems_Listener";
+
         private const string CraftCommitTypeName = "Together.CraftCommit";
         private static bool _installed;
         private static bool _retryScheduled;
@@ -36,11 +39,14 @@ namespace CUCoreLib.Patches
             {
                 var chunkType = ResolveLoadedType(WorldChunkSyncTypeName);
                 KrokMpWorldChunkPatches.Install(harmony, chunkType);
-                if (!KrokMpWorldChunkPatches.IsInstalled && chunkType == null && IsKrokMpExpected())
+                if (!KrokMpWorldChunkPatches.IsInstalled
+                    && chunkType == null
+                    && IsKrokMpExpected())
                     ScheduleChunkRetry(harmony);
 
                 KrokMpHealPatches.Install(harmony);
             }
+
             if (harmony == null || _installed) return;
 
             if (!_syncInfoPatched)
@@ -50,18 +56,20 @@ namespace CUCoreLib.Patches
                 {
                     var instantiateResource = AccessTools.GetDeclaredMethods(syncInfoType)
                         ?.FirstOrDefault(method =>
-                            string.Equals(method.Name, "InstantiateResource", StringComparison.Ordinal));
+                            string.Equals(method.Name, "InstantiateResource",
+                                StringComparison.Ordinal));
                     if (instantiateResource != null)
                     {
                         harmony.Patch(instantiateResource,
-                            prefix: new HarmonyMethod(typeof(KrokMpCompatibilityPatches),
+                            new HarmonyMethod(typeof(KrokMpCompatibilityPatches),
                                 nameof(InstantiateResource_Prefix)));
                         _syncInfoPatched = true;
                     }
                 }
             }
 
-            if (!_liquidRegistryPatched && ResolveLoadedType(ItemSetupListenerTypeName) != null)
+            if (!_liquidRegistryPatched
+                && ResolveLoadedType(ItemSetupListenerTypeName) != null)
             {
                 var setupItems = AccessTools.Method(typeof(Item), "SetupItems");
                 if (setupItems != null)
@@ -76,19 +84,25 @@ namespace CUCoreLib.Patches
                 }
             }
 
-            if (!_craftAttemptPatched) 
+            if (!_craftAttemptPatched)
             {
                 var craftCommitType = ResolveLoadedType(CraftCommitTypeName);
-                var sendAttempt = craftCommitType != null ? AccessTools.Method(craftCommitType, "SendAttempt") : null;
-                var attemptType = sendAttempt?.GetParameters().FirstOrDefault()?.ParameterType;
+                var sendAttempt = craftCommitType != null
+                    ? AccessTools.Method(craftCommitType, "SendAttempt")
+                    : null;
+                var attemptType = sendAttempt?.GetParameters().FirstOrDefault()
+                    ?.ParameterType;
                 // Craft by recipe index
-                _craftAttemptRecipeField = attemptType != null ? AccessTools.Field(attemptType, "recipe") : null;
-                if (_craftAttemptRecipeField != null && _craftAttemptRecipeField.FieldType == typeof(ushort))
+                _craftAttemptRecipeField = attemptType != null
+                    ? AccessTools.Field(attemptType, "recipe")
+                    : null;
+                if (_craftAttemptRecipeField != null
+                    && _craftAttemptRecipeField.FieldType == typeof(ushort))
                 {
                     harmony.Patch(sendAttempt,
-                        prefix: new HarmonyMethod(typeof(KrokMpCompatibilityPatches),
+                        new HarmonyMethod(typeof(KrokMpCompatibilityPatches),
                             nameof(SendAttempt_Prefix)),
-                        postfix: new HarmonyMethod(typeof(KrokMpCompatibilityPatches),
+                        new HarmonyMethod(typeof(KrokMpCompatibilityPatches),
                             nameof(SendAttempt_Postfix)));
                     _craftAttemptPatched = true;
                 }
@@ -107,7 +121,9 @@ namespace CUCoreLib.Patches
 
         internal static void SetCanonicalLiquidOrder(List<string> order)
         {
-            _canonicalLiquidOrder = order != null && order.Count > 0 ? order : null;
+            _canonicalLiquidOrder = order != null && order.Count > 0
+                ? order
+                : null;
             RefreshLiquidRegistry();
         }
 
@@ -129,11 +145,9 @@ namespace CUCoreLib.Patches
                 var orderedIds = new List<string>();
                 var seen = new HashSet<string>(StringComparer.Ordinal);
                 if (_canonicalLiquidOrder != null)
-                    foreach (var id in _canonicalLiquidOrder)
-                        if (seen.Add(id)) orderedIds.Add(id);
+                    orderedIds.AddRange(_canonicalLiquidOrder.Where(seen.Add));
 
-                foreach (var id in Liquids.Registry.Keys)
-                    if (seen.Add(id)) orderedIds.Add(id);
+                orderedIds.AddRange(Liquids.Registry.Keys.Where(seen.Add));
 
                 var count = Math.Min(orderedIds.Count, byte.MaxValue + 1);
                 var ids = new Dictionary<string, byte>(count, StringComparer.Ordinal);
@@ -141,7 +155,8 @@ namespace CUCoreLib.Patches
                 for (var index = 0; index < count; index++)
                 {
                     // Unknown IDs keep their slot so a missing mod cannot shift every later liquid.
-                    if (Liquids.Registry.ContainsKey(orderedIds[index])) ids[orderedIds[index]] = (byte)index;
+                    if (Liquids.Registry.ContainsKey(orderedIds[index]))
+                        ids[orderedIds[index]] = (byte)index;
                     reverseIds[index] = orderedIds[index];
                 }
 
@@ -150,26 +165,33 @@ namespace CUCoreLib.Patches
             }
             catch
             {
+                // ignored
             }
         }
 
         internal static void EnsureItemNetworkRegistered(GameObject item)
         {
-            if (item == null || !MultiplayerBridge.IsRunning || !MultiplayerBridge.IsServer) return;
+            if (item == null
+                || !MultiplayerBridge.IsRunning
+                || !MultiplayerBridge.IsServer) return;
 
             try
             {
                 if (_serverEnsureItemNetworkRegisteredMethod == null)
                 {
                     var registryType = ResolveLoadedType(NetObjectRegistryTypeName);
-                    _serverEnsureItemNetworkRegisteredMethod = AccessTools.Method(registryType,
-                        "Server_EnsureItemIsNetworkRegistered", new[] { typeof(GameObject) });
+                    _serverEnsureItemNetworkRegisteredMethod = AccessTools.Method(
+                        registryType,
+                        "Server_EnsureItemIsNetworkRegistered",
+                        new[] { typeof(GameObject) });
                 }
 
-                _serverEnsureItemNetworkRegisteredMethod?.Invoke(null, new object[] { item });
+                _serverEnsureItemNetworkRegisteredMethod?.Invoke(null,
+                    new object[] { item });
             }
             catch
             {
+                // ignored
             }
         }
 
@@ -182,11 +204,14 @@ namespace CUCoreLib.Patches
         private static void SendAttempt_Prefix(object[] __args, out int __state)
         {
             __state = -1;
-            var attempt = __args != null && __args.Length > 0 ? __args[0] : null;
+            var attempt = __args != null && __args.Length > 0
+                ? __args[0]
+                : null;
             if (attempt == null) return;
 
             var localIndex = (ushort)_craftAttemptRecipeField.GetValue(attempt);
-            if (!RecipeRegistry.TryGetHostRecipeIndex(localIndex, out var hostIndex) || hostIndex == localIndex) return;
+            if (!RecipeRegistry.TryGetHostRecipeIndex(localIndex, out var hostIndex)
+                || hostIndex == localIndex) return;
 
             __state = localIndex;
             _craftAttemptRecipeField.SetValue(attempt, hostIndex);
@@ -198,7 +223,8 @@ namespace CUCoreLib.Patches
             _craftAttemptRecipeField.SetValue(__args[0], (ushort)__state);
         }
 
-        private static bool TryResolveResourcePrefab(string resourceStringId, out GameObject prefab)
+        private static bool TryResolveResourcePrefab(string resourceStringId,
+            out GameObject prefab)
         {
             prefab = null;
             if (string.IsNullOrWhiteSpace(resourceStringId)) return false;
@@ -208,15 +234,16 @@ namespace CUCoreLib.Patches
             return false;
         }
 
-        private static bool TryResolveCustomPrefab(string resourceStringId, out GameObject prefab)
+        private static bool TryResolveCustomPrefab(string resourceStringId,
+            out GameObject prefab)
         {
             prefab = null;
             if (string.IsNullOrWhiteSpace(resourceStringId)) return false;
 
             var normalized = resourceStringId.Trim();
             var baseId = SpawnIdHelpers.NormalizeSpawnId(normalized);
-            var isCustomId = ItemRegistry.TryGetCustomInfo(baseId, out _) ||
-                             BuildingEntityRegistry.TryGetDefinition(baseId, out _);
+            var isCustomId = ItemRegistry.TryGetCustomInfo(baseId, out _)
+                || BuildingEntityRegistry.TryGetDefinition(baseId, out _);
             if (isCustomId)
             {
                 prefab = CustomInstantiate.ResolvePrefab(baseId);
@@ -226,25 +253,26 @@ namespace CUCoreLib.Patches
             if (!normalized.StartsWith("KMPSR_", StringComparison.Ordinal)) return false;
             var stripped = normalized.Substring("KMPSR_".Length);
             var strippedBaseId = SpawnIdHelpers.NormalizeSpawnId(stripped);
-            if (!ItemRegistry.TryGetCustomInfo(strippedBaseId, out _) &&
-                !BuildingEntityRegistry.TryGetDefinition(strippedBaseId, out _)) return false;
+            if (!ItemRegistry.TryGetCustomInfo(strippedBaseId, out _)
+                && !BuildingEntityRegistry.TryGetDefinition(strippedBaseId, out _))
+                return false;
             prefab = CustomInstantiate.ResolvePrefab(strippedBaseId);
             return prefab != null;
         }
 
-        private static bool InstantiateResource_Prefix(string resourceId, object[] __args, ref GameObject __result)
+        private static bool InstantiateResource_Prefix(string resourceId, object[] __args,
+            ref GameObject __result)
         {
             var pos = default(Vector2);
             if (__args != null && __args.Length > 1 && __args[1] is Vector2 vector)
-            {
                 pos = vector;
-            }
 
-            if (!TryResolveResourcePrefab(resourceId, out var prefab) ||
-                prefab == null) return true;
+            if (!TryResolveResourcePrefab(resourceId, out var prefab) || prefab == null)
+                return true;
 
             var instance = CustomInstantiate.PrepareInstantiatedObject(
-                CustomInstantiate.InstantiateInActiveScene(prefab, pos, Quaternion.identity));
+                CustomInstantiate.InstantiateInActiveScene(prefab, pos,
+                    Quaternion.identity));
             if (instance == null)
             {
                 __result = null;
@@ -278,7 +306,8 @@ namespace CUCoreLib.Patches
             {
                 _chunkRetryScheduled = false;
                 if (!KrokMpWorldChunkPatches.IsInstalled)
-                    KrokMpWorldChunkPatches.Install(harmony, ResolveLoadedType(WorldChunkSyncTypeName));
+                    KrokMpWorldChunkPatches.Install(harmony,
+                        ResolveLoadedType(WorldChunkSyncTypeName));
                 if (!KrokMpWorldChunkPatches.IsInstalled && IsKrokMpExpected())
                     ScheduleChunkRetry(harmony);
             });
@@ -293,7 +322,8 @@ namespace CUCoreLib.Patches
         {
             if (string.IsNullOrWhiteSpace(fullName)) return null;
 
-            return AppDomain.CurrentDomain.GetAssemblies().Select(assembly => assembly.GetType(fullName, false))
+            return AppDomain.CurrentDomain.GetAssemblies()
+                .Select(assembly => assembly.GetType(fullName, false))
                 .FirstOrDefault(type => type != null);
         }
     }

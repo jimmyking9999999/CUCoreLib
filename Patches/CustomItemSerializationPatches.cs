@@ -15,7 +15,8 @@ namespace CUCoreLib.Patches
             return CustomInstantiate.ResolveSavedResource(id);
         }
 
-        internal static Object InstantiateSavedItem(Object original, Vector3 position, Quaternion rotation)
+        internal static Object InstantiateSavedItem(Object original, Vector3 position,
+            Quaternion rotation)
         {
             if (original == null) return null;
 
@@ -41,10 +42,10 @@ namespace CUCoreLib.Patches
         private static readonly MethodInfo ResourcesLoadMethod = typeof(Resources)
             .GetMethods(BindingFlags.Public | BindingFlags.Static)
             .First(method =>
-                method.Name == nameof(Resources.Load) &&
-                !method.IsGenericMethod &&
-                method.GetParameters().Length == 1 &&
-                method.GetParameters()[0].ParameterType == typeof(string));
+                method.Name == nameof(Resources.Load)
+                && !method.IsGenericMethod
+                && method.GetParameters().Length == 1
+                && method.GetParameters()[0].ParameterType == typeof(string));
 
         private static readonly MethodInfo LoadSavedItemResourceMethod =
             AccessTools.Method(typeof(CustomItemSerializationHelpers),
@@ -53,30 +54,33 @@ namespace CUCoreLib.Patches
         private static readonly MethodInfo ObjectInstantiateMethod = typeof(Object)
             .GetMethods(BindingFlags.Public | BindingFlags.Static)
             .First(method =>
-                method.Name == nameof(Object.Instantiate) &&
-                !method.IsGenericMethod &&
-                method.GetParameters().Length == 3 &&
-                method.GetParameters()[0].ParameterType == typeof(Object) &&
-                method.GetParameters()[1].ParameterType == typeof(Vector3) &&
-                method.GetParameters()[2].ParameterType == typeof(Quaternion));
+                method.Name == nameof(Object.Instantiate)
+                && !method.IsGenericMethod
+                && method.GetParameters().Length == 3
+                && method.GetParameters()[0].ParameterType == typeof(Object)
+                && method.GetParameters()[1].ParameterType == typeof(Vector3)
+                && method.GetParameters()[2].ParameterType == typeof(Quaternion));
 
         private static readonly MethodInfo InstantiateSavedItemMethod =
             AccessTools.Method(typeof(CustomItemSerializationHelpers),
                 nameof(CustomItemSerializationHelpers.InstantiateSavedItem));
 
-        private static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
+        private static IEnumerable<CodeInstruction> Transpiler(
+            IEnumerable<CodeInstruction> instructions)
         {
             foreach (var instruction in instructions)
             {
                 if (instruction.Calls(ResourcesLoadMethod))
                 {
-                    yield return new CodeInstruction(OpCodes.Call, LoadSavedItemResourceMethod);
+                    yield return new CodeInstruction(OpCodes.Call,
+                        LoadSavedItemResourceMethod);
                     continue;
                 }
 
                 if (instruction.Calls(ObjectInstantiateMethod))
                 {
-                    yield return new CodeInstruction(OpCodes.Call, InstantiateSavedItemMethod);
+                    yield return new CodeInstruction(OpCodes.Call,
+                        InstantiateSavedItemMethod);
                     continue;
                 }
 
