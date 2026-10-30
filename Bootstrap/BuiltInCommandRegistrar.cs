@@ -51,11 +51,15 @@ namespace CUCoreLib.Bootstrap
                 delegate
                 {
                     var loadedPlugins = Chainloader.PluginInfos.Values
-                        .OrderBy(plugin => plugin.Metadata?.Name ?? plugin.Metadata?.GUID ?? string.Empty)
+                        .OrderBy(plugin =>
+                            plugin.Metadata?.Name
+                            ?? plugin.Metadata?.GUID ?? string.Empty)
                         .Select(plugin =>
                         {
-                            var name = plugin.Metadata?.Name ?? plugin.Metadata?.GUID ?? "Unknown Plugin";
-                            var version = plugin.Metadata?.Version?.ToString() ?? "unknown";
+                            var name = plugin.Metadata?.Name
+                                ?? plugin.Metadata?.GUID ?? "Unknown Plugin";
+                            var version = plugin.Metadata?.Version?.ToString()
+                                ?? "unknown";
                             var guid = plugin.Metadata?.GUID ?? "unknown.guid";
                             return $"  {name} v{version} ({guid})";
                         }).ToList();
@@ -67,7 +71,8 @@ namespace CUCoreLib.Bootstrap
                     var console = ConsoleScript.instance;
                     if (console == null) return;
                     CUCoreUtils.ConsoleLog(console, summary);
-                    foreach (var line in loadedPlugins) CUCoreUtils.ConsoleLog(console, line);
+                    foreach (var line in loadedPlugins)
+                        CUCoreUtils.ConsoleLog(console, line);
                 });
 
             ConsoleCommandRegistry.Register("bug-report",
@@ -75,44 +80,59 @@ namespace CUCoreLib.Bootstrap
                 BugReportService.RunCommand,
                 new Dictionary<int, List<string>>
                 {
-                    [2] = new List<string> { "low", "medium", "high", "critical" } 
+                    [2] = new List<string> { "low", "medium", "high", "critical" }
                 },
-                ("description", "Optional description in quotation marks \"\". Optional, but highly recommended."),
-                ("bool screenshot", "True/false. Captures the current game screen if true. Optional."),
+                ("description",
+                    "Optional description in quotation marks \"\". Optional, but highly recommended."),
+                ("bool screenshot",
+                    "True/false. Captures the current game screen if true. Optional."),
                 ("severity", "low/medium/high/critical. Optional."));
 
             ConsoleCommandRegistry.Register("reloadcontent",
                 "Strictly reloads item/liquid/recipe/locale content from a rebuilt mod DLL.",
                 delegate(string[] args)
                 {
-                    if (args.Length < 2) throw new Exception("Usage: reloadcontent [modGuid]");
+                    if (args.Length < 2)
+                        throw new Exception("Usage: reloadcontent [modGuid]");
                     var result = ContentReloadManager.Reload(args[1]);
-                    ContentReloadManager.WriteReloadSummaryToConsole(ConsoleScript.instance, result);
+                    ContentReloadManager.WriteReloadSummaryToConsole(
+                        ConsoleScript.instance, result);
                 }, new Dictionary<int, List<string>>
                 {
                     [0] = ContentReloadManager.GetLoadedModGuids().ToList()
-                }, ("modGuid", "BepInEx plugin GUID to strictly reload from a rebuilt DLL."));
+                },
+                ("modGuid",
+                    "BepInEx plugin GUID to strictly reload from a rebuilt DLL."));
 
             ConsoleCommandRegistry.Register("autohotreload",
                 "Enables automatic hot reloading after detecting a loaded mod DLL file change.",
                 delegate(string[] args)
                 {
-                    if (args.Length < 3) throw new Exception("Usage: autohotreload [modGuid] [enable]");
+                    if (args.Length < 3)
+                        throw new Exception("Usage: autohotreload [modGuid] [enable]");
                     if (!bool.TryParse(args[2], out var enabled))
                         throw new Exception("Enable must be 'true' or 'false'.");
 
-                    var success = ContentReloadManager.ConfigureAutoHotRefresh(args[1], enabled, out var message);
+                    var success =
+                        ContentReloadManager.ConfigureAutoHotRefresh(args[1], enabled,
+                            out var message);
                     if (!success) throw new Exception(message);
                     CUCoreUtils.ConsoleLog(ConsoleScript.instance, message);
                 }, null,
-                ("modGuid", "BepInEx plugin GUID that previously called ContentReloadManager.EnableHotReload(GUID)."),
-                ("enable", "true to enable watch mode for that DLL, false to disable it."));
+                ("modGuid",
+                    "BepInEx plugin GUID that previously called ContentReloadManager.EnableHotReload(GUID)."),
+                ("enable",
+                    "true to enable watch mode for that DLL, false to disable it."));
 
             ConsoleCommandRegistry.Register("debugwatch",
                 "Manages a live top-right overlay of watched static fields for runtime debugging.",
-                delegate(string[] args) { DebugWatchConsoleCommands.Run(ConsoleScript.instance, args); }, null,
+                delegate(string[] args)
+                {
+                    DebugWatchConsoleCommands.Run(ConsoleScript.instance, args);
+                }, null,
                 ("action", "add, remove, list, clear, show, or hide."),
-                ("Type.member", "Reflected static field to watch, such as Namespace.Plugin.healthRate."));
+                ("Type.member",
+                    "Reflected static field to watch, such as Namespace.Plugin.healthRate."));
         }
 
         private static bool LooksLikeLocalePath(string arg)
@@ -120,8 +140,9 @@ namespace CUCoreLib.Bootstrap
             if (string.IsNullOrWhiteSpace(arg)) return false;
 
             var trimmed = arg.Trim();
-            return trimmed.IndexOf('/') >= 0 || trimmed.IndexOf('\\') >= 0 ||
-                   trimmed.EndsWith(".json", StringComparison.OrdinalIgnoreCase);
+            return trimmed.IndexOf('/') >= 0
+                || trimmed.IndexOf('\\') >= 0
+                || trimmed.EndsWith(".json", StringComparison.OrdinalIgnoreCase);
         }
     }
 }
