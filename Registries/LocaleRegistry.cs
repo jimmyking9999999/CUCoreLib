@@ -23,7 +23,9 @@ namespace CUCoreLib.Registries
             Command = 5,
             Option = 6,
             Liquid = 7,
-            Title = 8
+            Tile = 8,
+            Ui = 9,
+            Message = 10
         }
 
         internal static Dictionary<int, Dictionary<string, string>> CustomLocales =
@@ -62,14 +64,17 @@ namespace CUCoreLib.Registries
             var type = (int)category;
 
             if (!CustomLocales.ContainsKey(type))
-                CustomLocales[type] = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                CustomLocales[type] =
+                    new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
             if (!LocaleOwners.ContainsKey(type))
-                LocaleOwners[type] = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                LocaleOwners[type] =
+                    new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
             var value = text ?? string.Empty;
-            if (CustomLocales[type].TryGetValue(key, out var existing) && !string.IsNullOrWhiteSpace(existing) &&
-                string.IsNullOrWhiteSpace(value)) return;
+            if (CustomLocales[type].TryGetValue(key, out var existing)
+                && !string.IsNullOrWhiteSpace(existing)
+                && string.IsNullOrWhiteSpace(value)) return;
 
             CustomLocales[type][key] = value;
             var ownerId = !string.IsNullOrWhiteSpace(ActiveOwnerId)
@@ -100,12 +105,14 @@ namespace CUCoreLib.Registries
 
             var type = CategoryToType(category);
             if (!RequiredLocales.ContainsKey(type))
-                RequiredLocales[type] = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                RequiredLocales[type] =
+                    new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
             RequiredLocales[type].Add(key.Trim());
         }
 
-        public static string Get(string key, string optionalFallbackIfLocaleValueNullOrWhitespace = null)
+        public static string Get(string key,
+            string optionalFallbackIfLocaleValueNullOrWhitespace = null)
         {
             return Get("other", key, optionalFallbackIfLocaleValueNullOrWhitespace);
         }
@@ -114,19 +121,26 @@ namespace CUCoreLib.Registries
             // Methods with optional parameters are overloaded and hidden
             string optionalFallbackIfLocaleValueNullOrWhitespace = null)
         {
-            if (string.IsNullOrWhiteSpace(key)) return optionalFallbackIfLocaleValueNullOrWhitespace ?? string.Empty;
+            if (string.IsNullOrWhiteSpace(key))
+                return optionalFallbackIfLocaleValueNullOrWhitespace ?? string.Empty;
 
             var normalizedKey = key.Trim();
             if (string.IsNullOrWhiteSpace(optionalFallbackIfLocaleValueNullOrWhitespace))
             {
                 Require(category, normalizedKey);
                 var runtimeValue = LocaleLoader.GetLocalizedText(category, normalizedKey);
-                return string.IsNullOrWhiteSpace(runtimeValue) ? normalizedKey : runtimeValue;
+                return string.IsNullOrWhiteSpace(runtimeValue)
+                    ? normalizedKey
+                    : runtimeValue;
             }
 
-            Register(category, normalizedKey, optionalFallbackIfLocaleValueNullOrWhitespace);
-            var value = LocaleLoader.GetLocalizedText(category, normalizedKey, optionalFallbackIfLocaleValueNullOrWhitespace);
-            return string.IsNullOrWhiteSpace(value) ? optionalFallbackIfLocaleValueNullOrWhitespace : value;
+            Register(category, normalizedKey,
+                optionalFallbackIfLocaleValueNullOrWhitespace);
+            var value = LocaleLoader.GetLocalizedText(category, normalizedKey,
+                optionalFallbackIfLocaleValueNullOrWhitespace);
+            return string.IsNullOrWhiteSpace(value)
+                ? optionalFallbackIfLocaleValueNullOrWhitespace
+                : value;
         }
 
         public static void RegisterCraftingQuality(string id, string displayName = null)
@@ -139,15 +153,16 @@ namespace CUCoreLib.Registries
                 ? HumanizeCraftingQualityId(normalizedId)
                 : displayName.Trim();
 
-            if (CustomLocales.TryGetValue((int)LocaleCategory.Other, out var otherLocales) &&
-                otherLocales.TryGetValue(key, out var existingValue) &&
-                !string.IsNullOrWhiteSpace(existingValue))
+            if (CustomLocales.TryGetValue((int)LocaleCategory.Other, out var otherLocales)
+                && otherLocales.TryGetValue(key, out var existingValue)
+                && !string.IsNullOrWhiteSpace(existingValue))
                 return;
 
             Register("other", key, fallbackName);
         }
 
-        public static void RegisterCraftingQualities(IEnumerable<CraftingQuality> qualities)
+        public static void RegisterCraftingQualities(
+            IEnumerable<CraftingQuality> qualities)
         {
             if (qualities == null) return;
 
@@ -158,10 +173,15 @@ namespace CUCoreLib.Registries
             }
         }
 
-        public static JObject BuildLocaleJson(JObject existing = null, string ownerId = null)
+        public static JObject BuildLocaleJson(JObject existing = null,
+            string ownerId = null)
         {
-            var root = existing != null ? (JObject)existing.DeepClone() : new JObject();
-            var ownerEntries = string.IsNullOrWhiteSpace(ownerId) ? null : CaptureOwnerEntries(ownerId);
+            var root = existing != null
+                ? (JObject)existing.DeepClone()
+                : new JObject();
+            var ownerEntries = string.IsNullOrWhiteSpace(ownerId)
+                ? null
+                : CaptureOwnerEntries(ownerId);
 
             for (var type = 0; type <= 8; type++)
             {
@@ -186,7 +206,8 @@ namespace CUCoreLib.Registries
                         categoryObject[entry.Key] = entry.Value ?? string.Empty;
 
                 if (!RequiredLocales.TryGetValue(type, out var requiredKeys)) continue;
-                foreach (var key in requiredKeys.Where(key => categoryObject[key] == null))
+                foreach (var key in
+                    requiredKeys.Where(key => categoryObject[key] == null))
                     categoryObject[key] = string.Empty;
             }
 
@@ -200,9 +221,11 @@ namespace CUCoreLib.Registries
 
             var normalized = targetLanguage.Trim();
             var active = Locale.currentLangName?.Trim();
-            if (string.Equals(normalized, active, StringComparison.OrdinalIgnoreCase)) return root;
+            if (string.Equals(normalized, active, StringComparison.OrdinalIgnoreCase))
+                return root;
 
-            LocaleLoader.MergeJsonInto(root, LocaleLoader.BuildOverlayJsonForLanguage(normalized));
+            LocaleLoader.MergeJsonInto(root,
+                LocaleLoader.BuildOverlayJsonForLanguage(normalized));
             return root;
         }
 
@@ -213,16 +236,20 @@ namespace CUCoreLib.Registries
 
         public static string WriteLocaleFile(string path = null, string ownerId = null)
         {
-            var normalizedOwnerId = string.IsNullOrWhiteSpace(ownerId) ? null : ownerId.Trim();
-            if (normalizedOwnerId != null && CaptureOwnerEntries(normalizedOwnerId).Count == 0)
+            var normalizedOwnerId = string.IsNullOrWhiteSpace(ownerId)
+                ? null
+                : ownerId.Trim();
+            if (normalizedOwnerId != null
+                && CaptureOwnerEntries(normalizedOwnerId).Count == 0)
             {
                 CUCoreLibPlugin.Log.LogWarning(
                     $"Locale file was not written because no locale entries are owned by '{normalizedOwnerId}'. Is the mod loaded?");
                 return null;
             }
 
-            if (string.IsNullOrWhiteSpace(path)) path = GetDefaultLocalePath(normalizedOwnerId);
-            else path = ResolveOutputPath(path, normalizedOwnerId);
+            path = string.IsNullOrWhiteSpace(path)
+                ? GetDefaultLocalePath(normalizedOwnerId)
+                : ResolveOutputPath(path, normalizedOwnerId);
 
             JObject existing = null;
             if (File.Exists(path))
@@ -242,7 +269,8 @@ namespace CUCoreLib.Registries
 
             // Serialize a plain CLR graph so locale generation does not depend on
             // JToken.WriteTo, which can fail when another mod loads an older Newtonsoft.Json first.
-            var json = JsonConvert.SerializeObject(ConvertTokenToPlainObject(output), Formatting.Indented);
+            var json = JsonConvert.SerializeObject(ConvertTokenToPlainObject(output),
+                Formatting.Indented);
 
             File.WriteAllText(path, json);
             return path;
@@ -258,12 +286,15 @@ namespace CUCoreLib.Registries
 
         private static string ResolveOutputPath(string path, string ownerId)
         {
-            if (Directory.Exists(path)) return Path.Combine(path, Path.GetFileName(GetDefaultLocalePath(ownerId)));
+            if (Directory.Exists(path))
+                return Path.Combine(path,
+                    Path.GetFileName(GetDefaultLocalePath(ownerId)));
 
             if (string.IsNullOrWhiteSpace(Path.GetExtension(path)))
             {
                 Directory.CreateDirectory(path);
-                return Path.Combine(path, Path.GetFileName(GetDefaultLocalePath(ownerId)));
+                return Path.Combine(path,
+                    Path.GetFileName(GetDefaultLocalePath(ownerId)));
             }
 
             return path;
@@ -274,7 +305,8 @@ namespace CUCoreLib.Registries
             return new OwnerScope(ownerId);
         }
 
-        internal static Dictionary<int, Dictionary<string, string>> CaptureOwnerEntries(string ownerId)
+        internal static Dictionary<int, Dictionary<string, string>> CaptureOwnerEntries(
+            string ownerId)
         {
             var snapshot = new Dictionary<int, Dictionary<string, string>>();
             if (string.IsNullOrWhiteSpace(ownerId)) return snapshot;
@@ -283,9 +315,12 @@ namespace CUCoreLib.Registries
             foreach (var entry in LocaleOwners)
             {
                 var ownedEntries = entry.Value
-                    .Where(pair => string.Equals(pair.Value, normalizedOwnerId, StringComparison.OrdinalIgnoreCase))
+                    .Where(pair => string.Equals(pair.Value, normalizedOwnerId,
+                        StringComparison.OrdinalIgnoreCase))
                     .Select(pair => pair.Key)
-                    .Where(key => CustomLocales.TryGetValue(entry.Key, out var locales) && locales.ContainsKey(key))
+                    .Where(key =>
+                        CustomLocales.TryGetValue(entry.Key, out var locales)
+                        && locales.ContainsKey(key))
                     .ToDictionary(
                         key => key,
                         key => CustomLocales[entry.Key][key],
@@ -297,13 +332,14 @@ namespace CUCoreLib.Registries
             return snapshot;
         }
 
-        internal static void RestoreOwnerEntries(string ownerId, IDictionary<int, Dictionary<string, string>> snapshot)
+        internal static void RestoreOwnerEntries(string ownerId,
+            IDictionary<int, Dictionary<string, string>> snapshot)
         {
             if (snapshot == null || snapshot.Count == 0) return;
 
             foreach (var category in snapshot)
-            foreach (var entry in category.Value)
-                Register(category.Key, entry.Key, entry.Value);
+                foreach (var entry in category.Value)
+                    Register(category.Key, entry.Key, entry.Value);
         }
 
         internal static void ClearOwnerEntries(string ownerId, ContentReloadResult result)
@@ -316,35 +352,53 @@ namespace CUCoreLib.Registries
             foreach (var entry in LocaleOwners.ToArray())
             {
                 var keys = entry.Value
-                    .Where(pair => string.Equals(pair.Value, normalizedOwnerId, StringComparison.OrdinalIgnoreCase))
+                    .Where(pair => string.Equals(pair.Value, normalizedOwnerId,
+                        StringComparison.OrdinalIgnoreCase))
                     .Select(pair => pair.Key)
                     .ToArray();
 
                 foreach (var key in keys)
                 {
                     entry.Value.Remove(key);
-                    if (CustomLocales.TryGetValue(entry.Key, out var locales)) locales.Remove(key);
+                    if (CustomLocales.TryGetValue(entry.Key, out var locales))
+                        locales.Remove(key);
 
                     removed++;
                 }
             }
 
             if (removed > 0)
-                result?.AddInfo("Cleared " + removed + " locale entries owned by '" + normalizedOwnerId + "'.");
+                result?.AddInfo("Cleared "
+                    + removed
+                    + " locale entries owned by '"
+                    + normalizedOwnerId
+                    + "'.");
         }
 
         private static int CategoryToType(string category)
         {
             var normalizedCategory = (category ?? string.Empty).Trim().ToLowerInvariant();
-            return (int)(normalizedCategory == "item" ? LocaleCategory.Item :
-                normalizedCategory == "building" ? LocaleCategory.Building :
-                normalizedCategory == "moodle" ? LocaleCategory.Moodle :
-                normalizedCategory == "log" ? LocaleCategory.Log :
-                normalizedCategory == "command" ? LocaleCategory.Command :
-                normalizedCategory == "option" ? LocaleCategory.Option :
-                normalizedCategory == "liquid" ? LocaleCategory.Liquid :
-                normalizedCategory == "title" ? LocaleCategory.Title :
-                LocaleCategory.Other);
+            return (int)(normalizedCategory == "item"
+                ? LocaleCategory.Item
+                : normalizedCategory == "building"
+                    ? LocaleCategory.Building
+                    : normalizedCategory == "moodle"
+                        ? LocaleCategory.Moodle
+                        : normalizedCategory == "log"
+                            ? LocaleCategory.Log
+                            : normalizedCategory == "command"
+                                ? LocaleCategory.Command
+                                : normalizedCategory == "option"
+                                    ? LocaleCategory.Option
+                                    : normalizedCategory == "liquid"
+                                        ? LocaleCategory.Liquid
+                                        : normalizedCategory == "title"
+                                            ? LocaleCategory.Tile
+                                            : normalizedCategory == "ui"
+                                                ? LocaleCategory.Ui
+                                                : normalizedCategory == "message"
+                                                    ? LocaleCategory.Message
+                                                    : LocaleCategory.Other);
         }
 
         private static string TypeToCategory(int type)
@@ -365,8 +419,12 @@ namespace CUCoreLib.Registries
                     return "option";
                 case LocaleCategory.Liquid:
                     return "liquid";
-                case LocaleCategory.Title:
+                case LocaleCategory.Tile:
                     return "title";
+                case LocaleCategory.Ui:
+                    return "ui";
+                case LocaleCategory.Message:
+                    return "message";
                 case LocaleCategory.Other:
                 default:
                     return "other";
@@ -377,14 +435,19 @@ namespace CUCoreLib.Registries
         {
             while (true)
             {
-                if (token == null || token.Type == JTokenType.Null || token.Type == JTokenType.Undefined) return null;
+                if (token == null
+                    || token.Type == JTokenType.Null
+                    || token.Type == JTokenType.Undefined) return null;
 
                 switch (token)
                 {
                     case JObject obj:
                     {
-                        var result = new Dictionary<string, object>(StringComparer.Ordinal);
-                        foreach (var property in obj.Properties()) result[property.Name] = ConvertTokenToPlainObject(property.Value);
+                        var result =
+                            new Dictionary<string, object>(StringComparer.Ordinal);
+                        foreach (var property in obj.Properties())
+                            result[property.Name] =
+                                ConvertTokenToPlainObject(property.Value);
 
                         return result;
                     }
@@ -399,7 +462,8 @@ namespace CUCoreLib.Registries
                         return value.Value;
                     case JContainer container:
                     {
-                        return container.Children().Select(ConvertTokenToPlainObject).ToList();
+                        return container.Children().Select(ConvertTokenToPlainObject)
+                            .ToList();
                     }
                     default:
                         return null;
@@ -421,9 +485,11 @@ namespace CUCoreLib.Registries
                 {
                     var previous = trimmed[i - 1];
                     var hasNext = i + 1 < trimmed.Length;
-                    var next = hasNext ? trimmed[i + 1] : '\0';
-                    if ((char.IsLower(previous) || char.IsDigit(previous)) ||
-                        (char.IsUpper(previous) && hasNext && char.IsLower(next)))
+                    var next = hasNext
+                        ? trimmed[i + 1]
+                        : '\0';
+                    if ((char.IsLower(previous) || char.IsDigit(previous))
+                        || (char.IsUpper(previous) && hasNext && char.IsLower(next)))
                         builder.Append(' ');
                 }
 
@@ -435,7 +501,9 @@ namespace CUCoreLib.Registries
                 .Select(word => char.ToUpperInvariant(word[0]) + word.Substring(1))
                 .ToArray();
 
-            return words.Length == 0 ? trimmed : string.Join(" ", words);
+            return words.Length == 0
+                ? trimmed
+                : string.Join(" ", words);
         }
 
         private sealed class OwnerScope : IDisposable
@@ -445,7 +513,9 @@ namespace CUCoreLib.Registries
             public OwnerScope(string ownerId)
             {
                 previousOwnerId = ActiveOwnerId;
-                ActiveOwnerId = string.IsNullOrWhiteSpace(ownerId) ? null : ownerId.Trim();
+                ActiveOwnerId = string.IsNullOrWhiteSpace(ownerId)
+                    ? null
+                    : ownerId.Trim();
             }
 
             public void Dispose()
