@@ -1,6 +1,6 @@
+using CUCoreLib.Helpers;
 using CUCoreLib.Patches;
 using CUCoreLib.Registries;
-using CUCoreLib.Helpers;
 using Newtonsoft.Json.Linq;
 using UnityEngine.Rendering.Universal;
 
@@ -21,24 +21,32 @@ namespace CUCoreLib.Saving
             var customData = ItemRegistry.CaptureRuntimeCustomData(item);
             if (customData != null) result["customData"] = customData;
 
-            if (ItemRegistryPatches.TryGetRuntimeIconOverride(item, out var iconOverride) && iconOverride != null)
-                result["iconOverride"] = NetworkSnapshotSerialization.WriteSprite(iconOverride);
+            if (ItemRegistryPatches.TryGetRuntimeIconOverride(item, out var iconOverride)
+                && iconOverride != null)
+                result["iconOverride"] =
+                    NetworkSnapshotSerialization.WriteSprite(iconOverride);
 
             var lightItem = item.GetComponent<LightItem>();
             if (lightItem != null) result["lightEnabled"] = lightItem.shouldEnable;
 
-            return result.HasValues ? result : null;
+            return result.HasValues
+                ? result
+                : null;
         }
 
-        public void Restore(Item item, string itemKey, JToken payload, int version, SaveRestoreContext context)
+        public void Restore(Item item, string itemKey, JToken payload, int version,
+            SaveRestoreContext context)
         {
-            if (item == null || !(payload is JObject obj) || !ItemRegistry.TryGetCustomInfo(item, out _)) return;
+            if (item == null
+                || !(payload is JObject obj)
+                || !ItemRegistry.TryGetCustomInfo(item, out _)) return;
 
             if (obj["customData"] is JObject customData)
                 ItemRegistry.RestoreRuntimeCustomData(item, customData);
 
             if (obj["iconOverride"] is JObject iconOverride)
-                ItemRegistryPatches.SetRuntimeIconOverride(item, NetworkSnapshotSerialization.ReadSprite(iconOverride));
+                ItemRegistryPatches.SetRuntimeIconOverride(item,
+                    NetworkSnapshotSerialization.ReadSprite(iconOverride));
             else
                 ItemRegistryPatches.SetRuntimeIconOverride(item, null);
 
@@ -68,9 +76,11 @@ namespace CUCoreLib.Saving
             if (lightItem == null) return;
 
             lightItem.shouldEnable = enabled;
-            if (lightItem.light == null) lightItem.light = item.GetComponentInChildren<Light2D>();
+            if (lightItem.light == null)
+                lightItem.light = item.GetComponentInChildren<Light2D>();
 
-            if (lightItem.light != null) lightItem.light.enabled = enabled && !lightItem.inContainer;
+            if (lightItem.light != null)
+                lightItem.light.enabled = enabled && !lightItem.inContainer;
         }
     }
 }

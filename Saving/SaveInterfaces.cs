@@ -17,7 +17,9 @@ namespace CUCoreLib.Saving
     {
         int GetVersion();
         JToken Capture(Item item, string itemKey);
-        void Restore(Item item, string itemKey, JToken payload, int version, SaveRestoreContext context);
+
+        void Restore(Item item, string itemKey, JToken payload, int version,
+            SaveRestoreContext context);
     }
 
     public interface IBodySaveProvider
@@ -31,45 +33,51 @@ namespace CUCoreLib.Saving
     {
         int GetVersion();
         JToken Capture(Limb limb, int limbIndex);
-        void Restore(Limb limb, int limbIndex, JToken payload, int version, SaveRestoreContext context);
+
+        void Restore(Limb limb, int limbIndex, JToken payload, int version,
+            SaveRestoreContext context);
     }
 
     public interface IWorldSaveProvider
     {
         int GetVersion();
         JToken Capture(WorldSaveContext context);
-        void Restore(WorldSaveContext context, JToken payload, int version, SaveRestoreContext contextForRestore);
+
+        void Restore(WorldSaveContext context, JToken payload, int version,
+            SaveRestoreContext contextForRestore);
     }
 
     public sealed class WorldSaveContext
     {
-        private readonly Body _body;
-        private readonly PlayerCamera _playerCamera;
-        private readonly WorldGeneration _world;
-
         public WorldSaveContext()
-            : this(PlayerCamera.main != null ? PlayerCamera.main.body : null, PlayerCamera.main,
+            : this(PlayerCamera.main != null
+                    ? PlayerCamera.main.body
+                    : null, PlayerCamera.main,
                 WorldGeneration.world)
         {
         }
 
-        internal WorldSaveContext(Body body, PlayerCamera playerCamera, WorldGeneration world)
+        internal WorldSaveContext(Body body, PlayerCamera playerCamera,
+            WorldGeneration world)
         {
-            _body = body;
-            _playerCamera = playerCamera;
-            _world = world;
+            Body = body;
+            PlayerCamera = playerCamera;
+            World = world;
         }
 
-        public Body Body => _body;
-        public PlayerCamera PlayerCamera => _playerCamera;
-        public WorldGeneration World => _world;
+        public Body Body { get; }
+
+        public PlayerCamera PlayerCamera { get; }
+
+        public WorldGeneration World { get; }
     }
 
     public sealed class SaveRestoreContext
     {
         private readonly List<Action> _deferredActions = new List<Action>();
 
-        internal SaveRestoreContext(Body body, PlayerCamera playerCamera, WorldGeneration world)
+        internal SaveRestoreContext(Body body, PlayerCamera playerCamera,
+            WorldGeneration world)
         {
             Body = body;
             PlayerCamera = playerCamera;
@@ -108,7 +116,8 @@ namespace CUCoreLib.Saving
                 }
                 catch (Exception ex)
                 {
-                    CUCoreLibPlugin.Log?.LogWarning("CUCoreLib Save: Deferred restore action failed.\n" + ex);
+                    CUCoreLibPlugin.Log?.LogWarning(
+                        "CUCoreLib Save: Deferred restore action failed.\n" + ex);
                 }
         }
     }
