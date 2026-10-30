@@ -4,31 +4,33 @@ using System.Collections.Generic;
 using System.Linq;
 using CUCoreLib.Helpers;
 using UnityEngine;
+using Object = UnityEngine.Object;
 
 namespace CUCoreLib.BugReporting
 {
     internal static class BugReportService
     {
         private const int CooldownSeconds = 60;
+
+        private const int MaxTotalUploadBytes = 12 * 1024 * 1024; // 12mb
+        private const int MaxScreenshotBytes = 5 * 1024 * 1024; // 5mb
+
         private static readonly string[] BuiltInWebhookParts =
         {
-            /* Hey! This is open source, so anyone can realistically take this webhook link and 
-            * delete it or send whatever in it.
-            *
-            * I trust the modding community enough though, I would hate to have to obfuscate it more
-            * or host it on google bucket or my own server.
-            *
-            * Thanks in advance ^^
-            */
+            /* Hey! This is open source, so anyone can realistically take this webhook link and
+             * delete it or send whatever in it.
+             *
+             * I trust the modding community enough though, I would hate to have to obfuscate it more
+             * or host it on google bucket or my own server.
+             *
+             * Thanks in advance ^^
+             */
             "https://ptb.dis",
             "cord.com/api/web",
             "hooks/1531032922969346299/",
             "M2yjvU7X7otXredLGQbnzSdJZIi7-",
             "ksEMKXgBjSVlRFHtjWFf21GvM5SF_8MkqDr1kTA"
         };
-
-        private const int MaxTotalUploadBytes = 12 * 1024 * 1024; // 12mb
-        private const int MaxScreenshotBytes = 5 * 1024 * 1024; // 5mb
 
         private static bool _sending;
         private static float _lastStartedAt = float.NegativeInfinity;
@@ -38,14 +40,16 @@ namespace CUCoreLib.BugReporting
             if (!TryParseCommand(args, out var reportRequest, out var error))
                 throw new Exception(error);
 
-          
+
             if (_sending)
                 throw new Exception("A bug report is already being sent.");
 
-            var remaining = CooldownSeconds - (Time.realtimeSinceStartup - _lastStartedAt);
+            var remaining =
+                CooldownSeconds - (Time.realtimeSinceStartup - _lastStartedAt);
             if (remaining > 0f)
-                throw new Exception("Please wait " + Mathf.CeilToInt(remaining) +
-                                    " seconds before sending another bug report.");
+                throw new Exception("Please wait "
+                    + Mathf.CeilToInt(remaining)
+                    + " seconds before sending another bug report.");
 
             _sending = true;
             _lastStartedAt = Time.realtimeSinceStartup;
@@ -53,7 +57,8 @@ namespace CUCoreLib.BugReporting
             CUCoreUtils.StartCoroutine(SendRoutine(reportRequest));
         }
 
-        internal static bool TryParseCommand(string[] args, out BugReportRequest request, out string error)
+        internal static bool TryParseCommand(string[] args, out BugReportRequest request,
+            out string error)
         {
             request = null;
             error = null;
@@ -65,19 +70,22 @@ namespace CUCoreLib.BugReporting
 
             var description = "-";
             var nextArgument = 1;
-            if (args.Length > 1 &&
-                !TryReadDescription(args, out description, out nextArgument, out error))
+            if (args.Length > 1
+                && !TryReadDescription(args, out description, out nextArgument,
+                    out error))
                 return false;
 
             var screenshot = false;
-            if (args.Length > nextArgument && !bool.TryParse(args[nextArgument], out screenshot))
+            if (args.Length > nextArgument
+                && !bool.TryParse(args[nextArgument], out screenshot))
             {
                 error = "Screenshot must be 'true' or 'false'.";
                 return false;
             }
 
             var severity = BugReportSeverity.Medium;
-            if (args.Length > nextArgument + 1 && !TryParseSeverity(args[nextArgument + 1], out severity))
+            if (args.Length > nextArgument + 1
+                && !TryParseSeverity(args[nextArgument + 1], out severity))
             {
                 error = "Severity must be low, medium, high, or critical.";
                 return false;
@@ -98,7 +106,8 @@ namespace CUCoreLib.BugReporting
             return true;
         }
 
-        private static bool TryReadDescription(string[] args, out string description, out int nextArgument,
+        private static bool TryReadDescription(string[] args, out string description,
+            out int nextArgument,
             out string error)
         {
             description = args[1];
@@ -124,13 +133,16 @@ namespace CUCoreLib.BugReporting
                 return true;
             }
 
-            error = "The bug report description has an opening quote but no closing quote. " + GetUsage();
+            error =
+                "The bug report description has an opening quote but no closing quote. "
+                + GetUsage();
             return false;
         }
 
         private static string GetUsage()
         {
-            return "Usage: bug-report [\"description text\"] [bool screenshot] [severity]";
+            return
+                "Usage: bug-report [\"description text\"] [bool screenshot] [severity]";
         }
 
         private static IEnumerator SendRoutine(BugReportRequest request)
@@ -147,13 +159,15 @@ namespace CUCoreLib.BugReporting
 
                 EnforceTotalSizeLimit(report);
 
-                var destination = new DiscordWebhookDestination(string.Concat(BuiltInWebhookParts));
+                var destination =
+                    new DiscordWebhookDestination(string.Concat(BuiltInWebhookParts));
                 BugReportSendResult result = null;
                 yield return destination.Send(report, value => result = value);
 
                 if (result != null && !result.Success && result.RetryAfterSeconds > 0f)
                 {
-                    yield return new WaitForSecondsRealtime(Math.Min(result.RetryAfterSeconds, 30f));
+                    yield return new WaitForSecondsRealtime(
+                        Math.Min(result.RetryAfterSeconds, 30f));
                     result = null;
                     yield return destination.Send(report, value => result = value);
                 }
@@ -166,9 +180,15 @@ namespace CUCoreLib.BugReporting
                 }
                 else
                 {
-                    var message = result?.Error ?? "The bug report did not send for some reason! Uh-oh.";
-                    CUCoreLibPlugin.Log?.LogWarning("Bug report " + report.ReportId + " failed: " + message);
-                    WriteConsole("<color=orange>Bug report failed: " + message + "</color>");
+                    var message = result?.Error
+                        ?? "The bug report did not send for some reason! Uh-oh.";
+                    CUCoreLibPlugin.Log?.LogWarning("Bug report "
+                        + report.ReportId
+                        + " failed: "
+                        + message);
+                    WriteConsole("<color=orange>Bug report failed: "
+                        + message
+                        + "</color>");
                 }
             }
             finally
@@ -198,23 +218,26 @@ namespace CUCoreLib.BugReporting
                     return;
                 }
 
-                report.ScreenshotNote = "Omitted because someone's playing CU on a 16K TV";
+                report.ScreenshotNote =
+                    "Omitted because someone's playing CU on a 16K TV";
             }
             catch (Exception ex)
             {
                 report.ScreenshotNote = "Capture failed: " + ex.Message;
-                CUCoreLibPlugin.Log?.LogWarning("Could not capture a bug report screenshot: " + ex.Message);
+                CUCoreLibPlugin.Log?.LogWarning(
+                    "Could not capture a bug report screenshot: " + ex.Message);
             }
             finally
             {
-                if (texture != null) UnityEngine.Object.Destroy(texture);
+                if (texture != null) Object.Destroy(texture);
             }
         }
 
         private static void EnforceTotalSizeLimit(BugReportPackage report)
         {
-            var total = report.Attachments.Sum(attachment => attachment?.Data?.Length ?? 0) +
-                        (report.Screenshot?.Length ?? 0);
+            var total =
+                report.Attachments.Sum(attachment => attachment?.Data?.Length ?? 0)
+                + (report.Screenshot?.Length ?? 0);
             if (total <= MaxTotalUploadBytes) return;
 
             report.Screenshot = null;
@@ -223,13 +246,14 @@ namespace CUCoreLib.BugReporting
 
         private static bool TryParseSeverity(string value, out BugReportSeverity severity)
         {
-            return Enum.TryParse((value ?? string.Empty).Trim(), true, out severity) &&
-                   Enum.IsDefined(typeof(BugReportSeverity), severity);
+            return Enum.TryParse((value ?? string.Empty).Trim(), true, out severity)
+                && Enum.IsDefined(typeof(BugReportSeverity), severity);
         }
 
         private static void WriteConsole(string message)
         {
-            if (ConsoleScript.instance != null) CUCoreUtils.ConsoleLog(ConsoleScript.instance, message);
+            if (ConsoleScript.instance != null)
+                CUCoreUtils.ConsoleLog(ConsoleScript.instance, message);
         }
     }
 }
