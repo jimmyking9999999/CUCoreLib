@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using BepInEx.Bootstrap;
+using BepInEx.Configuration;
 using CUCoreLib.Helpers;
 using CUCoreLib.Networking;
 using UnityEngine;
@@ -11,18 +12,25 @@ namespace CUCoreLib.ContentReload
 {
     public static class ContentReloadManager
     {
-        private const string AutoHotReloadEnabledKeyPrefix = "CUCoreLib.AutoHotReload.Enabled.";
+        private const string AutoHotReloadEnabledKeyPrefix =
+            "CUCoreLib.AutoHotReload.Enabled.";
+
         private const string ConfigSectionName = "Hot Reload";
+
         private static readonly Dictionary<string, ContentReloadState> StateByModGuid =
             new Dictionary<string, ContentReloadState>(StringComparer.OrdinalIgnoreCase);
+
         private static readonly HashSet<string> EnabledModGuids =
             new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        private static readonly Dictionary<string, BepInEx.Configuration.ConfigEntry<string>> OverridePathEntriesByModGuid =
-            new Dictionary<string, BepInEx.Configuration.ConfigEntry<string>>(StringComparer.OrdinalIgnoreCase);
+
+        private static readonly Dictionary<string, ConfigEntry<string>>
+            OverridePathEntriesByModGuid =
+                new Dictionary<string, ConfigEntry<string>>(StringComparer
+                    .OrdinalIgnoreCase);
 
         private static bool initialized;
         private static readonly ContentReloadConfig config = new ContentReloadConfig();
-        private static BepInEx.Configuration.ConfigFile configFile;
+        private static ConfigFile configFile;
 
         internal static void Initialize()
         {
@@ -51,8 +59,9 @@ namespace CUCoreLib.ContentReload
 
             if (!IsEnabled(modGuid))
             {
-                result.AddError("Hot reload is not enabled for '" + modGuid.Trim() +
-                                "'. Call ContentReloadManager.EnableHotReload(GUID) from Awake() first.");
+                result.AddError("Hot reload is not enabled for '"
+                    + modGuid.Trim()
+                    + "'. Call ContentReloadManager.EnableHotReload(GUID) from Awake() first.");
                 return result;
             }
 
@@ -65,7 +74,8 @@ namespace CUCoreLib.ContentReload
             }
 
             var state = GetOrCreateState(modGuid);
-            var candidate = ContentAssemblyResolver.ResolveCandidate(modGuid, config, state);
+            var candidate =
+                ContentAssemblyResolver.ResolveCandidate(modGuid, config, state);
             var report = ContentCompatibilityScanner.Scan(candidate);
             state.LastReport = report;
 
@@ -82,12 +92,7 @@ namespace CUCoreLib.ContentReload
             return result;
         }
 
-        public static void EnableHotReload(string modGuid)
-        {
-            EnableHotReload(modGuid, null);
-        }
-
-        public static void EnableHotReload(string modGuid, HotReloadOptions options)
+        public static void EnableHotReload(string modGuid, HotReloadOptions options = null)
         {
             Initialize();
 
@@ -96,14 +101,17 @@ namespace CUCoreLib.ContentReload
                 throw new ArgumentException("Mod GUID was empty.", nameof(modGuid));
 
             // Never throw past this point (#29)
-            if (!Chainloader.PluginInfos.TryGetValue(normalizedModGuid, out var pluginInfo) ||
-                pluginInfo == null ||
-                string.Equals(normalizedModGuid, CUCoreLibPlugin.GUID, StringComparison.OrdinalIgnoreCase))
+            if (!Chainloader.PluginInfos.TryGetValue(normalizedModGuid,
+                    out var pluginInfo)
+                || pluginInfo == null
+                || string.Equals(normalizedModGuid, CUCoreLibPlugin.GUID,
+                    StringComparison.OrdinalIgnoreCase))
             {
                 CUCoreLibPlugin.Log?.LogWarning(
-                    "EnableHotReload('" + normalizedModGuid +
-                    "') was ignored: that GUID does not match a loaded plugin's [BepInPlugin] GUID. " +
-                    "The calling plugin keeps loading normally; hot reload stays disabled for it.");
+                    "EnableHotReload('"
+                    + normalizedModGuid
+                    + "') was ignored: that GUID does not match a loaded plugin's [BepInPlugin] GUID. "
+                    + "The calling plugin keeps loading normally; hot reload stays disabled for it.");
                 return;
             }
 
@@ -117,7 +125,8 @@ namespace CUCoreLib.ContentReload
         public static string[] GetLoadedModGuids()
         {
             return Chainloader.PluginInfos.Keys
-                .Where(guid => !string.Equals(guid, CUCoreLibPlugin.GUID, StringComparison.OrdinalIgnoreCase))
+                .Where(guid => !string.Equals(guid, CUCoreLibPlugin.GUID,
+                    StringComparison.OrdinalIgnoreCase))
                 .OrderBy(guid => guid, StringComparer.OrdinalIgnoreCase)
                 .ToArray();
         }
@@ -125,10 +134,13 @@ namespace CUCoreLib.ContentReload
         public static int GetPollIntervalSeconds()
         {
             Initialize();
-            return config != null && config.PollIntervalSeconds > 0 ? config.PollIntervalSeconds : 2;
+            return config != null && config.PollIntervalSeconds > 0
+                ? config.PollIntervalSeconds
+                : 2;
         }
 
-        public static bool ConfigureAutoHotRefresh(string modGuid, bool enabled, out string message)
+        public static bool ConfigureAutoHotRefresh(string modGuid, bool enabled,
+            out string message)
         {
             Initialize();
 
@@ -139,7 +151,9 @@ namespace CUCoreLib.ContentReload
                 return false;
             }
 
-            if (!Chainloader.PluginInfos.TryGetValue(normalizedModGuid, out var pluginInfo) || pluginInfo == null)
+            if (!Chainloader.PluginInfos.TryGetValue(normalizedModGuid,
+                    out var pluginInfo)
+                || pluginInfo == null)
             {
                 message = "Loaded plugin GUID was not found: " + normalizedModGuid;
                 return false;
@@ -147,17 +161,21 @@ namespace CUCoreLib.ContentReload
 
             if (!EnabledModGuids.Contains(normalizedModGuid))
             {
-                message = "Hot reload is not enabled for '" + normalizedModGuid +
-                          "'. Call ContentReloadManager.EnableHotReload(GUID) from Awake() first.";
+                message = "Hot reload is not enabled for '"
+                    + normalizedModGuid
+                    + "'. Call ContentReloadManager.EnableHotReload(GUID) from Awake() first.";
                 return false;
             }
 
             EnsureModConfigBound(normalizedModGuid);
 
             if (config.Mods == null)
-                config.Mods = new Dictionary<string, ContentReloadModConfig>(StringComparer.OrdinalIgnoreCase);
+                config.Mods =
+                    new Dictionary<string, ContentReloadModConfig>(StringComparer
+                        .OrdinalIgnoreCase);
 
-            if (!config.Mods.TryGetValue(normalizedModGuid, out var modConfig) || modConfig == null)
+            if (!config.Mods.TryGetValue(normalizedModGuid, out var modConfig)
+                || modConfig == null)
             {
                 modConfig = new ContentReloadModConfig();
                 config.Mods[normalizedModGuid] = modConfig;
@@ -166,11 +184,19 @@ namespace CUCoreLib.ContentReload
             modConfig.WatchEnabled = enabled;
             PersistAutoHotReloadSetting(normalizedModGuid, enabled);
 
-            var modName = pluginInfo.Metadata != null && !string.IsNullOrWhiteSpace(pluginInfo.Metadata.Name)
-                ? pluginInfo.Metadata.Name
-                : normalizedModGuid;
-            var label = string.IsNullOrWhiteSpace(modName) ? modGuid : modName + " (" + modGuid + ")";
-            message = (enabled ? "Enabled" : "Disabled") + " automatic hot reload for " + label + ".";
+            var modName = pluginInfo.Metadata != null
+                && !string.IsNullOrWhiteSpace(pluginInfo.Metadata.Name)
+                    ? pluginInfo.Metadata.Name
+                    : normalizedModGuid;
+            var label = string.IsNullOrWhiteSpace(modName)
+                ? modGuid
+                : modName + " (" + modGuid + ")";
+            message = (enabled
+                    ? "Enabled"
+                    : "Disabled")
+                + " automatic hot reload for "
+                + label
+                + ".";
             return true;
         }
 
@@ -185,11 +211,13 @@ namespace CUCoreLib.ContentReload
 
                 EnsureModConfigBound(modGuid);
                 var state = GetOrCreateState(modGuid);
-                var candidate = ContentAssemblyResolver.ResolveCandidate(modGuid, config, state);
-                if (string.IsNullOrWhiteSpace(candidate.SelectedPath) ||
-                    string.IsNullOrWhiteSpace(candidate.SelectedHash)) continue;
+                var candidate =
+                    ContentAssemblyResolver.ResolveCandidate(modGuid, config, state);
+                if (string.IsNullOrWhiteSpace(candidate.SelectedPath)
+                    || string.IsNullOrWhiteSpace(candidate.SelectedHash)) continue;
 
-                if (string.Equals(candidate.SelectedHash, state.LastSuccessfulHash, StringComparison.OrdinalIgnoreCase))
+                if (string.Equals(candidate.SelectedHash, state.LastSuccessfulHash,
+                    StringComparison.OrdinalIgnoreCase))
                 {
                     state.PendingHash = null;
                     state.PendingSourcePath = null;
@@ -197,8 +225,10 @@ namespace CUCoreLib.ContentReload
                     continue;
                 }
 
-                if (!string.Equals(state.PendingHash, candidate.SelectedHash, StringComparison.OrdinalIgnoreCase) ||
-                    !string.Equals(state.PendingSourcePath, candidate.SelectedPath, StringComparison.OrdinalIgnoreCase))
+                if (!string.Equals(state.PendingHash, candidate.SelectedHash,
+                        StringComparison.OrdinalIgnoreCase)
+                    || !string.Equals(state.PendingSourcePath, candidate.SelectedPath,
+                        StringComparison.OrdinalIgnoreCase))
                 {
                     state.PendingHash = candidate.SelectedHash;
                     state.PendingSourcePath = candidate.SelectedPath;
@@ -206,17 +236,20 @@ namespace CUCoreLib.ContentReload
                     continue;
                 }
 
-                var debounceMilliseconds = config != null && config.DebounceMilliseconds > 0
-                    ? config.DebounceMilliseconds
-                    : 1200;
-                if ((now - state.PendingSinceUtc).TotalMilliseconds < debounceMilliseconds) continue;
+                var debounceMilliseconds =
+                    config != null && config.DebounceMilliseconds > 0
+                        ? config.DebounceMilliseconds
+                        : 1200;
+                if ((now - state.PendingSinceUtc).TotalMilliseconds
+                    < debounceMilliseconds) continue;
 
                 var result = Reload(modGuid);
                 if (!result.Succeeded) state.PendingSinceUtc = now;
             }
         }
 
-        public static void WriteReloadSummaryToConsole(ConsoleScript console, ContentReloadResult result)
+        public static void WriteReloadSummaryToConsole(ConsoleScript console,
+            ContentReloadResult result)
         {
             if (result != null && result.Succeeded)
             {
@@ -227,8 +260,12 @@ namespace CUCoreLib.ContentReload
                 return;
             }
 
-            WriteMessages(console, result != null ? result.Errors.ToArray() : Array.Empty<string>());
-            WriteMessages(console, result != null ? result.Skipped.ToArray() : Array.Empty<string>());
+            WriteMessages(console, result != null
+                ? result.Errors.ToArray()
+                : Array.Empty<string>());
+            WriteMessages(console, result != null
+                ? result.Skipped.ToArray()
+                : Array.Empty<string>());
             if (result != null && !string.IsNullOrWhiteSpace(result.UnsupportedReason))
                 WriteMessages(console, new[] { result.UnsupportedReason });
         }
@@ -236,7 +273,8 @@ namespace CUCoreLib.ContentReload
         private static ContentReloadState GetOrCreateState(string modGuid)
         {
             var normalizedModGuid = (modGuid ?? string.Empty).Trim();
-            if (StateByModGuid.TryGetValue(normalizedModGuid, out var state)) return state;
+            if (StateByModGuid.TryGetValue(normalizedModGuid, out var state))
+                return state;
             state = new ContentReloadState();
             StateByModGuid[normalizedModGuid] = state;
 
@@ -250,19 +288,23 @@ namespace CUCoreLib.ContentReload
                 var normalizedModGuid = (modGuid ?? string.Empty).Trim();
                 if (string.IsNullOrWhiteSpace(normalizedModGuid)) continue;
 
-                var watchEnabled = CUCoreUtils.GetBool(GetAutoHotReloadEnabledKey(normalizedModGuid));
+                var watchEnabled =
+                    CUCoreUtils.GetBool(GetAutoHotReloadEnabledKey(normalizedModGuid));
                 if (!watchEnabled) continue;
 
                 if (config.Mods == null)
-                    config.Mods = new Dictionary<string, ContentReloadModConfig>(StringComparer.OrdinalIgnoreCase);
+                    config.Mods =
+                        new Dictionary<string, ContentReloadModConfig>(StringComparer
+                            .OrdinalIgnoreCase);
 
-                if (!config.Mods.TryGetValue(normalizedModGuid, out var modConfig) || modConfig == null)
+                if (!config.Mods.TryGetValue(normalizedModGuid, out var modConfig)
+                    || modConfig == null)
                 {
                     modConfig = new ContentReloadModConfig();
                     config.Mods[normalizedModGuid] = modConfig;
                 }
 
-                modConfig.WatchEnabled = watchEnabled;
+                modConfig.WatchEnabled = true;
                 modConfig.OverridePath = GetConfiguredOverridePath(normalizedModGuid);
             }
         }
@@ -284,22 +326,28 @@ namespace CUCoreLib.ContentReload
         private static void EnsureModConfigBound(string modGuid)
         {
             var normalizedModGuid = (modGuid ?? string.Empty).Trim();
-            if (string.IsNullOrWhiteSpace(normalizedModGuid) || configFile == null) return;
+            if (string.IsNullOrWhiteSpace(normalizedModGuid) || configFile == null)
+                return;
 
-            if (!config.Mods.TryGetValue(normalizedModGuid, out var modConfig) || modConfig == null)
+            if (!config.Mods.TryGetValue(normalizedModGuid, out var modConfig)
+                || modConfig == null)
             {
                 modConfig = new ContentReloadModConfig();
                 config.Mods[normalizedModGuid] = modConfig;
             }
 
-            if (!OverridePathEntriesByModGuid.TryGetValue(normalizedModGuid, out var overrideEntry) || overrideEntry == null)
+            if (!OverridePathEntriesByModGuid.TryGetValue(normalizedModGuid,
+                    out var overrideEntry)
+                || overrideEntry == null)
             {
                 overrideEntry = CUCoreLibPlugin.BindSharedConfig(
                     ConfigSectionName,
                     normalizedModGuid + ".overridePath",
                     string.Empty,
-                    "Optional absolute DLL path for hot reloading mod '" + normalizedModGuid + "'. " +
-                    "When set to an existing file, CUCoreLib reloads from that path instead of the deployed plugin DLL.");
+                    "Optional absolute DLL path for hot reloading mod '"
+                    + normalizedModGuid
+                    + "'. "
+                    + "When set to an existing file, CUCoreLib reloads from that path instead of the deployed plugin DLL.");
                 OverridePathEntriesByModGuid[normalizedModGuid] = overrideEntry;
             }
 
@@ -309,10 +357,13 @@ namespace CUCoreLib.ContentReload
         private static string GetConfiguredOverridePath(string modGuid)
         {
             if (string.IsNullOrWhiteSpace(modGuid)) return null;
-            if (!OverridePathEntriesByModGuid.TryGetValue(modGuid.Trim(), out var entry) || entry == null) return null;
+            if (!OverridePathEntriesByModGuid.TryGetValue(modGuid.Trim(), out var entry)
+                || entry == null) return null;
 
             var value = entry.Value;
-            return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+            return string.IsNullOrWhiteSpace(value)
+                ? null
+                : value.Trim();
         }
 
         private static bool IsMultiplayerActive()
@@ -322,7 +373,8 @@ namespace CUCoreLib.ContentReload
 
         internal static bool IsEnabled(string modGuid)
         {
-            return !string.IsNullOrWhiteSpace(modGuid) && EnabledModGuids.Contains(modGuid.Trim());
+            return !string.IsNullOrWhiteSpace(modGuid)
+                && EnabledModGuids.Contains(modGuid.Trim());
         }
 
         internal static HotReloadMode GetReloadMode(string modGuid)
@@ -343,11 +395,20 @@ namespace CUCoreLib.ContentReload
             var suffix = string.IsNullOrWhiteSpace(result.SourceHash)
                 ? string.Empty
                 : " hash=" + result.SourceHash + ".";
-            return "Strict content reload for " + label + ": " +
-                   (result.Succeeded ? "success" : "failed") +
-                   ", " + result.Info.Count + " info, " +
-                   result.Skipped.Count + " skipped, " +
-                   result.Errors.Count + " errors." + suffix;
+            return "Strict content reload for "
+                + label
+                + ": "
+                + (result.Succeeded
+                    ? "success"
+                    : "failed")
+                + ", "
+                + result.Info.Count
+                + " info, "
+                + result.Skipped.Count
+                + " skipped, "
+                + result.Errors.Count
+                + " errors."
+                + suffix;
         }
 
         private static string GetReloadedFileName(string sourcePath)
@@ -357,7 +418,9 @@ namespace CUCoreLib.ContentReload
             try
             {
                 var fileName = Path.GetFileName(sourcePath);
-                return string.IsNullOrWhiteSpace(fileName) ? "content DLL" : fileName;
+                return string.IsNullOrWhiteSpace(fileName)
+                    ? "content DLL"
+                    : fileName;
             }
             catch
             {
@@ -365,7 +428,8 @@ namespace CUCoreLib.ContentReload
             }
         }
 
-        private static void WriteMessages(ConsoleScript console, IEnumerable<string> messages)
+        private static void WriteMessages(ConsoleScript console,
+            IEnumerable<string> messages)
         {
             if (messages == null) return;
 

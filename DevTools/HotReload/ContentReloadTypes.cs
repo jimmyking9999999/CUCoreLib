@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using CUCoreLib.Data;
 
 namespace CUCoreLib.ContentReload
 {
@@ -42,8 +41,8 @@ namespace CUCoreLib.ContentReload
     {
         private readonly List<string> errors = new List<string>();
         private readonly List<string> info = new List<string>();
-        private readonly List<string> recognizedMethods = new List<string>();
         private readonly List<string> ranMethods = new List<string>();
+        private readonly List<string> recognizedMethods = new List<string>();
         private readonly List<string> skipped = new List<string>();
 
         public string ModGuid { get; internal set; }
@@ -57,7 +56,9 @@ namespace CUCoreLib.ContentReload
         public IReadOnlyList<string> Errors => errors;
         public IReadOnlyList<string> RecognizedMethods => recognizedMethods;
         public IReadOnlyList<string> RanMethods => ranMethods;
-        public bool Succeeded => string.IsNullOrWhiteSpace(UnsupportedReason) && errors.Count == 0;
+
+        public bool Succeeded =>
+            string.IsNullOrWhiteSpace(UnsupportedReason) && errors.Count == 0;
 
         internal void AddInfo(string message)
         {
@@ -76,13 +77,15 @@ namespace CUCoreLib.ContentReload
 
         internal void AddRecognizedMethod(string methodName)
         {
-            if (!string.IsNullOrWhiteSpace(methodName) && !recognizedMethods.Contains(methodName))
+            if (!string.IsNullOrWhiteSpace(methodName)
+                && !recognizedMethods.Contains(methodName))
                 recognizedMethods.Add(methodName);
         }
 
         internal void AddRanMethod(string methodName)
         {
-            if (!string.IsNullOrWhiteSpace(methodName) && !ranMethods.Contains(methodName))
+            if (!string.IsNullOrWhiteSpace(methodName)
+                && !ranMethods.Contains(methodName))
                 ranMethods.Add(methodName);
         }
     }
@@ -93,7 +96,8 @@ namespace CUCoreLib.ContentReload
         public int DebounceMilliseconds { get; set; } = 1200;
 
         public Dictionary<string, ContentReloadModConfig> Mods { get; set; } =
-            new Dictionary<string, ContentReloadModConfig>(StringComparer.OrdinalIgnoreCase);
+            new Dictionary<string, ContentReloadModConfig>(StringComparer
+                .OrdinalIgnoreCase);
     }
 
     internal sealed class ContentReloadModConfig
@@ -125,16 +129,21 @@ namespace CUCoreLib.ContentReload
         public string PluginTypeFullName { get; set; }
         public string UnsupportedReason { get; set; }
         public bool UsesEnableHotReloadContract { get; set; }
-        public List<DiscoveredReloadMethod> Methods { get; } = new List<DiscoveredReloadMethod>();
-        public List<SkippedReloadMethod> SkippedMethods { get; } = new List<SkippedReloadMethod>();
+
+        public List<DiscoveredReloadMethod> Methods { get; } =
+            new List<DiscoveredReloadMethod>();
+
+        public List<SkippedReloadMethod> SkippedMethods { get; } =
+            new List<SkippedReloadMethod>();
+
         public List<string> Notes { get; } = new List<string>();
         public List<string> RecognizedMethods { get; } = new List<string>();
 
         public bool IsSupported =>
-            string.IsNullOrWhiteSpace(UnsupportedReason) &&
-            !string.IsNullOrWhiteSpace(PluginTypeFullName) &&
-            Methods.Count > 0 &&
-            !string.IsNullOrWhiteSpace(SelectedPath);
+            string.IsNullOrWhiteSpace(UnsupportedReason)
+            && !string.IsNullOrWhiteSpace(PluginTypeFullName)
+            && Methods.Count > 0
+            && !string.IsNullOrWhiteSpace(SelectedPath);
     }
 
     internal sealed class DiscoveredReloadMethod
@@ -174,6 +183,7 @@ namespace CUCoreLib.ContentReload
         public DateTime PendingSinceUtc { get; set; } = DateTime.MinValue;
 
         public Dictionary<string, ContentObservedFileState> ObservedFiles { get; } =
-            new Dictionary<string, ContentObservedFileState>(StringComparer.OrdinalIgnoreCase);
+            new Dictionary<string, ContentObservedFileState>(StringComparer
+                .OrdinalIgnoreCase);
     }
 }

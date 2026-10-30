@@ -2,8 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Reflection;
 using BepInEx;
-using BepInEx.Bootstrap;
-using CUCoreLib.Data;
 using CUCoreLib.Helpers;
 
 namespace CUCoreLib.ContentReload
@@ -15,7 +13,9 @@ namespace CUCoreLib.ContentReload
 
         internal static void RegisterPlugin(BaseUnityPlugin plugin)
         {
-            if (plugin == null || plugin.Info == null || plugin.Info.Metadata == null) return;
+            if (plugin == null
+                || plugin.Info == null
+                || plugin.Info.Metadata == null) return;
 
             var guid = plugin.Info.Metadata.GUID;
             if (string.IsNullOrWhiteSpace(guid)) return;
@@ -26,10 +26,13 @@ namespace CUCoreLib.ContentReload
         {
             if (string.IsNullOrWhiteSpace(modGuid)) return null;
 
-            return PluginByGuid.TryGetValue(modGuid.Trim(), out var plugin) ? plugin : null;
+            return PluginByGuid.TryGetValue(modGuid.Trim(), out var plugin)
+                ? plugin
+                : null;
         }
 
-        internal static object CreateHostInstance(Type hostType, string modGuid, out string reason)
+        internal static object CreateHostInstance(Type hostType, string modGuid,
+            out string reason)
         {
             reason = null;
             if (hostType == null)
@@ -46,7 +49,9 @@ namespace CUCoreLib.ContentReload
 
             if (hostType.IsSealed && hostType.IsAbstract)
             {
-                reason = "Host type '" + hostType.FullName + "' is static and cannot be instantiated.";
+                reason = "Host type '"
+                    + hostType.FullName
+                    + "' is static and cannot be instantiated.";
                 return null;
             }
 
@@ -81,12 +86,15 @@ namespace CUCoreLib.ContentReload
 
             if (typeof(CCLBase).IsAssignableFrom(hostType))
             {
-                reason = "Host type '" + hostType.FullName +
-                         "' must expose a parameterless constructor or a constructor taking BaseUnityPlugin.";
+                reason = "Host type '"
+                    + hostType.FullName
+                    + "' must expose a parameterless constructor or a constructor taking BaseUnityPlugin.";
                 return null;
             }
 
-            reason = "Host type '" + hostType.FullName + "' must expose a parameterless constructor.";
+            reason = "Host type '"
+                + hostType.FullName
+                + "' must expose a parameterless constructor.";
             return null;
         }
 
