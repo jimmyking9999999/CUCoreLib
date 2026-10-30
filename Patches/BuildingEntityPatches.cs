@@ -9,6 +9,7 @@ using CUCoreLib.Registries;
 using HarmonyLib;
 using UnityEngine;
 using Object = UnityEngine.Object;
+using Random = UnityEngine.Random;
 
 namespace CUCoreLib.Patches
 {
@@ -18,17 +19,21 @@ namespace CUCoreLib.Patches
         [HarmonyPostfix]
         private static void PreserveRegisteredBuildingLocale(BuildingEntity __instance)
         {
-            if (__instance == null ||
-                !BuildingEntityRegistry.TryGetDefinition(__instance.id, out var definition)) return;
+            if (__instance == null
+                || !BuildingEntityRegistry.TryGetDefinition(__instance.id,
+                    out var definition)) return;
 
             // keys where nothing is localized
-            if (!string.IsNullOrEmpty(definition.Name) &&
-                string.Equals(__instance.fullName, __instance.id, StringComparison.Ordinal))
+            if (!string.IsNullOrEmpty(definition.Name)
+                && string.Equals(__instance.fullName, __instance.id,
+                    StringComparison.Ordinal))
                 __instance.fullName = definition.Name;
 
-            if (__instance.skipDescriptionSet || string.IsNullOrEmpty(definition.Description)) return;
+            if (__instance.skipDescriptionSet
+                || string.IsNullOrEmpty(definition.Description)) return;
 
-            if (string.Equals(__instance.description, __instance.id + "dsc", StringComparison.Ordinal))
+            if (string.Equals(__instance.description, __instance.id + "dsc",
+                StringComparison.Ordinal))
                 __instance.description = definition.Description;
         }
     }
@@ -41,8 +46,9 @@ namespace CUCoreLib.Patches
         private static readonly MethodInfo BodyTypeSetter = AccessTools.PropertySetter(
             typeof(Rigidbody2D), nameof(Rigidbody2D.bodyType));
 
-        private static readonly MethodInfo SetBodyTypeIfChangedMethod = AccessTools.Method(
-            typeof(BuildingEntityBodyTypePatch), nameof(SetBodyTypeIfChanged));
+        private static readonly MethodInfo SetBodyTypeIfChangedMethod =
+            AccessTools.Method(
+                typeof(BuildingEntityBodyTypePatch), nameof(SetBodyTypeIfChanged));
 
         [HarmonyTranspiler]
         private static IEnumerable<CodeInstruction> AvoidRedundantBodyTypeWrites(
@@ -60,7 +66,8 @@ namespace CUCoreLib.Patches
             }
         }
 
-        private static void SetBodyTypeIfChanged(Rigidbody2D rigidbody, RigidbodyType2D bodyType)
+        private static void SetBodyTypeIfChanged(Rigidbody2D rigidbody,
+            RigidbodyType2D bodyType)
         {
             if (rigidbody != null && rigidbody.bodyType != bodyType)
                 rigidbody.bodyType = bodyType;
@@ -70,26 +77,30 @@ namespace CUCoreLib.Patches
     internal static class BuildingEntityDestruction
     {
         internal static readonly MethodInfo Host =
-            AccessTools.Method(typeof(BuildingEntity), "CheckDamage") ??
-            AccessTools.Method(typeof(BuildingEntity), "Update");
+            AccessTools.Method(typeof(BuildingEntity), "CheckDamage")
+            ?? AccessTools.Method(typeof(BuildingEntity), "Update");
     }
 
     [HarmonyPatch(typeof(BuildingEntity))]
     internal static class BuildingEntityCustomDropResolutionPatch
     {
-        [HarmonyTargetMethod]
-        private static MethodInfo Target() => BuildingEntityDestruction.Host;
-
         private static readonly MethodInfo ResourcesLoadMethod = typeof(Resources)
             .GetMethods(BindingFlags.Public | BindingFlags.Static)
             .First(method =>
-                method.Name == nameof(Resources.Load) &&
-                !method.IsGenericMethod &&
-                method.GetParameters().Length == 1 &&
-                method.GetParameters()[0].ParameterType == typeof(string));
+                method.Name == nameof(Resources.Load)
+                && !method.IsGenericMethod
+                && method.GetParameters().Length == 1
+                && method.GetParameters()[0].ParameterType == typeof(string));
 
         private static readonly MethodInfo ResolveSavedResourceMethod =
-            AccessTools.Method(typeof(CustomInstantiate), nameof(CustomInstantiate.ResolveSavedResource));
+            AccessTools.Method(typeof(CustomInstantiate),
+                nameof(CustomInstantiate.ResolveSavedResource));
+
+        [HarmonyTargetMethod]
+        private static MethodInfo Target()
+        {
+            return BuildingEntityDestruction.Host;
+        }
 
         [HarmonyTranspiler]
         private static IEnumerable<CodeInstruction> ResolveRuntimeCustomDrops(
@@ -99,7 +110,8 @@ namespace CUCoreLib.Patches
             {
                 if (instruction.Calls(ResourcesLoadMethod))
                 {
-                    yield return new CodeInstruction(OpCodes.Call, ResolveSavedResourceMethod);
+                    yield return new CodeInstruction(OpCodes.Call,
+                        ResolveSavedResourceMethod);
                     continue;
                 }
 
@@ -115,13 +127,17 @@ namespace CUCoreLib.Patches
             AccessTools.Field(typeof(BuildingEntity), "didDestroyRoutine");
 
         [HarmonyTargetMethod]
-        private static MethodInfo Target() => BuildingEntityDestruction.Host;
+        private static MethodInfo Target()
+        {
+            return BuildingEntityDestruction.Host;
+        }
 
         [HarmonyPrefix]
         private static bool HandleBuiltInDropPools(BuildingEntity __instance)
         {
             if (__instance == null || __instance.GetHealth() >= 0.5f) return true;
-            if (DidDestroyRoutineField != null && (bool)DidDestroyRoutineField.GetValue(__instance)) return false;
+            if (DidDestroyRoutineField != null
+                && (bool)DidDestroyRoutineField.GetValue(__instance)) return false;
             if (!TryResolveBuiltInSource(__instance.id, out var source)) return true;
             DidDestroyRoutineField?.SetValue(__instance, true);
 
@@ -129,7 +145,8 @@ namespace CUCoreLib.Patches
             if (spriteRenderer != null)
             {
                 var particle = Object.Instantiate(Resources.Load("BuildingBreakParticle"),
-                    __instance.transform.position, __instance.transform.rotation) as GameObject;
+                    __instance.transform.position,
+                    __instance.transform.rotation) as GameObject;
                 if (particle != null)
                 {
                     var shape = particle.GetComponent<ParticleSystem>().shape;
@@ -139,17 +156,20 @@ namespace CUCoreLib.Patches
                 }
             }
 
-            Object.Instantiate(Resources.Load<GameObject>("DustBig"), __instance.transform.position, Quaternion.identity);
+            Object.Instantiate(Resources.Load<GameObject>("DustBig"),
+                __instance.transform.position, Quaternion.identity);
             if (__instance.animal) __instance.gameObject.SendMessage("AnimalDeath");
 
             Sound.Play("footstep/Rock/11", __instance.transform.position);
 
-            var isNearPlayer = PlayerCamera.main != null &&
-                               PlayerCamera.main.body != null &&
-                               Vector2.Distance(__instance.transform.position,
-                                   PlayerCamera.main.body.transform.position) < 8f;
+            var isNearPlayer = PlayerCamera.main != null
+                && PlayerCamera.main.body != null
+                && Vector2.Distance(__instance.transform.position,
+                    PlayerCamera.main.body.transform.position)
+                < 8f;
 
-            SpawnDropArray(__instance, __instance.itemsDropOnDestroy, __instance.dropChanceMultiplier, isNearPlayer, true);
+            SpawnDropArray(__instance, __instance.itemsDropOnDestroy,
+                __instance.dropChanceMultiplier, isNearPlayer, true);
             SpawnDropPoolEntries(__instance, source, isNearPlayer);
             SpawnDropArray(__instance, __instance.alwaysDrop, 1f, isNearPlayer, false);
 
@@ -185,23 +205,34 @@ namespace CUCoreLib.Patches
             }
         }
 
-        private static void SpawnDropPoolEntries(BuildingEntity building, DropPool source, bool isNearPlayer)
+        private static void SpawnDropPoolEntries(
+            BuildingEntity building,
+            DropPool source,
+            bool isNearPlayer)
         {
             if (building == null || building.guaranteedDropAmount <= 0) return;
 
             for (var i = 0; i < building.guaranteedDropAmount; i++)
             {
-                var fallbackCategory = building.itemCategoriesToAdd != null && building.itemCategoriesToAdd.Length > 0
-                    ? building.itemCategoriesToAdd[UnityEngine.Random.Range(0, building.itemCategoriesToAdd.Length)]
-                    : null;
+                var fallbackCategory = building.itemCategoriesToAdd != null
+                    && building.itemCategoriesToAdd.Length > 0
+                        ? building.itemCategoriesToAdd[
+                            Random.Range(0, building.itemCategoriesToAdd.Length)]
+                        : null;
 
-                if (!DropPoolRegistry.TryGetRandomItemId(source, fallbackCategory, out var itemId)) continue;
+                if (!DropPoolRegistry.TryGetRandomItemId(source, fallbackCategory,
+                    out var itemId)) continue;
 
-                SpawnSingleDrop(building.transform.position, itemId, 1f, 1f, isNearPlayer);
+                SpawnSingleDrop(building.transform.position, itemId, 1f, 1f,
+                    isNearPlayer);
             }
         }
 
-        private static void SpawnDropArray(BuildingEntity building, ItemDrop[] drops, float multiplier, bool isNearPlayer,
+        private static void SpawnDropArray(
+            BuildingEntity building,
+            ItemDrop[] drops,
+            float multiplier,
+            bool isNearPlayer,
             bool useChance)
         {
             if (building == null || drops == null || drops.Length == 0) return;
@@ -209,24 +240,38 @@ namespace CUCoreLib.Patches
             foreach (var drop in drops)
             {
                 if (drop == null || string.IsNullOrWhiteSpace(drop.id)) continue;
-                if (useChance && UnityEngine.Random.Range(0f, 1f) >= drop.chance * multiplier) continue;
+                if (useChance && Random.Range(0f, 1f) >= drop.chance * multiplier)
+                    continue;
 
-                SpawnSingleDrop(building.transform.position, drop.id, drop.conditionMin, drop.conditionMax, isNearPlayer);
+                SpawnSingleDrop(building.transform.position, drop.id, drop.conditionMin,
+                    drop.conditionMax, isNearPlayer);
             }
         }
 
-        private static void SpawnSingleDrop(Vector3 position, string itemId, float conditionMin, float conditionMax,
+        private static void SpawnSingleDrop(
+            Vector3 position,
+            string itemId,
+            float conditionMin,
+            float conditionMax,
             bool isNearPlayer)
         {
-            var rotation = Quaternion.Euler(0f, 0f, UnityEngine.Random.Range(0f, 360f));
-            var initialCondition = UnityEngine.Random.Range(conditionMin, conditionMax);
-            BuildingEntityRegistry.SpawnDrop(position, itemId, rotation, initialCondition, conditionMin, conditionMax,
+            var rotation = Quaternion.Euler(0f, 0f, Random.Range(0f, 360f));
+            var initialCondition = Random.Range(conditionMin, conditionMax);
+            BuildingEntityRegistry.SpawnDrop(
+                position,
+                itemId,
+                rotation,
+                initialCondition,
+                conditionMin, conditionMax,
                 isNearPlayer);
         }
 
-        private static bool TryGetComponent<T>(Component component, out T value) where T : Component
+        private static bool TryGetComponent<T>(Component component, out T value)
+            where T : Component
         {
-            value = component != null ? component.GetComponent<T>() : null;
+            value = component != null
+                ? component.GetComponent<T>()
+                : null;
             return value != null;
         }
     }
