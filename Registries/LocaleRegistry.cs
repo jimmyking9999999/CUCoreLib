@@ -28,7 +28,29 @@ namespace CUCoreLib.Registries
             Message = 10
         }
 
-        internal static Dictionary<int, Dictionary<string, string>> CustomLocales =
+        private const LocaleCategory FallbackCategory = LocaleCategory.Other;
+        private const LocaleCategory MaxGeneratedCategory = LocaleCategory.Tile;
+
+        private static readonly Dictionary<LocaleCategory, string> CategorySectionNames =
+            new Dictionary<LocaleCategory, string>
+            {
+                [LocaleCategory.Item] = "item",
+                [LocaleCategory.Building] = "building",
+                [LocaleCategory.Moodle] = "moodle",
+                [LocaleCategory.Other] = "other",
+                [LocaleCategory.Log] = "log",
+                [LocaleCategory.Command] = "command",
+                [LocaleCategory.Option] = "option",
+                [LocaleCategory.Liquid] = "liquid",
+                [LocaleCategory.Tile] = "tile",
+                [LocaleCategory.Ui] = "ui",
+                [LocaleCategory.Message] = "message"
+            };
+
+        private static readonly Dictionary<string, LocaleCategory> CategoriesBySectionName =
+            BuildCategoryLookup();
+
+        internal static readonly Dictionary<int, Dictionary<string, string>> CustomLocales =
             new Dictionary<int, Dictionary<string, string>>();
 
         private static readonly Dictionary<int, HashSet<string>> RequiredLocales =
@@ -91,7 +113,7 @@ namespace CUCoreLib.Registries
         /// <param name="text">Localized text value to register.</param>
         public static void Register(string category, string key, string text)
         {
-            Register(CategoryToType(category), key, text);
+            Register(ParseCategory(category), key, text);
         }
 
         public static void Require(string key)
@@ -103,7 +125,7 @@ namespace CUCoreLib.Registries
         {
             if (string.IsNullOrWhiteSpace(key)) return;
 
-            var type = CategoryToType(category);
+            var type = (int)ParseCategory(category);
             if (!RequiredLocales.ContainsKey(type))
                 RequiredLocales[type] =
                     new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -183,9 +205,9 @@ namespace CUCoreLib.Registries
                 ? null
                 : CaptureOwnerEntries(ownerId);
 
-            for (var type = 0; type <= 8; type++)
+            for (var type = 0; type <= (int)MaxGeneratedCategory; type++)
             {
-                var category = TypeToCategory(type);
+                var category = GetCategorySectionName(type);
                 if (!(root[category] is JObject categoryObject))
                 {
                     categoryObject = new JObject();
@@ -375,60 +397,34 @@ namespace CUCoreLib.Registries
                     + "'.");
         }
 
-        private static int CategoryToType(string category)
+        private static Dictionary<string, LocaleCategory> BuildCategoryLookup()
         {
-            var normalizedCategory = (category ?? string.Empty).Trim().ToLowerInvariant();
-            return (int)(normalizedCategory == "item"
-                ? LocaleCategory.Item
-                : normalizedCategory == "building"
-                    ? LocaleCategory.Building
-                    : normalizedCategory == "moodle"
-                        ? LocaleCategory.Moodle
-                        : normalizedCategory == "log"
-                            ? LocaleCategory.Log
-                            : normalizedCategory == "command"
-                                ? LocaleCategory.Command
-                                : normalizedCategory == "option"
-                                    ? LocaleCategory.Option
-                                    : normalizedCategory == "liquid"
-                                        ? LocaleCategory.Liquid
-                                        : normalizedCategory == "title"
-                                            ? LocaleCategory.Tile
-                                            : normalizedCategory == "ui"
-                                                ? LocaleCategory.Ui
-                                                : normalizedCategory == "message"
-                                                    ? LocaleCategory.Message
-                                                    : LocaleCategory.Other);
+            var lookup = new Dictionary<string, LocaleCategory>(StringComparer.OrdinalIgnoreCase);
+            foreach (var pair in CategorySectionNames)
+            {
+                lookup[pair.Value] = pair.Key;
+
+                var enumName = Enum.GetName(typeof(LocaleCategory), pair.Key);
+                if (!string.IsNullOrEmpty(enumName)) lookup[enumName] = pair.Key;
+            }
+
+            return lookup;
         }
 
-        private static string TypeToCategory(int type)
+        private static LocaleCategory ParseCategory(string category)
         {
-            switch ((LocaleCategory)type)
-            {
-                case LocaleCategory.Item:
-                    return "item";
-                case LocaleCategory.Building:
-                    return "building";
-                case LocaleCategory.Moodle:
-                    return "moodle";
-                case LocaleCategory.Log:
-                    return "log";
-                case LocaleCategory.Command:
-                    return "command";
-                case LocaleCategory.Option:
-                    return "option";
-                case LocaleCategory.Liquid:
-                    return "liquid";
-                case LocaleCategory.Tile:
-                    return "title";
-                case LocaleCategory.Ui:
-                    return "ui";
-                case LocaleCategory.Message:
-                    return "message";
-                case LocaleCategory.Other:
-                default:
-                    return "other";
-            }
+            var normalizedCategory = category?.Trim();
+            return !string.IsNullOrEmpty(normalizedCategory)
+                && CategoriesBySectionName.TryGetValue(normalizedCategory, out var result)
+                ? result
+                : FallbackCategory;
+        }
+
+        private static string GetCategorySectionName(int type)
+        {
+            return CategorySectionNames.TryGetValue((LocaleCategory)type, out var name)
+                ? name
+                : CategorySectionNames[FallbackCategory];
         }
 
         private static object ConvertTokenToPlainObject(JToken token)
@@ -488,7 +484,7 @@ namespace CUCoreLib.Registries
                     var next = hasNext
                         ? trimmed[i + 1]
                         : '\0';
-                    if ((char.IsLower(previous) || char.IsDigit(previous))
+                    if (char.IsLower(previous) || char.IsDigit(previous)
                         || (char.IsUpper(previous) && hasNext && char.IsLower(next)))
                         builder.Append(' ');
                 }
