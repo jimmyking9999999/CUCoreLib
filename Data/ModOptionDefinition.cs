@@ -51,7 +51,8 @@ namespace CUCoreLib.Data
             Action<float> apply = null,
             Func<float, string> formatValue = null)
         {
-            return CreateFloat(id, label, description, category, null, defaultValue, min, max, apply, formatValue);
+            return CreateFloat(id, label, description, category, null, defaultValue, min,
+                max, apply, formatValue);
         }
 
         public static ModOptionDefinition Float(
@@ -65,7 +66,8 @@ namespace CUCoreLib.Data
             Action<float> apply = null,
             Func<float, string> formatValue = null)
         {
-            return CreateFloat(id, label, description, default, category, defaultValue, min, max, apply, formatValue);
+            return CreateFloat(id, label, description, default, category, defaultValue,
+                min, max, apply, formatValue);
         }
 
         public static ModOptionDefinition Int(
@@ -78,7 +80,8 @@ namespace CUCoreLib.Data
             int max,
             Action<int> apply = null)
         {
-            return CreateInt(id, label, description, category, null, defaultValue, min, max, apply);
+            return CreateInt(id, label, description, category, null, defaultValue, min,
+                max, apply);
         }
 
         public static ModOptionDefinition Int(
@@ -91,7 +94,8 @@ namespace CUCoreLib.Data
             int max,
             Action<int> apply = null)
         {
-            return CreateInt(id, label, description, default, category, defaultValue, min, max, apply);
+            return CreateInt(id, label, description, default, category, defaultValue, min,
+                max, apply);
         }
 
         public static ModOptionDefinition Bool(
@@ -102,7 +106,8 @@ namespace CUCoreLib.Data
             bool defaultValue,
             Action<bool> apply = null)
         {
-            return CreateBool(id, label, description, category, null, defaultValue, apply);
+            return CreateBool(id, label, description, category, null, defaultValue,
+                apply);
         }
 
         public static ModOptionDefinition Bool(
@@ -113,7 +118,8 @@ namespace CUCoreLib.Data
             bool defaultValue,
             Action<bool> apply = null)
         {
-            return CreateBool(id, label, description, default, category, defaultValue, apply);
+            return CreateBool(id, label, description, default, category, defaultValue,
+                apply);
         }
 
         public static ModOptionDefinition Dropdown(
@@ -125,7 +131,8 @@ namespace CUCoreLib.Data
             ModDropdownChoice[] choices,
             Action<int> apply = null)
         {
-            return CreateDropdown(id, label, description, category, null, defaultValue, choices, apply);
+            return CreateDropdown(id, label, description, category, null, defaultValue,
+                choices, apply);
         }
 
         public static ModOptionDefinition Dropdown(
@@ -137,7 +144,8 @@ namespace CUCoreLib.Data
             ModDropdownChoice[] choices,
             Action<int> apply = null)
         {
-            return CreateDropdown(id, label, description, default, category, defaultValue, choices, apply);
+            return CreateDropdown(id, label, description, default, category, defaultValue,
+                choices, apply);
         }
 
         public static ModOptionDefinition Keybind(
@@ -148,7 +156,8 @@ namespace CUCoreLib.Data
             KeyCode defaultValue,
             Action<KeyCode> apply = null)
         {
-            return CreateKeybind(id, label, description, category, null, defaultValue, apply);
+            return CreateKeybind(id, label, description, category, null, defaultValue,
+                apply);
         }
 
         public static ModOptionDefinition Keybind(
@@ -159,7 +168,8 @@ namespace CUCoreLib.Data
             KeyCode defaultValue,
             Action<KeyCode> apply = null)
         {
-            return CreateKeybind(id, label, description, default, category, defaultValue, apply);
+            return CreateKeybind(id, label, description, default, category, defaultValue,
+                apply);
         }
 
         public static ModOptionDefinition Text(
@@ -171,7 +181,8 @@ namespace CUCoreLib.Data
             Action<string> apply = null,
             string placeholder = null)
         {
-            return CreateText(id, label, description, category, null, defaultValue, apply, placeholder);
+            return CreateText(id, label, description, category, null, defaultValue, apply,
+                placeholder);
         }
 
         public static ModOptionDefinition Text(
@@ -183,7 +194,8 @@ namespace CUCoreLib.Data
             Action<string> apply = null,
             string placeholder = null)
         {
-            return CreateText(id, label, description, default, category, defaultValue, apply, placeholder);
+            return CreateText(id, label, description, default, category, defaultValue,
+                apply, placeholder);
         }
 
         internal Setting CreateSetting()
@@ -209,7 +221,8 @@ namespace CUCoreLib.Data
                     return new SettingInt
                     {
                         name = Id,
-                        value = Mathf.Clamp(IntDefault, Mathf.RoundToInt(Min), Mathf.RoundToInt(Max)),
+                        value = Mathf.Clamp(IntDefault, Mathf.RoundToInt(Min),
+                            Mathf.RoundToInt(Max)),
                         min = Mathf.RoundToInt(Min),
                         max = Mathf.RoundToInt(Max),
                         category = Category,
@@ -269,7 +282,8 @@ namespace CUCoreLib.Data
                         }
                     };
                 default:
-                    throw new InvalidOperationException($"Unsupported mod option kind '{Kind}'.");
+                    throw new InvalidOperationException(
+                        $"Unsupported mod option kind '{Kind}'.");
             }
         }
 
@@ -286,7 +300,9 @@ namespace CUCoreLib.Data
                 Label = label,
                 Description = description,
                 Category = category,
-                CustomCategory = string.IsNullOrWhiteSpace(customCategory) ? null : customCategory.Trim()
+                CustomCategory = string.IsNullOrWhiteSpace(customCategory)
+                    ? null
+                    : customCategory.Trim()
             };
         }
 
