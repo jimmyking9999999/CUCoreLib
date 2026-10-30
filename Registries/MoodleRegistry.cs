@@ -12,23 +12,33 @@ namespace CUCoreLib.Registries
     {
         private const float DefaultHoldSeconds = 0.5f;
         private const float VanillaMoodlePixelsPerUnit = 33.33f;
-        private static readonly List<IBodyMoodleContributor> BodyContributors = new List<IBodyMoodleContributor>();
-        private static readonly List<ILimbMoodleContributor> LimbContributors = new List<ILimbMoodleContributor>();
+
+        private static readonly List<IBodyMoodleContributor> BodyContributors =
+            new List<IBodyMoodleContributor>();
+
+        private static readonly List<ILimbMoodleContributor> LimbContributors =
+            new List<ILimbMoodleContributor>();
 
         private static readonly Dictionary<string, QueuedMoodle> QueuedMoodles =
             new Dictionary<string, QueuedMoodle>(StringComparer.Ordinal);
 
-        private static readonly Dictionary<int, Sprite> UiSpriteCache = new Dictionary<int, Sprite>();
+        private static readonly Dictionary<int, Sprite> UiSpriteCache =
+            new Dictionary<int, Sprite>();
 
         private static readonly Dictionary<string, string> ActiveAnimationIdsByIconKey =
             new Dictionary<string, string>(StringComparer.Ordinal);
 
-        private static readonly HashSet<string> WarnedInvalidIconIds = new HashSet<string>(StringComparer.Ordinal);
-        private static readonly HashSet<string> WarnedMissingSpriteMoodles = new HashSet<string>(StringComparer.Ordinal);
+        private static readonly HashSet<string> WarnedInvalidIconIds =
+            new HashSet<string>(StringComparer.Ordinal);
+
+        private static readonly HashSet<string> WarnedMissingSpriteMoodles =
+            new HashSet<string>(StringComparer.Ordinal);
+
         private static readonly HashSet<string> WarnedMissingAnimatedMoodles =
             new HashSet<string>(StringComparer.Ordinal);
 
-        public static void RegisterBody<TStatus>(Func<Body, TStatus, StatusMoodleDefinition> buildMoodle)
+        public static void RegisterBody<TStatus>(
+            Func<Body, TStatus, StatusMoodleDefinition> buildMoodle)
             where TStatus : BodyStatus, new()
         {
             ContentReloadSession.AssertNotActive("MoodleRegistry.RegisterBody()",
@@ -36,14 +46,16 @@ namespace CUCoreLib.Registries
 
             if (buildMoodle == null)
             {
-                CUCoreLibPlugin.Log?.LogWarning("Ignored body moodle registration because the contributor was null.");
+                CUCoreLibPlugin.Log?.LogWarning(
+                    "Ignored body moodle registration because the contributor was null.");
                 return;
             }
 
             BodyContributors.Add(new BodyMoodleContributor<TStatus>(buildMoodle));
         }
 
-        public static void RegisterLimb<TStatus>(Func<Limb, TStatus, StatusMoodleDefinition> buildMoodle)
+        public static void RegisterLimb<TStatus>(
+            Func<Limb, TStatus, StatusMoodleDefinition> buildMoodle)
             where TStatus : LimbStatus, new()
         {
             ContentReloadSession.AssertNotActive("MoodleRegistry.RegisterLimb()",
@@ -51,7 +63,8 @@ namespace CUCoreLib.Registries
 
             if (buildMoodle == null)
             {
-                CUCoreLibPlugin.Log?.LogWarning("Ignored limb moodle registration because the contributor was null.");
+                CUCoreLibPlugin.Log?.LogWarning(
+                    "Ignored limb moodle registration because the contributor was null.");
                 return;
             }
 
@@ -59,8 +72,8 @@ namespace CUCoreLib.Registries
         }
 
         /// <summary>
-        /// Queues a custom moodle using a direct sprite icon.
-        /// Call this during your normal update logic while the condition is active.
+        ///     Queues a custom moodle using a direct sprite icon.
+        ///     Call this during your normal update logic while the condition is active.
         /// </summary>
         /// <param name="intensity">The vanilla moodle background tier to use.</param>
         /// <param name="icon">The sprite icon to show for the moodle.</param>
@@ -70,15 +83,17 @@ namespace CUCoreLib.Registries
         /// <param name="chippedOnly">Whether to use the vanilla chipped-only display behavior.</param>
         /// <param name="important">Whether the moodle belongs in the main row instead of the side row.</param>
         /// <param name="key">
-        /// Optional stable queue key.
-        /// Supply this when one logical moodle changes severity over time and should replace its previous queued entry.
+        ///     Optional stable queue key.
+        ///     Supply this when one logical moodle changes severity over time and should replace its previous queued entry.
         /// </param>
         /// <param name="holdSeconds">
-        /// How long the queued moodle remains active without being refreshed.
-        /// Defaults to <c>0.5f</c>, matching vanilla's UI refresh interval.
+        ///     How long the queued moodle remains active without being refreshed.
+        ///     Defaults to <c>0.5f</c>, matching vanilla's UI refresh interval.
         /// </param>
-        public static void AddMoodle(int intensity, Sprite icon, string name, string description, bool critical = false,
-            bool chippedOnly = false, bool important = true, string key = null, float holdSeconds = DefaultHoldSeconds)
+        public static void AddMoodle(int intensity, Sprite icon, string name,
+            string description, bool critical = false,
+            bool chippedOnly = false, bool important = true, string key = null,
+            float holdSeconds = DefaultHoldSeconds)
         {
             if (icon == null)
             {
@@ -104,8 +119,8 @@ namespace CUCoreLib.Registries
         }
 
         /// <summary>
-        /// Queues a custom moodle using an existing icon ID already recognized by the vanilla moodle system.
-        /// Call this during your normal update logic while the condition is active.
+        ///     Queues a custom moodle using an existing icon ID already recognized by the vanilla moodle system.
+        ///     Call this during your normal update logic while the condition is active.
         /// </summary>
         /// <param name="intensity">The vanilla moodle background tier to use.</param>
         /// <param name="iconId">The icon ID that should be resolved from <c>MoodleManager.icons</c>.</param>
@@ -115,15 +130,17 @@ namespace CUCoreLib.Registries
         /// <param name="chippedOnly">Whether to use the vanilla chipped-only display behavior.</param>
         /// <param name="important">Whether the moodle belongs in the main row instead of the side row.</param>
         /// <param name="key">
-        /// Optional stable queue key.
-        /// Supply this when one logical moodle changes severity over time and should replace its previous queued entry.
+        ///     Optional stable queue key.
+        ///     Supply this when one logical moodle changes severity over time and should replace its previous queued entry.
         /// </param>
         /// <param name="holdSeconds">
-        /// How long the queued moodle remains active without being refreshed.
-        /// Defaults to <c>0.5f</c>, matching vanilla's UI refresh interval.
+        ///     How long the queued moodle remains active without being refreshed.
+        ///     Defaults to <c>0.5f</c>, matching vanilla's UI refresh interval.
         /// </param>
-        public static void AddMoodle(int intensity, string iconId, string name, string description,
-            bool critical = false, bool chippedOnly = false, bool important = true, string key = null,
+        public static void AddMoodle(int intensity, string iconId, string name,
+            string description,
+            bool critical = false, bool chippedOnly = false, bool important = true,
+            string key = null,
             float holdSeconds = DefaultHoldSeconds)
         {
             QueueMoodle(
@@ -145,31 +162,34 @@ namespace CUCoreLib.Registries
         }
 
         /// <summary>
-        /// Queues a custom moodle whose icon is driven by a cached sprite animation.
-        /// The first animation frame is used as the initial icon, then the moodle patch applies the animation at runtime.
+        ///     Queues a custom moodle whose icon is driven by a cached sprite animation.
+        ///     The first animation frame is used as the initial icon, then the moodle patch applies the animation at runtime.
         /// </summary>
         /// <param name="intensity">The vanilla moodle background tier to use.</param>
-        /// <param name="animationId">The cached animation ID previously registered with <see cref="AssetLoader"/>.</param>
+        /// <param name="animationId">The cached animation ID previously registered with <see cref="AssetLoader" />.</param>
         /// <param name="name">The player-facing moodle title.</param>
         /// <param name="description">The player-facing moodle description.</param>
         /// <param name="critical">Whether to show the vanilla critical glow overlay.</param>
         /// <param name="chippedOnly">Whether to use the vanilla chipped-only display behavior.</param>
         /// <param name="important">Whether the moodle belongs in the main row instead of the side row.</param>
         /// <param name="key">
-        /// Optional stable queue key.
-        /// Supply this when one logical moodle changes severity over time and should replace its previous queued entry.
+        ///     Optional stable queue key.
+        ///     Supply this when one logical moodle changes severity over time and should replace its previous queued entry.
         /// </param>
         /// <param name="holdSeconds">
-        /// How long the queued moodle remains active without being refreshed.
-        /// Defaults to <c>0.5f</c>, matching vanilla's UI refresh interval.
+        ///     How long the queued moodle remains active without being refreshed.
+        ///     Defaults to <c>0.5f</c>, matching vanilla's UI refresh interval.
         /// </param>
-        public static void AddAnimatedMoodle(int intensity, string animationId, string name, string description,
-            bool critical = false, bool chippedOnly = false, bool important = true, string key = null,
+        public static void AddAnimatedMoodle(int intensity, string animationId,
+            string name, string description,
+            bool critical = false, bool chippedOnly = false, bool important = true,
+            string key = null,
             float holdSeconds = DefaultHoldSeconds)
         {
             var animation = AssetLoader.GetCachedSpriteAnimation(animationId);
-            if (animation == null || animation.Frames == null || animation.Frames.Length == 0 ||
-                animation.Frames[0] == null)
+            if (animation?.Frames == null
+                || animation.Frames.Length == 0
+                || animation.Frames[0] == null)
             {
                 WarnMissingAnimatedMoodle(name, animationId, key);
                 return;
@@ -193,18 +213,22 @@ namespace CUCoreLib.Registries
             );
         }
 
-        internal static void AddBodyMoodles(MoodleManager manager, Body body, bool important)
+        internal static void AddBodyMoodles(MoodleManager manager, Body body,
+            bool important)
         {
             if (manager == null || body == null) return;
 
-            foreach (var contributor in BodyContributors) AddMoodle(manager, contributor.Build(body), important);
+            foreach (var contributor in BodyContributors)
+                AddMoodle(manager, contributor.Build(body), important);
         }
 
-        internal static void AddLimbMoodles(MoodleManager manager, Limb limb, bool important)
+        internal static void AddLimbMoodles(MoodleManager manager, Limb limb,
+            bool important)
         {
             if (manager == null || limb == null) return;
 
-            foreach (var contributor in LimbContributors) AddMoodle(manager, contributor.Build(limb), important);
+            foreach (var contributor in LimbContributors)
+                AddMoodle(manager, contributor.Build(limb), important);
         }
 
         internal static void AddQueuedMoodles(MoodleManager manager, bool important)
@@ -237,7 +261,8 @@ namespace CUCoreLib.Registries
                 }
                 else
                 {
-                    ActiveAnimationIdsByIconKey.Remove(entry.Value.IconId ?? string.Empty);
+                    ActiveAnimationIdsByIconKey.Remove(entry.Value.IconId
+                        ?? string.Empty);
                     moodle.Icon = entry.Value.IconId;
                 }
 
@@ -268,9 +293,12 @@ namespace CUCoreLib.Registries
                     ["critical"] = moodle.Definition.Critical,
                     ["chippedOnly"] = moodle.Definition.ChippedOnly,
                     ["important"] = moodle.Definition.Important,
-                    ["iconId"] = moodle.IconSprite != null ? moodle.IconSprite.name : moodle.IconId ?? string.Empty,
+                    ["iconId"] = moodle.IconSprite != null
+                        ? moodle.IconSprite.name
+                        : moodle.IconId ?? string.Empty,
                     ["animationId"] = moodle.AnimationId ?? string.Empty,
-                    ["holdSeconds"] = Mathf.Max(0.05f, moodle.ExpiresAt - Time.unscaledTime)
+                    ["holdSeconds"] =
+                        Mathf.Max(0.05f, moodle.ExpiresAt - Time.unscaledTime)
                 });
             }
 
@@ -280,22 +308,19 @@ namespace CUCoreLib.Registries
 
         internal static void ApplyNetworkSnapshot(JObject snapshot)
         {
-            if (snapshot == null) return;
-
-            var queued = snapshot["queued"] as JArray;
-            if (queued == null) return;
+            if (!(snapshot?["queued"] is JArray queued)) return;
 
             QueuedMoodles.Clear();
             foreach (var token in queued)
             {
-                var obj = token as JObject;
-                if (obj == null) continue;
+                if (!(token is JObject obj)) continue;
 
                 var key = obj.Value<string>("key");
                 var iconId = obj.Value<string>("iconId");
                 var name = obj.Value<string>("name");
-                if (string.IsNullOrWhiteSpace(key) || string.IsNullOrWhiteSpace(iconId) ||
-                    string.IsNullOrWhiteSpace(name)) continue;
+                if (string.IsNullOrWhiteSpace(key)
+                    || string.IsNullOrWhiteSpace(iconId)
+                    || string.IsNullOrWhiteSpace(name)) continue;
 
                 QueuedMoodles.TryGetValue(key, out var localMoodle);
                 QueueMoodle(
@@ -318,10 +343,12 @@ namespace CUCoreLib.Registries
 
         internal static bool TryGetAnimationId(string iconKey, out string animationId)
         {
-            return ActiveAnimationIdsByIconKey.TryGetValue(iconKey ?? string.Empty, out animationId);
+            return ActiveAnimationIdsByIconKey.TryGetValue(iconKey ?? string.Empty,
+                out animationId);
         }
 
-        private static void QueueMoodle(string key, StatusMoodleDefinition definition, Sprite iconSprite, string iconId,
+        private static void QueueMoodle(string key, StatusMoodleDefinition definition,
+            Sprite iconSprite, string iconId,
             float holdSeconds, string animationId = null)
         {
             if (definition == null || string.IsNullOrWhiteSpace(definition.Name)) return;
@@ -342,21 +369,28 @@ namespace CUCoreLib.Registries
             };
         }
 
-        private static string BuildQueueKey(StatusMoodleDefinition definition, Sprite iconSprite, string iconId)
+        private static string BuildQueueKey(StatusMoodleDefinition definition,
+            Sprite iconSprite, string iconId)
         {
-            var iconKey = iconSprite != null ? iconSprite.name : iconId ?? "icon";
+            var iconKey = iconSprite != null
+                ? iconSprite.name
+                : iconId ?? "icon";
             // A multi-stage moodle replaces its own queued entry, surely no one's using two of the same names with different intensities :clueless:
             return iconKey + "|" + definition.Name;
         }
 
-        private static void AddMoodle(MoodleManager manager, StatusMoodleDefinition moodle, bool important)
+        private static void AddMoodle(MoodleManager manager,
+            StatusMoodleDefinition moodle, bool important)
         {
-            if (manager == null || moodle == null || string.IsNullOrWhiteSpace(moodle.Name)) return;
+            if (manager == null
+                || moodle == null
+                || string.IsNullOrWhiteSpace(moodle.Name)) return;
             if (moodle.Important != important) return;
 
             if (moodle.IconSprite != null)
             {
-                var iconKey = "cucorelib.status." + BuildQueueKey(moodle, moodle.IconSprite, null);
+                var iconKey = "cucorelib.status."
+                    + BuildQueueKey(moodle, moodle.IconSprite, null);
                 manager.icons[iconKey] = NormalizeIconSprite(moodle.IconSprite);
                 ActiveAnimationIdsByIconKey.Remove(iconKey);
                 moodle.Icon = iconKey;
@@ -367,9 +401,11 @@ namespace CUCoreLib.Registries
             if (!manager.icons.ContainsKey(moodle.Icon))
             {
                 if (WarnedInvalidIconIds.Add(moodle.Icon))
-                    CUCoreLibPlugin.Log?.LogWarning("CUCoreLib Moodles: Skipping moodle '" + moodle.Name +
-                                                    "' because icon '" + moodle.Icon +
-                                                    "' is not registered in MoodleManager.icons.");
+                    CUCoreLibPlugin.Log?.LogWarning("CUCoreLib Moodles: Skipping moodle '"
+                        + moodle.Name
+                        + "' because icon '"
+                        + moodle.Icon
+                        + "' is not registered in MoodleManager.icons.");
 
                 return;
             }
@@ -397,14 +433,17 @@ namespace CUCoreLib.Registries
         {
             if (iconSprite == null) return null;
 
-            if (Mathf.Approximately(iconSprite.pixelsPerUnit, VanillaMoodlePixelsPerUnit)) return iconSprite;
+            if (Mathf.Approximately(iconSprite.pixelsPerUnit, VanillaMoodlePixelsPerUnit))
+                return iconSprite;
 
             // Preserve intentionally custom PPU choices made by the caller.
-            if (!Mathf.Approximately(iconSprite.pixelsPerUnit, AssetLoader.PPU_WORLD) &&
-                !Mathf.Approximately(iconSprite.pixelsPerUnit, AssetLoader.PPU_UI)) return iconSprite;
+            if (!Mathf.Approximately(iconSprite.pixelsPerUnit, AssetLoader.PPU_WORLD)
+                && !Mathf.Approximately(iconSprite.pixelsPerUnit, AssetLoader.PPU_UI))
+                return iconSprite;
 
             var instanceId = iconSprite.GetInstanceID();
-            if (UiSpriteCache.TryGetValue(instanceId, out var cachedSprite) && cachedSprite != null)
+            if (UiSpriteCache.TryGetValue(instanceId, out var cachedSprite)
+                && cachedSprite != null)
                 return cachedSprite;
 
             var normalizedSprite = Sprite.Create(
@@ -426,20 +465,28 @@ namespace CUCoreLib.Registries
             var warningKey = BuildMissingAssetWarningKey(moodleName, key);
             if (!WarnedMissingSpriteMoodles.Add(warningKey)) return;
 
-            CUCoreLibPlugin.Log?.LogWarning("CUCoreLib Moodles: Skipping moodle '" +
-                                            (string.IsNullOrWhiteSpace(moodleName) ? "(unnamed moodle)" : moodleName) +
-                                            "' because its sprite was null. This usually means the moodle sprite failed to load or does not exist.");
+            CUCoreLibPlugin.Log?.LogWarning("CUCoreLib Moodles: Skipping moodle '"
+                + (string.IsNullOrWhiteSpace(moodleName)
+                    ? "(unnamed moodle)"
+                    : moodleName)
+                + "' because its sprite was null. This usually means the moodle sprite failed to load or does not exist.");
         }
 
-        private static void WarnMissingAnimatedMoodle(string moodleName, string animationId, string key)
+        private static void WarnMissingAnimatedMoodle(string moodleName,
+            string animationId, string key)
         {
-            var warningKey = (animationId ?? string.Empty) + "|" + BuildMissingAssetWarningKey(moodleName, key);
+            var warningKey = (animationId ?? string.Empty)
+                + "|"
+                + BuildMissingAssetWarningKey(moodleName, key);
             if (!WarnedMissingAnimatedMoodles.Add(warningKey)) return;
 
-            CUCoreLibPlugin.Log?.LogWarning("CUCoreLib Moodles: Skipping moodle '" +
-                                            (string.IsNullOrWhiteSpace(moodleName) ? "(unnamed moodle)" : moodleName) +
-                                            "' because animation '" + (animationId ?? string.Empty) +
-                                            "' was missing or had no valid first frame.");
+            CUCoreLibPlugin.Log?.LogWarning("CUCoreLib Moodles: Skipping moodle '"
+                + (string.IsNullOrWhiteSpace(moodleName)
+                    ? "(unnamed moodle)"
+                    : moodleName)
+                + "' because animation '"
+                + (animationId ?? string.Empty)
+                + "' was missing or had no valid first frame.");
         }
 
         private static string BuildMissingAssetWarningKey(string moodleName, string key)
@@ -462,7 +509,8 @@ namespace CUCoreLib.Registries
         {
             private readonly Func<Body, TStatus, StatusMoodleDefinition> _buildMoodle;
 
-            public BodyMoodleContributor(Func<Body, TStatus, StatusMoodleDefinition> buildMoodle)
+            public BodyMoodleContributor(
+                Func<Body, TStatus, StatusMoodleDefinition> buildMoodle)
             {
                 _buildMoodle = buildMoodle;
             }
@@ -478,7 +526,8 @@ namespace CUCoreLib.Registries
         {
             private readonly Func<Limb, TStatus, StatusMoodleDefinition> _buildMoodle;
 
-            public LimbMoodleContributor(Func<Limb, TStatus, StatusMoodleDefinition> buildMoodle)
+            public LimbMoodleContributor(
+                Func<Limb, TStatus, StatusMoodleDefinition> buildMoodle)
             {
                 _buildMoodle = buildMoodle;
             }

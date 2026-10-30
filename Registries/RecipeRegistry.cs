@@ -38,7 +38,8 @@ namespace CUCoreLib.Registries
         {
             if (recipe?.result == null || string.IsNullOrWhiteSpace(recipe.result.id))
             {
-                CUCoreLibPlugin.Log?.LogError("Recipe registration failed: Result ID is missing.");
+                CUCoreLibPlugin.Log?.LogError(
+                    "Recipe registration failed: Result ID is missing.");
                 return;
             }
 
@@ -68,8 +69,8 @@ namespace CUCoreLib.Registries
         {
             modGuid = null;
             if (recipe == null) return false;
-            return RecipeOwners.TryGetOwner(BuildRecipeKey(recipe), out modGuid) &&
-                   !string.IsNullOrWhiteSpace(modGuid);
+            return RecipeOwners.TryGetOwner(BuildRecipeKey(recipe), out modGuid)
+                && !string.IsNullOrWhiteSpace(modGuid);
         }
 
         internal static string BuildRecipeKey(Recipe recipe)
@@ -87,13 +88,14 @@ namespace CUCoreLib.Registries
             if (Recipes.recipes == null || recipe?.result == null) return false;
             EnsureCurrentRecipeList();
             NormalizeRecipeIngredients(recipe);
-            if (!ValidateRecipeReferences(recipe, deferVanillaValidation: false)) return false;
+            if (!ValidateRecipeReferences(recipe, false)) return false;
 
             var recipeKey = BuildRecipeKey(recipe);
             if (InjectedRecipeKeys.Contains(recipeKey)) return false;
 
             if (Recipes.recipes.Any(existing =>
-                    BuildRecipeKey(existing).Equals(recipeKey, StringComparison.OrdinalIgnoreCase)))
+                BuildRecipeKey(existing)
+                    .Equals(recipeKey, StringComparison.OrdinalIgnoreCase)))
             {
                 InjectedRecipeKeys.Add(recipeKey);
                 return false;
@@ -105,7 +107,9 @@ namespace CUCoreLib.Registries
                     if (!string.IsNullOrEmpty(item.specificId))
                         item.specific = true;
 
-                    item.ignoredId = recipe.isRepair ? string.Empty : recipe.result.id;
+                    item.ignoredId = recipe.isRepair
+                        ? string.Empty
+                        : recipe.result.id;
                 }
 
             recipe.index = Recipes.recipes.Count;
@@ -139,7 +143,8 @@ namespace CUCoreLib.Registries
         {
             if (PendingHotReloadInjectedRecipeCount <= 0) return;
 
-            CUCoreLibPlugin.Log?.LogInfo($"Recipes: Added {PendingHotReloadInjectedRecipeCount} recipes.");
+            CUCoreLibPlugin.Log?.LogInfo(
+                $"Recipes: Added {PendingHotReloadInjectedRecipeCount} recipes.");
             PendingHotReloadInjectedRecipeCount = 0;
         }
 
@@ -162,7 +167,8 @@ namespace CUCoreLib.Registries
                 .ToList();
         }
 
-        internal static void RestoreOwnerEntries(string ownerId, IEnumerable<Recipe> recipes)
+        internal static void RestoreOwnerEntries(string ownerId,
+            IEnumerable<Recipe> recipes)
         {
             if (recipes == null) return;
 
@@ -178,10 +184,13 @@ namespace CUCoreLib.Registries
 
             if (ownedKeys.Length == 0) return;
 
-            var ownedKeySet = new HashSet<string>(ownedKeys, StringComparer.OrdinalIgnoreCase);
+            var ownedKeySet =
+                new HashSet<string>(ownedKeys, StringComparer.OrdinalIgnoreCase);
 
-            RegisteredRecipes.RemoveAll(recipe => ownedKeySet.Contains(BuildRecipeKey(recipe)));
-            Recipes.recipes?.RemoveAll(recipe => ownedKeySet.Contains(BuildRecipeKey(recipe)));
+            RegisteredRecipes.RemoveAll(recipe =>
+                ownedKeySet.Contains(BuildRecipeKey(recipe)));
+            Recipes.recipes?.RemoveAll(recipe =>
+                ownedKeySet.Contains(BuildRecipeKey(recipe)));
 
             foreach (var key in ownedKeys)
             {
@@ -191,7 +200,11 @@ namespace CUCoreLib.Registries
                 WarnedInvalidRecipeIngredientKeys.Remove(key);
             }
 
-            result?.AddInfo("Cleared " + ownedKeys.Length + " recipes owned by '" + normalizedOwnerId + "'.");
+            result?.AddInfo("Cleared "
+                + ownedKeys.Length
+                + " recipes owned by '"
+                + normalizedOwnerId
+                + "'.");
         }
 
         private static void NormalizeRecipeIngredients(Recipe recipe)
@@ -203,10 +216,9 @@ namespace CUCoreLib.Registries
             if (recipe.result != null && !string.IsNullOrWhiteSpace(recipe.result.id))
                 recipe.result.id = recipe.result.id.Trim();
 
-            foreach (var item in recipe.items)
+            foreach (var item in recipe.items.Where(item =>
+                item != null && !string.IsNullOrWhiteSpace(item.specificId)))
             {
-                if (item == null || string.IsNullOrWhiteSpace(item.specificId)) continue;
-
                 item.specificId = item.specificId.Trim();
                 item.specific = true;
             }
@@ -221,14 +233,17 @@ namespace CUCoreLib.Registries
 
         internal static bool IsKnownRecipeResult(RecipeResult result)
         {
-            return result != null && TryResolveRecipeItemId(result.id, result.isLiquid, deferVanillaValidation: false);
+            return result != null
+                && TryResolveRecipeItemId(result.id, result.isLiquid, false);
         }
 
-        private static bool ValidateRecipeReferences(Recipe recipe, bool deferVanillaValidation = true)
+        private static bool ValidateRecipeReferences(Recipe recipe,
+            bool deferVanillaValidation = true)
         {
             if (recipe?.result == null || string.IsNullOrWhiteSpace(recipe.result.id))
             {
-                CUCoreLibPlugin.Log?.LogError("Recipe registration failed: Result ID is missing.");
+                CUCoreLibPlugin.Log?.LogError(
+                    "Recipe registration failed: Result ID is missing.");
                 return false;
             }
 
@@ -236,13 +251,15 @@ namespace CUCoreLib.Registries
             var isValid = true;
             var resultId = recipe.result.id.Trim();
 
-            if (!TryResolveRecipeItemId(resultId, recipe.result.isLiquid, deferVanillaValidation))
+            if (!TryResolveRecipeItemId(resultId, recipe.result.isLiquid,
+                deferVanillaValidation))
             {
-                var warningKey = BuildInvalidIngredientWarningKey(recipeKey, -1, recipe.result.isLiquid, resultId);
+                var warningKey = BuildInvalidIngredientWarningKey(recipeKey, -1,
+                    recipe.result.isLiquid, resultId);
                 if (WarnedInvalidRecipeIngredientKeys.Add(warningKey))
                     CUCoreLibPlugin.Log?.LogError(
-                        $"Recipe '{recipe.result.id}' was ignored because its result references unknown " +
-                        $"{(recipe.result.isLiquid ? "liquid" : "item")} '{resultId}'.");
+                        $"Recipe '{recipe.result.id}' was ignored because its result references unknown "
+                        + $"{(recipe.result.isLiquid ? "liquid" : "item")} '{resultId}'.");
                 isValid = false;
             }
 
@@ -251,7 +268,8 @@ namespace CUCoreLib.Registries
                 var item = recipe.items[i];
                 if (item == null)
                 {
-                    CUCoreLibPlugin.Log?.LogError($"Recipe '{recipe.result.id}' was ignored because ingredient {i} is null.");
+                    CUCoreLibPlugin.Log?.LogError(
+                        $"Recipe '{recipe.result.id}' was ignored because ingredient {i} is null.");
                     isValid = false;
                     continue;
                 }
@@ -275,21 +293,25 @@ namespace CUCoreLib.Registries
                 }
 
                 var normalizedId = item.specificId.Trim();
-                if (TryResolveRecipeItemId(normalizedId, item.isLiquid, deferVanillaValidation)) continue;
+                if (TryResolveRecipeItemId(normalizedId, item.isLiquid,
+                    deferVanillaValidation)) continue;
 
                 isValid = false;
-                var warningKey = BuildInvalidIngredientWarningKey(recipeKey, i, item.isLiquid, normalizedId);
+                var warningKey =
+                    BuildInvalidIngredientWarningKey(recipeKey, i, item.isLiquid,
+                        normalizedId);
                 if (!WarnedInvalidRecipeIngredientKeys.Add(warningKey)) continue;
 
                 CUCoreLibPlugin.Log?.LogError(
-                    $"Recipe '{recipe.result.id}' was ignored because ingredient {i} references unknown " +
-                    $"{(item.isLiquid ? "liquid" : "item")} '{normalizedId}'.");
+                    $"Recipe '{recipe.result.id}' was ignored because ingredient {i} references unknown "
+                    + $"{(item.isLiquid ? "liquid" : "item")} '{normalizedId}'.");
             }
 
             return isValid;
         }
 
-        private static bool TryResolveRecipeItemId(string id, bool isLiquid, bool deferVanillaValidation)
+        private static bool TryResolveRecipeItemId(string id, bool isLiquid,
+            bool deferVanillaValidation)
         {
             if (string.IsNullOrWhiteSpace(id)) return false;
 
@@ -308,10 +330,12 @@ namespace CUCoreLib.Registries
                 // Defer vanilla-item validation until runtime instead of warning on valid base-game IDs.
                 return deferVanillaValidation;
 
-            return Item.GlobalItems.ContainsKey(id) || Resources.Load<GameObject>(id) != null;
+            return Item.GlobalItems.ContainsKey(id)
+                || Resources.Load<GameObject>(id) != null;
         }
 
-        private static string BuildInvalidIngredientWarningKey(string recipeKey, int index, bool isLiquid, string id)
+        private static string BuildInvalidIngredientWarningKey(string recipeKey,
+            int index, bool isLiquid, string id)
         {
             return recipeKey + "|" + index + "|" + isLiquid + "|" + id;
         }
@@ -332,17 +356,28 @@ namespace CUCoreLib.Registries
                     continue;
                 }
 
-                builder.Append(item.minimumCondition.ToString(CultureInfo.InvariantCulture));
+                builder.Append(
+                    item.minimumCondition.ToString(CultureInfo.InvariantCulture));
                 builder.Append('|');
-                builder.Append(item.isLiquid ? 'L' : 'I');
+                builder.Append(item.isLiquid
+                    ? 'L'
+                    : 'I');
                 builder.Append('|');
-                builder.Append(item.specific ? 'S' : 'A');
+                builder.Append(item.specific
+                    ? 'S'
+                    : 'A');
                 builder.Append('|');
-                builder.Append(string.IsNullOrWhiteSpace(item.specificId) ? string.Empty : item.specificId.Trim());
+                builder.Append(string.IsNullOrWhiteSpace(item.specificId)
+                    ? string.Empty
+                    : item.specificId.Trim());
                 builder.Append('|');
-                builder.Append(item.destroyItem ? 'D' : 'K');
+                builder.Append(item.destroyItem
+                    ? 'D'
+                    : 'K');
                 builder.Append('|');
-                builder.Append(item.quality != null ? item.quality.id : string.Empty);
+                builder.Append(item.quality != null
+                    ? item.quality.id
+                    : string.Empty);
                 builder.Append('|');
                 builder.Append(item.quality != null
                     ? item.quality.amount.ToString(CultureInfo.InvariantCulture)
@@ -355,13 +390,13 @@ namespace CUCoreLib.Registries
         // MP Sync for recipes
         internal static JObject SerializeRecipe(Recipe recipe)
         {
-            if (recipe?.result == null || string.IsNullOrWhiteSpace(recipe.result.id)) return null;
+            if (recipe?.result == null || string.IsNullOrWhiteSpace(recipe.result.id))
+                return null;
 
             var items = new JArray();
             if (recipe.items != null)
-                foreach (var item in recipe.items)
+                foreach (var item in recipe.items.Where(item => item != null))
                 {
-                    if (item == null) continue;
                     items.Add(new JObject
                     {
                         ["specificId"] = item.specificId ?? string.Empty,
@@ -369,7 +404,9 @@ namespace CUCoreLib.Registries
                         ["minimumCondition"] = item.minimumCondition,
                         ["destroyItem"] = item.destroyItem,
                         ["quality"] = NetworkSnapshotSerialization.WriteCraftingQualities(
-                            item.quality != null ? new[] { item.quality } : null)
+                            item.quality != null
+                                ? new[] { item.quality }
+                                : null)
                     });
                 }
 
@@ -395,7 +432,6 @@ namespace CUCoreLib.Registries
         {
             var recipes = new JArray();
             foreach (var recipe in RegisteredRecipes.ToArray())
-            {
                 try
                 {
                     var serialized = SerializeRecipe(recipe);
@@ -403,8 +439,8 @@ namespace CUCoreLib.Registries
                 }
                 catch
                 {
+                    // ignored
                 }
-            }
 
             // Together sends recipe indices when crafting, so clients need the host's full order to translate theirs
 
@@ -428,12 +464,16 @@ namespace CUCoreLib.Registries
         {
             hostIndex = 0;
             var hostIndices = HostRecipeIndices;
-            if (hostIndices == null || Recipes.recipes == null || localIndex < 0 ||
-                localIndex >= Recipes.recipes.Count) return false;
+            if (hostIndices == null
+                || Recipes.recipes == null
+                || localIndex < 0
+                || localIndex >= Recipes.recipes.Count) return false;
 
-            hostIndex = hostIndices.TryGetValue(BuildRecipeKey(Recipes.recipes[localIndex]), out var index)
-                ? (ushort)index
-                : ushort.MaxValue;
+            hostIndex =
+                hostIndices.TryGetValue(BuildRecipeKey(Recipes.recipes[localIndex]),
+                    out var index)
+                    ? (ushort)index
+                    : ushort.MaxValue;
             return true;
         }
 
@@ -441,11 +481,13 @@ namespace CUCoreLib.Registries
         {
             if (snapshot?["order"] is JArray order)
             {
-                var hostIndices = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+                var hostIndices =
+                    new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
                 for (var i = 0; i < order.Count && i <= ushort.MaxValue; i++)
                 {
-                    var key = order[i]?.ToString();
-                    if (!string.IsNullOrEmpty(key) && !hostIndices.ContainsKey(key)) hostIndices[key] = i;
+                    var key = order[i].ToString();
+                    if (!string.IsNullOrEmpty(key) && !hostIndices.ContainsKey(key))
+                        hostIndices[key] = i;
                 }
 
                 HostRecipeIndices = hostIndices;
@@ -454,10 +496,10 @@ namespace CUCoreLib.Registries
             if (!(snapshot?["recipes"] is JArray recipes)) return;
 
             foreach (var token in recipes)
-            {
                 try
                 {
-                    if (!(token is JObject obj) || !(obj["result"] is JObject res)) continue;
+                    if (!(token is JObject obj) || !(obj["result"] is JObject res))
+                        continue;
 
                     var result = new RecipeResult
                     {
@@ -465,29 +507,35 @@ namespace CUCoreLib.Registries
                         isLiquid = res.Value<bool?>("isLiquid") ?? false,
                         amount = res.Value<int?>("amount") ?? 1,
                         resultCondition = res.Value<float?>("resultCondition") ?? 1f,
-                        dontDrainResultLiquid = res.Value<bool?>("dontDrainResultLiquid") ?? false
+                        dontDrainResultLiquid =
+                            res.Value<bool?>("dontDrainResultLiquid") ?? false
                     };
                     if (string.IsNullOrWhiteSpace(result.id)) continue;
 
                     var items = new List<RecipeItem>();
                     if (obj["items"] is JArray itemArray)
-                        foreach (var it in itemArray.OfType<JObject>())
-                        {
-                            var qualities = NetworkSnapshotSerialization.ReadCraftingQualities(it["quality"]);
-                            items.Add(new RecipeItem(it.Value<float?>("minimumCondition") ?? 0.9f)
+                        items.AddRange(
+                            from it in itemArray.OfType<JObject>()
+                            let qualities =
+                                NetworkSnapshotSerialization.ReadCraftingQualities(
+                                    it["quality"])
+                            select new RecipeItem(it.Value<float?>("minimumCondition")
+                                ?? 0.9f)
                             {
                                 specificId = it.Value<string>("specificId"),
                                 isLiquid = it.Value<bool?>("isLiquid") ?? false,
                                 destroyItem = it.Value<bool?>("destroyItem") ?? true,
-                                quality = qualities.Count > 0 ? qualities[0] : null
+                                quality = qualities.Count > 0
+                                    ? qualities[0]
+                                    : null
                             });
-                        }
 
                     var recipe = new Recipe
                     {
                         INT = obj.Value<int?>("INT") ?? 0,
                         specialKnown = obj.Value<bool?>("specialKnown") ?? false,
-                        category = (Recipes.RecipeCategory)(obj.Value<int?>("category") ?? 0),
+                        category =
+                            (Recipes.RecipeCategory)(obj.Value<int?>("category") ?? 0),
                         isRepair = obj.Value<bool?>("isRepair") ?? false,
                         result = result,
                         items = items
@@ -501,9 +549,8 @@ namespace CUCoreLib.Registries
                 }
                 catch
                 {
+                    // ignored
                 }
-            }
         }
-
     }
 }

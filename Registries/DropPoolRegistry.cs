@@ -7,6 +7,7 @@ using CUCoreLib.Networking;
 using CUCoreLib.Patches;
 using Newtonsoft.Json.Linq;
 using UnityEngine;
+using Random = System.Random;
 
 namespace CUCoreLib.Registries
 {
@@ -15,24 +16,58 @@ namespace CUCoreLib.Registries
         private static readonly Dictionary<DropPool, List<string>> ExplicitPools =
             new Dictionary<DropPool, List<string>>();
 
-        private static readonly System.Random PoolRandom = new System.Random();
-        private static readonly Dictionary<string, Dictionary<string, double>> GenerationRolls =
-            new Dictionary<string, Dictionary<string, double>>(StringComparer.OrdinalIgnoreCase);
-        private static readonly Dictionary<string, Dictionary<string, int>> ResolvedCounts =
-            new Dictionary<string, Dictionary<string, int>>(StringComparer.OrdinalIgnoreCase);
+        private static readonly Random PoolRandom = new Random();
+
+        private static readonly Dictionary<string, Dictionary<string, double>>
+            GenerationRolls =
+                new Dictionary<string, Dictionary<string, double>>(StringComparer
+                    .OrdinalIgnoreCase);
+
+        private static readonly Dictionary<string, Dictionary<string, int>>
+            ResolvedCounts =
+                new Dictionary<string, Dictionary<string, int>>(StringComparer
+                    .OrdinalIgnoreCase);
+
         private static readonly Dictionary<string, Dictionary<string, int>> HostCounts =
-            new Dictionary<string, Dictionary<string, int>>(StringComparer.OrdinalIgnoreCase);
+            new Dictionary<string, Dictionary<string, int>>(StringComparer
+                .OrdinalIgnoreCase);
+
         private static string generationId;
         private static bool generationActive;
 
-        private static bool IsRemoteClient => MultiplayerBridge.IsRunning && !MultiplayerBridge.IsServer;
+        private static readonly Dictionary<string, WorldSpawnConfig> WorldSpawnConfigs =
+            new Dictionary<string, WorldSpawnConfig>(StringComparer.OrdinalIgnoreCase);
+
+        private static readonly HashSet<string> WarnedInvalidWorldSpawn =
+            new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        private static readonly DropPool[] SingleSourceFlags =
+        {
+            DropPool.Corpse,
+            DropPool.MedicalCrate,
+            DropPool.FoodCrate,
+            DropPool.ContainerCrate,
+            DropPool.Trader1,
+            DropPool.Trader2,
+            DropPool.Trader3,
+            DropPool.DropCapsule,
+            DropPool.CapsuleContainer
+        };
+
+        private static readonly int GroundMask = LayerMask.GetMask("Ground");
+
+        private static bool IsRemoteClient =>
+            MultiplayerBridge.IsRunning && !MultiplayerBridge.IsServer;
 
         internal static float ValidateSpawnFrequency(string id, float frequency)
         {
-            if (float.IsNaN(frequency) || float.IsInfinity(frequency) || Math.Ceiling((double)frequency) > int.MaxValue)
+            if (float.IsNaN(frequency)
+                || float.IsInfinity(frequency)
+                || Math.Ceiling(frequency) > int.MaxValue)
             {
-                CUCoreLibPlugin.Log?.LogWarning("Custom item '" + id +
-                    "' disabled pooled spawning: spawnFrequency must be finite and fit an integer entry count.");
+                CUCoreLibPlugin.Log?.LogWarning("Custom item '"
+                    + id
+                    + "' disabled pooled spawning: spawnFrequency must be finite and fit an integer entry count.");
                 return 0f;
             }
 
@@ -51,21 +86,25 @@ namespace CUCoreLib.Registries
 
             if (IsRemoteClient)
             {
-                if (HostCounts.TryGetValue(id, out var pools) && pools.TryGetValue(poolKey, out var hostCount) &&
-                    hostCount >= count && hostCount <= Math.Ceiling(frequency))
+                if (HostCounts.TryGetValue(id, out var pools)
+                    && pools.TryGetValue(poolKey, out var hostCount)
+                    && hostCount >= count
+                    && hostCount <= Math.Ceiling(frequency))
                     count = hostCount;
             }
             else if (generationActive && remainder > 0d)
             {
                 if (!GenerationRolls.TryGetValue(id, out var rolls))
-                    GenerationRolls[id] = rolls = new Dictionary<string, double>(StringComparer.Ordinal);
+                    GenerationRolls[id] = rolls =
+                        new Dictionary<string, double>(StringComparer.Ordinal);
                 if (!rolls.TryGetValue(poolKey, out var roll))
                     rolls[poolKey] = roll = PoolRandom.NextDouble();
                 if (roll < remainder) count++;
             }
 
             if (!ResolvedCounts.TryGetValue(id, out var counts))
-                ResolvedCounts[id] = counts = new Dictionary<string, int>(StringComparer.Ordinal);
+                ResolvedCounts[id] =
+                    counts = new Dictionary<string, int>(StringComparer.Ordinal);
             counts[poolKey] = count;
             return count;
         }
@@ -100,17 +139,20 @@ namespace CUCoreLib.Registries
         private static void RefreshPools()
         {
             Rebuild();
-            foreach (var entry in ItemRegistry.RegisteredItems.OrderBy(entry => entry.Key, StringComparer.Ordinal))
+            foreach (var entry in ItemRegistry.RegisteredItems.OrderBy(entry => entry.Key,
+                StringComparer.Ordinal))
                 ItemLootPoolPatch.EnsureItemInLootPool(entry.Key, entry.Value);
         }
 
         internal static JObject CaptureNetworkSnapshot()
         {
             var items = new JObject();
-            foreach (var item in ResolvedCounts.OrderBy(entry => entry.Key, StringComparer.Ordinal))
+            foreach (var item in ResolvedCounts.OrderBy(entry => entry.Key,
+                StringComparer.Ordinal))
             {
                 var pools = new JObject();
-                foreach (var pool in item.Value.OrderBy(entry => entry.Key, StringComparer.Ordinal))
+                foreach (var pool in item.Value.OrderBy(entry => entry.Key,
+                    StringComparer.Ordinal))
                     pools[pool.Key] = pool.Value;
                 items[item.Key] = pools;
             }
@@ -126,7 +168,8 @@ namespace CUCoreLib.Registries
             generationId = snapshot.Value<string>("generation");
             foreach (var item in items.Properties())
             {
-                if (string.IsNullOrWhiteSpace(item.Name) || !(item.Value is JObject pools)) continue;
+                if (string.IsNullOrWhiteSpace(item.Name)
+                    || !(item.Value is JObject pools)) continue;
                 var counts = new Dictionary<string, int>(StringComparer.Ordinal);
                 foreach (var pool in pools.Properties())
                 {
@@ -134,32 +177,12 @@ namespace CUCoreLib.Registries
                     if (int.TryParse(pool.Value.ToString(), out var count) && count >= 0)
                         counts[pool.Name] = count;
                 }
+
                 HostCounts[SpawnIdHelpers.NormalizeSpawnId(item.Name)] = counts;
             }
 
             RefreshPools();
         }
-
-        private static readonly Dictionary<string, WorldSpawnConfig> WorldSpawnConfigs =
-            new Dictionary<string, WorldSpawnConfig>(StringComparer.OrdinalIgnoreCase);
-
-        private static readonly HashSet<string> WarnedInvalidWorldSpawn =
-            new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
-        private static readonly DropPool[] SingleSourceFlags =
-        {
-            DropPool.Corpse,
-            DropPool.MedicalCrate,
-            DropPool.FoodCrate,
-            DropPool.ContainerCrate,
-            DropPool.Trader1,
-            DropPool.Trader2,
-            DropPool.Trader3,
-            DropPool.DropCapsule,
-            DropPool.CapsuleContainer
-        };
-
-        private static readonly int GroundMask = LayerMask.GetMask("Ground");
 
         internal static void Rebuild()
         {
@@ -169,7 +192,8 @@ namespace CUCoreLib.Registries
 
             if (ItemRegistry.RegisteredItems == null) return;
 
-            foreach (var entry in ItemRegistry.RegisteredItems.OrderBy(entry => entry.Key, StringComparer.Ordinal))
+            foreach (var entry in ItemRegistry.RegisteredItems.OrderBy(entry => entry.Key,
+                StringComparer.Ordinal))
                 RegisterItem(entry.Key, entry.Value);
         }
 
@@ -191,7 +215,8 @@ namespace CUCoreLib.Registries
             var normalizedId = SpawnIdHelpers.NormalizeSpawnId(id);
 
             foreach (var poolItems in ExplicitPools.Values)
-                poolItems.RemoveAll(itemId => string.Equals(itemId, normalizedId, StringComparison.OrdinalIgnoreCase));
+                poolItems.RemoveAll(itemId => string.Equals(itemId, normalizedId,
+                    StringComparison.OrdinalIgnoreCase));
 
             WorldSpawnConfigs.Remove(normalizedId);
             ResolvedCounts.Remove(normalizedId);
@@ -202,11 +227,12 @@ namespace CUCoreLib.Registries
         {
             if (!(info is CustomItemInfo customInfo)) return true;
 
-            return !customInfo.DropPool.HasValue &&
-                   !customInfo.WorldSpawnPerChunk.HasValue;
+            return !customInfo.DropPool.HasValue
+                && !customInfo.WorldSpawnPerChunk.HasValue;
         }
 
-        internal static bool TryGetRandomItemId(DropPool source, string fallbackCategory, out string itemId)
+        internal static bool TryGetRandomItemId(DropPool source, string fallbackCategory,
+            out string itemId)
         {
             itemId = null;
 
@@ -219,19 +245,23 @@ namespace CUCoreLib.Registries
             ExplicitPools.TryGetValue(source, out var explicitItems);
             if (explicitItems != null && explicitItems.Count == 0) explicitItems = null;
 
-            var fallbackCount = fallbackItems != null ? fallbackItems.Count : 0;
-            var explicitCount = explicitItems != null ? explicitItems.Count : 0;
+            var fallbackCount = fallbackItems?.Count ?? 0;
+            var explicitCount = explicitItems?.Count ?? 0;
             var totalCount = fallbackCount + explicitCount;
             if (totalCount == 0) return false;
 
             var index = UnityEngine.Random.Range(0, totalCount);
-            itemId = index < fallbackCount ? fallbackItems[index] : explicitItems[index - fallbackCount];
+            if (fallbackItems != null && explicitItems != null)
+                itemId = index < fallbackCount
+                    ? fallbackItems[index]
+                    : explicitItems[index - fallbackCount];
             return !string.IsNullOrWhiteSpace(itemId);
         }
 
         internal static void ScatterWorldSpawns(WorldGeneration world)
         {
-            if (world == null || world.biomeOverride != WorldGeneration.OverrideSceneType.None) return;
+            if (world == null
+                || world.biomeOverride != WorldGeneration.OverrideSceneType.None) return;
             if (WorldSpawnConfigs.Count == 0) return;
 
             foreach (var entry in WorldSpawnConfigs)
@@ -246,9 +276,26 @@ namespace CUCoreLib.Registries
 
         private static void RegisterFixedSources(string id, CustomItemInfo info)
         {
-            if (info == null || !info.DropPool.HasValue) return;
-
-            if (info.DropPool.Value == DropPool.None) return;
+            switch (info?.DropPool)
+            {
+                case DropPool.Corpse:
+                case DropPool.MedicalCrate:
+                case DropPool.FoodCrate:
+                case DropPool.ContainerCrate:
+                case DropPool.Trader1:
+                case DropPool.Trader2:
+                case DropPool.Trader3:
+                case DropPool.AllTraders:
+                case DropPool.DropCapsule:
+                case DropPool.CapsuleContainer:
+                case DropPool.All:
+                    break;
+                case null:
+                case DropPool.None:
+                    return;
+                default:
+                    throw new ArgumentOutOfRangeException();
+            }
 
             foreach (var source in SingleSourceFlags)
             {
@@ -298,7 +345,8 @@ namespace CUCoreLib.Registries
 
             if (Physics2D.OverlapPoint(randomPos, GroundMask)) return;
 
-            var hit = Physics2D.Raycast(randomPos, Vector2.down, WorldGeneration.CHUNKSIZE, GroundMask);
+            var hit = Physics2D.Raycast(randomPos, Vector2.down,
+                WorldGeneration.CHUNKSIZE, GroundMask);
             if (!hit) return;
 
             var instance = CustomInstantiate.InstantiateReturn(

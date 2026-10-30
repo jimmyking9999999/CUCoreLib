@@ -20,8 +20,10 @@ namespace CUCoreLib.Registries
         private const string DefaultHitSoundReferenceId = "glowplant";
         public const int AllSpawnLayersMask = SpawnLayerMask.All;
 
-        private static readonly Dictionary<string, CustomBuildingEntityDefinition> RegisteredDefinitions =
-            new Dictionary<string, CustomBuildingEntityDefinition>(StringComparer.OrdinalIgnoreCase);
+        private static readonly Dictionary<string, CustomBuildingEntityDefinition>
+            RegisteredDefinitions =
+                new Dictionary<string, CustomBuildingEntityDefinition>(StringComparer
+                    .OrdinalIgnoreCase);
 
         private static readonly Dictionary<string, GameObject> PrefabCache =
             new Dictionary<string, GameObject>(StringComparer.OrdinalIgnoreCase);
@@ -38,15 +40,18 @@ namespace CUCoreLib.Registries
         private static readonly int GroundLayer = LayerMask.NameToLayer("Ground");
         private static bool NetworkSpawnComponentsWarningLogged;
 
-        private static readonly IReadOnlyDictionary<string, CustomBuildingEntityDefinition> ReadOnlyDefinitions =
-            new ReadOnlyDictionary<string, CustomBuildingEntityDefinition>(RegisteredDefinitions);
+        public static IReadOnlyDictionary<string, CustomBuildingEntityDefinition>
+            RegisteredDefinitionsView { get; } =
+            new ReadOnlyDictionary<string, CustomBuildingEntityDefinition>(
+                RegisteredDefinitions);
 
-        public static IReadOnlyDictionary<string, CustomBuildingEntityDefinition> RegisteredDefinitionsView
-            => ReadOnlyDefinitions;
+        public static event Action<string, CustomBuildingEntityDefinition, bool>
+            Registered;
 
-        public static event Action<string, CustomBuildingEntityDefinition, bool> Registered;
-
-        public static void Register(string id, CustomBuildingEntityDefinition definition, Sprite icon = null)
+        public static void Register(
+            string id,
+            CustomBuildingEntityDefinition definition,
+            Sprite icon = null)
         {
             if (definition != null && icon != null) definition.Sprite = icon;
 
@@ -62,7 +67,8 @@ namespace CUCoreLib.Registries
 
             if (string.IsNullOrWhiteSpace(id))
             {
-                CUCoreLibPlugin.Log?.LogWarning("Ignored custom building registration with no ID.");
+                CUCoreLibPlugin.Log?.LogWarning(
+                    "Ignored custom building registration with no ID.");
                 return;
             }
 
@@ -76,7 +82,8 @@ namespace CUCoreLib.Registries
             PrefabCache.Remove(id);
             Registered?.Invoke(id, definition, replacingExisting);
 
-            if (!string.IsNullOrEmpty(definition.Name)) LocaleRegistry.Register("building", id, definition.Name);
+            if (!string.IsNullOrEmpty(definition.Name))
+                LocaleRegistry.Register("building", id, definition.Name);
 
             if (!string.IsNullOrEmpty(definition.Description))
                 LocaleRegistry.Register("building", id + "dsc", definition.Description);
@@ -89,15 +96,18 @@ namespace CUCoreLib.Registries
             return DefinitionOwners.BeginScope(ownerId);
         }
 
-        public static bool TryGetDefinition(string id, out CustomBuildingEntityDefinition definition)
+        public static bool TryGetDefinition(string id,
+            out CustomBuildingEntityDefinition definition)
         {
             definition = null;
             if (string.IsNullOrWhiteSpace(id)) return false;
 
-            return RegisteredDefinitions.TryGetValue(SpawnIdHelpers.NormalizeSpawnId(id), out definition);
+            return RegisteredDefinitions.TryGetValue(SpawnIdHelpers.NormalizeSpawnId(id),
+                out definition);
         }
 
-        public static bool TryGetRegisteredDefinition(string id, out CustomBuildingEntityDefinition definition)
+        public static bool TryGetRegisteredDefinition(string id,
+            out CustomBuildingEntityDefinition definition)
         {
             return TryGetDefinition(id, out definition);
         }
@@ -106,8 +116,9 @@ namespace CUCoreLib.Registries
         {
             modGuid = null;
             if (string.IsNullOrWhiteSpace(id)) return false;
-            return DefinitionOwners.TryGetOwner(SpawnIdHelpers.NormalizeSpawnId(id), out modGuid) &&
-                   !string.IsNullOrWhiteSpace(modGuid);
+            return DefinitionOwners.TryGetOwner(SpawnIdHelpers.NormalizeSpawnId(id),
+                    out modGuid)
+                && !string.IsNullOrWhiteSpace(modGuid);
         }
 
         public static bool TryGetPrefab(string id, out GameObject prefab)
@@ -121,7 +132,8 @@ namespace CUCoreLib.Registries
             return RegisteredDefinitions.Keys.ToArray();
         }
 
-        public static IEnumerable<KeyValuePair<string, CustomBuildingEntityDefinition>> GetRegisteredDefinitions()
+        public static IEnumerable<KeyValuePair<string, CustomBuildingEntityDefinition>>
+            GetRegisteredDefinitions()
         {
             return RegisteredDefinitions.ToArray();
         }
@@ -163,26 +175,33 @@ namespace CUCoreLib.Registries
 
         internal static CustomBuildingRuntime[] GetActiveRuntimes()
         {
-            return ActiveRuntimes.Where(runtime => runtime != null && runtime.isActiveAndEnabled).ToArray();
+            return ActiveRuntimes
+                .Where(runtime => runtime != null && runtime.isActiveAndEnabled)
+                .ToArray();
         }
 
         internal static void ClearWorldInstances()
         {
-            foreach (var runtime in ActiveRuntimes.Where(runtime => runtime != null).ToArray())
+            foreach (var runtime in ActiveRuntimes.Where(runtime => runtime != null)
+                .ToArray())
                 runtime.DestroyForWorldClear();
         }
 
-        internal static Dictionary<string, CustomBuildingEntityDefinition> CaptureOwnerEntries(string ownerId)
+        internal static Dictionary<string, CustomBuildingEntityDefinition>
+            CaptureOwnerEntries(string ownerId)
         {
             if (string.IsNullOrWhiteSpace(ownerId))
-                return new Dictionary<string, CustomBuildingEntityDefinition>(StringComparer.OrdinalIgnoreCase);
+                return new Dictionary<string, CustomBuildingEntityDefinition>(
+                    StringComparer.OrdinalIgnoreCase);
 
             return DefinitionOwners.GetKeys(ownerId)
                 .Where(id => RegisteredDefinitions.TryGetValue(id, out _))
-                .ToDictionary(id => id, id => RegisteredDefinitions[id], StringComparer.OrdinalIgnoreCase);
+                .ToDictionary(id => id, id => RegisteredDefinitions[id],
+                    StringComparer.OrdinalIgnoreCase);
         }
 
-        internal static void RestoreOwnerEntries(string ownerId,
+        internal static void RestoreOwnerEntries(
+            string ownerId,
             IDictionary<string, CustomBuildingEntityDefinition> entries)
         {
             if (entries == null || entries.Count == 0) return;
@@ -197,31 +216,38 @@ namespace CUCoreLib.Registries
             var normalizedOwnerId = ownerId.Trim();
             var ids = DefinitionOwners.GetKeys(normalizedOwnerId);
 
-            for (var i = 0; i < ids.Length; i++)
+            foreach (var id in ids)
             {
-                var id = ids[i];
                 RegisteredDefinitions.Remove(id);
                 DefinitionOwners.Remove(id);
                 PrefabCache.Remove(id);
             }
 
             if (ids.Length > 0)
-                result?.AddInfo("Cleared " + ids.Length + " building registrations owned by '" + normalizedOwnerId +
-                                "'.");
+                result?.AddInfo("Cleared "
+                    + ids.Length
+                    + " building registrations owned by '"
+                    + normalizedOwnerId
+                    + "'.");
         }
 
-        internal static void RefreshLiveInstances(IEnumerable<string> definitionIds = null)
+        internal static void RefreshLiveInstances(
+            IEnumerable<string> definitionIds = null)
         {
             var filteredIds = definitionIds != null
-                ? new HashSet<string>(definitionIds.Where(id => !string.IsNullOrWhiteSpace(id)).Select(id => id.Trim()),
+                ? new HashSet<string>(
+                    definitionIds.Where(id => !string.IsNullOrWhiteSpace(id))
+                        .Select(id => id.Trim()),
                     StringComparer.OrdinalIgnoreCase)
                 : null;
 
             foreach (var runtime in GetActiveRuntimes())
             {
-                if (runtime == null || string.IsNullOrWhiteSpace(runtime.DefinitionId)) continue;
+                if (runtime == null || string.IsNullOrWhiteSpace(runtime.DefinitionId))
+                    continue;
 
-                if (filteredIds != null && !filteredIds.Contains(runtime.DefinitionId)) continue;
+                if (filteredIds != null && !filteredIds.Contains(runtime.DefinitionId))
+                    continue;
 
                 RefreshLiveInstance(runtime.gameObject, runtime.DefinitionId);
             }
@@ -239,7 +265,8 @@ namespace CUCoreLib.Registries
                 {
                     ["name"] = definition.Name ?? string.Empty,
                     ["description"] = definition.Description ?? string.Empty,
-                    ["sprite"] = NetworkSnapshotSerialization.WriteSprite(definition.Sprite),
+                    ["sprite"] =
+                        NetworkSnapshotSerialization.WriteSprite(definition.Sprite),
                     ["sortingOrder"] = definition.SortingOrder,
                     ["useGlowPlantMaterial"] = definition.UseGlowPlantMaterial,
                     ["scaleX"] = definition.Scale.x,
@@ -270,12 +297,14 @@ namespace CUCoreLib.Registries
                     ["surfaceOffset"] = definition.SurfaceOffset,
                     ["randomFlip"] = definition.RandomFlip,
                     ["spawnInGround"] = definition.SpawnInGround,
-                    ["hitSoundReferenceId"] = definition.HitSoundReferenceId ?? string.Empty,
+                    ["hitSoundReferenceId"] =
+                        definition.HitSoundReferenceId ?? string.Empty,
                     ["spriteAnimationId"] = definition.SpriteAnimationId ?? string.Empty,
                     ["hitSound"] =
-                        NetworkSnapshotSerialization.WriteStringOrEmpty(definition.HitSound != null
-                            ? definition.HitSound.name
-                            : null),
+                        NetworkSnapshotSerialization.WriteStringOrEmpty(
+                            definition.HitSound != null
+                                ? definition.HitSound.name
+                                : null),
                     ["blockFootstepSoundId"] = definition.BlockFootstepSoundId,
                     ["renderReferenceId"] = definition.RenderReferenceId ?? string.Empty,
                     ["copyGlowPlantLayer"] = definition.CopyGlowPlantLayer,
@@ -285,16 +314,20 @@ namespace CUCoreLib.Registries
                     ["spawnComponents"] = definition.SpawnComponents != null
                         ? JArray.FromObject(definition.SpawnComponents)
                         : new JArray(),
-                    ["components"] = NetworkSnapshotSerialization.WriteTypeNames(definition.Components)
+                    ["components"] =
+                        NetworkSnapshotSerialization.WriteTypeNames(definition.Components)
                 };
 
                 if (definition.ItemsDropOnDestroy != null)
-                    building["itemsDropOnDestroy"] = JArray.FromObject(definition.ItemsDropOnDestroy);
+                    building["itemsDropOnDestroy"] =
+                        JArray.FromObject(definition.ItemsDropOnDestroy);
 
-                if (definition.AlwaysDrop != null) building["alwaysDrop"] = JArray.FromObject(definition.AlwaysDrop);
+                if (definition.AlwaysDrop != null)
+                    building["alwaysDrop"] = JArray.FromObject(definition.AlwaysDrop);
 
                 if (definition.ItemCategoriesToAdd != null)
-                    building["itemCategoriesToAdd"] = JArray.FromObject(definition.ItemCategoriesToAdd);
+                    building["itemCategoriesToAdd"] =
+                        JArray.FromObject(definition.ItemCategoriesToAdd);
 
                 root[entry.Key] = building;
             }
@@ -309,8 +342,8 @@ namespace CUCoreLib.Registries
             foreach (var property in snapshot.Properties())
             {
                 var id = property.Name;
-                var obj = property.Value as JObject;
-                if (string.IsNullOrWhiteSpace(id) || obj == null) continue;
+                if (string.IsNullOrWhiteSpace(id) || !(property.Value is JObject obj))
+                    continue;
 
                 RegisteredDefinitions.TryGetValue(id, out var localDefinition);
 
@@ -320,35 +353,45 @@ namespace CUCoreLib.Registries
                     Description = obj.Value<string>("description"),
                     Sprite = NetworkSnapshotSerialization.ReadSprite(obj["sprite"]),
                     SortingOrder = obj.Value<int?>("sortingOrder") ?? 5,
-                    UseGlowPlantMaterial = obj.Value<bool?>("useGlowPlantMaterial") ?? false,
+                    UseGlowPlantMaterial =
+                        obj.Value<bool?>("useGlowPlantMaterial") ?? false,
                     Scale = new Vector3(
                         obj.Value<float?>("scaleX") ?? 1f,
                         obj.Value<float?>("scaleY") ?? 1f,
                         obj.Value<float?>("scaleZ") ?? 1f),
-                    ColliderSize = HasValue(obj["colliderSizeX"]) || HasValue(obj["colliderSizeY"])
-                        ? new Vector2?(new Vector2(obj.Value<float?>("colliderSizeX") ?? 0f,
-                            obj.Value<float?>("colliderSizeY") ?? 0f))
-                        : null,
-                    ColliderOffset = HasValue(obj["colliderOffsetX"]) || HasValue(obj["colliderOffsetY"])
-                        ? new Vector2?(new Vector2(obj.Value<float?>("colliderOffsetX") ?? 0f,
-                            obj.Value<float?>("colliderOffsetY") ?? 0f))
-                        : null,
+                    ColliderSize = HasValue(obj["colliderSizeX"])
+                        || HasValue(obj["colliderSizeY"])
+                            ? new Vector2?(new Vector2(
+                                obj.Value<float?>("colliderSizeX") ?? 0f,
+                                obj.Value<float?>("colliderSizeY") ?? 0f))
+                            : null,
+                    ColliderOffset = HasValue(obj["colliderOffsetX"])
+                        || HasValue(obj["colliderOffsetY"])
+                            ? new Vector2?(new Vector2(
+                                obj.Value<float?>("colliderOffsetX") ?? 0f,
+                                obj.Value<float?>("colliderOffsetY") ?? 0f))
+                            : null,
                     ColliderIsTrigger = obj.Value<bool?>("colliderIsTrigger") ?? false,
                     Layer = obj.Value<int?>("layer"),
                     AddRigidbody2D = obj.Value<bool?>("addRigidbody2D") ?? false,
-                    DamagePlayerOnImpact = obj.Value<bool?>("damagePlayerOnImpact") ?? false,
-                    RigidbodyBodyType = (RigidbodyType2D)(obj.Value<int?>("rigidbodyBodyType") ??
-                                                          (int)RigidbodyType2D.Dynamic),
-                    RigidbodyGravityScale = obj.Value<float?>("rigidbodyGravityScale") ?? 1f,
+                    DamagePlayerOnImpact =
+                        obj.Value<bool?>("damagePlayerOnImpact") ?? false,
+                    RigidbodyBodyType =
+                        (RigidbodyType2D)(obj.Value<int?>("rigidbodyBodyType")
+                            ?? (int)RigidbodyType2D.Dynamic),
+                    RigidbodyGravityScale =
+                        obj.Value<float?>("rigidbodyGravityScale") ?? 1f,
                     Health = obj.Value<float?>("health") ?? 250f,
                     RequireGround = obj.Value<bool?>("requireGround") ?? true,
                     Metallic = obj.Value<bool?>("metallic") ?? false,
                     CantHit = obj.Value<bool?>("cantHit") ?? false,
                     Animal = obj.Value<bool?>("animal") ?? false,
                     IgnoreBodyOptimize = obj.Value<bool?>("ignoreBodyOptimize") ?? false,
-                    DropChanceMultiplier = obj.Value<float?>("dropChanceMultiplier") ?? 1f,
+                    DropChanceMultiplier =
+                        obj.Value<float?>("dropChanceMultiplier") ?? 1f,
                     Placement = ReadEnum(obj["placement"], BuildingPlacementType.Floor),
-                    GenerationStyle = ReadEnum(obj["generationStyle"], BuildingGenerationStyle.None),
+                    GenerationStyle = ReadEnum(obj["generationStyle"],
+                        BuildingGenerationStyle.None),
                     SpawnMinPerChunk = obj.Value<float?>("spawnMinPerChunk") ?? 0f,
                     SpawnMaxPerChunk = obj.Value<float?>("spawnMaxPerChunk") ?? 0f,
                     SpawnLayers = obj.Value<int?>("spawnLayers") ?? AllSpawnLayersMask,
@@ -356,17 +399,22 @@ namespace CUCoreLib.Registries
                     RandomFlip = obj.Value<bool?>("randomFlip") ?? true,
                     SpawnInGround = obj.Value<bool?>("spawnInGround") ?? false,
                     HitSoundReferenceId = obj.Value<string>("hitSoundReferenceId"),
-                    SpriteAnimationId = obj.Value<string>("spriteAnimationId") ?? localDefinition?.SpriteAnimationId,
+                    SpriteAnimationId = obj.Value<string>("spriteAnimationId")
+                        ?? localDefinition?.SpriteAnimationId,
                     HitSound = localDefinition?.HitSound,
                     PlaceCheck = localDefinition?.PlaceCheck,
-                    BlockFootstepSoundId = obj.Value<ushort?>("blockFootstepSoundId") ?? 0,
+                    BlockFootstepSoundId =
+                        obj.Value<ushort?>("blockFootstepSoundId") ?? 0,
                     RenderReferenceId = obj.Value<string>("renderReferenceId"),
                     CopyGlowPlantLayer = obj.Value<bool?>("copyGlowPlantLayer") ?? false,
                     HeatRadius = obj.Value<float?>("heatRadius") ?? 0f,
                     HeatPerSecond = obj.Value<float?>("heatPerSecond") ?? 0f,
-                    MaxHeatBodyTemperature = obj.Value<float?>("maxHeatBodyTemperature") ?? 0f,
-                    SpawnComponents = localDefinition?.SpawnComponents ?? new List<string>(),
-                    Components = localDefinition?.Components ?? NetworkSnapshotSerialization.ReadTypeNames(obj["components"]),
+                    MaxHeatBodyTemperature =
+                        obj.Value<float?>("maxHeatBodyTemperature") ?? 0f,
+                    SpawnComponents =
+                        localDefinition?.SpawnComponents ?? new List<string>(),
+                    Components = localDefinition?.Components
+                        ?? NetworkSnapshotSerialization.ReadTypeNames(obj["components"]),
                     ConfigurePrefab = localDefinition?.ConfigurePrefab,
                     ConfigureInstance = localDefinition?.ConfigureInstance
                 };
@@ -376,7 +424,8 @@ namespace CUCoreLib.Registries
 
                 if (obj["itemsDropOnDestroy"] is JArray drops)
                     definition.ItemsDropOnDestroy = drops.ToObject<ItemDrop[]>();
-                if (obj["alwaysDrop"] is JArray alwaysDrop) definition.AlwaysDrop = alwaysDrop.ToObject<ItemDrop[]>();
+                if (obj["alwaysDrop"] is JArray alwaysDrop)
+                    definition.AlwaysDrop = alwaysDrop.ToObject<ItemDrop[]>();
                 if (obj["itemCategoriesToAdd"] is JArray categories)
                     definition.ItemCategoriesToAdd = categories.ToObject<string[]>();
 
@@ -390,9 +439,10 @@ namespace CUCoreLib.Registries
 
             NetworkSpawnComponentsWarningLogged = true;
             // Assume it's a given now tbh, will uncomment once more support for custom components is added
-           /* CUCoreLibPlugin.Log?.LogWarning(
-                "CUCoreLib Buildings: Ignoring network snapshot 'spawnComponents'. SpawnComponents are only honored from local registration.");
-        */}
+            /* CUCoreLibPlugin.Log?.LogWarning(
+                 "CUCoreLib Buildings: Ignoring network snapshot 'spawnComponents'. SpawnComponents are only honored from local registration.");
+         */
+        }
 
         public static bool Contains(string id)
         {
@@ -416,17 +466,20 @@ namespace CUCoreLib.Registries
             var prefab = GetOrCreatePrefab(id);
             if (prefab == null)
             {
-                CUCoreLibPlugin.Log?.LogWarning("Could not spawn custom building '" + id.Trim() +
-                                                "' because it is not registered.");
+                CUCoreLibPlugin.Log?.LogWarning("Could not spawn custom building '"
+                    + id.Trim()
+                    + "' because it is not registered.");
                 return null;
             }
 
-            var instance = CustomInstantiate.InstantiateInActiveScene(prefab, position, rotation);
+            var instance =
+                CustomInstantiate.InstantiateInActiveScene(prefab, position, rotation);
             instance.SetActive(true);
             return instance;
         }
 
-        public static GameObject PlaceOnSurface(string id, Vector2 origin, Vector2 direction,
+        public static GameObject PlaceOnSurface(string id, Vector2 origin,
+            Vector2 direction,
             WorldGeneration world = null)
         {
             if (direction == Vector2.zero) direction = Vector2.down;
@@ -434,7 +487,8 @@ namespace CUCoreLib.Registries
             if (!TryGetDefinition(id, out var definition)) return null;
             world = world ?? WorldGeneration.world;
 
-            var hit = Physics2D.Raycast(origin, direction.normalized, WorldGeneration.CHUNKSIZE, GroundMask);
+            var hit = Physics2D.Raycast(origin, direction.normalized,
+                WorldGeneration.CHUNKSIZE, GroundMask);
             if (!hit) return null;
 
             var spawnPos = hit.point - direction.normalized * definition.SurfaceOffset;
@@ -455,8 +509,9 @@ namespace CUCoreLib.Registries
             var prefab = GetOrCreatePrefab(id);
             if (prefab == null) return;
 
-            var count = Mathf.RoundToInt(world.chunkWidth * world.chunkHeight *
-                                         Random.Range(definition.SpawnMinPerChunk, definition.SpawnMaxPerChunk));
+            var count = Mathf.RoundToInt(world.chunkWidth
+                * world.chunkHeight
+                * Random.Range(definition.SpawnMinPerChunk, definition.SpawnMaxPerChunk));
             for (var i = 0; i < count; i++)
                 if (definition.GenerationStyle == BuildingGenerationStyle.DropPod)
                     DistributeDropPod(world, id, definition);
@@ -464,7 +519,8 @@ namespace CUCoreLib.Registries
                     DistributeStandard(world, id, definition);
         }
 
-        public static ItemDrop AddDrop(string id, float chance = 1f, float conditionMin = 1f, float conditionMax = 1f)
+        public static ItemDrop AddDrop(string id, float chance = 1f,
+            float conditionMin = 1f, float conditionMax = 1f)
         {
             return new ItemDrop
             {
@@ -475,7 +531,8 @@ namespace CUCoreLib.Registries
             };
         }
 
-        public static ItemDrop AddDrop(ICollection<ItemDrop> drops, string id, float chance = 1f,
+        public static ItemDrop AddDrop(ICollection<ItemDrop> drops, string id,
+            float chance = 1f,
             float conditionMin = 1f, float conditionMax = 1f)
         {
             var drop = AddDrop(id, chance, conditionMin, conditionMax);
@@ -488,11 +545,13 @@ namespace CUCoreLib.Registries
             if (string.IsNullOrWhiteSpace(id)) return null;
             id = id.Trim();
 
-            if (PrefabCache.TryGetValue(id, out var cached) && cached != null) return cached;
+            if (PrefabCache.TryGetValue(id, out var cached) && cached != null)
+                return cached;
 
             if (!RegisteredDefinitions.TryGetValue(id, out var definition))
             {
-                CUCoreLibPlugin.Log?.LogWarning("No custom building definition was registered for '" + id + "'.");
+                CUCoreLibPlugin.Log?.LogWarning(
+                    "No custom building definition was registered for '" + id + "'.");
                 return null;
             }
 
@@ -505,7 +564,8 @@ namespace CUCoreLib.Registries
 
         public static bool IsRegistered(string id)
         {
-            return !string.IsNullOrWhiteSpace(id) && RegisteredDefinitions.ContainsKey(id.Trim());
+            return !string.IsNullOrWhiteSpace(id)
+                && RegisteredDefinitions.ContainsKey(id.Trim());
         }
 
         internal static void ApplyInstanceConfiguration(GameObject instance, string id)
@@ -520,17 +580,21 @@ namespace CUCoreLib.Registries
         {
             if (source == null || !TryGetDefinition(id, out var definition)) return;
 
-            var isNearPlayer = PlayerCamera.main != null &&
-                               PlayerCamera.main.body != null &&
-                               Vector2.Distance(source.transform.position, PlayerCamera.main.body.transform.position) <
-                               8f;
+            var isNearPlayer = PlayerCamera.main != null
+                && PlayerCamera.main.body != null
+                && Vector2.Distance(source.transform.position,
+                    PlayerCamera.main.body.transform.position)
+                < 8f;
 
-            SpawnDropArray(source, definition.ItemsDropOnDestroy, definition.DropChanceMultiplier, isNearPlayer, true);
+            SpawnDropArray(source, definition.ItemsDropOnDestroy,
+                definition.DropChanceMultiplier, isNearPlayer, true);
             SpawnCategoryDrops(source, definition, isNearPlayer);
-            SpawnDropArray(source, definition.AlwaysDrop, definition.DropChanceMultiplier, isNearPlayer, false);
+            SpawnDropArray(source, definition.AlwaysDrop, definition.DropChanceMultiplier,
+                isNearPlayer, false);
         }
 
-        internal static void RestoreSeating(GameObject instance, WorldGeneration world, Vector2Int blockPlacedOn)
+        internal static void RestoreSeating(GameObject instance, WorldGeneration world,
+            Vector2Int blockPlacedOn)
         {
             if (instance == null || world == null) return;
             if (!instance.TryGetComponent(out BuildingEntity building)) return;
@@ -556,20 +620,24 @@ namespace CUCoreLib.Registries
                     AssetLoader.TryApplyAnimation(renderer, definition.SpriteAnimationId);
             }
 
-            instance.transform.localScale = definition.Scale == Vector3.zero ? Vector3.one : definition.Scale;
+            instance.transform.localScale = definition.Scale == Vector3.zero
+                ? Vector3.one
+                : definition.Scale;
             instance.layer = ResolveAssignedLayer(definition)
-                             ?? GetReferenceLayer(GetRenderReference(definition), GroundLayer);
+                ?? GetReferenceLayer(GetRenderReference(definition), GroundLayer);
 
             var collider = instance.GetComponent<BoxCollider2D>();
             if (collider != null)
             {
                 if (definition.ColliderSize.HasValue)
                     collider.size = definition.ColliderSize.Value;
-                else if (definition.Sprite != null) collider.size = definition.Sprite.bounds.size;
+                else if (definition.Sprite != null)
+                    collider.size = definition.Sprite.bounds.size;
 
                 if (definition.ColliderOffset.HasValue)
                     collider.offset = definition.ColliderOffset.Value;
-                else if (definition.Sprite != null) collider.offset = definition.Sprite.bounds.center;
+                else if (definition.Sprite != null)
+                    collider.offset = definition.Sprite.bounds.center;
 
                 collider.isTrigger = definition.ColliderIsTrigger;
             }
@@ -580,46 +648,60 @@ namespace CUCoreLib.Registries
                 ApplyRigidbody2D(instance, definition);
                 ApplyBuildingFields(building, definition);
                 if (!string.IsNullOrEmpty(definition.Name))
-                    building.fullName = LocaleRegistry.Get("building", id, definition.Name);
+                    building.fullName =
+                        LocaleRegistry.Get("building", id, definition.Name);
 
                 if (!string.IsNullOrEmpty(definition.Description))
-                    building.description = LocaleRegistry.Get("building", id + "dsc", definition.Description);
+                    building.description = LocaleRegistry.Get("building", id + "dsc",
+                        definition.Description);
             }
         }
 
-        private static GameObject CreatePrefab(string id, CustomBuildingEntityDefinition definition)
+        private static GameObject CreatePrefab(string id,
+            CustomBuildingEntityDefinition definition)
         {
             var go = new GameObject(id);
             go.SetActive(false);
             Object.DontDestroyOnLoad(go);
 
-            go.transform.localScale = definition.Scale == Vector3.zero ? Vector3.one : definition.Scale;
+            go.transform.localScale = definition.Scale == Vector3.zero
+                ? Vector3.one
+                : definition.Scale;
             var renderReference = GetRenderReference(definition);
-            go.layer = ResolveAssignedLayer(definition) ?? GetReferenceLayer(renderReference, GroundLayer);
+            go.layer = ResolveAssignedLayer(definition)
+                ?? GetReferenceLayer(renderReference, GroundLayer);
 
             var renderer = go.AddComponent<SpriteRenderer>();
             renderer.sprite = definition.Sprite;
             renderer.sortingOrder = definition.SortingOrder;
             if (!string.IsNullOrWhiteSpace(definition.SpriteAnimationId))
                 AssetLoader.TryApplyAnimation(renderer, definition.SpriteAnimationId);
-            var referenceRenderer = renderReference != null ? renderReference.GetComponent<SpriteRenderer>() : null;
-            if (referenceRenderer != null) renderer.sharedMaterial = referenceRenderer.sharedMaterial;
+            var referenceRenderer = renderReference != null
+                ? renderReference.GetComponent<SpriteRenderer>()
+                : null;
+            if (referenceRenderer != null)
+                renderer.sharedMaterial = referenceRenderer.sharedMaterial;
 
             if (definition.UseGlowPlantMaterial)
             {
                 var glowRef = Resources.Load<GameObject>("glowplant");
-                var glowRenderer = glowRef != null ? glowRef.GetComponent<SpriteRenderer>() : null;
-                if (glowRenderer != null) renderer.sharedMaterial = glowRenderer.sharedMaterial;
+                var glowRenderer = glowRef != null
+                    ? glowRef.GetComponent<SpriteRenderer>()
+                    : null;
+                if (glowRenderer != null)
+                    renderer.sharedMaterial = glowRenderer.sharedMaterial;
             }
 
             var collider = go.AddComponent<BoxCollider2D>();
             if (definition.ColliderSize.HasValue)
                 collider.size = definition.ColliderSize.Value;
-            else if (definition.Sprite != null) collider.size = definition.Sprite.bounds.size;
+            else if (definition.Sprite != null)
+                collider.size = definition.Sprite.bounds.size;
 
             if (definition.ColliderOffset.HasValue)
                 collider.offset = definition.ColliderOffset.Value;
-            else if (definition.Sprite != null) collider.offset = definition.Sprite.bounds.center;
+            else if (definition.Sprite != null)
+                collider.offset = definition.Sprite.bounds.center;
 
             collider.isTrigger = definition.ColliderIsTrigger;
 
@@ -634,8 +716,10 @@ namespace CUCoreLib.Registries
             if (definition.Components != null)
                 foreach (var componentType in definition.Components)
                 {
-                    if (componentType == null || !typeof(Component).IsAssignableFrom(componentType)) continue;
-                    if (go.GetComponent(componentType) == null) go.AddComponent(componentType);
+                    if (componentType == null
+                        || !typeof(Component).IsAssignableFrom(componentType)) continue;
+                    if (go.GetComponent(componentType) == null)
+                        go.AddComponent(componentType);
                 }
 
             definition.ConfigurePrefab?.Invoke(go);
@@ -651,32 +735,44 @@ namespace CUCoreLib.Registries
         {
             if (!HasValue(token)) return fallback;
             if (token.Type == JTokenType.Integer)
-            {
-                try { return (T)Enum.ToObject(typeof(T), token.Value<int>()); }
-                catch (Exception) { return fallback; }
-            }
+                try
+                {
+                    return (T)Enum.ToObject(typeof(T), token.Value<int>());
+                }
+                catch (Exception)
+                {
+                    return fallback;
+                }
 
             var text = token.Value<string>();
-            if (string.Equals(text, "Ground", StringComparison.OrdinalIgnoreCase) &&
-                typeof(T) == typeof(BuildingPlacementType))
+            if (string.Equals(text, "Ground", StringComparison.OrdinalIgnoreCase)
+                && typeof(T) == typeof(BuildingPlacementType))
                 return (T)(object)BuildingPlacementType.Floor;
-            return Enum.TryParse(text, true, out T value) ? value : fallback;
+            return Enum.TryParse(text, true, out T value)
+                ? value
+                : fallback;
         }
 
-        private static void ApplyRigidbody2D(GameObject instance, CustomBuildingEntityDefinition definition)
+        private static void ApplyRigidbody2D(GameObject instance,
+            CustomBuildingEntityDefinition definition)
         {
             if (!definition.AddRigidbody2D) return;
 
-            var rb = instance.GetComponent<Rigidbody2D>() ?? instance.AddComponent<Rigidbody2D>();
+            var rb = instance.GetComponent<Rigidbody2D>()
+                ?? instance.AddComponent<Rigidbody2D>();
             rb.bodyType = definition.RigidbodyBodyType;
             rb.mass = 10f;
             rb.gravityScale = definition.RigidbodyGravityScale;
 
-            var damagingCrate = instance.GetComponent<DamagingCrate>() ?? instance.AddComponent<DamagingCrate>();
-            damagingCrate.type = definition.DamagePlayerOnImpact ? 1 : 0;
+            var damagingCrate = instance.GetComponent<DamagingCrate>()
+                ?? instance.AddComponent<DamagingCrate>();
+            damagingCrate.type = definition.DamagePlayerOnImpact
+                ? 1
+                : 0;
         }
 
-        private static void ApplyBuildingFields(BuildingEntity building, CustomBuildingEntityDefinition definition)
+        private static void ApplyBuildingFields(BuildingEntity building,
+            CustomBuildingEntityDefinition definition)
         {
             building.id = definition.ID;
             building.SetHealth(definition.Health);
@@ -684,15 +780,16 @@ namespace CUCoreLib.Registries
             building.metallic = definition.Metallic;
             building.cantHit = definition.CantHit;
             building.animal = definition.Animal;
-            building.ignoreBodyOptimize = definition.IgnoreBodyOptimize || definition.AddRigidbody2D;
+            building.ignoreBodyOptimize =
+                definition.IgnoreBodyOptimize || definition.AddRigidbody2D;
             building.dropChanceMultiplier = definition.DropChanceMultiplier;
             building.guaranteedDropAmount = 0;
             building.itemsDropOnDestroy = EmptyDrops;
             building.alwaysDrop = EmptyDrops;
             building.itemCategoriesToAdd = EmptyCategories;
             building.hitSound = definition.HitSound
-                                ?? ResolveHitSound(definition.HitSoundReferenceId)
-                                ?? ResolveHitSound(DefaultHitSoundReferenceId);
+                ?? ResolveHitSound(definition.HitSoundReferenceId)
+                ?? ResolveHitSound(DefaultHitSoundReferenceId);
             building.blockFootstepSoundId = definition.BlockFootstepSoundId;
             building.skipDescriptionSet = false;
         }
@@ -737,7 +834,7 @@ namespace CUCoreLib.Registries
                     normalized = "barbedwirefence";
                     break;
             }
-            // TODO add more, add to documentation, and allow mods to specify 
+            // TODO add more, add to documentation, and allow mods to specify
             // - custom sound references
             // - exact buildingentity names as references
             // - tiles, for their sounds too
@@ -745,14 +842,19 @@ namespace CUCoreLib.Registries
             // This should only be shorthand (!)
 
             var reference = Resources.Load<GameObject>(normalized);
-            if (reference != null && reference.TryGetComponent(out BuildingEntity building)) return building.hitSound;
+            if (reference != null
+                && reference.TryGetComponent(out BuildingEntity building))
+                return building.hitSound;
 
-            CUCoreLibPlugin.Log?.LogWarning("Could not resolve building hit sound reference '" + referenceId.Trim() +
-                                            "'.");
+            CUCoreLibPlugin.Log?.LogWarning(
+                "Could not resolve building hit sound reference '"
+                + referenceId.Trim()
+                + "'.");
             return null;
         }
 
-        private static GameObject GetRenderReference(CustomBuildingEntityDefinition definition)
+        private static GameObject GetRenderReference(
+            CustomBuildingEntityDefinition definition)
         {
             var referenceId = string.IsNullOrWhiteSpace(definition.RenderReferenceId)
                 ? "stoneplant"
@@ -761,22 +863,29 @@ namespace CUCoreLib.Registries
             var reference = Resources.Load<GameObject>(referenceId);
             if (reference != null) return reference;
 
-            CUCoreLibPlugin.Log?.LogWarning("Could not load building render reference '" + referenceId + "'.");
+            CUCoreLibPlugin.Log?.LogWarning("Could not load building render reference '"
+                + referenceId
+                + "'.");
             return Resources.Load<GameObject>("stoneplant");
         }
 
         private static int GetReferenceLayer(GameObject reference, int fallback)
         {
-            return reference != null ? reference.layer : fallback;
+            return reference != null
+                ? reference.layer
+                : fallback;
         }
 
         private static int GetReferenceLayer(string resourceId, int fallback)
         {
             var reference = Resources.Load<GameObject>(resourceId);
-            return reference != null ? reference.layer : fallback;
+            return reference != null
+                ? reference.layer
+                : fallback;
         }
 
-        private static int? ResolveAssignedLayer(CustomBuildingEntityDefinition definition)
+        private static int? ResolveAssignedLayer(
+            CustomBuildingEntityDefinition definition)
         {
             if (definition == null) return null;
             if (definition.Layer.HasValue) return definition.Layer.Value;
@@ -791,24 +900,33 @@ namespace CUCoreLib.Registries
                 if (glowplant != null) return glowplant.layer;
             }
 
-            return definition.AddRigidbody2D ? (int?)GroundLayer : null;
+            return definition.AddRigidbody2D
+                ? (int?)GroundLayer
+                : null;
         }
 
-        private static bool CanSpawnInLayer(CustomBuildingEntityDefinition definition, int biomeDepth)
+        private static bool CanSpawnInLayer(CustomBuildingEntityDefinition definition,
+            int biomeDepth)
         {
             if (definition == null) return false;
 
             var spawnLayers = definition.SpawnLayers;
-            if (spawnLayers == 0) return false;
-
-            if (spawnLayers == AllSpawnLayersMask) return true;
+            switch (spawnLayers)
+            {
+                case 0:
+                    return false;
+                case AllSpawnLayersMask:
+                    return true;
+            }
 
             var layerNumber = biomeDepth + 1;
             var layerMask = LayerToMask(layerNumber);
             return layerMask != 0 && (spawnLayers & layerMask) != 0;
         }
 
-        private static void DistributeStandard(WorldGeneration world, string id,
+        private static void DistributeStandard(
+            WorldGeneration world,
+            string id,
             CustomBuildingEntityDefinition definition)
         {
             var randomPos = new Vector2(
@@ -816,15 +934,18 @@ namespace CUCoreLib.Registries
                 Random.Range(-(float)world.halfHeight, world.halfHeight)
             );
 
-            if (Physics2D.OverlapPoint(randomPos, GroundMask) && !definition.SpawnInGround) return;
+            if (Physics2D.OverlapPoint(randomPos, GroundMask)
+                && !definition.SpawnInGround) return;
 
             var direction = DirectionForPlacement(definition);
-            var hit = Physics2D.Raycast(randomPos, direction, WorldGeneration.CHUNKSIZE, GroundMask);
+            var hit = Physics2D.Raycast(randomPos, direction, WorldGeneration.CHUNKSIZE,
+                GroundMask);
             if (!hit) return;
-            if (!(Mathf.Abs(hit.point.x) < world.halfWidth - 1f) ||
-                !(Mathf.Abs(hit.point.y) < world.halfHeight - 1f)) return;
-            if (definition.PlaceCheck != null &&
-                !definition.PlaceCheck(world.WorldToBlockPos(hit.point - Vector2.up * 0.5f))) return;
+            if (!(Mathf.Abs(hit.point.x) < world.halfWidth - 1f)
+                || !(Mathf.Abs(hit.point.y) < world.halfHeight - 1f)) return;
+            if (definition.PlaceCheck != null
+                && !definition.PlaceCheck(
+                    world.WorldToBlockPos(hit.point - Vector2.up * 0.5f))) return;
 
             var spawnPos = hit.point - direction * definition.SurfaceOffset;
             var instance = Spawn(id, spawnPos, Quaternion.identity);
@@ -834,7 +955,9 @@ namespace CUCoreLib.Registries
             SetBlockSeating(instance, world, hit.point + direction * 0.5f);
         }
 
-        private static void DistributeDropPod(WorldGeneration world, string id,
+        private static void DistributeDropPod(
+            WorldGeneration world,
+            string id,
             CustomBuildingEntityDefinition definition)
         {
             var randomPos = new Vector2(
@@ -843,10 +966,14 @@ namespace CUCoreLib.Registries
             );
 
             var hit = Physics2D.Raycast(randomPos, Vector2.down, 400f, GroundMask);
-            var finalPos = hit ? hit.point : randomPos;
-            if (Mathf.Abs(finalPos.x) > world.halfWidth - 40f || Mathf.Abs(finalPos.y) > world.halfHeight - 40f) return;
+            var finalPos = hit
+                ? hit.point
+                : randomPos;
+            if (Mathf.Abs(finalPos.x) > world.halfWidth - 40f
+                || Mathf.Abs(finalPos.y) > world.halfHeight - 40f) return;
 
-            var instance = Spawn(id, finalPos, Quaternion.Euler(0f, 0f, Random.Range(0f, 360f)));
+            var instance = Spawn(id, finalPos,
+                Quaternion.Euler(0f, 0f, Random.Range(0f, 360f)));
             if (instance == null) return;
 
             world.GenerateBlockCircle(finalPos, 32, 3, 0.7f, 0f, true);
@@ -855,39 +982,48 @@ namespace CUCoreLib.Registries
             SetBlockSeating(instance, world, finalPos + Vector2.down * 0.5f);
         }
 
-        private static Vector2 DirectionForPlacement(CustomBuildingEntityDefinition definition)
+        private static Vector2 DirectionForPlacement(
+            CustomBuildingEntityDefinition definition)
         {
             switch (definition.Placement)
             {
                 case BuildingPlacementType.Ceiling:
                     return Vector2.up;
                 case BuildingPlacementType.Wall:
-                    return Random.value > 0.5f ? Vector2.right : Vector2.left;
+                    return Random.value > 0.5f
+                        ? Vector2.right
+                        : Vector2.left;
                 case BuildingPlacementType.Floor:
                 default:
                     return Vector2.down;
             }
         }
 
-        private static void ApplyPlacement(GameObject instance, CustomBuildingEntityDefinition definition,
+        private static void ApplyPlacement(GameObject instance,
+            CustomBuildingEntityDefinition definition,
             Vector2 direction)
         {
             if (instance == null) return;
 
             if (definition.Placement == BuildingPlacementType.Wall)
             {
-                var x = direction.x >= 0f ? -1f : 1f;
-                instance.transform.localScale = new Vector3(Mathf.Abs(instance.transform.localScale.x) * x,
+                var x = direction.x >= 0f
+                    ? -1f
+                    : 1f;
+                instance.transform.localScale = new Vector3(
+                    Mathf.Abs(instance.transform.localScale.x) * x,
                     instance.transform.localScale.y, instance.transform.localScale.z);
             }
             else if (definition.RandomFlip && Random.value > 0.5f)
             {
-                instance.transform.localScale = new Vector3(-instance.transform.localScale.x,
+                instance.transform.localScale = new Vector3(
+                    -instance.transform.localScale.x,
                     instance.transform.localScale.y, instance.transform.localScale.z);
             }
         }
 
-        private static void SetBlockSeating(GameObject instance, WorldGeneration world, Vector2 blockReference)
+        private static void SetBlockSeating(GameObject instance, WorldGeneration world,
+            Vector2 blockReference)
         {
             if (instance == null || world == null) return;
             if (!instance.TryGetComponent(out BuildingEntity building)) return;
@@ -896,22 +1032,28 @@ namespace CUCoreLib.Registries
             AttachSeatingListener(building, world);
         }
 
-        private static void AttachSeatingListener(BuildingEntity building, WorldGeneration world)
+        private static void AttachSeatingListener(BuildingEntity building,
+            WorldGeneration world)
         {
-            if (building == null || world == null || !building.requireGround || world.ChunkUpdated == null) return;
+            if (building == null
+                || world == null
+                || !building.requireGround
+                || world.ChunkUpdated == null) return;
 
             var chunkX = building.blockPlacedOn.x / WorldGeneration.CHUNKSIZE;
             var chunkY = building.blockPlacedOn.y / WorldGeneration.CHUNKSIZE;
-            if (chunkX < 0 || chunkY < 0 || chunkX >= world.ChunkUpdated.GetLength(0) ||
-                chunkY >= world.ChunkUpdated.GetLength(1)) return;
+            if (chunkX < 0
+                || chunkY < 0
+                || chunkX >= world.ChunkUpdated.GetLength(0)
+                || chunkY >= world.ChunkUpdated.GetLength(1)) return;
 
             var chunkUpdated = world.ChunkUpdated[chunkX, chunkY];
-            if (chunkUpdated == null) return;
 
-            chunkUpdated.AddListener(building.CheckSeating);
+            chunkUpdated?.AddListener(building.CheckSeating);
         }
 
-        private static void SpawnDropArray(BuildingEntity source, ItemDrop[] drops, float multiplier, bool isNearPlayer,
+        private static void SpawnDropArray(BuildingEntity source, ItemDrop[] drops,
+            float multiplier, bool isNearPlayer,
             bool rollChance)
         {
             if (drops == null) return;
@@ -919,55 +1061,71 @@ namespace CUCoreLib.Registries
             foreach (var drop in drops)
             {
                 if (drop == null || string.IsNullOrWhiteSpace(drop.id)) continue;
-                if (rollChance && Random.Range(0f, 1f) >= drop.chance * multiplier) continue;
+                if (rollChance && Random.Range(0f, 1f) >= drop.chance * multiplier)
+                    continue;
 
-                SpawnAndSetupDrop(source, drop.id, drop.conditionMin, drop.conditionMax, isNearPlayer);
+                SpawnAndSetupDrop(source, drop.id, drop.conditionMin, drop.conditionMax,
+                    isNearPlayer);
             }
         }
 
-        private static void SpawnCategoryDrops(BuildingEntity source, CustomBuildingEntityDefinition definition,
+        private static void SpawnCategoryDrops(BuildingEntity source,
+            CustomBuildingEntityDefinition definition,
             bool isNearPlayer)
         {
-            if (definition.GuaranteedDropAmount <= 0 || definition.ItemCategoriesToAdd == null ||
-                definition.ItemCategoriesToAdd.Length == 0) return;
+            if (definition.GuaranteedDropAmount <= 0
+                || definition.ItemCategoriesToAdd == null
+                || definition.ItemCategoriesToAdd.Length == 0) return;
             if (ItemLootPool.pool == null) return;
 
             for (var i = 0; i < definition.GuaranteedDropAmount; i++)
             {
-                var category = definition.ItemCategoriesToAdd[Random.Range(0, definition.ItemCategoriesToAdd.Length)];
+                var category =
+                    definition.ItemCategoriesToAdd[
+                        Random.Range(0, definition.ItemCategoriesToAdd.Length)];
                 if (string.IsNullOrWhiteSpace(category)) continue;
-                if (!ItemLootPool.pool.TryGetValue(category, out var poolItems) || poolItems == null ||
-                    poolItems.Count == 0) continue;
+                if (!ItemLootPool.pool.TryGetValue(category, out var poolItems)
+                    || poolItems == null
+                    || poolItems.Count == 0) continue;
 
                 var dropId = poolItems[Random.Range(0, poolItems.Count)];
                 SpawnAndSetupDrop(source, dropId, 1f, 1f, isNearPlayer);
             }
         }
 
-        private static void SpawnAndSetupDrop(BuildingEntity source, string itemId, float conditionMin,
+        private static void SpawnAndSetupDrop(BuildingEntity source, string itemId,
+            float conditionMin,
             float conditionMax, bool isNearPlayer)
         {
             var obj = SpawnDrop(source.transform.position, itemId,
-                Quaternion.Euler(0f, 0f, Random.Range(0f, 360f)), null, conditionMin, conditionMax, isNearPlayer);
+                Quaternion.Euler(0f, 0f, Random.Range(0f, 360f)), null, conditionMin,
+                conditionMax, isNearPlayer);
             if (obj == null)
-            {
-                CUCoreLibPlugin.Log?.LogWarning("Custom building '" + source.id + "' failed to spawn drop '" + itemId +
-                                                "'.");
-            }
+                CUCoreLibPlugin.Log?.LogWarning("Custom building '"
+                    + source.id
+                    + "' failed to spawn drop '"
+                    + itemId
+                    + "'.");
         }
 
-        internal static GameObject SpawnDrop(Vector3 position, string itemId, Quaternion rotation,
-            float? initialCondition, float conditionMin, float conditionMax, bool isNearPlayer)
+        internal static GameObject SpawnDrop(Vector3 position, string itemId,
+            Quaternion rotation,
+            float? initialCondition, float conditionMin, float conditionMax,
+            bool isNearPlayer)
         {
-            var obj = CustomInstantiate.InstantiateReturn(itemId, position, rotation, initialCondition);
+            var obj = CustomInstantiate.InstantiateReturn(itemId, position, rotation,
+                initialCondition);
             if (obj == null) return null;
 
             if (obj.TryGetComponent(out Rigidbody2D rb))
                 rb.velocity = new Vector2(Random.Range(-7f, 7f), Random.Range(-7f, 7f));
 
-            if (obj.TryGetComponent(out Item item)) item.SetCondition(Random.Range(conditionMin, conditionMax));
+            if (obj.TryGetComponent(out Item item))
+                item.SetCondition(Random.Range(conditionMin, conditionMax));
 
-            if (isNearPlayer && obj.GetComponent<Rigidbody2D>() != null && obj.GetComponent<SpriteRenderer>() != null)
+            if (isNearPlayer
+                && obj.GetComponent<Rigidbody2D>() != null
+                && obj.GetComponent<SpriteRenderer>() != null)
                 obj.AddComponent<FreshItemDrop>();
 
             // Drops spawn through a raw Object.Instantiate, which bypasses Together's network hooks, thus a host-side drop never reaches clients without this
@@ -975,6 +1133,5 @@ namespace CUCoreLib.Registries
 
             return obj;
         }
-
     }
 }

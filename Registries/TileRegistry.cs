@@ -22,8 +22,9 @@ namespace CUCoreLib.Registries
 
         public const ushort FirstCustomTileIndex = 36;
 
-        private static readonly Dictionary<ushort, CustomTileDefinition> RegisteredDefinitions =
-            new Dictionary<ushort, CustomTileDefinition>();
+        private static readonly Dictionary<ushort, CustomTileDefinition>
+            RegisteredDefinitions =
+                new Dictionary<ushort, CustomTileDefinition>();
 
         private static readonly Dictionary<string, ushort> RegisteredDefinitionIds =
             new Dictionary<string, ushort>(StringComparer.OrdinalIgnoreCase);
@@ -69,11 +70,11 @@ namespace CUCoreLib.Registries
         }
 
         /// <summary>
-        /// Registers a custom terrain tile under a stable ID and returns its effective ID.
+        ///     Registers a custom terrain tile under a stable ID and returns its effective ID.
         /// </summary>
         /// <remarks>
-        /// CUCoreLib allocates the runtime block index. If another tile already uses <paramref name="id"/>,
-        /// the returned value and <see cref="CustomTileDefinition.ID"/> become <c>id~1</c>, <c>id~2</c>, and so on.
+        ///     CUCoreLib allocates the runtime block index. If another tile already uses <paramref name="id" />,
+        ///     the returned value and <see cref="CustomTileDefinition.ID" /> become <c>id~1</c>, <c>id~2</c>, and so on.
         /// </remarks>
         public static string Register(string id, CustomTileDefinition definition)
         {
@@ -82,43 +83,51 @@ namespace CUCoreLib.Registries
 
             if (string.IsNullOrWhiteSpace(id))
             {
-                CUCoreLibPlugin.Log?.LogWarning("Tile registration ignored with no stable ID.");
+                CUCoreLibPlugin.Log?.LogWarning(
+                    "Tile registration ignored with no stable ID.");
                 return null;
             }
 
             id = id.Trim();
             if (!id.All(char.IsLetterOrDigit))
             {
-                CUCoreLibPlugin.Log?.LogWarning($"Tile registration ignored for invalid stable ID '{id}'. Stable IDs must be alphanumeric.");
+                CUCoreLibPlugin.Log?.LogWarning(
+                    $"Tile registration ignored for invalid stable ID '{id}'. Stable IDs must be alphanumeric.");
                 return null;
             }
 
             var effectiveId = GetAvailableId(id);
             if (!TryAllocateIndex(effectiveId, out var tileIndex))
             {
-                CUCoreLibPlugin.Log?.LogWarning($"Tile registration '{id}' ignored: all {CustomTileIndexCount} custom tile slots are occupied :(");
-                CUCoreLibPlugin.Log?.LogWarning($"If you get this warning, try to remove excess tiles or repurpose tile IDs");
+                CUCoreLibPlugin.Log?.LogWarning(
+                    $"Tile registration '{id}' ignored: all {CustomTileIndexCount} custom tile slots are occupied :(");
+                CUCoreLibPlugin.Log?.LogWarning(
+                    "If you get this warning, try to remove excess tiles or repurpose tile IDs");
                 return null;
             }
 
-            return RegisterAt(tileIndex, definition, id, true) ? definition.ID : null;
+            return RegisterAt(tileIndex, definition, id, true)
+                ? definition.ID
+                : null;
         }
 
-        private static bool RegisterAt(ushort tileIndex, CustomTileDefinition definition, string requestedId,
+        private static bool RegisterAt(ushort tileIndex, CustomTileDefinition definition,
+            string requestedId,
             bool queueNetworkSnapshot)
         {
-
             if (!IsSupportedCustomIndex(tileIndex)) return false;
 
             if (definition == null)
             {
-                CUCoreLibPlugin.Log?.LogWarning($"Tile registration ignored for index {tileIndex} with no definition.");
+                CUCoreLibPlugin.Log?.LogWarning(
+                    $"Tile registration ignored for index {tileIndex} with no definition.");
                 return false;
             }
 
             if (definition.Sprite == null)
             {
-                CUCoreLibPlugin.Log?.LogWarning($"Tile registration ignored for index {tileIndex} with no sprite.");
+                CUCoreLibPlugin.Log?.LogWarning(
+                    $"Tile registration ignored for index {tileIndex} with no sprite.");
                 return false;
             }
 
@@ -136,24 +145,29 @@ namespace CUCoreLib.Registries
 
             RegisteredDefinitions.Add(tileIndex, definition);
             RegisteredDefinitionIds[definition.ID] = tileIndex;
-            DefinitionOwners.Assign(tileIndex, ContentReloadSession.ResolveAmbientOwnerId());
+            DefinitionOwners.Assign(tileIndex,
+                ContentReloadSession.ResolveAmbientOwnerId());
             RegisteredTiles.Add(tileIndex, CreateTile(definition));
 
             if (!string.IsNullOrEmpty(definition.Name))
                 LocaleRegistry.Register("title", definition.ID, definition.Name);
 
             if (!string.IsNullOrEmpty(definition.Description))
-                LocaleRegistry.Register("title", definition.ID + "dsc", definition.Description);
+                LocaleRegistry.Register("title", definition.ID + "dsc",
+                    definition.Description);
 
             InjectRegisteredTiles(WorldGeneration.world);
-            if (queueNetworkSnapshot) MultiplayerSyncRegistry.QueueHostSnapshotBroadcast();
+            if (queueNetworkSnapshot)
+                MultiplayerSyncRegistry.QueueHostSnapshotBroadcast();
             return true;
         }
 
         private static bool IsSupportedCustomIndex(ushort tileIndex)
         {
-            if (tileIndex >= FirstCustomTileIndex && tileIndex <= byte.MaxValue) return true;
-            CUCoreLibPlugin.Log?.LogWarning($"Tile index {tileIndex} ignored, custom tile indices must be between {FirstCustomTileIndex}-255");
+            if (tileIndex >= FirstCustomTileIndex && tileIndex <= byte.MaxValue)
+                return true;
+            CUCoreLibPlugin.Log?.LogWarning(
+                $"Tile index {tileIndex} ignored, custom tile indices must be between {FirstCustomTileIndex}-255");
             return false;
         }
 
@@ -162,7 +176,8 @@ namespace CUCoreLib.Registries
             var index = (int)(GetStableHash(id) % CustomTileIndexCount);
             for (var offset = 0; offset < CustomTileIndexCount; offset++)
             {
-                var candidate = (ushort)(FirstCustomTileIndex + (index + offset) % CustomTileIndexCount);
+                var candidate = (ushort)(FirstCustomTileIndex
+                    + (index + offset) % CustomTileIndexCount);
                 if (!RegisteredDefinitions.ContainsKey(candidate))
                 {
                     tileIndex = candidate;
@@ -197,7 +212,8 @@ namespace CUCoreLib.Registries
             }
         }
 
-        public static bool TryGetDefinition(ushort tileIndex, out CustomTileDefinition definition)
+        public static bool TryGetDefinition(ushort tileIndex,
+            out CustomTileDefinition definition)
         {
             return RegisteredDefinitions.TryGetValue(tileIndex, out definition);
         }
@@ -205,19 +221,23 @@ namespace CUCoreLib.Registries
         public static bool TryGetOwnerModGuid(ushort tileIndex, out string modGuid)
         {
             modGuid = null;
-            return DefinitionOwners.TryGetOwner(tileIndex, out modGuid) && !string.IsNullOrWhiteSpace(modGuid);
+            return DefinitionOwners.TryGetOwner(tileIndex, out modGuid)
+                && !string.IsNullOrWhiteSpace(modGuid);
         }
 
         public static bool TryGetOwnerModGuid(string id, out string modGuid)
         {
             modGuid = null;
-            return TryGetIndex(id, out var tileIndex) && TryGetOwnerModGuid(tileIndex, out modGuid);
+            return TryGetIndex(id, out var tileIndex)
+                && TryGetOwnerModGuid(tileIndex, out modGuid);
         }
 
-        public static bool TryGetDefinition(string id, out CustomTileDefinition definition)
+        public static bool TryGetDefinition(string id,
+            out CustomTileDefinition definition)
         {
             definition = null;
-            return TryGetIndex(id, out var tileIndex) && TryGetDefinition(tileIndex, out definition);
+            return TryGetIndex(id, out var tileIndex)
+                && TryGetDefinition(tileIndex, out definition);
         }
 
         public static bool TryGetTile(ushort tileIndex, out TileBase tile)
@@ -234,7 +254,8 @@ namespace CUCoreLib.Registries
         public static bool TryGetIndex(string id, out ushort tileIndex)
         {
             tileIndex = 0;
-            return !string.IsNullOrWhiteSpace(id) && RegisteredDefinitionIds.TryGetValue(id.Trim(), out tileIndex);
+            return !string.IsNullOrWhiteSpace(id)
+                && RegisteredDefinitionIds.TryGetValue(id.Trim(), out tileIndex);
         }
 
         public static IEnumerable<ushort> GetRegisteredIndices()
@@ -244,7 +265,8 @@ namespace CUCoreLib.Registries
 
         public static IEnumerable<string> GetRegisteredIds()
         {
-            return RegisteredDefinitionIds.Keys.OrderBy(id => id, StringComparer.OrdinalIgnoreCase).ToArray();
+            return RegisteredDefinitionIds.Keys
+                .OrderBy(id => id, StringComparer.OrdinalIgnoreCase).ToArray();
         }
 
         public static int LayerToMask(int layerNumber)
@@ -285,7 +307,8 @@ namespace CUCoreLib.Registries
                     ["id"] = definition.ID ?? string.Empty,
                     ["name"] = definition.Name ?? string.Empty,
                     ["description"] = definition.Description ?? string.Empty,
-                    ["sprite"] = NetworkSnapshotSerialization.WriteSprite(definition.Sprite),
+                    ["sprite"] =
+                        NetworkSnapshotSerialization.WriteSprite(definition.Sprite),
                     ["tileName"] = definition.TileName ?? string.Empty,
                     ["color"] = NetworkSnapshotSerialization.WriteColor(definition.Color),
                     ["colliderType"] = (int)definition.ColliderType,
@@ -300,7 +323,9 @@ namespace CUCoreLib.Registries
                     ["spawnAmount"] = definition.SpawnAmount,
                     ["spawnLayers"] = definition.SpawnLayers,
                     ["generationStyle"] = (byte)definition.GenerationStyle,
-                    ["drops"] = definition.Drops != null ? JArray.FromObject(definition.Drops) : new JArray(),
+                    ["drops"] = definition.Drops != null
+                        ? JArray.FromObject(definition.Drops)
+                        : new JArray(),
                     ["customData"] = definition.CustomData != null
                         ? JObject.FromObject(definition.CustomData)
                         : new JObject()
@@ -315,27 +340,32 @@ namespace CUCoreLib.Registries
             if (snapshot == null) return;
 
             var localHitSounds = RegisteredDefinitions.Values
-                .Where(definition => definition != null && !string.IsNullOrWhiteSpace(definition.ID))
+                .Where(definition =>
+                    definition != null && !string.IsNullOrWhiteSpace(definition.ID))
                 .GroupBy(definition => definition.ID, StringComparer.OrdinalIgnoreCase)
-                .ToDictionary(group => group.Key, group => group.First().HitSoundClip, StringComparer.OrdinalIgnoreCase);
+                .ToDictionary(group => group.Key, group => group.First().HitSoundClip,
+                    StringComparer.OrdinalIgnoreCase);
             var localOwners = RegisteredDefinitions
-                .Where(entry => entry.Value != null && !string.IsNullOrWhiteSpace(entry.Value.ID))
+                .Where(entry =>
+                    entry.Value != null && !string.IsNullOrWhiteSpace(entry.Value.ID))
                 .GroupBy(entry => entry.Value.ID, StringComparer.OrdinalIgnoreCase)
                 .ToDictionary(group => group.Key,
-                    group => DefinitionOwners.TryGetOwner(group.First().Key, out var owner) ? owner : null,
+                    group => DefinitionOwners.TryGetOwner(group.First().Key,
+                        out var owner)
+                        ? owner
+                        : null,
                     StringComparer.OrdinalIgnoreCase);
             var entries = snapshot.Properties()
-                .Select(property =>
+                .Select(property => new
                 {
-                    ushort tileIndex;
-                    return new
-                    {
-                        HasIndex = ushort.TryParse(property.Name, out tileIndex),
-                        TileIndex = tileIndex,
-                        Definition = property.Value as JObject
-                    };
+                    HasIndex = ushort.TryParse(property.Name, out var tileIndex),
+                    TileIndex = tileIndex,
+                    Definition = property.Value as JObject
                 })
-                .Where(entry => entry.HasIndex && entry.Definition != null && IsSupportedCustomIndex(entry.TileIndex))
+                .Where(entry =>
+                    entry.HasIndex
+                    && entry.Definition != null
+                    && IsSupportedCustomIndex(entry.TileIndex))
                 .OrderBy(entry => entry.TileIndex)
                 .ToArray();
 
@@ -345,13 +375,15 @@ namespace CUCoreLib.Registries
             foreach (var entry in entries)
             {
                 var id = entry.Definition.Value<string>("id");
-                if (TryGetIndex(id, out var localTileIndex)) RemoveRegistration(localTileIndex);
+                if (TryGetIndex(id, out var localTileIndex))
+                    RemoveRegistration(localTileIndex);
             }
 
             foreach (var entry in entries)
             {
                 var obj = entry.Definition;
-                localHitSounds.TryGetValue(obj.Value<string>("id") ?? string.Empty, out var localHitSound);
+                localHitSounds.TryGetValue(obj.Value<string>("id") ?? string.Empty,
+                    out var localHitSound);
 
                 var definition = new CustomTileDefinition
                 {
@@ -360,12 +392,15 @@ namespace CUCoreLib.Registries
                     Description = obj.Value<string>("description"),
                     Sprite = NetworkSnapshotSerialization.ReadSprite(obj["sprite"]),
                     TileName = obj.Value<string>("tileName"),
-                    Color = NetworkSnapshotSerialization.ReadColor(obj["color"], Color.white),
-                    ColliderType = (Tile.ColliderType)(obj.Value<int?>("colliderType") ?? 1),
+                    Color = NetworkSnapshotSerialization.ReadColor(obj["color"],
+                        Color.white),
+                    ColliderType =
+                        (Tile.ColliderType)(obj.Value<int?>("colliderType") ?? 1),
                     Health = obj.Value<float?>("health") ?? 100f,
                     HitSound = obj.Value<string>("hitSound"),
                     StepSound = obj.Value<string>("stepSound"),
-                    SleepQuality = (Body.SleepQuality)(obj.Value<int?>("sleepQuality") ?? 0),
+                    SleepQuality =
+                        (Body.SleepQuality)(obj.Value<int?>("sleepQuality") ?? 0),
                     NoVariation = obj.Value<bool?>("noVariation") ?? false,
                     Metallic = obj.Value<bool?>("metallic") ?? false,
                     Toxicity = obj.Value<float?>("toxicity") ?? 0f,
@@ -373,18 +408,24 @@ namespace CUCoreLib.Registries
                     SpawnAmount = obj.Value<float?>("spawnAmount") ?? 0f,
                     SpawnLayers = obj.Value<int?>("spawnLayers") ?? AllSpawnLayersMask,
                     GenerationStyle =
-                        (TileGenerationStyle)(obj.Value<byte?>("generationStyle") ?? (byte)TileGenerationStyle.Vein),
+                        (TileGenerationStyle)(obj.Value<byte?>("generationStyle")
+                            ?? (byte)TileGenerationStyle.Vein),
                     HitSoundClip = localHitSound
                 };
 
-                if (obj["drops"] is JArray drops) definition.Drops = drops.ToObject<ItemDrop[]>();
+                if (obj["drops"] is JArray drops)
+                    definition.Drops = drops.ToObject<ItemDrop[]>();
                 if (obj["customData"] is JObject customData)
-                    definition.CustomData = customData.ToObject<Dictionary<string, object>>() ??
-                                            new Dictionary<string, object>();
+                    definition.CustomData =
+                        customData.ToObject<Dictionary<string, object>>()
+                        ?? new Dictionary<string, object>();
 
-                localOwners.TryGetValue(definition.ID ?? string.Empty, out var localOwner);
+                localOwners.TryGetValue(definition.ID ?? string.Empty,
+                    out var localOwner);
                 using (DefinitionOwners.BeginScope(localOwner))
+                {
                     RegisterAt(entry.TileIndex, definition, definition.ID, false);
+                }
             }
         }
 
@@ -392,8 +433,10 @@ namespace CUCoreLib.Registries
         {
             value = default;
             if (string.IsNullOrWhiteSpace(key)) return false;
-            if (!RegisteredDefinitions.TryGetValue(tileIndex, out var definition)) return false;
-            if (definition.CustomData == null || !definition.CustomData.TryGetValue(key, out var rawValue))
+            if (!RegisteredDefinitions.TryGetValue(tileIndex, out var definition))
+                return false;
+            if (definition.CustomData == null
+                || !definition.CustomData.TryGetValue(key, out var rawValue))
                 return false;
             if (!(rawValue is T typedValue)) return false;
 
@@ -404,22 +447,29 @@ namespace CUCoreLib.Registries
         public static bool TryGetCustomData<T>(string id, string key, out T value)
         {
             value = default;
-            return TryGetIndex(id, out var tileIndex) && TryGetCustomData(tileIndex, key, out value);
+            return TryGetIndex(id, out var tileIndex)
+                && TryGetCustomData(tileIndex, key, out value);
         }
 
-        internal static bool WillBreak(WorldGeneration world, Vector2Int position, float damage, bool bonusMetal)
+        internal static bool WillBreak(WorldGeneration world, Vector2Int position,
+            float damage, bool bonusMetal)
         {
             if (world == null) return false;
 
             var tileIndex = world.GetBlock(position);
-            if (!RegisteredDefinitions.TryGetValue(tileIndex, out var definition)) return false;
+            if (!RegisteredDefinitions.TryGetValue(tileIndex, out var definition))
+                return false;
 
             var existingDamage = world.GetBlockDamage(position);
-            var appliedDamage = damage * (bonusMetal && definition.Metallic ? 10f : 1f);
+            var appliedDamage = damage
+                * (bonusMetal && definition.Metallic
+                    ? 10f
+                    : 1f);
             return (existingDamage?.damage ?? 0f) + appliedDamage >= definition.Health;
         }
 
-        internal static void SpawnDrops(WorldGeneration world, Vector2Int position, ushort tileIndex)
+        internal static void SpawnDrops(WorldGeneration world, Vector2Int position,
+            ushort tileIndex)
         {
             if (world == null) return;
             if (!RegisteredDefinitions.TryGetValue(tileIndex, out var definition)) return;
@@ -439,7 +489,11 @@ namespace CUCoreLib.Registries
 
                 if (spawned == null)
                     CUCoreLibPlugin.Log?.LogWarning(
-                        "Custom tile '" + definition.ID + "' failed to spawn drop '" + drop.id + "'.");
+                        "Custom tile '"
+                        + definition.ID
+                        + "' failed to spawn drop '"
+                        + drop.id
+                        + "'.");
             }
         }
 
@@ -447,20 +501,19 @@ namespace CUCoreLib.Registries
         {
             if (world == null || RegisteredDefinitions.Count == 0) return;
 
-            var worldBlocks = WorldBlocksField?.GetValue(world) as ushort[,];
-            if (worldBlocks == null) return;
+            if (!(WorldBlocksField?.GetValue(world) is ushort[,] worldBlocks)) return;
 
             foreach (var entry in RegisteredDefinitions
-                         .Where(entry => entry.Value != null && !(entry.Value.SpawnAmount <= 0))
-                         .Where(entry => CanSpawnInLayer(entry.Value, world.biomeDepth)))
-            {
+                .Where(entry => entry.Value != null && !(entry.Value.SpawnAmount <= 0))
+                .Where(entry => CanSpawnInLayer(entry.Value, world.biomeDepth)))
                 GenerateWorldTile(entry.Value, world, worldBlocks, entry.Key);
-            }
         }
 
-        public static bool SetBlock(WorldGeneration world, Vector2Int position, ushort tileIndex)
+        public static bool SetBlock(WorldGeneration world, Vector2Int position,
+            ushort tileIndex)
         {
-            if (world == null || !RegisteredDefinitions.ContainsKey(tileIndex)) return false;
+            if (world == null || !RegisteredDefinitions.ContainsKey(tileIndex))
+                return false;
 
             InjectRegisteredTiles(world);
             world.SetBlock(position, tileIndex);
@@ -469,21 +522,26 @@ namespace CUCoreLib.Registries
 
         public static bool SetBlock(WorldGeneration world, Vector2Int position, string id)
         {
-            return TryGetIndex(id, out var tileIndex) && SetBlock(world, position, tileIndex);
+            return TryGetIndex(id, out var tileIndex)
+                && SetBlock(world, position, tileIndex);
         }
 
-        public static bool SetBlockNoUpdate(WorldGeneration world, Vector2Int position, ushort tileIndex)
+        public static bool SetBlockNoUpdate(WorldGeneration world, Vector2Int position,
+            ushort tileIndex)
         {
-            if (world == null || !RegisteredDefinitions.ContainsKey(tileIndex)) return false;
+            if (world == null || !RegisteredDefinitions.ContainsKey(tileIndex))
+                return false;
 
             InjectRegisteredTiles(world);
             world.SetBlockNoUpdate(position, tileIndex);
             return true;
         }
 
-        public static bool SetBlockNoUpdate(WorldGeneration world, Vector2Int position, string id)
+        public static bool SetBlockNoUpdate(WorldGeneration world, Vector2Int position,
+            string id)
         {
-            return TryGetIndex(id, out var tileIndex) && SetBlockNoUpdate(world, position, tileIndex);
+            return TryGetIndex(id, out var tileIndex)
+                && SetBlockNoUpdate(world, position, tileIndex);
         }
 
         private static void RemoveRegistration(ushort tileIndex)
@@ -509,7 +567,8 @@ namespace CUCoreLib.Registries
             var requiredLength = RegisteredTiles.Keys.Max(index => (int)index) + 1;
             if (world.tiles == null)
                 world.tiles = new TileBase[requiredLength];
-            else if (world.tiles.Length < requiredLength) Array.Resize(ref world.tiles, requiredLength);
+            else if (world.tiles.Length < requiredLength)
+                Array.Resize(ref world.tiles, requiredLength);
 
             foreach (var entry in RegisteredTiles) world.tiles[entry.Key] = entry.Value;
 
@@ -518,7 +577,8 @@ namespace CUCoreLib.Registries
                     world.tiles[i] = GetReservedTile((ushort)i);
         }
 
-        internal static BlockInfo CreateBlockInfo(ushort tileIndex, CustomTileDefinition definition)
+        internal static BlockInfo CreateBlockInfo(ushort tileIndex,
+            CustomTileDefinition definition)
         {
             return new BlockInfo
             {
@@ -539,7 +599,9 @@ namespace CUCoreLib.Registries
             var tile = ScriptableObject.CreateInstance<Tile>();
             tile.sprite = definition.Sprite;
             tile.color = definition.Color;
-            tile.name = string.IsNullOrWhiteSpace(definition.TileName) ? definition.ID : definition.TileName.Trim();
+            tile.name = string.IsNullOrWhiteSpace(definition.TileName)
+                ? definition.ID
+                : definition.TileName.Trim();
             tile.colliderType = definition.ColliderType;
             return tile;
         }
@@ -549,8 +611,10 @@ namespace CUCoreLib.Registries
             return HitSoundTokenPrefix + tileIndex;
         }
 
-        internal static bool TryPlayHitSoundToken(string token, Vector2 pos, bool twoDimensional, bool pitchShift,
-            Transform follow, float volume, float pitch, bool noReverb, bool ignoreMixer, out AudioSource audioSource)
+        internal static bool TryPlayHitSoundToken(string token, Vector2 pos,
+            bool twoDimensional, bool pitchShift,
+            Transform follow, float volume, float pitch, bool noReverb, bool ignoreMixer,
+            out AudioSource audioSource)
         {
             audioSource = null;
             if (!TryGetTokenTileIndex(token, out var tileIndex)) return false;
@@ -558,7 +622,8 @@ namespace CUCoreLib.Registries
             var clip = ResolveHitSound(tileIndex);
             if (clip == null) return false;
 
-            audioSource = Sound.Play(clip, pos, twoDimensional, pitchShift, follow, volume, pitch, noReverb,
+            audioSource = Sound.Play(clip, pos, twoDimensional, pitchShift, follow,
+                volume, pitch, noReverb,
                 ignoreMixer);
             return audioSource != null;
         }
@@ -566,24 +631,29 @@ namespace CUCoreLib.Registries
         private static bool TryGetTokenTileIndex(string token, out ushort tileIndex)
         {
             tileIndex = 0;
-            if (string.IsNullOrWhiteSpace(token) ||
-                !token.StartsWith(HitSoundTokenPrefix, StringComparison.Ordinal)) return false;
+            if (string.IsNullOrWhiteSpace(token)
+                || !token.StartsWith(HitSoundTokenPrefix, StringComparison.Ordinal))
+                return false;
 
-            return ushort.TryParse(token.Substring(HitSoundTokenPrefix.Length), out tileIndex);
+            return ushort.TryParse(token.Substring(HitSoundTokenPrefix.Length),
+                out tileIndex);
         }
 
         private static AudioClip ResolveHitSound(ushort tileIndex)
         {
-            if (ResolvedHitSounds.TryGetValue(tileIndex, out var cached) && cached != null) return cached;
+            if (ResolvedHitSounds.TryGetValue(tileIndex, out var cached)
+                && cached != null) return cached;
 
-            if (!RegisteredDefinitions.TryGetValue(tileIndex, out var definition) || definition == null) return null;
+            if (!RegisteredDefinitions.TryGetValue(tileIndex, out var definition)
+                || definition == null) return null;
 
             if (!ResolvingHitSounds.Add(tileIndex)) return null;
 
             try
             {
                 var clip = definition.HitSoundClip;
-                if (clip == null) TryResolveTileHitSoundReference(definition.HitSound, out clip);
+                if (clip == null)
+                    TryResolveTileHitSoundReference(definition.HitSound, out clip);
 
                 if (clip != null) ResolvedHitSounds[tileIndex] = clip;
 
@@ -595,7 +665,8 @@ namespace CUCoreLib.Registries
             }
         }
 
-        private static bool TryResolveTileHitSoundReference(string reference, out AudioClip resolved)
+        private static bool TryResolveTileHitSoundReference(string reference,
+            out AudioClip resolved)
         {
             resolved = null;
             if (string.IsNullOrWhiteSpace(reference)) return false;
@@ -640,7 +711,8 @@ namespace CUCoreLib.Registries
                 return resolved != null;
             }
 
-            var clip = AssetLoader.GetCachedAudioClip(normalized) ?? Resources.Load<AudioClip>("Sounds/" + normalized);
+            var clip = AssetLoader.GetCachedAudioClip(normalized)
+                ?? Resources.Load<AudioClip>("Sounds/" + normalized);
             if (clip != null)
             {
                 AssetLoader.CacheAudioClip(normalized, clip);
@@ -649,16 +721,19 @@ namespace CUCoreLib.Registries
             }
 
             var buildingReference = Resources.Load<GameObject>(normalized);
-            if (buildingReference == null || !buildingReference.TryGetComponent(out BuildingEntity building) ||
-                building.hitSound == null) return false;
+            if (buildingReference == null
+                || !buildingReference.TryGetComponent(out BuildingEntity building)
+                || building.hitSound == null) return false;
             resolved = building.hitSound;
-            if (!string.IsNullOrWhiteSpace(resolved.name)) AssetLoader.CacheAudioClip(resolved.name, resolved);
+            if (!string.IsNullOrWhiteSpace(resolved.name))
+                AssetLoader.CacheAudioClip(resolved.name, resolved);
             return true;
         }
 
         private static TileBase GetReservedTile(ushort index)
         {
-            if (ReservedTiles.TryGetValue(index, out var reservedTile)) return reservedTile;
+            if (ReservedTiles.TryGetValue(index, out var reservedTile))
+                return reservedTile;
 
             var tile = ScriptableObject.CreateInstance<Tile>();
             tile.name = "CUCoreLibReservedTile" + index;
@@ -667,7 +742,8 @@ namespace CUCoreLib.Registries
             return tile;
         }
 
-        private static bool CanSpawnInLayer(CustomTileDefinition definition, int biomeDepth)
+        private static bool CanSpawnInLayer(CustomTileDefinition definition,
+            int biomeDepth)
         {
             if (definition == null) return false;
 
@@ -681,27 +757,32 @@ namespace CUCoreLib.Registries
             return layerMask != 0 && (spawnLayers & layerMask) != 0;
         }
 
-        private static void GenerateWorldTile(CustomTileDefinition definition, WorldGeneration world,
+        private static void GenerateWorldTile(CustomTileDefinition definition,
+            WorldGeneration world,
             ushort[,] worldBlocks, ushort tileIndex)
         {
             var styleMask = GetGenerationStyles(definition);
             var styleCount = CountGenerationStyles(styleMask);
             if (styleCount <= 0) return;
 
-            var normalizedSpawnAmount = Mathf.Max(0f, definition.SpawnAmount) / styleCount;
+            var normalizedSpawnAmount =
+                Mathf.Max(0f, definition.SpawnAmount) / styleCount;
             if (normalizedSpawnAmount <= 0f) return;
 
             foreach (var style in AllGenerationStyles)
             {
                 if ((styleMask & style) == 0) continue;
 
-                GenerateWorldTileStyle(world, worldBlocks, tileIndex, normalizedSpawnAmount, style);
+                GenerateWorldTileStyle(world, worldBlocks, tileIndex,
+                    normalizedSpawnAmount, style);
             }
         }
 
-        private static TileGenerationStyle GetGenerationStyles(CustomTileDefinition definition)
+        private static TileGenerationStyle GetGenerationStyles(
+            CustomTileDefinition definition)
         {
-            if (definition == null || definition.GenerationStyle == TileGenerationStyle.None)
+            if (definition == null
+                || definition.GenerationStyle == TileGenerationStyle.None)
                 return TileGenerationStyle.Vein;
 
             return definition.GenerationStyle;
@@ -722,7 +803,8 @@ namespace CUCoreLib.Registries
             switch (style)
             {
                 case TileGenerationStyle.HeavyVeins:
-                    GenerateOreVeins(world, worldBlocks, tileIndex, spawnAmount, 2f, 18, 42);
+                    GenerateOreVeins(world, worldBlocks, tileIndex, spawnAmount, 2f, 18,
+                        42);
                     break;
                 case TileGenerationStyle.Singular:
                     GenerateSingular(world, worldBlocks, tileIndex, spawnAmount);
@@ -739,7 +821,8 @@ namespace CUCoreLib.Registries
                 case TileGenerationStyle.Vein:
                 case TileGenerationStyle.None:
                 default:
-                    GenerateOreVeins(world, worldBlocks, tileIndex, spawnAmount, 1f, 1, 25);
+                    GenerateOreVeins(world, worldBlocks, tileIndex, spawnAmount, 1f, 1,
+                        25);
                     break;
             }
         }
@@ -753,7 +836,8 @@ namespace CUCoreLib.Registries
             int minSteps,
             int maxStepsExclusive)
         {
-            var attempts = GetCopperStyleAttempts(world, spawnAmount * Mathf.Max(0f, attemptMultiplier));
+            var attempts = GetCopperStyleAttempts(world,
+                spawnAmount * Mathf.Max(0f, attemptMultiplier));
 
             for (var attempt = attempts; attempt > 0; attempt--)
             {
@@ -761,7 +845,9 @@ namespace CUCoreLib.Registries
                     Mathf.FloorToInt(Random.Range(0f, world.width)),
                     Mathf.FloorToInt(Random.Range(0f, world.height)));
 
-                for (var steps = Random.Range(minSteps, maxStepsExclusive); steps > 0; steps--)
+                for (var steps = Random.Range(minSteps, maxStepsExclusive);
+                    steps > 0;
+                    steps--)
                 {
                     if (position.x > 0
                         && position.x < world.width - 1
@@ -771,13 +857,22 @@ namespace CUCoreLib.Registries
                         worldBlocks[position.x, position.y] = tileIndex;
 
                     position += new Vector2Int(
-                        Random.value > 0.5f ? Random.value > 0.5f ? 1 : -1 : 0,
-                        Random.value > 0.5f ? Random.value > 0.5f ? 1 : -1 : 0);
+                        Random.value > 0.5f
+                            ? Random.value > 0.5f
+                                ? 1
+                                : -1
+                            : 0,
+                        Random.value > 0.5f
+                            ? Random.value > 0.5f
+                                ? 1
+                                : -1
+                            : 0);
                 }
             }
         }
 
-        private static void GenerateSingular(WorldGeneration world, ushort[,] worldBlocks, ushort tileIndex,
+        private static void GenerateSingular(WorldGeneration world, ushort[,] worldBlocks,
+            ushort tileIndex,
             float spawnAmount)
         {
             var attempts = GetCopperStyleAttempts(world, spawnAmount);
@@ -793,14 +888,17 @@ namespace CUCoreLib.Registries
                     || position.y >= world.height - 1)
                     continue;
 
-                if (worldBlocks[position.x, position.y] > 0) worldBlocks[position.x, position.y] = tileIndex;
+                if (worldBlocks[position.x, position.y] > 0)
+                    worldBlocks[position.x, position.y] = tileIndex;
             }
         }
 
-        private static void GenerateStripes(WorldGeneration world, ushort[,] worldBlocks, ushort tileIndex,
+        private static void GenerateStripes(WorldGeneration world, ushort[,] worldBlocks,
+            ushort tileIndex,
             float spawnAmount)
         {
-            var stripeCount = Mathf.Max(1, Mathf.RoundToInt(GetCopperStyleAttempts(world, spawnAmount) / 12f));
+            var stripeCount = Mathf.Max(1,
+                Mathf.RoundToInt(GetCopperStyleAttempts(world, spawnAmount) / 12f));
             for (var stripe = 0; stripe < stripeCount; stripe++)
             {
                 var horizontal = Random.value > 0.5f;
@@ -811,34 +909,58 @@ namespace CUCoreLib.Registries
                     Mathf.FloorToInt(Random.Range(0f, world.height)));
 
                 for (var step = 0; step < stripeLength; step++)
-                for (var widthOffset = -stripeWidth; widthOffset <= stripeWidth; widthOffset++)
-                {
-                    var x = horizontal ? origin.x + step : origin.x + widthOffset;
-                    var y = horizontal ? origin.y + widthOffset : origin.y + step;
-                    TrySetGeneratedBlock(world, worldBlocks, x, y, tileIndex);
-                }
+                    for (var widthOffset = -stripeWidth;
+                        widthOffset <= stripeWidth;
+                        widthOffset++)
+                    {
+                        var x = horizontal
+                            ? origin.x + step
+                            : origin.x + widthOffset;
+                        var y = horizontal
+                            ? origin.y + widthOffset
+                            : origin.y + step;
+                        TrySetGeneratedBlock(world, worldBlocks, x, y, tileIndex);
+                    }
             }
         }
 
-        private static void GenerateClusteredCircles(WorldGeneration world, ushort tileIndex, float spawnAmount,
+        private static void GenerateClusteredCircles(WorldGeneration world,
+            ushort tileIndex, float spawnAmount,
             bool innerBias)
         {
-            var clusterCount = Mathf.Max(1, Mathf.RoundToInt(GetCopperStyleAttempts(world, spawnAmount) / 18f));
-            var horizontalRadius = world.width * (innerBias ? 0.18f : 0.42f);
-            var verticalRadius = world.height * (innerBias ? 0.18f : 0.42f);
+            var clusterCount = Mathf.Max(1,
+                Mathf.RoundToInt(GetCopperStyleAttempts(world, spawnAmount) / 18f));
+            var horizontalRadius = world.width
+                * (innerBias
+                    ? 0.18f
+                    : 0.42f);
+            var verticalRadius = world.height
+                * (innerBias
+                    ? 0.18f
+                    : 0.42f);
             var center = new Vector2(world.halfWidth, world.halfHeight);
 
             for (var cluster = 0; cluster < clusterCount; cluster++)
             {
-                var position = center + SampleEllipseOffset(horizontalRadius, verticalRadius, innerBias);
-                var size = Random.Range(innerBias ? 4 : 3, innerBias ? 9 : 7);
-                var chance = innerBias ? 0.95f : 0.9f;
-                var chanceEnd = innerBias ? 0.45f : 0.15f;
+                var position = center
+                    + SampleEllipseOffset(horizontalRadius, verticalRadius, innerBias);
+                var size = Random.Range(innerBias
+                    ? 4
+                    : 3, innerBias
+                    ? 9
+                    : 7);
+                var chance = innerBias
+                    ? 0.95f
+                    : 0.9f;
+                var chanceEnd = innerBias
+                    ? 0.45f
+                    : 0.15f;
                 world.GenerateBlockCircle(position, size, tileIndex, chance, chanceEnd);
             }
         }
 
-        private static Vector2 SampleEllipseOffset(float horizontalRadius, float verticalRadius, bool innerBias)
+        private static Vector2 SampleEllipseOffset(float horizontalRadius,
+            float verticalRadius, bool innerBias)
         {
             var radius = innerBias
                 ? Mathf.Sqrt(Random.value) * 0.7f
@@ -850,15 +972,19 @@ namespace CUCoreLib.Registries
                 Mathf.Sin(angle) * verticalRadius * radius);
         }
 
-        private static int GetCopperStyleAttempts(WorldGeneration world, float spawnAmount)
+        private static int GetCopperStyleAttempts(WorldGeneration world,
+            float spawnAmount)
         {
             var oreAmount = WorldGeneration.GetRunSettingFloat("oreamount");
             // Scores may be lost
-            return Mathf.RoundToInt((int)(world.chunkWidth * world.chunkHeight) / 2 * oreAmount *
-                                    Mathf.Max(0f, spawnAmount));
+            return Mathf.RoundToInt(world.chunkWidth * world.chunkHeight
+                / 2
+                * oreAmount
+                * Mathf.Max(0f, spawnAmount));
         }
 
-        private static void TrySetGeneratedBlock(WorldGeneration world, ushort[,] worldBlocks, int x, int y,
+        private static void TrySetGeneratedBlock(WorldGeneration world,
+            ushort[,] worldBlocks, int x, int y,
             ushort tileIndex)
         {
             if (x <= 0 || x >= world.width - 1 || y <= 0 || y >= world.height - 1) return;

@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using CUCoreLib.Data;
-using CUCoreLib.Patches;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
@@ -11,37 +10,50 @@ namespace CUCoreLib.Registries
 {
     public static class StatusRegistry
     {
-        private static readonly ConditionalWeakTable<Body, BodyStatusCollection> BodyStatuses =
-            new ConditionalWeakTable<Body, BodyStatusCollection>();
+        private static readonly ConditionalWeakTable<Body, BodyStatusCollection>
+            BodyStatuses =
+                new ConditionalWeakTable<Body, BodyStatusCollection>();
 
-        private static readonly ConditionalWeakTable<Limb, LimbStatusCollection> LimbStatuses =
-            new ConditionalWeakTable<Limb, LimbStatusCollection>();
+        private static readonly ConditionalWeakTable<Limb, LimbStatusCollection>
+            LimbStatuses =
+                new ConditionalWeakTable<Limb, LimbStatusCollection>();
 
-        internal static IEnumerable<KeyValuePair<Type, BodyStatus>> EnumerateBodyStatuses(Body body)
+        internal static IEnumerable<KeyValuePair<Type, BodyStatus>> EnumerateBodyStatuses(
+            Body body)
         {
-            return body == null ? Array.Empty<KeyValuePair<Type, BodyStatus>>() : Get(body).Entries;
+            return body == null
+                ? Array.Empty<KeyValuePair<Type, BodyStatus>>()
+                : Get(body).Entries;
         }
 
-        internal static IEnumerable<KeyValuePair<Type, LimbStatus>> EnumerateLimbStatuses(Limb limb)
+        internal static IEnumerable<KeyValuePair<Type, LimbStatus>> EnumerateLimbStatuses(
+            Limb limb)
         {
-            return limb == null ? Array.Empty<KeyValuePair<Type, LimbStatus>>() : Get(limb).Entries;
+            return limb == null
+                ? Array.Empty<KeyValuePair<Type, LimbStatus>>()
+                : Get(limb).Entries;
         }
 
         internal static BodyStatusCollection Get(Body body)
         {
-            return body == null ? null : BodyStatuses.GetValue(body, _ => new BodyStatusCollection());
+            return body == null
+                ? null
+                : BodyStatuses.GetValue(body, _ => new BodyStatusCollection());
         }
 
         internal static LimbStatusCollection Get(Limb limb)
         {
-            return limb == null ? null : LimbStatuses.GetValue(limb, _ => new LimbStatusCollection());
+            return limb == null
+                ? null
+                : LimbStatuses.GetValue(limb, _ => new LimbStatusCollection());
         }
 
         internal static bool TryCapture(StatusBase status, out JObject payload)
         {
             payload = null;
-            if (status == null || !StatusMetadata.TryCreate(status.GetType(), out var metadata) ||
-                !metadata.SaveEnabled) return false;
+            if (status == null
+                || !StatusMetadata.TryCreate(status.GetType(), out var metadata)
+                || !metadata.SaveEnabled) return false;
 
             try
             {
@@ -49,14 +61,17 @@ namespace CUCoreLib.Registries
                 payload = new JObject
                 {
                     ["type"] = metadata.Key,
-                    ["data"] = values ?? new JObject()
+                    ["data"] = values
                 };
                 return true;
             }
             catch (Exception ex)
             {
-                CUCoreLibPlugin.Log?.LogWarning("CUCoreLib Statuses: Failed to capture status '" +
-                                                status.GetType().FullName + "'.\n" + ex);
+                CUCoreLibPlugin.Log?.LogWarning(
+                    "CUCoreLib Statuses: Failed to capture status '"
+                    + status.GetType().FullName
+                    + "'.\n"
+                    + ex);
                 return false;
             }
         }
@@ -80,7 +95,9 @@ namespace CUCoreLib.Registries
         internal static JObject CaptureNetworkSnapshot()
         {
             var root = new JObject();
-            var body = PlayerCamera.main != null ? PlayerCamera.main.body : null;
+            var body = PlayerCamera.main != null
+                ? PlayerCamera.main.body
+                : null;
             if (body == null) return root;
 
             return CaptureBodyNetworkSnapshot(body);
@@ -103,8 +120,10 @@ namespace CUCoreLib.Registries
 
             foreach (var entry in EnumerateBodyStatuses(body))
             {
-                if (entry.Value == null || !TryCapture(entry.Value, out var payload)) continue;
-                if (StatusMetadata.TryCreate(entry.Key, out var meta) && meta.ClientAuthoritative) continue;
+                if (entry.Value == null || !TryCapture(entry.Value, out var payload))
+                    continue;
+                if (StatusMetadata.TryCreate(entry.Key, out var meta)
+                    && meta.ClientAuthoritative) continue;
 
                 bodyStatuses.Add(new JObject
                 {
@@ -120,7 +139,9 @@ namespace CUCoreLib.Registries
         internal static JArray CaptureLimbStatusArray(Body body)
         {
             var limbStatuses = new JArray();
-            var limbs = body != null ? body.limbs : null;
+            var limbs = body != null
+                ? body.limbs
+                : null;
             if (limbs != null)
                 for (var limbIndex = 0; limbIndex < limbs.Length; limbIndex++)
                 {
@@ -129,13 +150,16 @@ namespace CUCoreLib.Registries
 
                     foreach (var entry in EnumerateLimbStatuses(limb))
                     {
-                        if (entry.Value == null || !TryCapture(entry.Value, out var payload)) continue;
-                        if (StatusMetadata.TryCreate(entry.Key, out var meta) && meta.ClientAuthoritative) continue;
+                        if (entry.Value == null
+                            || !TryCapture(entry.Value, out var payload)) continue;
+                        if (StatusMetadata.TryCreate(entry.Key, out var meta)
+                            && meta.ClientAuthoritative) continue;
 
                         limbStatuses.Add(new JObject
                         {
                             ["slot"] = limbIndex,
-                            ["type"] = entry.Key.AssemblyQualifiedName ?? entry.Key.FullName,
+                            ["type"] = entry.Key.AssemblyQualifiedName
+                                ?? entry.Key.FullName,
                             ["payload"] = payload
                         });
                     }
@@ -148,40 +172,49 @@ namespace CUCoreLib.Registries
         {
             if (snapshot == null) return;
 
-            var body = PlayerCamera.main != null ? PlayerCamera.main.body : null;
+            var body = PlayerCamera.main != null
+                ? PlayerCamera.main.body
+                : null;
             if (body == null) return;
 
             ApplyBodySnapshot(body, snapshot["body"] as JArray);
             ApplyLimbSnapshot(body, snapshot["limbs"] as JArray);
         }
 
-        private static void RestoreStatusToken(IStatusCollection collection, JToken token, bool isBody)
+        private static void RestoreStatusToken(IStatusCollection collection, JToken token,
+            bool isBody)
         {
-            var obj = token as JObject;
-            if (obj == null) return;
+            if (!(token is JObject obj)) return;
 
             var key = obj.Value<string>("type");
-            var data = obj["data"] as JObject;
-            if (string.IsNullOrWhiteSpace(key) || data == null) return;
+            if (string.IsNullOrWhiteSpace(key) || !(obj["data"] is JObject data)) return;
 
             if (!StatusMetadata.TryResolve(key, out var metadata))
             {
-                CUCoreLibPlugin.Log?.LogWarning("CUCoreLib Statuses: Skipping unknown status type '" + key +
-                                                "' during restore.");
+                CUCoreLibPlugin.Log?.LogWarning(
+                    "CUCoreLib Statuses: Skipping unknown status type '"
+                    + key
+                    + "' during restore.");
                 return;
             }
 
-            if (isBody && !typeof(BodyStatus).IsAssignableFrom(metadata.StatusType)) return;
-
-            if (!isBody && !typeof(LimbStatus).IsAssignableFrom(metadata.StatusType)) return;
-
-            try
+            switch (isBody)
             {
-                collection.Set(metadata.StatusType, data);
-            }
-            catch (Exception ex)
-            {
-                CUCoreLibPlugin.Log?.LogWarning("CUCoreLib Statuses: Failed to restore status '" + key + "'.\n" + ex);
+                case true when !typeof(BodyStatus).IsAssignableFrom(metadata.StatusType):
+                case false when !typeof(LimbStatus).IsAssignableFrom(metadata.StatusType):
+                    return;
+                default:
+                    try
+                    {
+                        collection.Set(metadata.StatusType, data);
+                    }
+                    catch (Exception ex)
+                    {
+                        CUCoreLibPlugin.Log?.LogWarning(
+                            "CUCoreLib Statuses: Failed to restore status '" + key + "'.\n" + ex);
+                    }
+
+                    break;
             }
         }
 
@@ -199,8 +232,7 @@ namespace CUCoreLib.Registries
 
             foreach (var token in payloads)
             {
-                var obj = token as JObject;
-                if (obj == null) continue;
+                if (!(token is JObject obj)) continue;
 
                 var limbIndex = obj.Value<int?>("slot") ?? -1;
                 if (limbIndex < 0 || limbIndex >= body.limbs.Length) continue;
@@ -216,10 +248,10 @@ namespace CUCoreLib.Registries
             }
         }
 
-        private static void ApplySnapshotToken(IStatusCollection collection, JToken token, bool isBody)
+        private static void ApplySnapshotToken(IStatusCollection collection, JToken token,
+            bool isBody)
         {
-            var obj = token as JObject;
-            if (collection == null || obj == null) return;
+            if (collection == null || !(token is JObject obj)) return;
 
             // The token is the per-slot entry written by CaptureBodyStatusArray /
             // CaptureLimbStatusArray:
@@ -240,12 +272,15 @@ namespace CUCoreLib.Registries
             var data = envelope["data"] as JObject ?? envelope;
 
             var typeName = obj.Value<string>("type");
-            var statusType = typeName == null ? null : Type.GetType(typeName, false);
+            var statusType = typeName == null
+                ? null
+                : Type.GetType(typeName, false);
             StatusMetadata resolvedMeta;
             if (statusType == null)
             {
                 var key = envelope.Value<string>("type");
-                if (key == null || !StatusMetadata.TryResolve(key, out resolvedMeta)) return;
+                if (key == null || !StatusMetadata.TryResolve(key, out resolvedMeta))
+                    return;
 
                 statusType = resolvedMeta.StatusType;
             }
@@ -256,22 +291,31 @@ namespace CUCoreLib.Registries
 
             if (resolvedMeta != null && resolvedMeta.ClientAuthoritative) return;
 
-            if (isBody && !typeof(BodyStatus).IsAssignableFrom(statusType)) return;
-
-            if (!isBody && !typeof(LimbStatus).IsAssignableFrom(statusType)) return;
-
-            try
+            switch (isBody)
             {
-                collection.Set(statusType, data);
-            }
-            catch (Exception ex)
-            {
-                CUCoreLibPlugin.Log?.LogWarning("CUCoreLib Statuses: Failed to apply network snapshot for status '" +
-                                                typeName + "'.\n" + ex);
+                case true when !typeof(BodyStatus).IsAssignableFrom(statusType):
+                case false when !typeof(LimbStatus).IsAssignableFrom(statusType):
+                    return;
+                default:
+                    try
+                    {
+                        collection.Set(statusType, data);
+                    }
+                    catch (Exception ex)
+                    {
+                        CUCoreLibPlugin.Log?.LogWarning(
+                            "CUCoreLib Statuses: Failed to apply network snapshot for status '"
+                            + typeName
+                            + "'.\n"
+                            + ex);
+                    }
+
+                    break;
             }
         }
 
-        private static StatusBase RestoreStatusData(StatusBase status, Type type, JObject data)
+        private static StatusBase RestoreStatusData(StatusBase status, Type type,
+            JObject data)
         {
             var serializer = JsonSerializer.CreateDefault(new JsonSerializerSettings
             {
@@ -279,13 +323,18 @@ namespace CUCoreLib.Registries
             });
             if (status == null) return (StatusBase)data.ToObject(type, serializer);
 
-            using (var reader = data.CreateReader()) serializer.Populate(reader, status);
+            using (var reader = data.CreateReader())
+            {
+                serializer.Populate(reader, status);
+            }
+
             return status;
         }
 
         internal sealed class BodyStatusCollection : IStatusCollection
         {
-            private readonly Dictionary<Type, BodyStatus> _entries = new Dictionary<Type, BodyStatus>();
+            private readonly Dictionary<Type, BodyStatus> _entries =
+                new Dictionary<Type, BodyStatus>();
 
             internal IEnumerable<KeyValuePair<Type, BodyStatus>> Entries => _entries;
 
@@ -310,7 +359,8 @@ namespace CUCoreLib.Registries
 
         internal sealed class LimbStatusCollection : IStatusCollection
         {
-            private readonly Dictionary<Type, LimbStatus> _entries = new Dictionary<Type, LimbStatus>();
+            private readonly Dictionary<Type, LimbStatus> _entries =
+                new Dictionary<Type, LimbStatus>();
 
             internal IEnumerable<KeyValuePair<Type, LimbStatus>> Entries => _entries;
 
@@ -340,21 +390,24 @@ namespace CUCoreLib.Registries
 
         internal sealed class StatusMetadata
         {
-            private static readonly Dictionary<Type, StatusMetadata> ByType = new Dictionary<Type, StatusMetadata>();
+            private static readonly Dictionary<Type, StatusMetadata> ByType =
+                new Dictionary<Type, StatusMetadata>();
 
             private static readonly Dictionary<string, StatusMetadata> ByKey =
                 new Dictionary<string, StatusMetadata>(StringComparer.Ordinal);
 
+            internal bool ClientAuthoritative;
+
             internal string Key;
             internal bool SaveEnabled;
-            internal bool ClientAuthoritative;
 
             internal Type StatusType;
 
             internal static bool TryCreate(Type type, out StatusMetadata metadata)
             {
                 metadata = null;
-                if (type == null || !typeof(StatusBase).IsAssignableFrom(type)) return false;
+                if (type == null || !typeof(StatusBase).IsAssignableFrom(type))
+                    return false;
 
                 if (ByType.TryGetValue(type, out metadata)) return true;
 
@@ -371,7 +424,7 @@ namespace CUCoreLib.Registries
                 };
 
                 ByType[type] = metadata;
-                ByKey[key] = metadata;
+                if (key != null) ByKey[key] = metadata;
                 return true;
             }
 
@@ -395,8 +448,10 @@ namespace CUCoreLib.Registries
 
                     foreach (var type in types)
                     {
-                        if (type == null || type.IsAbstract || type.ContainsGenericParameters ||
-                            !typeof(StatusBase).IsAssignableFrom(type)) continue;
+                        if (type == null
+                            || type.IsAbstract
+                            || type.ContainsGenericParameters
+                            || !typeof(StatusBase).IsAssignableFrom(type)) continue;
 
                         if (TryCreate(type, out var candidate) && candidate.Key == key)
                         {

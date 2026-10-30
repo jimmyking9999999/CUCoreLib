@@ -1,7 +1,6 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -9,10 +8,13 @@ using System.Reflection;
 using BepInEx.Bootstrap;
 using CUCoreLib.ContentReload;
 using CUCoreLib.Helpers;
+using CUCoreLib.Networking;
 using HarmonyLib;
 using Newtonsoft.Json.Linq;
 using UnityEngine;
 using UnityEngine.Tilemaps;
+using Object = UnityEngine.Object;
+using Random = System.Random;
 
 namespace CUCoreLib.Registries
 {
@@ -27,31 +29,66 @@ namespace CUCoreLib.Registries
         private const string ConditionPercentKey = "conditionPercent";
         private const string HealthKey = "health";
 
-        private static readonly Dictionary<string, RegisteredStructureDefinition> RegisteredDefinitions =
-            new Dictionary<string, RegisteredStructureDefinition>(StringComparer.OrdinalIgnoreCase);
+        private static readonly Dictionary<string, RegisteredStructureDefinition>
+            RegisteredDefinitions =
+                new Dictionary<string, RegisteredStructureDefinition>(StringComparer
+                    .OrdinalIgnoreCase);
 
-        private static readonly Dictionary<char, int> GlobalBlockMap = new Dictionary<char, int>
-        {
-            { ' ', -1 }, { '.', 0 }, { 'R', 1 }, { 'g', 2 }, { 'S', 3 }, { 'T', 4 },
-            { '#', 5 }, { 'M', 6 }, { 'G', 7 }, { 'r', 8 }, { 'P', 9 }, { 'H', 10 },
-            { 'W', 11 }, { 's', 12 }, { 'd', 13 }, { 'I', 14 }, { 'c', 15 }, { 'o', 16 },
-            { 'n', 17 }, { 'm', 18 }, { 'l', 19 }, { 'B', 20 }, { 'X', 21 }, { 'x', 22 },
-            { 'v', 23 }, { 'L', 24 }, { 'e', 25 }, { 'w', 26 }, { '=', 27 }, { '-', 28 },
-            { 'p', 29 }, { 'h', 30 }, { 'f', 31 }, { 'b', 32 }, { '^', 33 }, { 'C', 34 },
-            { 'i', 35 }
-        };
+        private static readonly Dictionary<char, int> GlobalBlockMap =
+            new Dictionary<char, int>
+            {
+                { ' ', -1 },
+                { '.', 0 },
+                { 'R', 1 },
+                { 'g', 2 },
+                { 'S', 3 },
+                { 'T', 4 },
+                { '#', 5 },
+                { 'M', 6 },
+                { 'G', 7 },
+                { 'r', 8 },
+                { 'P', 9 },
+                { 'H', 10 },
+                { 'W', 11 },
+                { 's', 12 },
+                { 'd', 13 },
+                { 'I', 14 },
+                { 'c', 15 },
+                { 'o', 16 },
+                { 'n', 17 },
+                { 'm', 18 },
+                { 'l', 19 },
+                { 'B', 20 },
+                { 'X', 21 },
+                { 'x', 22 },
+                { 'v', 23 },
+                { 'L', 24 },
+                { 'e', 25 },
+                { 'w', 26 },
+                { '=', 27 },
+                { '-', 28 },
+                { 'p', 29 },
+                { 'h', 30 },
+                { 'f', 31 },
+                { 'b', 32 },
+                { '^', 33 },
+                { 'C', 34 },
+                { 'i', 35 }
+            };
 
-        private static readonly Dictionary<int, char> GlobalBlockReverseMap = BuildGlobalBlockReverseMap();
+        private static readonly Dictionary<int, char> GlobalBlockReverseMap =
+            BuildGlobalBlockReverseMap();
 
-        private static readonly Dictionary<char, int> GlobalLiquidMap = new Dictionary<char, int>
-        {
-            { '~', 1 },
-            { '&', 2 },
-            { '!', 3 },
-            { '$', 4 },
-            { '?', 5 },
-            { 'A', 6 }
-        };
+        private static readonly Dictionary<char, int> GlobalLiquidMap =
+            new Dictionary<char, int>
+            {
+                { '~', 1 },
+                { '&', 2 },
+                { '!', 3 },
+                { '$', 4 },
+                { '?', 5 },
+                { 'A', 6 }
+            };
 
         private static readonly HashSet<string> MissingSpawnIdsLogged =
             new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -59,21 +96,24 @@ namespace CUCoreLib.Registries
         private static GameObject BackgroundTemplate;
         private static bool RegisteredStructureSummaryLogged;
 
-        public static bool RegisterFromJson(string id, string json, string sourceLabel = null)
+        public static bool RegisterFromJson(string id, string json,
+            string sourceLabel = null)
         {
             ContentReloadSession.AssertNotActive("StructureRegistry.RegisterFromJson()",
                 "Multi-block structure registration is excluded from strict content reload.");
 
             if (string.IsNullOrWhiteSpace(id))
             {
-                CUCoreLibPlugin.Log?.LogWarning("Ignored structure registration with no ID.");
+                CUCoreLibPlugin.Log?.LogWarning(
+                    "Ignored structure registration with no ID.");
                 return false;
             }
 
             if (string.IsNullOrWhiteSpace(json))
             {
-                CUCoreLibPlugin.Log?.LogWarning("Ignored structure registration for '" + id.Trim() +
-                                                "' because the JSON payload was empty.");
+                CUCoreLibPlugin.Log?.LogWarning("Ignored structure registration for '"
+                    + id.Trim()
+                    + "' because the JSON payload was empty.");
                 return false;
             }
 
@@ -87,22 +127,31 @@ namespace CUCoreLib.Registries
             }
             catch (Exception ex)
             {
-                CUCoreLibPlugin.Log?.LogWarning("Failed to register structure '" + id.Trim() + "' from " +
-                                                (sourceLabel ?? "json") + ": " + ex.Message);
+                CUCoreLibPlugin.Log?.LogWarning("Failed to register structure '"
+                    + id.Trim()
+                    + "' from "
+                    + (sourceLabel ?? "json")
+                    + ": "
+                    + ex.Message);
                 return false;
             }
         }
 
-        public static bool RegisterFromEmbeddedJson(string id, string resourcePath, Assembly sourceAssembly = null)
+        public static bool RegisterFromEmbeddedJson(string id, string resourcePath,
+            Assembly sourceAssembly = null)
         {
             if (sourceAssembly == null)
-                sourceAssembly = ContentReloadSession.GetSourceAssemblyOverride() ?? Assembly.GetCallingAssembly();
+                sourceAssembly = ContentReloadSession.GetSourceAssemblyOverride()
+                    ?? Assembly.GetCallingAssembly();
 
             var json = AssetLoader.LoadEmbeddedText(resourcePath, sourceAssembly);
             if (string.IsNullOrWhiteSpace(json))
             {
-                CUCoreLibPlugin.Log?.LogWarning("Failed to load embedded structure JSON '" + resourcePath +
-                                                "' for '" + id + "'.");
+                CUCoreLibPlugin.Log?.LogWarning("Failed to load embedded structure JSON '"
+                    + resourcePath
+                    + "' for '"
+                    + id
+                    + "'.");
                 return false;
             }
 
@@ -113,23 +162,29 @@ namespace CUCoreLib.Registries
         {
             if (string.IsNullOrWhiteSpace(filePath))
             {
-                CUCoreLibPlugin.Log?.LogWarning("Failed to register structure '" + id + "' because the file path was empty.");
+                CUCoreLibPlugin.Log?.LogWarning("Failed to register structure '"
+                    + id
+                    + "' because the file path was empty.");
                 return false;
             }
 
             var fullPath = Path.GetFullPath(filePath);
             if (!File.Exists(fullPath))
             {
-                CUCoreLibPlugin.Log?.LogWarning("Structure JSON file not found at '" + fullPath + "'.");
+                CUCoreLibPlugin.Log?.LogWarning("Structure JSON file not found at '"
+                    + fullPath
+                    + "'.");
                 return false;
             }
 
-            return RegisterFromJson(id, File.ReadAllText(fullPath), "file '" + fullPath + "'");
+            return RegisterFromJson(id, File.ReadAllText(fullPath),
+                "file '" + fullPath + "'");
         }
 
         public static IEnumerable<string> GetRegisteredIds()
         {
-            return RegisteredDefinitions.Keys.OrderBy(key => key, StringComparer.OrdinalIgnoreCase).ToArray();
+            return RegisteredDefinitions.Keys
+                .OrderBy(key => key, StringComparer.OrdinalIgnoreCase).ToArray();
         }
 
         public static bool TrySetSpawnCounts(string id, params int[] spawnCounts)
@@ -155,7 +210,9 @@ namespace CUCoreLib.Registries
 
             LogRegisteredStructureSummaryIfNeeded();
 
-            using (seedOverride.HasValue ? StructureSeededRandom.PushOverride(seedOverride.Value) : null)
+            using (seedOverride.HasValue
+                ? StructureSeededRandom.PushOverride(seedOverride.Value)
+                : null)
             {
                 PlaceStructure(position, definition);
             }
@@ -163,12 +220,10 @@ namespace CUCoreLib.Registries
             return true;
         }
 
-        internal static IEnumerator GenerateRegisteredStructures(IEnumerator original, WorldGeneration world)
+        internal static IEnumerator GenerateRegisteredStructures(IEnumerator original,
+            WorldGeneration world)
         {
-            while (original.MoveNext())
-            {
-                yield return original.Current;
-            }
+            while (original.MoveNext()) yield return original.Current;
 
             if (world == null || RegisteredDefinitions.Count == 0) yield break;
             if (IsTutorialWorld(world)) yield break;
@@ -180,9 +235,12 @@ namespace CUCoreLib.Registries
             var occupiedRects = new List<StructurePlacementRect>();
             var totalRequestedSpawnCount = 0;
             var limitDebugWorldSpawns = IsDebugWorld(world);
-            foreach (var definition in RegisteredDefinitions.Values.OrderBy(entry => entry.ID, StringComparer.OrdinalIgnoreCase))
+            foreach (var definition in RegisteredDefinitions.Values.OrderBy(
+                entry => entry.ID, StringComparer.OrdinalIgnoreCase))
             {
-                if (definition.SpawnCounts == null || currentDepth < 0 || currentDepth >= definition.SpawnCounts.Length)
+                if (definition.SpawnCounts == null
+                    || currentDepth < 0
+                    || currentDepth >= definition.SpawnCounts.Length)
                     continue;
 
                 var countToSpawn = Mathf.Max(0, definition.SpawnCounts[currentDepth]);
@@ -192,24 +250,34 @@ namespace CUCoreLib.Registries
                 totalRequestedSpawnCount += countToSpawn;
                 if (totalRequestedSpawnCount > LargeSpawnCountWarningThreshold)
                 {
-                    CUCoreLibPlugin.Log?.LogWarning("Registered structure worldgen requested " + totalRequestedSpawnCount +
-                                                    " placements on depth " + currentDepth +
-                                                    ". Large counts can noticeably extend world generation.");
+                    CUCoreLibPlugin.Log?.LogWarning(
+                        "Registered structure worldgen requested "
+                        + totalRequestedSpawnCount
+                        + " placements on depth "
+                        + currentDepth
+                        + ". Large counts can noticeably extend world generation.");
                     totalRequestedSpawnCount = int.MinValue;
                 }
 
                 for (var i = 0; i < countToSpawn; i++)
                 {
-                    if (!TryFindSpawnPosition(world, definition, occupiedRects, out var pos, out var placedRect))
+                    if (!TryFindSpawnPosition(world, definition, occupiedRects,
+                        out var pos, out var placedRect))
                         continue;
 
                     PlaceStructure(pos, definition);
                     if (HasArea(placedRect)) occupiedRects.Add(placedRect);
 
-                    world.SetLoadingTextNoLocale("Generating CUCoreLib Structures..\n " + definition.ID + " (" +
-                                                 (i + 1) + "/" + countToSpawn + ")\n\n");
-                    Networking.MultiplayerLoadingProgress.Report(
-                        "Generating CUCoreLib Structures..\n " + definition.ID, i + 1, countToSpawn);
+                    world.SetLoadingTextNoLocale("Generating CUCoreLib Structures..\n "
+                        + definition.ID
+                        + " ("
+                        + (i + 1)
+                        + "/"
+                        + countToSpawn
+                        + ")\n\n");
+                    MultiplayerLoadingProgress.Report(
+                        "Generating CUCoreLib Structures..\n " + definition.ID, i + 1,
+                        countToSpawn);
                     yield return null;
                 }
             }
@@ -217,7 +285,8 @@ namespace CUCoreLib.Registries
 
         private static bool IsTutorialWorld(WorldGeneration world)
         {
-            return world != null && world.biomeOverride == WorldGeneration.OverrideSceneType.Tutorial;
+            return world != null
+                && world.biomeOverride == WorldGeneration.OverrideSceneType.Tutorial;
         }
 
         private static bool IsDebugWorld(WorldGeneration world)
@@ -234,7 +303,8 @@ namespace CUCoreLib.Registries
             }
         }
 
-        private static bool TryGetDefinition(string id, out RegisteredStructureDefinition definition)
+        private static bool TryGetDefinition(string id,
+            out RegisteredStructureDefinition definition)
         {
             definition = null;
             if (string.IsNullOrWhiteSpace(id)) return false;
@@ -242,38 +312,54 @@ namespace CUCoreLib.Registries
             return RegisteredDefinitions.TryGetValue(id.Trim(), out definition);
         }
 
-        private static RegisteredStructureDefinition ParseDefinition(string id, string json, string sourceLabel)
+        private static RegisteredStructureDefinition ParseDefinition(string id,
+            string json, string sourceLabel)
         {
             var root = JObject.Parse(json);
             var metadata = root["metadata"] as JObject;
             var schemaVersion = metadata?.Value<int?>("schemaVersion") ?? 0;
-            if (schemaVersion != LegacySchemaVersion && schemaVersion != SupportedSchemaVersion)
-                throw new InvalidOperationException("Expected metadata.schemaVersion to be 2 or " + SupportedSchemaVersion + ".");
+            if (schemaVersion != LegacySchemaVersion
+                && schemaVersion != SupportedSchemaVersion)
+                throw new InvalidOperationException(
+                    "Expected metadata.schemaVersion to be 2 or "
+                    + SupportedSchemaVersion
+                    + ".");
 
             var width = Mathf.Max(1, root.Value<int?>("width") ?? 0);
             var height = Mathf.Max(1, root.Value<int?>("height") ?? 0);
 
-            var normalizedLayers = NormalizeLayers(root["layers"] as JArray, width, height);
+            var normalizedLayers =
+                NormalizeLayers(root["layers"] as JArray, width, height);
             if (normalizedLayers.Count == 0)
-                throw new InvalidOperationException("No usable layers were present in the structure payload.");
+                throw new InvalidOperationException(
+                    "No usable layers were present in the structure payload.");
 
-            ComposeVisibleLayers(normalizedLayers, width, height, out var composedFg, out var composedBg,
+            ComposeVisibleLayers(normalizedLayers, width, height, out var composedFg,
+                out var composedBg,
                 out var topFgLayerIds);
 
             if (composedFg.All(ch => ch == '.'))
-                throw new InvalidOperationException("The composed foreground layer was empty.");
+                throw new InvalidOperationException(
+                    "The composed foreground layer was empty.");
 
             var shape = LayerCharsToRows(composedFg, width, height);
-            var backgroundShape = composedBg.Any(ch => ch != '.') ? LayerCharsToRows(composedBg, width, height) : null;
+            var backgroundShape = composedBg.Any(ch => ch != '.')
+                ? LayerCharsToRows(composedBg, width, height)
+                : null;
 
-            ParseCustomIds(metadata?["customIds"] as JObject, out var entityMap, out var sequentialItems);
-            var itemAssignments = BuildItemAssignmentsByCell(root["itemsByCell"] as JObject, topFgLayerIds, composedFg,
+            ParseCustomIds(metadata?["customIds"] as JObject, out var entityMap,
+                out var sequentialItems);
+            var itemAssignments = BuildItemAssignmentsByCell(
+                root["itemsByCell"] as JObject, topFgLayerIds, composedFg,
                 width, height);
-            var objectAssignments = BuildObjectAssignmentsByCell(root["objectsByCell"] as JObject, topFgLayerIds,
+            var objectAssignments = BuildObjectAssignmentsByCell(
+                root["objectsByCell"] as JObject, topFgLayerIds,
                 composedFg, width, height);
-            BuildCustomPropertiesByCell(root["customPropertiesByCell"] as JObject, out var itemCustomProperties,
+            BuildCustomPropertiesByCell(root["customPropertiesByCell"] as JObject,
+                out var itemCustomProperties,
                 out var objectCustomProperties);
-            var precisePlacements = BuildPrecisePlacements(root["precisePlacements"] as JArray);
+            var precisePlacements =
+                BuildPrecisePlacements(root["precisePlacements"] as JArray);
             var lootRulesByMarker = BuildLootRulesByMarker(root["lootRules"] as JArray);
             var lootPools = BuildLootPools(root["lootPools"] as JObject);
 
@@ -298,7 +384,8 @@ namespace CUCoreLib.Registries
 
             definition.CompiledStructure = CompileStructure(definition);
             if (definition.CompiledStructure == null)
-                throw new InvalidOperationException("The structure could not be compiled.");
+                throw new InvalidOperationException(
+                    "The structure could not be compiled.");
 
             definition.CompiledLootMarkers = CompileLootMarkers(definition);
 
@@ -306,56 +393,75 @@ namespace CUCoreLib.Registries
             return definition;
         }
 
-        private static void WarnIfDefinitionLooksExpensive(RegisteredStructureDefinition definition, string sourceLabel)
+        private static void WarnIfDefinitionLooksExpensive(
+            RegisteredStructureDefinition definition, string sourceLabel)
         {
             if (definition?.CompiledStructure == null) return;
 
-            var cellCount = definition.CompiledStructure.Width * definition.CompiledStructure.Height;
+            var cellCount = definition.CompiledStructure.Width
+                * definition.CompiledStructure.Height;
             if (cellCount > LargeStructureCellWarningThreshold)
-                CUCoreLibPlugin.Log?.LogWarning("Structure '" + definition.ID + "' from " + sourceLabel + " is " +
-                                                definition.CompiledStructure.Width + "x" +
-                                                definition.CompiledStructure.Height + " (" + cellCount +
-                                                " cells). Large structures can slow world generation.");
+                CUCoreLibPlugin.Log?.LogWarning("Structure '"
+                    + definition.ID
+                    + "' from "
+                    + sourceLabel
+                    + " is "
+                    + definition.CompiledStructure.Width
+                    + "x"
+                    + definition.CompiledStructure.Height
+                    + " ("
+                    + cellCount
+                    + " cells). Large structures can slow world generation.");
 
             var totalSpawnCount = definition.SpawnCounts?.Sum() ?? 0;
             if (totalSpawnCount > LargeSpawnCountWarningThreshold)
-                CUCoreLibPlugin.Log?.LogWarning("Structure '" + definition.ID + "' requests " + totalSpawnCount +
-                                                " total placements across its five spawn depths. Large totals can slow world generation.");
+                CUCoreLibPlugin.Log?.LogWarning("Structure '"
+                    + definition.ID
+                    + "' requests "
+                    + totalSpawnCount
+                    + " total placements across its five spawn depths. Large totals can slow world generation.");
 
             if (definition.TerrainGenAreaCount > 0)
-                CUCoreLibPlugin.Log?.LogInfo("Structure '" + definition.ID + "' includes " +
-                                             definition.TerrainGenAreaCount +
-                                             " terrainGenAreas entries. CUCoreLib v1 imports and preserves compatibility with the payload shape, but does not execute terrainGenAreas yet.");
+                CUCoreLibPlugin.Log?.LogInfo("Structure '"
+                    + definition.ID
+                    + "' includes "
+                    + definition.TerrainGenAreaCount
+                    + " terrainGenAreas entries. CUCoreLib v1 imports and preserves compatibility with the payload shape, but does not execute terrainGenAreas yet.");
         }
 
         private static void LogRegisteredStructureSummaryIfNeeded()
         {
-            if (RegisteredStructureSummaryLogged || RegisteredDefinitions.Count <= 0) return;
+            if (RegisteredStructureSummaryLogged
+                || RegisteredDefinitions.Count <= 0) return;
 
             RegisteredStructureSummaryLogged = true;
-            CUCoreLibPlugin.Log?.LogInfo("Added " + RegisteredDefinitions.Count + " custom structures.");
+            CUCoreLibPlugin.Log?.LogInfo("Added "
+                + RegisteredDefinitions.Count
+                + " custom structures.");
         }
 
-        private static bool HasUnsupportedDynamicGeneration(RegisteredStructureDefinition definition, JObject root,
+        private static bool HasUnsupportedDynamicGeneration(
+            RegisteredStructureDefinition definition, JObject root,
             out string reason)
         {
             reason = null;
-            if (definition == null) return false;
 
-            if (definition.ItemAssignmentsByCell == null) return false;
+            if (definition?.ItemAssignmentsByCell == null) return false;
 
-            foreach (var assignment in definition.ItemAssignmentsByCell.Values)
+            foreach (var assignment in definition.ItemAssignmentsByCell.Values.Where(assignment => assignment != null))
             {
-                if (assignment == null) continue;
-                if (!string.Equals(assignment.Mode, "single", StringComparison.OrdinalIgnoreCase))
+                if (!string.Equals(assignment.Mode, "single",
+                    StringComparison.OrdinalIgnoreCase))
                 {
-                    reason = "Only deterministic single-item assignments are supported in CUCoreLib multi-block structures v1.";
+                    reason =
+                        "Only deterministic single-item assignments are supported in CUCoreLib multi-block structures v1.";
                     return true;
                 }
 
                 if (assignment.Entries == null || assignment.Entries.Count != 1)
                 {
-                    reason = "Only deterministic single-entry item assignments are supported in CUCoreLib multi-block structures v1.";
+                    reason =
+                        "Only deterministic single-entry item assignments are supported in CUCoreLib multi-block structures v1.";
                     return true;
                 }
 
@@ -363,7 +469,8 @@ namespace CUCoreLib.Registries
                 if (entry == null) continue;
                 if (!Mathf.Approximately(Mathf.Clamp(entry.Percent, 0f, 100f), 100f))
                 {
-                    reason = "Probabilistic item assignment percentages are not supported in CUCoreLib multi-block structures v1.";
+                    reason =
+                        "Probabilistic item assignment percentages are not supported in CUCoreLib multi-block structures v1.";
                     return true;
                 }
             }
@@ -371,7 +478,8 @@ namespace CUCoreLib.Registries
             return false;
         }
 
-        private static CustomStructure CompileStructure(RegisteredStructureDefinition definition)
+        private static CustomStructure CompileStructure(
+            RegisteredStructureDefinition definition)
         {
             var structure = ParseStringGrid(
                 definition.Shape,
@@ -407,19 +515,20 @@ namespace CUCoreLib.Registries
             for (var x = 0; x < structure.Width; x++)
             {
                 for (var y = 0; y < structure.Height; y++)
-                {
                     if (backgroundStructure.LiquidIDs[x, y] > 0)
                         structure.LiquidIDs[x, y] = backgroundStructure.LiquidIDs[x, y];
-                }
             }
 
             return structure;
         }
 
-        private static List<CompiledLootMarker> CompileLootMarkers(RegisteredStructureDefinition definition)
+        private static List<CompiledLootMarker> CompileLootMarkers(
+            RegisteredStructureDefinition definition)
         {
-            if (definition?.LootRulesByMarker == null || definition.LootRulesByMarker.Count == 0 ||
-                definition.Shape == null || definition.Shape.Length == 0)
+            if (definition?.LootRulesByMarker == null
+                || definition.LootRulesByMarker.Count == 0
+                || definition.Shape == null
+                || definition.Shape.Length == 0)
                 return null;
 
             var height = definition.Shape.Length;
@@ -427,17 +536,18 @@ namespace CUCoreLib.Registries
             var heightMinusOne = height - 1;
             Dictionary<int, EntityPrecisePos> preciseByCell = null;
 
-            if (definition.PrecisePlacements != null && definition.PrecisePlacements.Count > 0)
+            if (definition.PrecisePlacements != null
+                && definition.PrecisePlacements.Count > 0)
             {
-                preciseByCell = new Dictionary<int, EntityPrecisePos>(definition.PrecisePlacements.Count);
-                for (var i = 0; i < definition.PrecisePlacements.Count; i++)
+                preciseByCell =
+                    new Dictionary<int, EntityPrecisePos>(definition.PrecisePlacements
+                        .Count);
+                foreach (var precise in definition.PrecisePlacements.Where(precise => precise != null).Where(precise => precise.GridX >= 0
+                    && precise.GridX < width
+                    && precise.GridY >= 0
+                    && precise.GridY < height))
                 {
-                    var precise = definition.PrecisePlacements[i];
-                    if (precise == null) continue;
-                    if (precise.GridX < 0 || precise.GridX >= width || precise.GridY < 0 || precise.GridY >= height)
-                        continue;
-
-                    preciseByCell[(precise.GridY * width) + precise.GridX] = precise;
+                    preciseByCell[precise.GridY * width + precise.GridX] = precise;
                 }
             }
 
@@ -450,13 +560,15 @@ namespace CUCoreLib.Registries
                     if (x >= row.Length) continue;
 
                     var marker = row[x];
-                    if (!definition.LootRulesByMarker.TryGetValue(marker, out var rule) || rule == null) continue;
+                    if (!definition.LootRulesByMarker.TryGetValue(marker, out var rule)
+                        || rule == null) continue;
 
                     var linearIndex = y * width + x;
                     var worldY = heightMinusOne - y;
                     var finalX = (float)x;
                     var finalY = (float)worldY;
-                    if (preciseByCell != null && preciseByCell.TryGetValue(linearIndex, out var precise))
+                    if (preciseByCell != null
+                        && preciseByCell.TryGetValue(linearIndex, out var precise))
                     {
                         finalX += precise.OffsetX;
                         finalY += precise.OffsetY;
@@ -472,10 +584,13 @@ namespace CUCoreLib.Registries
                 }
             }
 
-            return compiled.Count > 0 ? compiled : null;
+            return compiled.Count > 0
+                ? compiled
+                : null;
         }
 
-        private static List<NormalizedLayer> NormalizeLayers(JArray layers, int width, int height)
+        private static List<NormalizedLayer> NormalizeLayers(JArray layers, int width,
+            int height)
         {
             var normalized = new List<NormalizedLayer>();
             if (layers == null) return normalized;
@@ -497,7 +612,7 @@ namespace CUCoreLib.Registries
                     var rowCount = Mathf.Min(height, rowsToken.Count);
                     for (var y = 0; y < rowCount; y++)
                     {
-                        var row = rowsToken[y]?.Value<string>() ?? string.Empty;
+                        var row = rowsToken[y].Value<string>() ?? string.Empty;
                         var maxX = Mathf.Min(width, row.Length);
                         for (var x = 0; x < maxX; x++) cells[y * width + x] = row[x];
                     }
@@ -505,7 +620,8 @@ namespace CUCoreLib.Registries
                 else if (layerToken["data"] is JArray dataToken && dataToken.Count > 0)
                 {
                     var max = Mathf.Min(cells.Length, dataToken.Count);
-                    for (var i = 0; i < max; i++) cells[i] = ResolvePaletteChar(dataToken[i]?.Value<int?>() ?? 0);
+                    for (var i = 0; i < max; i++)
+                        cells[i] = ResolvePaletteChar(dataToken[i].Value<int?>() ?? 0);
                 }
 
                 normalized.Add(new NormalizedLayer
@@ -529,10 +645,13 @@ namespace CUCoreLib.Registries
 
         private static char ResolvePaletteChar(int tileId)
         {
-            return GlobalBlockReverseMap.TryGetValue(tileId, out var mapped) ? mapped : '.';
+            return GlobalBlockReverseMap.TryGetValue(tileId, out var mapped)
+                ? mapped
+                : '.';
         }
 
-        private static void ComposeVisibleLayers(List<NormalizedLayer> layers, int width, int height, out char[] fg,
+        private static void ComposeVisibleLayers(List<NormalizedLayer> layers, int width,
+            int height, out char[] fg,
             out char[] bg, out string[] topFgLayerIds)
         {
             var total = width * height;
@@ -546,7 +665,8 @@ namespace CUCoreLib.Registries
             }
 
             var visibleLayers = layers.Where(layer => layer.Visible).ToList();
-            var fgLayers = visibleLayers.Where(layer => layer.Kind == "fg" || layer.Kind == "layer").ToList();
+            var fgLayers = visibleLayers
+                .Where(layer => layer.Kind == "fg" || layer.Kind == "layer").ToList();
             var bgLayers = visibleLayers.Where(layer => layer.Kind == "bg").ToList();
 
             for (var i = 0; i < total; i++)
@@ -585,7 +705,8 @@ namespace CUCoreLib.Registries
             return rows;
         }
 
-        private static void ParseCustomIds(JObject customIds, out Dictionary<char, string> entityMap,
+        private static void ParseCustomIds(JObject customIds,
+            out Dictionary<char, string> entityMap,
             out string sequentialItems)
         {
             entityMap = null;
@@ -601,17 +722,21 @@ namespace CUCoreLib.Registries
                     continue;
                 }
 
-                if (string.IsNullOrWhiteSpace(property.Name) || property.Name.Length != 1) continue;
-                var value = property.Value?.Value<string>();
+                if (string.IsNullOrWhiteSpace(property.Name) || property.Name.Length != 1)
+                    continue;
+                var value = property.Value.Value<string>();
                 if (string.IsNullOrWhiteSpace(value)) continue;
 
                 map[property.Name[0]] = value.Trim();
             }
 
-            entityMap = map.Count > 0 ? map : null;
+            entityMap = map.Count > 0
+                ? map
+                : null;
         }
 
-        private static Dictionary<int, ItemAssignmentDef> BuildItemAssignmentsByCell(JObject rawAssignments,
+        private static Dictionary<int, ItemAssignmentDef> BuildItemAssignmentsByCell(
+            JObject rawAssignments,
             string[] topFgLayerIds, char[] composedFg, int width, int height)
         {
             if (rawAssignments == null || rawAssignments.Count == 0) return null;
@@ -624,14 +749,18 @@ namespace CUCoreLib.Registries
             {
                 if (composedFg[index] != '*') continue;
 
-                var resolved = ResolveLayerAwareAssignment(rawAssignments, scopedIndices, topFgLayerIds[index], index);
+                var resolved = ResolveLayerAwareAssignment(rawAssignments, scopedIndices,
+                    topFgLayerIds[index], index);
                 if (resolved == null) continue;
 
                 var normalized = NormalizeItemAssignment(resolved);
-                if (normalized != null && normalized.Entries.Count > 0) flattened[index] = normalized;
+                if (normalized != null && normalized.Entries.Count > 0)
+                    flattened[index] = normalized;
             }
 
-            return flattened.Count > 0 ? flattened : null;
+            return flattened.Count > 0
+                ? flattened
+                : null;
         }
 
         private static ItemAssignmentDef NormalizeItemAssignment(JObject source)
@@ -640,7 +769,8 @@ namespace CUCoreLib.Registries
 
             var normalized = new ItemAssignmentDef
             {
-                Mode = string.Equals(source.Value<string>("mode"), "list", StringComparison.OrdinalIgnoreCase)
+                Mode = string.Equals(source.Value<string>("mode"), "list",
+                    StringComparison.OrdinalIgnoreCase)
                     ? "list"
                     : "single",
                 MaxDrops = Mathf.Max(1, source.Value<int?>("maxDrops") ?? 1),
@@ -649,9 +779,9 @@ namespace CUCoreLib.Registries
 
             if (!(source["entries"] is JArray entries)) return null;
 
-            for (var i = 0; i < entries.Count; i++)
+            foreach (var t in entries)
             {
-                if (!(entries[i] is JObject entryToken)) continue;
+                if (!(t is JObject entryToken)) continue;
 
                 var value = entryToken.Value<string>("value");
                 if (string.IsNullOrWhiteSpace(value)) continue;
@@ -661,17 +791,24 @@ namespace CUCoreLib.Registries
                     Value = value.Trim(),
                     Percent = float.IsNaN(entryToken.Value<float?>("percent") ?? 100f)
                         ? 100f
-                        : Mathf.Clamp(entryToken.Value<float?>("percent") ?? 100f, 0f, 100f),
-                    ConditionPercent = float.IsNaN(entryToken.Value<float?>("conditionPercent") ?? 100f)
-                        ? 100f
-                        : Mathf.Clamp(entryToken.Value<float?>("conditionPercent") ?? 100f, 0f, 200f)
+                        : Mathf.Clamp(entryToken.Value<float?>("percent") ?? 100f, 0f,
+                            100f),
+                    ConditionPercent =
+                        float.IsNaN(entryToken.Value<float?>("conditionPercent") ?? 100f)
+                            ? 100f
+                            : Mathf.Clamp(
+                                entryToken.Value<float?>("conditionPercent") ?? 100f, 0f,
+                                200f)
                 });
             }
 
-            return normalized.Entries.Count > 0 ? normalized : null;
+            return normalized.Entries.Count > 0
+                ? normalized
+                : null;
         }
 
-        private static Dictionary<int, string> BuildObjectAssignmentsByCell(JObject rawAssignments,
+        private static Dictionary<int, string> BuildObjectAssignmentsByCell(
+            JObject rawAssignments,
             string[] topFgLayerIds, char[] composedFg, int width, int height)
         {
             if (rawAssignments == null || rawAssignments.Count == 0) return null;
@@ -684,7 +821,8 @@ namespace CUCoreLib.Registries
             {
                 if (composedFg[index] != '0') continue;
 
-                var resolved = ResolveLayerAwareAssignment(rawAssignments, scopedIndices, topFgLayerIds[index], index);
+                var resolved = ResolveLayerAwareAssignment(rawAssignments, scopedIndices,
+                    topFgLayerIds[index], index);
                 if (!(resolved?["id"] is JValue idValue)) continue;
 
                 var id = idValue.Value<string>();
@@ -692,10 +830,13 @@ namespace CUCoreLib.Registries
                 flattened[index] = id.Trim();
             }
 
-            return flattened.Count > 0 ? flattened : null;
+            return flattened.Count > 0
+                ? flattened
+                : null;
         }
 
-        private static JObject ResolveLayerAwareAssignment(JObject assignments, HashSet<int> scopedIndices,
+        private static JObject ResolveLayerAwareAssignment(JObject assignments,
+            HashSet<int> scopedIndices,
             string activeLayerId, int index)
         {
             if (assignments == null) return null;
@@ -703,14 +844,17 @@ namespace CUCoreLib.Registries
             var scopedKey = !string.IsNullOrWhiteSpace(activeLayerId)
                 ? activeLayerId + ":" + index.ToString(CultureInfo.InvariantCulture)
                 : null;
-            if (!string.IsNullOrWhiteSpace(scopedKey) && assignments.TryGetValue(scopedKey, out var scopedToken) &&
-                scopedToken is JObject scopedObject)
+            if (!string.IsNullOrWhiteSpace(scopedKey)
+                && assignments.TryGetValue(scopedKey, out var scopedToken)
+                && scopedToken is JObject scopedObject)
                 return scopedObject;
 
             if (scopedIndices != null && scopedIndices.Contains(index)) return null;
 
             var indexKey = index.ToString(CultureInfo.InvariantCulture);
-            return assignments.TryGetValue(indexKey, out var unscopedToken) ? unscopedToken as JObject : null;
+            return assignments.TryGetValue(indexKey, out var unscopedToken)
+                ? unscopedToken as JObject
+                : null;
         }
 
         private static HashSet<int> BuildScopedAssignmentIndexSet(JObject assignments)
@@ -727,7 +871,8 @@ namespace CUCoreLib.Registries
                 if (separator < 0 || separator >= key.Length - 1) continue;
 
                 var suffix = key.Substring(separator + 1);
-                if (!int.TryParse(suffix, NumberStyles.Integer, CultureInfo.InvariantCulture, out var index))
+                if (!int.TryParse(suffix, NumberStyles.Integer,
+                    CultureInfo.InvariantCulture, out var index))
                     continue;
 
                 if (scopedIndices == null) scopedIndices = new HashSet<int>();
@@ -750,7 +895,8 @@ namespace CUCoreLib.Registries
 
             foreach (var property in source.Properties())
             {
-                if (!TryParseCellIndex(property.Name, out var index) || index < 0) continue;
+                if (!TryParseCellIndex(property.Name, out var index) || index < 0)
+                    continue;
                 if (!(property.Value is JObject bucket)) continue;
 
                 var cleanedItems = CleanPropertyDictionary(bucket["item"] as JObject);
@@ -760,24 +906,32 @@ namespace CUCoreLib.Registries
                 if (cleanedObjects != null) objectMap[index] = cleanedObjects;
             }
 
-            itemCustomPropertiesByCell = itemMap.Count > 0 ? itemMap : null;
-            objectCustomPropertiesByCell = objectMap.Count > 0 ? objectMap : null;
+            itemCustomPropertiesByCell = itemMap.Count > 0
+                ? itemMap
+                : null;
+            objectCustomPropertiesByCell = objectMap.Count > 0
+                ? objectMap
+                : null;
         }
 
         private static Dictionary<string, string> CleanPropertyDictionary(JObject source)
         {
             if (source == null || source.Count == 0) return null;
 
-            var cleaned = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            var cleaned =
+                new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             foreach (var property in source.Properties())
             {
-                var key = property.Name?.Trim();
-                var value = property.Value?.Value<string>()?.Trim();
-                if (string.IsNullOrWhiteSpace(key) || string.IsNullOrWhiteSpace(value)) continue;
+                var key = property.Name.Trim();
+                var value = property.Value.Value<string>()?.Trim();
+                if (string.IsNullOrWhiteSpace(key) || string.IsNullOrWhiteSpace(value))
+                    continue;
                 cleaned[key] = value;
             }
 
-            return cleaned.Count > 0 ? cleaned : null;
+            return cleaned.Count > 0
+                ? cleaned
+                : null;
         }
 
         private static bool TryParseCellIndex(string rawKey, out int index)
@@ -786,15 +940,17 @@ namespace CUCoreLib.Registries
             if (string.IsNullOrWhiteSpace(rawKey)) return false;
 
             var trimmed = rawKey.Trim();
-            if (int.TryParse(trimmed, NumberStyles.Integer, CultureInfo.InvariantCulture, out index))
+            if (int.TryParse(trimmed, NumberStyles.Integer, CultureInfo.InvariantCulture,
+                out index))
                 return index >= 0;
 
             var split = trimmed.LastIndexOf(':');
             if (split < 0 || split >= trimmed.Length - 1) return false;
 
-            return int.TryParse(trimmed.Substring(split + 1), NumberStyles.Integer, CultureInfo.InvariantCulture,
-                       out index) &&
-                   index >= 0;
+            return int.TryParse(trimmed.Substring(split + 1), NumberStyles.Integer,
+                    CultureInfo.InvariantCulture,
+                    out index)
+                && index >= 0;
         }
 
         private static List<EntityPrecisePos> BuildPrecisePlacements(JArray source)
@@ -802,9 +958,9 @@ namespace CUCoreLib.Registries
             if (source == null || source.Count == 0) return null;
 
             var list = new List<EntityPrecisePos>(source.Count);
-            for (var i = 0; i < source.Count; i++)
+            foreach (var t in source)
             {
-                if (!(source[i] is JObject token)) continue;
+                if (!(t is JObject token)) continue;
 
                 list.Add(new EntityPrecisePos
                 {
@@ -821,12 +977,15 @@ namespace CUCoreLib.Registries
                 });
             }
 
-            return list.Count > 0 ? list : null;
+            return list.Count > 0
+                ? list
+                : null;
         }
 
         private static int[] NormalizeSpawnCounts(JArray raw)
         {
-            return NormalizeSpawnCounts(raw?.Select(token => token.Value<int?>() ?? 4).ToArray());
+            return NormalizeSpawnCounts(raw?.Select(token => token.Value<int?>() ?? 4)
+                .ToArray());
         }
 
         private static int[] NormalizeSpawnCounts(int[] raw)
@@ -851,9 +1010,9 @@ namespace CUCoreLib.Registries
             if (source == null || source.Count == 0) return null;
 
             var rules = new Dictionary<char, LootRuleDef>();
-            for (var i = 0; i < source.Count; i++)
+            foreach (var t in source)
             {
-                if (!(source[i] is JObject token)) continue;
+                if (!(t is JObject token)) continue;
 
                 var marker = token.Value<string>("marker");
                 if (string.IsNullOrWhiteSpace(marker) || marker.Length != 1) continue;
@@ -871,14 +1030,17 @@ namespace CUCoreLib.Registries
                 };
             }
 
-            return rules.Count > 0 ? rules : null;
+            return rules.Count > 0
+                ? rules
+                : null;
         }
 
         private static Dictionary<string, LootPoolDef> BuildLootPools(JObject source)
         {
             if (source == null || source.Count == 0) return null;
 
-            var pools = new Dictionary<string, LootPoolDef>(StringComparer.OrdinalIgnoreCase);
+            var pools =
+                new Dictionary<string, LootPoolDef>(StringComparer.OrdinalIgnoreCase);
             foreach (var property in source.Properties())
             {
                 if (!(property.Value is JArray entries) || entries.Count == 0) continue;
@@ -886,10 +1048,12 @@ namespace CUCoreLib.Registries
                 var compiledEntries = new List<LootPoolEntryDef>();
                 var cumulativeWeights = new List<int>();
                 var totalWeight = 0;
-                for (var i = 0; i < entries.Count; i++)
+                foreach (var t in entries)
                 {
-                    if (!(entries[i] is JObject entryToken)) continue;
-                    var itemId = SpawnIdHelpers.NormalizeSpawnId(entryToken.Value<string>("itemId"));
+                    if (!(t is JObject entryToken)) continue;
+                    var itemId =
+                        SpawnIdHelpers.NormalizeSpawnId(
+                            entryToken.Value<string>("itemId"));
                     if (string.IsNullOrWhiteSpace(itemId)) continue;
 
                     var weight = Mathf.Max(0, entryToken.Value<int?>("weight") ?? 0);
@@ -915,15 +1079,19 @@ namespace CUCoreLib.Registries
                 };
             }
 
-            return pools.Count > 0 ? pools : null;
+            return pools.Count > 0
+                ? pools
+                : null;
         }
 
-        private static CustomStructure ParseStringGrid(string[] rows, Dictionary<char, int> blockMap,
+        private static CustomStructure ParseStringGrid(string[] rows,
+            Dictionary<char, int> blockMap,
             Dictionary<char, string> entityMap = null,
             Dictionary<int, ItemAssignmentDef> itemAssignmentsByCell = null,
             Dictionary<int, string> objectAssignmentsByCell = null,
             Dictionary<int, Dictionary<string, string>> itemCustomPropertiesByCell = null,
-            Dictionary<int, Dictionary<string, string>> objectCustomPropertiesByCell = null,
+            Dictionary<int, Dictionary<string, string>> objectCustomPropertiesByCell =
+                null,
             string sequentialItems = null, List<EntityPrecisePos> precisePositions = null,
             Dictionary<char, int> liquidMap = null)
         {
@@ -942,23 +1110,21 @@ namespace CUCoreLib.Registries
 
             var itemQueue = new Queue<string>();
             if (!string.IsNullOrWhiteSpace(sequentialItems))
-            {
-                foreach (var value in sequentialItems.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries))
+                foreach (var value in sequentialItems.Split(new[] { ',' },
+                    StringSplitOptions.RemoveEmptyEntries))
                     itemQueue.Enqueue(value.Trim());
-            }
 
             Dictionary<int, EntityPrecisePos> preciseByCell = null;
             if (precisePositions != null && precisePositions.Count > 0)
             {
-                preciseByCell = new Dictionary<int, EntityPrecisePos>(precisePositions.Count);
-                for (var i = 0; i < precisePositions.Count; i++)
+                preciseByCell =
+                    new Dictionary<int, EntityPrecisePos>(precisePositions.Count);
+                foreach (var precise in precisePositions.Where(precise => precise != null).Where(precise => precise.GridX >= 0
+                    && precise.GridX < width
+                    && precise.GridY >= 0
+                    && precise.GridY < height))
                 {
-                    var precise = precisePositions[i];
-                    if (precise == null) continue;
-                    if (precise.GridX < 0 || precise.GridX >= width || precise.GridY < 0 || precise.GridY >= height)
-                        continue;
-
-                    preciseByCell[(precise.GridY * width) + precise.GridX] = precise;
+                    preciseByCell[precise.GridY * width + precise.GridX] = precise;
                 }
             }
 
@@ -973,32 +1139,27 @@ namespace CUCoreLib.Registries
                     var linearIndex = y * width + x;
                     var worldY = heightMinusOne - y;
                     string mappedEntityId = null;
-                    var hasMappedEntity = hasEntityMap && entityMap.TryGetValue(marker, out mappedEntityId);
+                    var hasMappedEntity = hasEntityMap
+                        && entityMap.TryGetValue(marker, out mappedEntityId);
                     ushort mappedTileId = 0;
                     var isItemMarker = marker == '*';
                     var isObjectMarker = marker == '0';
-                    var hasMappedTile = !isItemMarker && !isObjectMarker && hasMappedEntity &&
-                        TileRegistry.TryGetIndex(mappedEntityId, out mappedTileId);
+                    var hasMappedTile = !isItemMarker
+                        && !isObjectMarker
+                        && hasMappedEntity
+                        && TileRegistry.TryGetIndex(mappedEntityId, out mappedTileId);
 
                     var blockId = -1;
                     var liquidId = 0;
 
                     if (hasMappedTile)
-                    {
                         blockId = mappedTileId;
-                    }
                     else if (hasMappedEntity || isItemMarker || isObjectMarker)
-                    {
                         blockId = 0;
-                    }
                     else if (hasLiquidMap && liquidMap.TryGetValue(marker, out liquidId))
-                    {
                         blockId = 0;
-                    }
                     else if (blockMap.TryGetValue(marker, out var mappedBlockId))
-                    {
                         blockId = mappedBlockId;
-                    }
 
                     structure.BlockIDs[x, worldY] = blockId;
                     structure.LiquidIDs[x, worldY] = liquidId;
@@ -1008,37 +1169,46 @@ namespace CUCoreLib.Registries
 
                     if (isObjectMarker)
                     {
-                        if (objectAssignmentsByCell != null &&
-                            objectAssignmentsByCell.TryGetValue(linearIndex, out var mappedObjectId) &&
-                            !string.IsNullOrWhiteSpace(mappedObjectId))
+                        if (objectAssignmentsByCell != null
+                            && objectAssignmentsByCell.TryGetValue(linearIndex,
+                                out var mappedObjectId)
+                            && !string.IsNullOrWhiteSpace(mappedObjectId))
                             entityId = mappedObjectId;
                         else if (hasMappedEntity) entityId = mappedEntityId;
 
-                        if (objectCustomPropertiesByCell != null &&
-                            objectCustomPropertiesByCell.TryGetValue(linearIndex, out var objectCustom))
-                            customProperties = new Dictionary<string, string>(objectCustom,
+                        if (objectCustomPropertiesByCell != null
+                            && objectCustomPropertiesByCell.TryGetValue(linearIndex,
+                                out var objectCustom))
+                            customProperties = new Dictionary<string, string>(
+                                objectCustom,
                                 StringComparer.OrdinalIgnoreCase);
                     }
                     else if (isItemMarker)
                     {
-                        if (itemAssignmentsByCell != null &&
-                            itemAssignmentsByCell.TryGetValue(linearIndex, out var assignment) &&
-                            assignment?.Entries != null &&
-                            assignment.Entries.Count > 0)
+                        if (itemAssignmentsByCell != null
+                            && itemAssignmentsByCell.TryGetValue(linearIndex,
+                                out var assignment)
+                            && assignment?.Entries != null
+                            && assignment.Entries.Count > 0)
                         {
                             var entry = assignment.Entries[0];
                             entityId = entry?.Value;
-                            if (itemCustomPropertiesByCell != null &&
-                                itemCustomPropertiesByCell.TryGetValue(linearIndex, out var itemCustom))
-                                customProperties = new Dictionary<string, string>(itemCustom,
+                            if (itemCustomPropertiesByCell != null
+                                && itemCustomPropertiesByCell.TryGetValue(linearIndex,
+                                    out var itemCustom))
+                                customProperties = new Dictionary<string, string>(
+                                    itemCustom,
                                     StringComparer.OrdinalIgnoreCase);
 
                             if (entry != null)
                             {
                                 if (customProperties == null)
-                                    customProperties = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                                    customProperties =
+                                        new Dictionary<string, string>(StringComparer
+                                            .OrdinalIgnoreCase);
                                 customProperties[ConditionPercentKey] =
-                                    entry.ConditionPercent.ToString(CultureInfo.InvariantCulture);
+                                    entry.ConditionPercent.ToString(CultureInfo
+                                        .InvariantCulture);
                             }
                         }
                         else if (itemQueue.Count > 0)
@@ -1049,22 +1219,26 @@ namespace CUCoreLib.Registries
                     else if (hasMappedEntity && !hasMappedTile)
                     {
                         entityId = mappedEntityId;
-                        if (objectCustomPropertiesByCell != null &&
-                            objectCustomPropertiesByCell.TryGetValue(linearIndex, out var legacyCustom))
-                            customProperties = new Dictionary<string, string>(legacyCustom,
+                        if (objectCustomPropertiesByCell != null
+                            && objectCustomPropertiesByCell.TryGetValue(linearIndex,
+                                out var legacyCustom))
+                            customProperties = new Dictionary<string, string>(
+                                legacyCustom,
                                 StringComparer.OrdinalIgnoreCase);
                     }
 
                     if (string.IsNullOrWhiteSpace(entityId)) continue;
 
-                    AddEntity(structure, entityId, x, worldY, preciseByCell, width, customProperties);
+                    AddEntity(structure, entityId, x, worldY, preciseByCell, width,
+                        customProperties);
                 }
             }
 
             return structure;
         }
 
-        private static void AddEntity(CustomStructure structure, string entityId, int x, int worldY,
+        private static void AddEntity(CustomStructure structure, string entityId, int x,
+            int worldY,
             Dictionary<int, EntityPrecisePos> preciseByCell, int structureWidth,
             Dictionary<string, string> customProperties)
         {
@@ -1080,7 +1254,7 @@ namespace CUCoreLib.Registries
 
             if (preciseByCell != null)
             {
-                var preciseIndex = (worldY * structureWidth) + x;
+                var preciseIndex = worldY * structureWidth + x;
                 if (preciseByCell.TryGetValue(preciseIndex, out var precise))
                 {
                     finalX += precise.OffsetX;
@@ -1088,7 +1262,9 @@ namespace CUCoreLib.Registries
                     rotation = precise.Rotation;
                     flipX = precise.FlipX;
                     flipY = precise.FlipY;
-                    scale = Mathf.Approximately(precise.Scale, 0f) ? 1f : precise.Scale;
+                    scale = Mathf.Approximately(precise.Scale, 0f)
+                        ? 1f
+                        : precise.Scale;
                 }
             }
 
@@ -1096,7 +1272,8 @@ namespace CUCoreLib.Registries
             {
                 ID = entityId,
                 CustomProperties = customProperties != null
-                    ? new Dictionary<string, string>(customProperties, StringComparer.OrdinalIgnoreCase)
+                    ? new Dictionary<string, string>(customProperties,
+                        StringComparer.OrdinalIgnoreCase)
                     : null,
                 X = finalX,
                 Y = finalY,
@@ -1107,7 +1284,8 @@ namespace CUCoreLib.Registries
             });
         }
 
-        private static void PlaceStructure(Vector2 worldPos, RegisteredStructureDefinition definition)
+        private static void PlaceStructure(Vector2 worldPos,
+            RegisteredStructureDefinition definition)
         {
             var structure = definition?.CompiledStructure;
             var world = WorldGeneration.world;
@@ -1116,8 +1294,8 @@ namespace CUCoreLib.Registries
             TileRegistry.InjectRegisteredTiles(world);
 
             var center = world.WorldToBlockPos(worldPos);
-            var startX = center.x - (structure.Width / 2);
-            var startY = center.y - (structure.Height / 2);
+            var startX = center.x - structure.Width / 2;
+            var startY = center.y - structure.Height / 2;
             var worldWidth = (int)world.width;
             var worldHeight = (int)world.height;
             var minX = Mathf.Max(0, -startX);
@@ -1138,7 +1316,6 @@ namespace CUCoreLib.Registries
             }
 
             if (structure.LiquidIDs != null && FluidManager.main != null)
-            {
                 for (var x = minX; x < maxXExclusive; x++)
                 {
                     var globalX = startX + x;
@@ -1150,10 +1327,8 @@ namespace CUCoreLib.Registries
                         FluidManager.main.SetLiquid(globalX, startY + y, (byte)liquidId);
                     }
                 }
-            }
 
             if (structure.BackgroundIDs != null)
-            {
                 for (var x = minX; x < maxXExclusive; x++)
                 {
                     var globalX = startX + x;
@@ -1162,31 +1337,32 @@ namespace CUCoreLib.Registries
                         var backgroundId = structure.BackgroundIDs[x, y];
                         if (backgroundId <= 0) continue;
 
-                        var exactPos = world.BlockToWorldPos(new Vector2Int(globalX, startY + y));
+                        var exactPos =
+                            world.BlockToWorldPos(new Vector2Int(globalX, startY + y));
                         SpawnBackgroundTile(backgroundId, exactPos);
                     }
                 }
-            }
 
             var worldBase = world.BlockToWorldPos(new Vector2Int(startX, startY));
-            foreach (var entity in structure.Entities)
+            foreach (var entity in structure.Entities.Where(entity => entity != null))
             {
-                if (entity == null) continue;
                 SpawnEntity(entity, worldBase + new Vector2(entity.X, entity.Y));
             }
 
             SpawnLootMarkers(definition, worldBase);
         }
 
-        private static void SpawnLootMarkers(RegisteredStructureDefinition definition, Vector2 worldBase)
+        private static void SpawnLootMarkers(RegisteredStructureDefinition definition,
+            Vector2 worldBase)
         {
-            if (definition?.CompiledLootMarkers == null || definition.CompiledLootMarkers.Count == 0) return;
+            if (definition?.CompiledLootMarkers == null
+                || definition.CompiledLootMarkers.Count == 0) return;
 
-            for (var i = 0; i < definition.CompiledLootMarkers.Count; i++)
+            foreach (var marker in definition.CompiledLootMarkers)
             {
-                var marker = definition.CompiledLootMarkers[i];
                 if (marker?.Rule == null) continue;
-                if (StructureSeededRandom.Value > Mathf.Clamp01(marker.Rule.Chance)) continue;
+                if (StructureSeededRandom.Value > Mathf.Clamp01(marker.Rule.Chance))
+                    continue;
 
                 var minCount = Mathf.Max(1, marker.Rule.Min);
                 var maxCount = Mathf.Max(minCount, marker.Rule.Max);
@@ -1198,22 +1374,28 @@ namespace CUCoreLib.Registries
                     var rolledItem = RollLootItem(marker.Rule, definition.LootPools);
                     if (string.IsNullOrWhiteSpace(rolledItem)) continue;
 
-                    var instance = CustomInstantiate.InstantiateReturn(rolledItem, spawnPos, Quaternion.identity);
+                    var instance = CustomInstantiate.InstantiateReturn(rolledItem,
+                        spawnPos, Quaternion.identity);
                     if (instance == null)
-                    {
                         if (MissingSpawnIdsLogged.Add(rolledItem))
-                            CUCoreLibPlugin.Log?.LogWarning("Structure loot placement could not resolve item ID '" +
-                                                            rolledItem + "'.");
-                    }
+                            CUCoreLibPlugin.Log?.LogWarning(
+                                "Structure loot placement could not resolve item ID '"
+                                + rolledItem
+                                + "'.");
                 }
             }
         }
 
-        private static string RollLootItem(LootRuleDef rule, Dictionary<string, LootPoolDef> pools)
+        private static string RollLootItem(LootRuleDef rule,
+            Dictionary<string, LootPoolDef> pools)
         {
-            if (rule == null || pools == null || string.IsNullOrWhiteSpace(rule.PoolID)) return null;
-            if (!pools.TryGetValue(rule.PoolID, out var pool) || pool == null || pool.TotalWeight <= 0 ||
-                pool.Entries == null || pool.Entries.Count == 0)
+            if (rule == null || pools == null || string.IsNullOrWhiteSpace(rule.PoolID))
+                return null;
+            if (!pools.TryGetValue(rule.PoolID, out var pool)
+                || pool == null
+                || pool.TotalWeight <= 0
+                || pool.Entries == null
+                || pool.Entries.Count == 0)
                 return null;
 
             var roll = StructureSeededRandom.Range(0, pool.TotalWeight);
@@ -1234,15 +1416,18 @@ namespace CUCoreLib.Registries
             if (string.IsNullOrWhiteSpace(normalizedId)) return;
 
             float? condition = null;
-            if (definition.CustomProperties != null &&
-                definition.CustomProperties.TryGetValue(ConditionPercentKey, out var rawCondition) &&
-                float.TryParse(rawCondition, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsedCondition))
+            if (definition.CustomProperties != null
+                && definition.CustomProperties.TryGetValue(ConditionPercentKey,
+                    out var rawCondition)
+                && float.TryParse(rawCondition, NumberStyles.Float,
+                    CultureInfo.InvariantCulture, out var parsedCondition))
                 condition = Mathf.Clamp(parsedCondition, 0f, 200f) * 0.01f;
 
             var rotation = Quaternion.Euler(0f, 0f, -definition.Rotation);
-            var instance = CustomInstantiate.InstantiateReturn(normalizedId, position, rotation, condition);
+            var instance =
+                CustomInstantiate.InstantiateReturn(normalizedId, position, rotation,
+                    condition);
             if (instance == null)
-            {
                 try
                 {
                     instance = Utils.Create(normalizedId, position, 0f);
@@ -1251,30 +1436,39 @@ namespace CUCoreLib.Registries
                 {
                     instance = null;
                 }
-            }
 
             if (instance == null)
             {
                 if (MissingSpawnIdsLogged.Add(normalizedId))
-                    CUCoreLibPlugin.Log?.LogWarning("Structure placement could not resolve entity or item ID '" +
-                                                    normalizedId + "'.");
+                    CUCoreLibPlugin.Log?.LogWarning(
+                        "Structure placement could not resolve entity or item ID '"
+                        + normalizedId
+                        + "'.");
                 return;
             }
 
-            var scaleX = definition.FlipX ? -definition.Scale : definition.Scale;
-            var scaleY = definition.FlipY ? -definition.Scale : definition.Scale;
+            var scaleX = definition.FlipX
+                ? -definition.Scale
+                : definition.Scale;
+            var scaleY = definition.FlipY
+                ? -definition.Scale
+                : definition.Scale;
             if (!Mathf.Approximately(scaleX, 1f) || !Mathf.Approximately(scaleY, 1f))
-                instance.transform.localScale = new Vector3(scaleX, scaleY, instance.transform.localScale.z);
+                instance.transform.localScale = new Vector3(scaleX, scaleY,
+                    instance.transform.localScale.z);
 
             if (instance.TryGetComponent<BuildingEntity>(out var building))
             {
-                building.blockPlacedOn = WorldGeneration.world.WorldToBlockPos(position + Vector2.down * 0.5f);
+                building.blockPlacedOn =
+                    WorldGeneration.world.WorldToBlockPos(position + Vector2.down * 0.5f);
                 building.requireGround = false;
 
-                if (definition.CustomProperties != null &&
-                    definition.CustomProperties.TryGetValue(HealthKey, out var rawHealth) &&
-                    float.TryParse(rawHealth, NumberStyles.Float, CultureInfo.InvariantCulture, out var health) &&
-                    health > 0f)
+                if (definition.CustomProperties != null
+                    && definition.CustomProperties.TryGetValue(HealthKey,
+                        out var rawHealth)
+                    && float.TryParse(rawHealth, NumberStyles.Float,
+                        CultureInfo.InvariantCulture, out var health)
+                    && health > 0f)
                     building.SetHealth(health);
             }
         }
@@ -1282,17 +1476,21 @@ namespace CUCoreLib.Registries
         private static void SpawnBackgroundTile(int blockId, Vector2 position)
         {
             var world = WorldGeneration.world;
-            if (world?.tiles == null || blockId < 0 || blockId >= world.tiles.Length) return;
+            if (world?.tiles == null
+                || blockId < 0
+                || blockId >= world.tiles.Length) return;
             if (!(world.tiles[blockId] is Tile tile) || tile.sprite == null) return;
 
             var template = GetBackgroundTemplate();
             if (template == null) return;
 
-            var backgroundObject = UnityEngine.Object.Instantiate(template, position, Quaternion.identity);
+            var backgroundObject =
+                Object.Instantiate(template, position, Quaternion.identity);
             backgroundObject.SetActive(true);
             backgroundObject.name = "CUCoreLib_BGTile_" + blockId;
 
-            if (world.worldGrid != null) backgroundObject.transform.SetParent(world.worldGrid.transform);
+            if (world.worldGrid != null)
+                backgroundObject.transform.SetParent(world.worldGrid.transform);
 
             var renderer = backgroundObject.GetComponent<SpriteRenderer>();
             renderer.sprite = tile.sprite;
@@ -1307,13 +1505,15 @@ namespace CUCoreLib.Registries
 
             BackgroundTemplate = new GameObject("CUCoreLib_BackgroundTileTemplate");
             BackgroundTemplate.SetActive(false);
-            UnityEngine.Object.DontDestroyOnLoad(BackgroundTemplate);
+            Object.DontDestroyOnLoad(BackgroundTemplate);
             BackgroundTemplate.AddComponent<SpriteRenderer>();
             return BackgroundTemplate;
         }
 
-        private static bool TryFindSpawnPosition(WorldGeneration world, RegisteredStructureDefinition definition,
-            List<StructurePlacementRect> occupiedRects, out Vector2 position, out StructurePlacementRect chosenRect)
+        private static bool TryFindSpawnPosition(WorldGeneration world,
+            RegisteredStructureDefinition definition,
+            List<StructurePlacementRect> occupiedRects, out Vector2 position,
+            out StructurePlacementRect chosenRect)
         {
             position = Vector2.zero;
             chosenRect = default;
@@ -1331,12 +1531,15 @@ namespace CUCoreLib.Registries
             {
                 lastRandX = StructureSeededRandom.Range(50, worldWidth - 50);
                 lastRandY = StructureSeededRandom.Range(50, worldHeight - 50);
-                lastTriedRect = BuildPlacementRect(lastRandX, lastRandY, definition.CompiledStructure.Width,
-                    definition.CompiledStructure.Height, worldWidth, worldHeight);
+                if (definition != null)
+                    lastTriedRect = BuildPlacementRect(lastRandX, lastRandY,
+                        definition.CompiledStructure.Width,
+                        definition.CompiledStructure.Height, worldWidth, worldHeight);
 
                 if (!requireNoOverlap || !OverlapsAny(lastTriedRect, occupiedRects))
                 {
-                    position = world.BlockToWorldPos(new Vector2Int(lastRandX, lastRandY));
+                    position =
+                        world.BlockToWorldPos(new Vector2Int(lastRandX, lastRandY));
                     chosenRect = lastTriedRect;
                     return true;
                 }
@@ -1347,11 +1550,12 @@ namespace CUCoreLib.Registries
             return true;
         }
 
-        private static StructurePlacementRect BuildPlacementRect(int centerX, int centerY, int structureWidth,
+        private static StructurePlacementRect BuildPlacementRect(int centerX, int centerY,
+            int structureWidth,
             int structureHeight, int worldWidth, int worldHeight)
         {
-            var startX = centerX - (structureWidth / 2);
-            var startY = centerY - (structureHeight / 2);
+            var startX = centerX - structureWidth / 2;
+            var startY = centerY - structureHeight / 2;
             var endXExclusive = startX + structureWidth;
             var endYExclusive = startY + structureHeight;
 
@@ -1364,25 +1568,19 @@ namespace CUCoreLib.Registries
             };
         }
 
-        private static bool OverlapsAny(StructurePlacementRect candidate, List<StructurePlacementRect> occupied)
+        private static bool OverlapsAny(StructurePlacementRect candidate,
+            List<StructurePlacementRect> occupied)
         {
-            if (!HasArea(candidate) || occupied == null || occupied.Count == 0) return false;
+            if (!HasArea(candidate) || occupied == null || occupied.Count == 0)
+                return false;
 
-            for (var i = 0; i < occupied.Count; i++)
-            {
-                var other = occupied[i];
-                if (!HasArea(other)) continue;
-
-                var separated =
-                    candidate.MaxXExclusive <= other.MinX ||
-                    candidate.MinX >= other.MaxXExclusive ||
-                    candidate.MaxYExclusive <= other.MinY ||
-                    candidate.MinY >= other.MaxYExclusive;
-
-                if (!separated) return true;
-            }
-
-            return false;
+            return (
+                from other in occupied
+                where HasArea(other)
+                select candidate.MaxXExclusive <= other.MinX
+                    || candidate.MinX >= other.MaxXExclusive
+                    || candidate.MaxYExclusive <= other.MinY
+                    || candidate.MinY >= other.MaxYExclusive).Any(separated => !separated);
         }
 
         private static bool HasArea(StructurePlacementRect rect)
@@ -1392,123 +1590,133 @@ namespace CUCoreLib.Registries
 
         private static Dictionary<int, char> BuildGlobalBlockReverseMap()
         {
-            var reverse = new Dictionary<int, char>();
-            reverse[-1] = ' ';
-            reverse[0] = '.';
-            reverse[1] = 'R';
-            reverse[2] = 'g';
-            reverse[3] = 'S';
-            reverse[4] = 'T';
-            reverse[5] = '#';
-            reverse[6] = 'M';
-            reverse[7] = 'G';
-            reverse[8] = 'r';
-            reverse[9] = 'P';
-            reverse[10] = 'H';
-            reverse[11] = 'W';
-            reverse[12] = 's';
-            reverse[13] = 'd';
-            reverse[14] = 'I';
-            reverse[15] = 'c';
-            reverse[16] = 'o';
-            reverse[17] = 'n';
-            reverse[18] = 'm';
-            reverse[19] = 'l';
-            reverse[20] = 'B';
-            reverse[21] = 'X';
-            reverse[22] = 'x';
-            reverse[23] = 'v';
-            reverse[24] = 'L';
-            reverse[25] = 'e';
-            reverse[26] = 'w';
-            reverse[27] = '=';
-            reverse[28] = '-';
-            reverse[29] = 'p';
-            reverse[30] = 'h';
-            reverse[31] = 'f';
-            reverse[32] = 'b';
-            reverse[33] = '^';
-            reverse[34] = 'C';
-            reverse[35] = 'i';
+            var reverse = new Dictionary<int, char>
+            {
+                [-1] = ' ',
+                [0] = '.',
+                [1] = 'R',
+                [2] = 'g',
+                [3] = 'S',
+                [4] = 'T',
+                [5] = '#',
+                [6] = 'M',
+                [7] = 'G',
+                [8] = 'r',
+                [9] = 'P',
+                [10] = 'H',
+                [11] = 'W',
+                [12] = 's',
+                [13] = 'd',
+                [14] = 'I',
+                [15] = 'c',
+                [16] = 'o',
+                [17] = 'n',
+                [18] = 'm',
+                [19] = 'l',
+                [20] = 'B',
+                [21] = 'X',
+                [22] = 'x',
+                [23] = 'v',
+                [24] = 'L',
+                [25] = 'e',
+                [26] = 'w',
+                [27] = '=',
+                [28] = '-',
+                [29] = 'p',
+                [30] = 'h',
+                [31] = 'f',
+                [32] = 'b',
+                [33] = '^',
+                [34] = 'C',
+                [35] = 'i'
+            };
             return reverse;
         }
 
         private sealed class RegisteredStructureDefinition
         {
-            public string ID;
-            public string[] Shape;
-            public string[] BackgroundShape;
             public bool AvoidOverlap;
+            public string[] BackgroundShape;
+            public List<CompiledLootMarker> CompiledLootMarkers;
+            public CustomStructure CompiledStructure;
             public Dictionary<char, string> EntityMap;
+            public string ID;
             public Dictionary<int, ItemAssignmentDef> ItemAssignmentsByCell;
-            public Dictionary<int, string> ObjectAssignmentsByCell;
             public Dictionary<int, Dictionary<string, string>> ItemCustomPropertiesByCell;
-            public Dictionary<int, Dictionary<string, string>> ObjectCustomPropertiesByCell;
-            public string SequentialItems;
+            public Dictionary<string, LootPoolDef> LootPools;
+            public Dictionary<char, LootRuleDef> LootRulesByMarker;
+            public Dictionary<int, string> ObjectAssignmentsByCell;
+
+            public Dictionary<int, Dictionary<string, string>>
+                ObjectCustomPropertiesByCell;
+
             public List<EntityPrecisePos> PrecisePlacements;
+            public string SequentialItems;
+            public string[] Shape;
             public int[] SpawnCounts;
             public int TerrainGenAreaCount;
-            public Dictionary<char, LootRuleDef> LootRulesByMarker;
-            public Dictionary<string, LootPoolDef> LootPools;
-            public CustomStructure CompiledStructure;
-            public List<CompiledLootMarker> CompiledLootMarkers;
         }
 
         private sealed class NormalizedLayer
         {
+            public char[] Cells;
             public string ID;
             public string Kind;
             public bool Visible;
-            public char[] Cells;
         }
 
         private sealed class CustomStructure
         {
-            public int Width;
-            public int Height;
-            public int[,] BlockIDs;
             public int[,] BackgroundIDs;
+            public int[,] BlockIDs;
+
+            public readonly List<StructureEntityDef> Entities =
+                new List<StructureEntityDef>();
+
+            public int Height;
             public int[,] LiquidIDs;
-            public List<StructureEntityDef> Entities = new List<StructureEntityDef>();
+            public int Width;
         }
 
         private sealed class StructureEntityDef
         {
-            public string ID;
             public Dictionary<string, string> CustomProperties;
-            public float X;
-            public float Y;
-            public float Rotation;
             public bool FlipX;
             public bool FlipY;
+            public string ID;
+            public float Rotation;
             public float Scale = 1f;
+            public float X;
+            public float Y;
         }
 
         private sealed class EntityPrecisePos
         {
+            public bool FlipX;
+            public bool FlipY;
             public int GridX;
             public int GridY;
             public float OffsetX;
             public float OffsetY;
             public float Rotation;
-            public bool FlipX;
-            public bool FlipY;
             public float Scale = 1f;
         }
 
         private sealed class ItemAssignmentEntryDef
         {
-            public string Value;
-            public float Percent = 100f;
             public float ConditionPercent = 100f;
+            public float Percent = 100f;
+            public string Value;
         }
 
         private sealed class ItemAssignmentDef
         {
-            public string Mode = "single";
+            public readonly List<ItemAssignmentEntryDef> Entries =
+                new List<ItemAssignmentEntryDef>();
+
             public int MaxDrops = 1;
+            public string Mode = "single";
             public bool RollIndependent = true;
-            public List<ItemAssignmentEntryDef> Entries = new List<ItemAssignmentEntryDef>();
         }
 
         private sealed class LootPoolEntryDef
@@ -1519,19 +1727,19 @@ namespace CUCoreLib.Registries
 
         private sealed class LootPoolDef
         {
-            public string ID;
-            public List<LootPoolEntryDef> Entries = new List<LootPoolEntryDef>();
             public List<int> CumulativeWeights = new List<int>();
+            public List<LootPoolEntryDef> Entries = new List<LootPoolEntryDef>();
+            public string ID;
             public int TotalWeight;
         }
 
         private sealed class LootRuleDef
         {
-            public char Marker;
             public float Chance = 1f;
-            public string PoolID;
-            public int Min = 1;
+            public char Marker;
             public int Max = 1;
+            public int Min = 1;
+            public string PoolID;
         }
 
         private sealed class CompiledLootMarker
@@ -1559,53 +1767,8 @@ namespace CUCoreLib.Registries
             private static FieldInfo CurrentSeedField;
             private static Type SeededRunPatcherType;
             private static MethodInfo GetSeededRangeInt;
-            private static System.Random IsolatedRng;
-            private static readonly Stack<System.Random> RngOverrides = new Stack<System.Random>();
-
-            public static IDisposable PushOverride(int seed)
-            {
-                RngOverrides.Push(new System.Random(seed));
-                return new SeededRandomOverrideScope();
-            }
-
-            public static void InitializeForStructures()
-            {
-                EnsureInitialized();
-                if (IsSeeded && WorldGeneration.world != null)
-                {
-                    unchecked
-                    {
-                        var totalTraveled = WorldGeneration.world.totalTraveled;
-                        var structureSeed = CurrentSeed + (totalTraveled * 265443576) + 99999;
-                        IsolatedRng = new System.Random(structureSeed);
-                    }
-                }
-                else
-                {
-                    IsolatedRng = null;
-                }
-            }
-
-            public static int Range(int min, int max)
-            {
-                EnsureInitialized();
-
-                if (RngOverrides.Count > 0) return RngOverrides.Peek().Next(min, max);
-                if (IsolatedRng != null) return IsolatedRng.Next(min, max);
-
-                if (QolModPresent && IsSeeded && GetSeededRangeInt != null)
-                {
-                    try
-                    {
-                        return (int)GetSeededRangeInt.Invoke(null, new object[] { min, max });
-                    }
-                    catch
-                    {
-                    }
-                }
-
-                return UnityEngine.Random.Range(min, max);
-            }
+            private static Random IsolatedRng;
+            private static readonly Stack<Random> RngOverrides = new Stack<Random>();
 
             public static float Value
             {
@@ -1613,7 +1776,8 @@ namespace CUCoreLib.Registries
                 {
                     EnsureInitialized();
 
-                    if (RngOverrides.Count > 0) return (float)RngOverrides.Peek().NextDouble();
+                    if (RngOverrides.Count > 0)
+                        return (float)RngOverrides.Peek().NextDouble();
                     if (IsolatedRng != null) return (float)IsolatedRng.NextDouble();
 
                     return UnityEngine.Random.value;
@@ -1640,6 +1804,48 @@ namespace CUCoreLib.Registries
                 }
             }
 
+            public static IDisposable PushOverride(int seed)
+            {
+                RngOverrides.Push(new Random(seed));
+                return new SeededRandomOverrideScope();
+            }
+
+            public static void InitializeForStructures()
+            {
+                EnsureInitialized();
+                if (IsSeeded && WorldGeneration.world != null)
+                    unchecked
+                    {
+                        var totalTraveled = WorldGeneration.world.totalTraveled;
+                        var structureSeed =
+                            CurrentSeed + totalTraveled * 265443576 + 99999;
+                        IsolatedRng = new Random(structureSeed);
+                    }
+                else
+                    IsolatedRng = null;
+            }
+
+            public static int Range(int min, int max)
+            {
+                EnsureInitialized();
+
+                if (RngOverrides.Count > 0) return RngOverrides.Peek().Next(min, max);
+                if (IsolatedRng != null) return IsolatedRng.Next(min, max);
+
+                if (QolModPresent && IsSeeded && GetSeededRangeInt != null)
+                    try
+                    {
+                        return (int)GetSeededRangeInt.Invoke(null,
+                            new object[] { min, max });
+                    }
+                    catch
+                    {
+                        // ignored
+                    }
+
+                return UnityEngine.Random.Range(min, max);
+            }
+
             private static void EnsureInitialized()
             {
                 if (Initialized) return;
@@ -1647,18 +1853,22 @@ namespace CUCoreLib.Registries
 
                 try
                 {
-                    if (!Chainloader.PluginInfos.ContainsKey("org.bepinex.plugins.qolunknown")) return;
+                    if (!Chainloader.PluginInfos.ContainsKey(
+                        "org.bepinex.plugins.qolunknown")) return;
 
                     SeedManagerType = AccessTools.TypeByName("QoL_Unknown.SeedManager");
-                    SeededRunPatcherType = AccessTools.TypeByName("QoL_Unknown.SeededRunPatcher");
+                    SeededRunPatcherType =
+                        AccessTools.TypeByName("QoL_Unknown.SeededRunPatcher");
                     if (SeedManagerType != null)
                     {
                         IsSeededField = AccessTools.Field(SeedManagerType, "IsSeeded");
-                        CurrentSeedField = AccessTools.Field(SeedManagerType, "CurrentSeed");
+                        CurrentSeedField =
+                            AccessTools.Field(SeedManagerType, "CurrentSeed");
                     }
 
                     if (SeededRunPatcherType != null)
-                        GetSeededRangeInt = AccessTools.Method(SeededRunPatcherType, "GetSeededRange",
+                        GetSeededRangeInt = AccessTools.Method(SeededRunPatcherType,
+                            "GetSeededRange",
                             new[] { typeof(int), typeof(int) });
 
                     QolModPresent = SeedManagerType != null && IsSeededField != null;

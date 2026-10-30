@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Linq;
 using System.Reflection;
 using CUCoreLib.ContentReload;
@@ -9,8 +8,8 @@ using CUCoreLib.Helpers;
 using CUCoreLib.Networking;
 using CUCoreLib.Registries.Infrastructure;
 using CUCoreLib.Saving;
-using Newtonsoft.Json.Linq;
 using HarmonyLib;
+using Newtonsoft.Json.Linq;
 using UnityEngine;
 using Object = UnityEngine.Object;
 
@@ -21,7 +20,8 @@ namespace CUCoreLib.Registries
         private const byte FirstCustomWorldByte = 7;
 
         private static readonly Dictionary<string, CustomLiquidTileInfo> RegisteredTiles =
-            new Dictionary<string, CustomLiquidTileInfo>(StringComparer.OrdinalIgnoreCase);
+            new Dictionary<string, CustomLiquidTileInfo>(StringComparer
+                .OrdinalIgnoreCase);
 
         private static readonly Dictionary<string, byte> TileIdToWorldByte =
             new Dictionary<string, byte>(StringComparer.OrdinalIgnoreCase);
@@ -87,7 +87,8 @@ namespace CUCoreLib.Registries
 
             if (string.IsNullOrWhiteSpace(id))
             {
-                CUCoreLibPlugin.Log?.LogWarning("Ignored liquid tile registration with no ID.");
+                CUCoreLibPlugin.Log?.LogWarning(
+                    "Ignored liquid tile registration with no ID.");
                 return;
             }
 
@@ -104,7 +105,8 @@ namespace CUCoreLib.Registries
                 WarnUnknownLogicalLiquid(id, info.LiquidId, nameof(info.LiquidId));
 
             if (!LiquidExists(info.FillLiquidId))
-                WarnUnknownLogicalLiquid(id, info.FillLiquidId, nameof(info.FillLiquidId));
+                WarnUnknownLogicalLiquid(id, info.FillLiquidId,
+                    nameof(info.FillLiquidId));
 
             RegisteredTiles[id] = info;
             TileOwners.Assign(id, ContentReloadSession.ResolveAmbientOwnerId());
@@ -122,12 +124,14 @@ namespace CUCoreLib.Registries
         public static bool TryGet(string id, out CustomLiquidTileInfo info)
         {
             info = null;
-            return !string.IsNullOrWhiteSpace(id) && RegisteredTiles.TryGetValue(id.Trim(), out info);
+            return !string.IsNullOrWhiteSpace(id)
+                && RegisteredTiles.TryGetValue(id.Trim(), out info);
         }
 
         public static IEnumerable<string> GetRegisteredIds()
         {
-            return RegisteredTiles.Keys.OrderBy(key => key, StringComparer.OrdinalIgnoreCase).ToArray();
+            return RegisteredTiles.Keys
+                .OrderBy(key => key, StringComparer.OrdinalIgnoreCase).ToArray();
         }
 
         public static bool Place(string id, Vector2 worldPos)
@@ -140,8 +144,10 @@ namespace CUCoreLib.Registries
         {
             if (FluidManager.main == null || WorldGeneration.world == null) return false;
             if (!TryGetWorldByte(id, out var worldByte)) return false;
-            if (blockPos.x < 0 || blockPos.y < 0 || blockPos.x >= WorldGeneration.world.width ||
-                blockPos.y >= WorldGeneration.world.height) return false;
+            if (blockPos.x < 0
+                || blockPos.y < 0
+                || blockPos.x >= WorldGeneration.world.width
+                || blockPos.y >= WorldGeneration.world.height) return false;
             if (WorldGeneration.world.GetBlock(blockPos) != 0) return false;
 
             FluidManager.main.SetLiquid(blockPos.x, blockPos.y, worldByte);
@@ -155,7 +161,9 @@ namespace CUCoreLib.Registries
             if (!TryGetWorldByte(id, out var worldByte)) return false;
 
             if (TryGet(id, out var info))
-                maxFill = maxFill > 0 ? maxFill : Mathf.Max(1, info.MaxFloodFill);
+                maxFill = maxFill > 0
+                    ? maxFill
+                    : Mathf.Max(1, info.MaxFloodFill);
             else
                 maxFill = Mathf.Max(1, maxFill);
 
@@ -166,21 +174,26 @@ namespace CUCoreLib.Registries
 
         public static void GenerateWorldTiles(WorldGeneration world)
         {
-            if (world == null || RegisteredTiles.Count == 0 || FluidManager.main == null) return;
+            if (world == null
+                || RegisteredTiles.Count == 0
+                || FluidManager.main == null) return;
 
-            foreach (var entry in RegisteredTiles.Where(entry => entry.Value != null && entry.Value.SpawnAmount > 0f))
+            foreach (var entry in RegisteredTiles.Where(entry =>
+                entry.Value != null && entry.Value.SpawnAmount > 0f))
             {
                 if (!CanSpawnInLayer(entry.Value, world.biomeDepth)) continue;
                 if (!TryGetWorldByte(entry.Key, out var worldByte)) continue;
 
-                world.PlaceLiquids(entry.Value.SpawnAmount, worldByte, Mathf.Max(1, entry.Value.MaxFloodFill));
+                world.PlaceLiquids(entry.Value.SpawnAmount, worldByte,
+                    Mathf.Max(1, entry.Value.MaxFloodFill));
             }
         }
 
         public static bool TryGetWorldByte(string id, out byte worldByte)
         {
             worldByte = 0;
-            return !string.IsNullOrWhiteSpace(id) && TileIdToWorldByte.TryGetValue(id.Trim(), out worldByte);
+            return !string.IsNullOrWhiteSpace(id)
+                && TileIdToWorldByte.TryGetValue(id.Trim(), out worldByte);
         }
 
         public static bool TryGetTileId(byte worldByte, out string id)
@@ -189,7 +202,8 @@ namespace CUCoreLib.Registries
             return WorldByteToTileId.TryGetValue(worldByte, out id);
         }
 
-        public static bool TryGetWaterInfo(byte worldByte, out float buoyancy, out float drag, out int type)
+        public static bool TryGetWaterInfo(byte worldByte, out float buoyancy,
+            out float drag, out int type)
         {
             buoyancy = 0f;
             drag = 0f;
@@ -211,13 +225,16 @@ namespace CUCoreLib.Registries
             return true;
         }
 
-        public static bool TryGetDisplayName(byte worldByte, out string name, out string description)
+        public static bool TryGetDisplayName(byte worldByte, out string name,
+            out string description)
         {
             name = null;
             description = null;
             if (!TryGetTileInfo(worldByte, out var info)) return false;
 
-            var liquidId = !string.IsNullOrWhiteSpace(info.LiquidId) ? info.LiquidId : WorldByteToTileId[worldByte];
+            var liquidId = !string.IsNullOrWhiteSpace(info.LiquidId)
+                ? info.LiquidId
+                : WorldByteToTileId[worldByte];
             name = Locale.GetOther(liquidId);
             description = Locale.GetOther(liquidId + "dsc");
             return true;
@@ -234,7 +251,7 @@ namespace CUCoreLib.Registries
             if (info.ConsumeOnDrink)
                 FluidManager.main.SetLiquid(pos.x, pos.y, 0);
 
-            var amount = 200f;
+            const float amount = 200f;
             if (info.OnDrinkOverride != null) info.OnDrinkOverride(amount, body);
             else liquidType.onDrink(amount, body);
 
@@ -245,10 +262,15 @@ namespace CUCoreLib.Registries
 
         public static void ApplyBodyTouch(Body body, float deltaTime)
         {
-            if (body == null || WorldGeneration.world == null || FluidManager.main == null) return;
-            if (body.limbs == null || body.limbs.Length == 0 || body.limbs[0] == null) return;
+            if (body == null
+                || WorldGeneration.world == null
+                || FluidManager.main == null) return;
+            if (body.limbs == null
+                || body.limbs.Length == 0
+                || body.limbs[0] == null) return;
 
-            var pos = WorldGeneration.world.WorldToBlockPos(body.limbs[0].transform.position);
+            var pos =
+                WorldGeneration.world.WorldToBlockPos(body.limbs[0].transform.position);
             var worldByte = FluidManager.main.GetLiquid(pos.x, pos.y);
             var touchedCustom = TryGetTileInfo(worldByte, out var info);
 
@@ -256,16 +278,17 @@ namespace CUCoreLib.Registries
             {
                 if (BodyTouchStates.TryGetValue(body.GetInstanceID(), out var oldState))
                 {
-                    if (TryGetTileInfo(oldState.WorldByte, out var oldInfo) && oldInfo?.OnExit != null)
-                    {
+                    if (TryGetTileInfo(oldState.WorldByte, out var oldInfo)
+                        && oldInfo?.OnExit != null)
                         oldInfo.OnExit(body, new LiquidTileTouchContext
                         {
                             BlockPosition = oldState.BlockPosition,
-                            WorldPosition = WorldGeneration.world.BlockToWorldPos(oldState.BlockPosition),
+                            WorldPosition =
+                                WorldGeneration.world.BlockToWorldPos(oldState
+                                    .BlockPosition),
                             WorldByte = oldState.WorldByte,
                             Exited = true
                         });
-                    }
 
                     BodyTouchStates.Remove(body.GetInstanceID());
                 }
@@ -273,8 +296,10 @@ namespace CUCoreLib.Registries
                 return;
             }
 
-            var entered = !BodyTouchStates.TryGetValue(body.GetInstanceID(), out var state) ||
-                          state.WorldByte != worldByte || state.BlockPosition != pos;
+            var entered =
+                !BodyTouchStates.TryGetValue(body.GetInstanceID(), out var state)
+                || state.WorldByte != worldByte
+                || state.BlockPosition != pos;
 
             var context = new LiquidTileTouchContext
             {
@@ -305,14 +330,16 @@ namespace CUCoreLib.Registries
             if (manager == null) return;
 
             EnsureLiquidColorsCapacity(manager);
-            var particles = LiquidParticlesField?.GetValue(manager) as List<ParticleSystem>;
-            if (particles == null) return;
+            if (!(LiquidParticlesField?.GetValue(manager) is List<ParticleSystem>
+                particles)) return;
 
             var maxByte = GetMaxAssignedWorldByte();
             while (manager.LiquidParticlePrefabs.Count <= maxByte)
             {
                 var nextWorldByte = (byte)manager.LiquidParticlePrefabs.Count;
-                var prefab = manager.LiquidParticlePrefabs[GetVisualPrefabIndex(manager, nextWorldByte)];
+                var prefab =
+                    manager.LiquidParticlePrefabs[
+                        GetVisualPrefabIndex(manager, nextWorldByte)];
                 manager.LiquidParticlePrefabs.Add(prefab);
 
                 var clone = Object.Instantiate(prefab, manager.transform);
@@ -326,18 +353,21 @@ namespace CUCoreLib.Registries
             if (manager == null) return false;
             EnsureVisualCapacity(manager);
 
-            var particles = LiquidParticlesField?.GetValue(manager) as List<ParticleSystem>;
-            if (particles == null || particles.Count == 0) return false;
+            if (!(LiquidParticlesField?.GetValue(manager) is List<ParticleSystem>
+                    particles)
+                || particles.Count == 0) return false;
 
             var range = manager.SimulationRange();
 
-            if (_renderParticleBuffers == null || _renderParticleBuffers.Length != particles.Count)
+            if (_renderParticleBuffers == null
+                || _renderParticleBuffers.Length != particles.Count)
             {
                 _renderParticleBuffers = new ParticleSystem.Particle[particles.Count][];
                 _renderParticleCounts = new int[particles.Count];
                 for (var i = 0; i < _renderParticleBuffers.Length; i++)
                     _renderParticleBuffers[i] = new ParticleSystem.Particle[64];
             }
+
             for (var i = 0; i < _renderParticleCounts.Length; i++)
                 _renderParticleCounts[i] = 0;
             var byType = _renderParticleBuffers;
@@ -348,6 +378,7 @@ namespace CUCoreLib.Registries
                 _renderColors = new Color[byType.Length];
                 _renderColorResolved = new bool[byType.Length];
             }
+
             Array.Clear(_renderColorResolved, 0, _renderColorResolved.Length);
 
             var world = WorldGeneration.world;
@@ -371,13 +402,14 @@ namespace CUCoreLib.Registries
                     var index = worldByte - 1;
                     if (index < 0 || index >= byType.Length) continue;
 
-                    var openTop = fluid[x, Math.Min(y + 1, maxY)] == 0 &&
-                                  (fluid[right, y] == 0 || fluid[left, y] == 0);
+                    var openTop = fluid[x, Math.Min(y + 1, maxY)] == 0
+                        && (fluid[right, y] == 0 || fluid[left, y] == 0);
                     if (!_renderColorResolved[index])
                     {
-                        _renderColors[index] = TryGetDisplayColor(worldByte, out var customColor)
-                            ? customColor
-                            : Color.white;
+                        _renderColors[index] =
+                            TryGetDisplayColor(worldByte, out var customColor)
+                                ? customColor
+                                : Color.white;
                         _renderColorResolved[index] = true;
                     }
 
@@ -389,14 +421,19 @@ namespace CUCoreLib.Registries
                         list = enlarged;
                         byType[index] = list;
                     }
+
                     list[counts[index]++] = new ParticleSystem.Particle
                     {
-                        position = world.BlockToWorldPos(new Vector2Int(x, y)) +
-                                   (openTop ? new Vector2(0f, -0.3125f) : Vector2.zero),
+                        position = world.BlockToWorldPos(new Vector2Int(x, y))
+                            + (openTop
+                                ? new Vector2(0f, -0.3125f)
+                                : Vector2.zero),
                         startLifetime = 999f,
                         remainingLifetime = 999f,
                         startColor = _renderColors[index],
-                        startSize3D = new Vector2(1.25f, openTop ? 0.625f : 1.25f)
+                        startSize3D = new Vector2(1.25f, openTop
+                            ? 0.625f
+                            : 1.25f)
                     };
                 }
             }
@@ -432,7 +469,8 @@ namespace CUCoreLib.Registries
 
         public static void RegisterBuiltIns()
         {
-            SaveRegistry.RegisterWorldProvider("cucorelib.liquidTiles", new BuiltInLiquidTileSaveProvider());
+            SaveRegistry.RegisterWorldProvider("cucorelib.liquidTiles",
+                new BuiltInLiquidTileSaveProvider());
         }
 
         internal static JObject CaptureDefinitionSnapshot()
@@ -465,7 +503,8 @@ namespace CUCoreLib.Registries
                     ["maxFloodFill"] = info.MaxFloodFill,
                     ["consumeOnDrink"] = info.ConsumeOnDrink,
                     ["consumeOnFill"] = info.ConsumeOnFill,
-                    ["visualSprite"] = NetworkSnapshotSerialization.WriteSprite(info.VisualSprite)
+                    ["visualSprite"] =
+                        NetworkSnapshotSerialization.WriteSprite(info.VisualSprite)
                 };
             }
 
@@ -483,7 +522,9 @@ namespace CUCoreLib.Registries
         internal static JObject CaptureWorldStateSnapshot()
         {
             var root = new JObject();
-            if (FluidManager.main == null || WorldGeneration.world == null || FluidManager.main.fluid == null)
+            if (FluidManager.main == null
+                || WorldGeneration.world == null
+                || FluidManager.main.fluid == null)
                 return root;
 
             var cells = new JArray();
@@ -507,17 +548,21 @@ namespace CUCoreLib.Registries
             return root;
         }
 
-        internal static Dictionary<string, CustomLiquidTileInfo> CaptureOwnerEntries(string ownerId)
+        internal static Dictionary<string, CustomLiquidTileInfo> CaptureOwnerEntries(
+            string ownerId)
         {
             if (string.IsNullOrWhiteSpace(ownerId))
-                return new Dictionary<string, CustomLiquidTileInfo>(StringComparer.OrdinalIgnoreCase);
+                return new Dictionary<string, CustomLiquidTileInfo>(StringComparer
+                    .OrdinalIgnoreCase);
 
             return TileOwners.GetKeys(ownerId)
                 .Where(id => RegisteredTiles.TryGetValue(id, out _))
-                .ToDictionary(id => id, id => RegisteredTiles[id], StringComparer.OrdinalIgnoreCase);
+                .ToDictionary(id => id, id => RegisteredTiles[id],
+                    StringComparer.OrdinalIgnoreCase);
         }
 
-        internal static void RestoreOwnerEntries(string ownerId, IDictionary<string, CustomLiquidTileInfo> entries)
+        internal static void RestoreOwnerEntries(string ownerId,
+            IDictionary<string, CustomLiquidTileInfo> entries)
         {
             if (entries == null || entries.Count == 0) return;
             foreach (var entry in entries) Register(entry.Key, entry.Value);
@@ -544,7 +589,11 @@ namespace CUCoreLib.Registries
             }
 
             if (ids.Length > 0)
-                result?.AddInfo("Cleared " + ids.Length + " liquid tile registrations owned by '" + normalizedOwnerId + "'.");
+                result?.AddInfo("Cleared "
+                    + ids.Length
+                    + " liquid tile registrations owned by '"
+                    + normalizedOwnerId
+                    + "'.");
         }
 
         private static void ApplyDefinitionSnapshot(JObject snapshot)
@@ -564,21 +613,27 @@ namespace CUCoreLib.Registries
                     Drag = obj.Value<float?>("drag") ?? 0.915f,
                     PushBodies = obj.Value<bool?>("pushBodies") ?? true,
                     WetnessPerSecond = obj.Value<float?>("wetnessPerSecond") ?? 20f,
-                    TemperaturePerSecond = obj.Value<float?>("temperaturePerSecond") ?? 0f,
+                    TemperaturePerSecond =
+                        obj.Value<float?>("temperaturePerSecond") ?? 0f,
                     SicknessPerSecond = obj.Value<float?>("sicknessPerSecond") ?? 0f,
                     DirtynessPerSecond = obj.Value<float?>("dirtynessPerSecond") ?? 0f,
                     DisinfectPerSecond = obj.Value<float?>("disinfectPerSecond") ?? 0f,
                     SlipPerSecond = obj.Value<float?>("slipPerSecond") ?? 0f,
-                    RagdollBarDrainPerSecond = obj.Value<float?>("ragdollBarDrainPerSecond") ?? 0f,
-                    VisualMode = (LiquidTileVisualMode)(obj.Value<int?>("visualMode") ?? 0),
-                    ExistingVisualLiquidByte = (byte)(obj.Value<int?>("existingVisualLiquidByte") ?? 1),
-                    Tint = NetworkSnapshotSerialization.ReadColor(obj["tint"], Color.white),
+                    RagdollBarDrainPerSecond =
+                        obj.Value<float?>("ragdollBarDrainPerSecond") ?? 0f,
+                    VisualMode =
+                        (LiquidTileVisualMode)(obj.Value<int?>("visualMode") ?? 0),
+                    ExistingVisualLiquidByte =
+                        (byte)(obj.Value<int?>("existingVisualLiquidByte") ?? 1),
+                    Tint = NetworkSnapshotSerialization.ReadColor(obj["tint"],
+                        Color.white),
                     SpawnAmount = obj.Value<float?>("spawnAmount") ?? 0f,
                     SpawnLayers = obj.Value<int?>("spawnLayers") ?? AllSpawnLayersMask,
                     MaxFloodFill = obj.Value<int?>("maxFloodFill") ?? 128,
                     ConsumeOnDrink = obj.Value<bool?>("consumeOnDrink") ?? true,
                     ConsumeOnFill = obj.Value<bool?>("consumeOnFill") ?? true,
-                    VisualSprite = NetworkSnapshotSerialization.ReadSprite(obj["visualSprite"]),
+                    VisualSprite =
+                        NetworkSnapshotSerialization.ReadSprite(obj["visualSprite"]),
                     VisualMaterial = localInfo?.VisualMaterial,
                     HighResImage = localInfo?.HighResImage,
                     OnDrinkOverride = localInfo?.OnDrinkOverride,
@@ -591,7 +646,10 @@ namespace CUCoreLib.Registries
 
         private static void ApplyWorldStateSnapshot(JObject snapshot)
         {
-            if (snapshot == null || FluidManager.main == null || WorldGeneration.world == null || FluidManager.main.fluid == null)
+            if (snapshot == null
+                || FluidManager.main == null
+                || WorldGeneration.world == null
+                || FluidManager.main.fluid == null)
                 return;
 
             ClearCustomWorldBytes();
@@ -603,14 +661,17 @@ namespace CUCoreLib.Registries
                 var y = token.Value<int?>("y") ?? -1;
                 var worldByte = (byte)(token.Value<int?>("b") ?? 0);
                 if (!IsCustomWorldByte(worldByte)) continue;
-                if (x < 0 || y < 0 || x >= FluidManager.main.fluid.GetLength(0) ||
-                    y >= FluidManager.main.fluid.GetLength(1)) continue;
+                if (x < 0
+                    || y < 0
+                    || x >= FluidManager.main.fluid.GetLength(0)
+                    || y >= FluidManager.main.fluid.GetLength(1)) continue;
 
                 FluidManager.main.fluid[x, y] = worldByte;
             }
         }
 
-        private static bool CanSpawnInLayer(CustomLiquidTileInfo definition, int biomeDepth)
+        private static bool CanSpawnInLayer(CustomLiquidTileInfo definition,
+            int biomeDepth)
         {
             if (definition == null) return false;
 
@@ -622,23 +683,26 @@ namespace CUCoreLib.Registries
             return layerMask != 0 && (spawnLayers & layerMask) != 0;
         }
 
-        private static void ApplyBuiltInTouch(Body body, CustomLiquidTileInfo info, float deltaTime)
+        private static void ApplyBuiltInTouch(Body body, CustomLiquidTileInfo info,
+            float deltaTime)
         {
             if (body == null || info == null) return;
 
             var dt = Mathf.Max(0f, deltaTime);
-            body.wetness = Mathf.Clamp(body.wetness + info.WetnessPerSecond * dt, 0f, 100f);
+            body.wetness =
+                Mathf.Clamp(body.wetness + info.WetnessPerSecond * dt, 0f, 100f);
             body.temperature += info.TemperaturePerSecond * dt;
             body.sicknessAmount += info.SicknessPerSecond * dt;
             body.dirtyness += info.DirtynessPerSecond * dt;
-            body.liquidSlipTime = Mathf.Clamp01(body.liquidSlipTime + info.SlipPerSecond * dt);
-            body.liquidRagdollBar = Mathf.Clamp01(body.liquidRagdollBar - info.RagdollBarDrainPerSecond * dt);
+            body.liquidSlipTime =
+                Mathf.Clamp01(body.liquidSlipTime + info.SlipPerSecond * dt);
+            body.liquidRagdollBar =
+                Mathf.Clamp01(body.liquidRagdollBar - info.RagdollBarDrainPerSecond * dt);
             if (info.DisinfectPerSecond != 0f && body.limbs != null)
-            {
                 foreach (var limb in body.limbs)
                     if (limb != null)
-                        limb.SetDisinfect(Mathf.Max(limb.disinfectionTime, info.DisinfectPerSecond * dt));
-            }
+                        limb.SetDisinfect(Mathf.Max(limb.disinfectionTime,
+                            info.DisinfectPerSecond * dt));
         }
 
         private static void QueueWorldBroadcast()
@@ -651,7 +715,9 @@ namespace CUCoreLib.Registries
         {
             if (TileIdToWorldByte.ContainsKey(id)) return;
 
-            for (var candidate = FirstCustomWorldByte; candidate < byte.MaxValue; candidate++)
+            for (var candidate = FirstCustomWorldByte;
+                candidate < byte.MaxValue;
+                candidate++)
             {
                 if (WorldByteToTileId.ContainsKey(candidate)) continue;
 
@@ -660,7 +726,8 @@ namespace CUCoreLib.Registries
                 return;
             }
 
-            throw new InvalidOperationException("CUCoreLib ran out of available custom liquid bytes.");
+            throw new InvalidOperationException(
+                "CUCoreLib ran out of available custom liquid bytes.");
         }
 
         private static void RegisterVanillaMappings()
@@ -683,7 +750,8 @@ namespace CUCoreLib.Registries
         {
             foreach (var entry in TileIdToWorldByte)
             {
-                if (!RegisteredTiles.TryGetValue(entry.Key, out var info) || info == null) continue;
+                if (!RegisteredTiles.TryGetValue(entry.Key, out var info) || info == null)
+                    continue;
                 FluidManager.WorldFluidToLiquidID[entry.Value] = info.FillLiquidId;
             }
         }
@@ -695,16 +763,19 @@ namespace CUCoreLib.Registries
             var maxAssigned = GetMaxAssignedWorldByte();
             if (maxAssigned <= 6) return;
 
-            if (manager.liquidColors != null && manager.liquidColors.Length <= maxAssigned)
+            if (manager.liquidColors != null
+                && manager.liquidColors.Length <= maxAssigned)
                 Array.Resize(ref manager.liquidColors, maxAssigned + 1);
 
-            var particles = LiquidParticlesField?.GetValue(manager) as List<ParticleSystem>;
-            if (particles == null) return;
+            if (!(LiquidParticlesField?.GetValue(manager) is List<ParticleSystem>
+                particles)) return;
 
             while (manager.LiquidParticlePrefabs.Count <= maxAssigned)
             {
                 var nextWorldByte = (byte)manager.LiquidParticlePrefabs.Count;
-                var prefab = manager.LiquidParticlePrefabs[GetVisualPrefabIndex(manager, nextWorldByte)];
+                var prefab =
+                    manager.LiquidParticlePrefabs[
+                        GetVisualPrefabIndex(manager, nextWorldByte)];
                 manager.LiquidParticlePrefabs.Add(prefab);
 
                 var clone = Object.Instantiate(prefab, manager.transform);
@@ -715,20 +786,26 @@ namespace CUCoreLib.Registries
 
         private static int GetVisualPrefabIndex(FluidManager manager, byte worldByte)
         {
-            if (manager == null || manager.LiquidParticlePrefabs == null || manager.LiquidParticlePrefabs.Count == 0)
+            if (manager == null
+                || manager.LiquidParticlePrefabs == null
+                || manager.LiquidParticlePrefabs.Count == 0)
                 return 0;
 
             if (!TryGetTileInfo(worldByte, out var info) || info == null)
                 return 0;
 
-            var requestedByte = info.ExistingVisualLiquidByte <= 0 ? (byte)1 : info.ExistingVisualLiquidByte;
-            if (requestedByte >= FirstCustomWorldByte && TryGetTileInfo(requestedByte, out var chainedInfo) &&
-                chainedInfo != null)
+            var requestedByte = info.ExistingVisualLiquidByte <= 0
+                ? (byte)1
+                : info.ExistingVisualLiquidByte;
+            if (requestedByte >= FirstCustomWorldByte
+                && TryGetTileInfo(requestedByte, out var chainedInfo)
+                && chainedInfo != null)
                 requestedByte = chainedInfo.ExistingVisualLiquidByte <= 0
                     ? (byte)1
                     : chainedInfo.ExistingVisualLiquidByte;
 
-            var prefabIndex = Mathf.Clamp(requestedByte - 1, 0, manager.LiquidParticlePrefabs.Count - 1);
+            var prefabIndex = Mathf.Clamp(requestedByte - 1, 0,
+                manager.LiquidParticlePrefabs.Count - 1);
             return prefabIndex;
         }
 
@@ -767,14 +844,20 @@ namespace CUCoreLib.Registries
                     }
 
                     break;
+                case LiquidTileVisualMode.ExistingLiquidPlusTint:
+                    break;
+                default:
+                    throw new ArgumentOutOfRangeException();
             }
         }
 
-        private static Color ResolveDisplayColor(byte worldByte, CustomLiquidTileInfo info)
+        private static Color ResolveDisplayColor(
+            byte worldByte,
+            CustomLiquidTileInfo info)
         {
             var baseColor = Color.white;
-            if (!string.IsNullOrWhiteSpace(info.LiquidId) &&
-                Liquids.Registry.TryGetValue(info.LiquidId, out var liquid))
+            if (!string.IsNullOrWhiteSpace(info.LiquidId)
+                && Liquids.Registry.TryGetValue(info.LiquidId, out var liquid))
                 baseColor = liquid.color;
 
             return new Color(
@@ -787,28 +870,32 @@ namespace CUCoreLib.Registries
         private static bool TryGetTileInfo(byte worldByte, out CustomLiquidTileInfo info)
         {
             info = null;
-            return WorldByteToTileId.TryGetValue(worldByte, out var id) && RegisteredTiles.TryGetValue(id, out info);
+            return WorldByteToTileId.TryGetValue(worldByte, out var id)
+                && RegisteredTiles.TryGetValue(id, out info);
         }
 
-        private static bool ResolveDrinkLiquidType(CustomLiquidTileInfo info, out LiquidType liquidType)
+        private static bool ResolveDrinkLiquidType(CustomLiquidTileInfo info,
+            out LiquidType liquidType)
         {
             liquidType = null;
-            return info != null && !string.IsNullOrWhiteSpace(info.LiquidId) &&
-                   Liquids.Registry.TryGetValue(info.LiquidId, out liquidType);
+            return info != null
+                && !string.IsNullOrWhiteSpace(info.LiquidId)
+                && Liquids.Registry.TryGetValue(info.LiquidId, out liquidType);
         }
 
         private static bool LiquidExists(string id)
         {
-            return !string.IsNullOrWhiteSpace(id) &&
-                   (LiquidRegistry.TryGetCustomInfo(id, out _) || Liquids.Registry.ContainsKey(id));
+            return !string.IsNullOrWhiteSpace(id)
+                && (LiquidRegistry.TryGetCustomInfo(id, out _)
+                    || Liquids.Registry.ContainsKey(id));
         }
 
         private static int GetMaxAssignedWorldByte()
         {
             // A loop rather than Keys.Max: this runs on every fluid render pass, and LINQ allocates.
             var max = 0;
-            foreach (var key in WorldByteToTileId.Keys)
-                if (key > max) max = key;
+            foreach (var key in WorldByteToTileId.Keys.Where(key => key > max))
+                max = key;
             return max;
         }
 
@@ -833,7 +920,8 @@ namespace CUCoreLib.Registries
 
         public static bool IsCustomWorldByte(byte worldByte)
         {
-            return worldByte >= FirstCustomWorldByte && WorldByteToTileId.ContainsKey(worldByte);
+            return worldByte >= FirstCustomWorldByte
+                && WorldByteToTileId.ContainsKey(worldByte);
         }
 
         internal static void ClearWorldState()
@@ -843,22 +931,30 @@ namespace CUCoreLib.Registries
 
         private static void ClearCustomWorldBytes()
         {
-            var fluid = FluidManager.main != null ? FluidManager.main.fluid : null;
+            var fluid = FluidManager.main != null
+                ? FluidManager.main.fluid
+                : null;
             if (fluid == null) return;
 
             for (var x = 0; x < fluid.GetLength(0); x++)
-            for (var y = 0; y < fluid.GetLength(1); y++)
-                if (IsCustomWorldByte(fluid[x, y]))
-                    fluid[x, y] = 0;
+                for (var y = 0; y < fluid.GetLength(1); y++)
+                    if (IsCustomWorldByte(fluid[x, y]))
+                        fluid[x, y] = 0;
         }
 
-        private static void WarnUnknownLogicalLiquid(string tileId, string liquidId, string field)
+        private static void WarnUnknownLogicalLiquid(string tileId, string liquidId,
+            string field)
         {
             var key = tileId + "|" + field + "|" + liquidId;
             if (!WarnedUnknownLiquidIds.Add(key)) return;
 
-            CUCoreLibPlugin.Log?.LogWarning("Liquid tile '" + tileId + "' references unknown liquid '" + liquidId +
-                                            "' in " + field + ".");
+            CUCoreLibPlugin.Log?.LogWarning("Liquid tile '"
+                + tileId
+                + "' references unknown liquid '"
+                + liquidId
+                + "' in "
+                + field
+                + ".");
         }
 
         private static void LogSummary()
@@ -866,18 +962,21 @@ namespace CUCoreLib.Registries
             if (_summaryLogged || RegisteredTiles.Count == 0) return;
 
             _summaryLogged = true;
-            CUCoreLibPlugin.Log?.LogInfo("Added " + RegisteredTiles.Count + " liquid tiles.");
+            CUCoreLibPlugin.Log?.LogInfo("Added "
+                + RegisteredTiles.Count
+                + " liquid tiles.");
         }
 
         public static bool IsRegistered(string id)
         {
-            return !string.IsNullOrWhiteSpace(id) && RegisteredTiles.ContainsKey(id.Trim());
+            return !string.IsNullOrWhiteSpace(id)
+                && RegisteredTiles.ContainsKey(id.Trim());
         }
 
         private sealed class LiquidTileTouchState
         {
-            public byte WorldByte;
             public Vector2Int BlockPosition;
+            public byte WorldByte;
         }
     }
 }
