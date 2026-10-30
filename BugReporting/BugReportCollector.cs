@@ -14,7 +14,9 @@ namespace CUCoreLib.BugReporting
     {
         private const int BepInExLogLimitBytes = 1024 * 1024;
         private const int ConsoleLogLimitBytes = 256 * 1024;
-        private static readonly Regex TmpTagPattern = new Regex("<[^>]+>", RegexOptions.Compiled);
+
+        private static readonly Regex TmpTagPattern =
+            new Regex("<[^>]+>", RegexOptions.Compiled);
 
         internal static BugReportPackage Collect(BugReportRequest request)
         {
@@ -27,9 +29,9 @@ namespace CUCoreLib.BugReporting
                 GameVersion = Application.version,
                 OperatingSystem = SystemInfo.operatingSystem,
                 SceneName = SceneManager.GetActiveScene().name,
-                IsWorldActive = WorldGeneration.world != null &&
-                                PlayerCamera.main != null &&
-                                PlayerCamera.main.body != null
+                IsWorldActive = WorldGeneration.world != null
+                    && PlayerCamera.main != null
+                    && PlayerCamera.main.body != null
             };
 
             report.Attachments.Add(new BugReportAttachment(
@@ -37,11 +39,13 @@ namespace CUCoreLib.BugReporting
 
             var log = ReadBepInExLog();
             if (log != null)
-                report.Attachments.Add(new BugReportAttachment("bepinex-log.txt", "text/plain", log));
+                report.Attachments.Add(new BugReportAttachment("bepinex-log.txt",
+                    "text/plain", log));
 
             var console = ReadConsoleLog();
             if (console != null)
-                report.Attachments.Add(new BugReportAttachment("console-log.txt", "text/plain", console));
+                report.Attachments.Add(new BugReportAttachment("console-log.txt",
+                    "text/plain", console));
 
             return report;
         }
@@ -50,17 +54,22 @@ namespace CUCoreLib.BugReporting
         {
             var plugins = Chainloader.PluginInfos.Values
                 .Where(plugin => plugin != null)
-                .OrderBy(plugin => plugin.Metadata?.Name ?? plugin.Metadata?.GUID ?? string.Empty)
+                .OrderBy(plugin =>
+                    plugin.Metadata?.Name ?? plugin.Metadata?.GUID ?? string.Empty)
                 .Select(plugin =>
                 {
-                    var name = plugin.Metadata?.Name ?? plugin.Metadata?.GUID ?? "Unknown Plugin";
+                    var name = plugin.Metadata?.Name
+                        ?? plugin.Metadata?.GUID ?? "Unknown Plugin";
                     var version = plugin.Metadata?.Version?.ToString() ?? "unknown";
                     var guid = plugin.Metadata?.GUID ?? "unknown.guid";
                     return name + " v" + version + " (" + guid + ")";
                 }).ToList();
 
-            return "Loaded mods (" + plugins.Count + "):" + Environment.NewLine +
-                   string.Join(Environment.NewLine, plugins);
+            return "Loaded mods ("
+                + plugins.Count
+                + "):"
+                + Environment.NewLine
+                + string.Join(Environment.NewLine, plugins);
         }
 
         private static byte[] ReadBepInExLog()
@@ -71,7 +80,7 @@ namespace CUCoreLib.BugReporting
                 if (!File.Exists(path)) return null;
 
                 using (var stream = new FileStream(path, FileMode.Open, FileAccess.Read,
-                           FileShare.ReadWrite | FileShare.Delete))
+                    FileShare.ReadWrite | FileShare.Delete))
                 {
                     var length = (int)Math.Min(stream.Length, BepInExLogLimitBytes);
                     if (stream.Length > length) stream.Seek(-length, SeekOrigin.End);
@@ -91,7 +100,8 @@ namespace CUCoreLib.BugReporting
             }
             catch (Exception ex)
             {
-                CUCoreLibPlugin.Log?.LogWarning("Could not collect the BepInEx log for a bug report: " + ex.Message);
+                CUCoreLibPlugin.Log?.LogWarning(
+                    "Could not collect the BepInEx log for a bug report: " + ex.Message);
                 return null;
             }
         }
@@ -104,7 +114,8 @@ namespace CUCoreLib.BugReporting
                 if (logs == null || logs.Count == 0) return null;
 
                 var plainText = string.Join(Environment.NewLine,
-                    logs.Select(line => TmpTagPattern.Replace(line ?? string.Empty, string.Empty)));
+                    logs.Select(line =>
+                        TmpTagPattern.Replace(line ?? string.Empty, string.Empty)));
                 var bytes = Encoding.UTF8.GetBytes(plainText);
                 if (bytes.Length <= ConsoleLogLimitBytes) return bytes;
 
@@ -112,8 +123,9 @@ namespace CUCoreLib.BugReporting
             }
             catch (Exception ex)
             {
-                CUCoreLibPlugin.Log?.LogWarning("Could not collect the in-game console log for a bug report: " +
-                                                ex.Message);
+                CUCoreLibPlugin.Log?.LogWarning(
+                    "Could not collect the in-game console log for a bug report: "
+                    + ex.Message);
                 return null;
             }
         }
