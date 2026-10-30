@@ -11,6 +11,7 @@ namespace CUCoreLib
     public class UpdateChecker : MonoBehaviour
     {
         private const string ApiUrl = "https://api.github.com/repos/jimmyking9999999/CUCoreLib/releases/latest";
+
         private const string UserAgent = "CUCoreLib";
 
         private static ManualLogSource _logger;
@@ -26,8 +27,9 @@ namespace CUCoreLib
             _initialized = true;
             _logger = logger;
 
-            if (Chainloader.PluginInfos.TryGetValue(CUCoreLibPlugin.GUID, out var pluginInfo) &&
-                pluginInfo?.Metadata?.Version != null)
+            if (Chainloader.PluginInfos.TryGetValue(CUCoreLibPlugin.GUID,
+                    out var pluginInfo)
+                && pluginInfo?.Metadata?.Version != null)
                 _currentVersion = "v" + pluginInfo.Metadata.Version;
             else
                 _currentVersion = "v" + CUCoreLibPlugin.VERSION;
@@ -36,10 +38,10 @@ namespace CUCoreLib
             DontDestroyOnLoad(go);
             go.hideFlags = HideFlags.HideAndDontSave;
             _instance = go.AddComponent<UpdateChecker>();
-            _instance.StartCoroutine(_instance.CheckForUpdates());
+            _instance.StartCoroutine(CheckForUpdates());
         }
 
-        private IEnumerator CheckForUpdates()
+        private static IEnumerator CheckForUpdates()
         {
             if (_hasChecked) yield break;
 
@@ -60,17 +62,21 @@ namespace CUCoreLib
                 var latestTag = TryExtractTagName(request.downloadHandler.text);
                 if (string.IsNullOrWhiteSpace(latestTag))
                 {
-                    yield return Notify("CUCoreLib could not read the latest release version.");
+                    yield return Notify(
+                        "CUCoreLib could not read the latest release version.");
                     yield break;
                 }
 
                 if (IsNewer(_currentVersion, latestTag))
                 {
-                    yield return Notify($"CUCoreLib update available! {_currentVersion} -> {latestTag}", true);
+                    yield return Notify(
+                        $"CUCoreLib update available! {_currentVersion} -> {latestTag}",
+                        true);
                     yield break;
                 }
 
-                yield return Notify($"CUCoreLib is up to date! Current: {_currentVersion}, Latest: {latestTag}");
+                yield return Notify(
+                    $"CUCoreLib is up to date! Current: {_currentVersion}, Latest: {latestTag}");
             }
         }
 
@@ -94,8 +100,8 @@ namespace CUCoreLib
             var normalizedCurrent = NormalizeVersion(current);
             var normalizedLatest = NormalizeVersion(latest);
 
-            if (Version.TryParse(normalizedCurrent, out var currentVersion) &&
-                Version.TryParse(normalizedLatest, out var latestVersion))
+            if (Version.TryParse(normalizedCurrent, out var currentVersion)
+                && Version.TryParse(normalizedLatest, out var latestVersion))
                 return latestVersion > currentVersion;
 
             return false;
@@ -106,7 +112,7 @@ namespace CUCoreLib
             return (version ?? string.Empty).Trim().TrimStart('v', 'V');
         }
 
-        private IEnumerator Notify(string message, bool warning = false)
+        public static IEnumerator Notify(string message, bool warning = false)
         {
             if (warning)
                 _logger?.LogWarning(message);
@@ -116,20 +122,20 @@ namespace CUCoreLib
             ConsoleScript console = null;
             var attempts = 0;
 
-            while (console == null && attempts < 50)
+            while (!console && attempts < 50)
             {
-                console = ConsoleScript.instance != null
+                console = ConsoleScript.instance
                     ? ConsoleScript.instance
                     : FindObjectOfType<ConsoleScript>();
 
-                if (console == null)
+                if (!console)
                 {
                     attempts++;
                     yield return new WaitForSecondsRealtime(0.2f);
                 }
             }
 
-            if (console != null)
+            if (console)
             {
                 var consoleMessage = warning
                     ? "<color=#FFA500>" + message + "</color>"
