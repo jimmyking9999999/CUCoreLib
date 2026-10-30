@@ -8,7 +8,8 @@ namespace CUCoreLib.Patches
     internal static class WorldGenerationStructurePatches
     {
         [HarmonyPostfix]
-        private static IEnumerator DistributeRegisteredStructures(IEnumerator __result, WorldGeneration __instance)
+        private static IEnumerator DistributeRegisteredStructures(IEnumerator __result,
+            WorldGeneration __instance)
         {
             return StructureRegistry.GenerateRegisteredStructures(__result, __instance);
         }

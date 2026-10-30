@@ -47,7 +47,8 @@ namespace CUCoreLib.Patches
         {
             foreach (var id in BuildingEntityRegistry.GetRegisteredIds())
             {
-                if (!BuildingEntityRegistry.TryGetDefinition(id, out var definition)) continue;
+                if (!BuildingEntityRegistry.TryGetDefinition(id, out var definition))
+                    continue;
                 if (definition.GenerationStyle == BuildingGenerationStyle.None) continue;
 
                 BuildingEntityRegistry.DistributeInWorld(id, __instance);

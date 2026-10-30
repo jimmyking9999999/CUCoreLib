@@ -16,11 +16,13 @@ namespace CUCoreLib.Patches
 
         private static MethodBase TargetMethod()
         {
-            return AccessTools.Method("Utils:Create", new[] { typeof(string), typeof(Vector2), typeof(float) });
+            return AccessTools.Method("Utils:Create",
+                new[] { typeof(string), typeof(Vector2), typeof(float) });
         }
 
         [HarmonyPrefix]
-        private static bool CreateItemFallback(string id, Vector2 pos, float rot, ref GameObject __result)
+        private static bool CreateItemFallback(string id, Vector2 pos, float rot,
+            ref GameObject __result)
         {
             if (string.IsNullOrWhiteSpace(id)) return true;
 
@@ -28,7 +30,9 @@ namespace CUCoreLib.Patches
 
             if (!ItemRegistry.RegisteredItems.ContainsKey(id)
                 && !BuildingEntityRegistry.IsRegistered(id)) return true;
-            __result = CustomInstantiate.InstantiateReturn(id, pos, Quaternion.Euler(0f, 0f, rot));
+            __result =
+                CustomInstantiate.InstantiateReturn(id, pos,
+                    Quaternion.Euler(0f, 0f, rot));
             return false;
         }
     }

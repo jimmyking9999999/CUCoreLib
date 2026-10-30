@@ -43,7 +43,8 @@ namespace CUCoreLib.Patches
         [HarmonyPrefix]
         private static bool FixRecipeIcon(Recipe __instance, ref (Sprite, Color) __result)
         {
-            if (__instance?.result == null || string.IsNullOrWhiteSpace(__instance.result.id))
+            if (__instance?.result == null
+                || string.IsNullOrWhiteSpace(__instance.result.id))
             {
                 __result = (ItemRegistry.GetMissingItemIcon(), Color.white);
                 return false;
@@ -68,7 +69,8 @@ namespace CUCoreLib.Patches
             }
 
             var customSprite = AssetLoader.GetCachedSprite(__instance.result.id);
-            if (!ItemRegistry.IsValidIcon(customSprite)) ItemRegistry.TryGetIcon(__instance.result.id, out customSprite);
+            if (!ItemRegistry.IsValidIcon(customSprite))
+                ItemRegistry.TryGetIcon(__instance.result.id, out customSprite);
 
             if (customSprite != null)
             {
@@ -99,7 +101,8 @@ namespace CUCoreLib.Patches
         [HarmonyPatch(typeof(Recipe), nameof(Recipe.GetItemsForRecipe))]
         [HarmonyPrefix]
         [HarmonyPriority(Priority.Last)]
-        private static bool MatchRecipeFromCachedPool(Recipe __instance, ref List<Item> __result, bool __runOriginal)
+        private static bool MatchRecipeFromCachedPool(Recipe __instance,
+            ref List<Item> __result, bool __runOriginal)
         {
             if (!__runOriginal || !cacheRecipeItemPool) return __runOriginal;
             __result = MatchRecipeItems(__instance, false);
@@ -109,7 +112,8 @@ namespace CUCoreLib.Patches
         [HarmonyPatch(typeof(Recipe), nameof(Recipe.GetItemsForRecipeThorough))]
         [HarmonyPrefix]
         [HarmonyPriority(Priority.Last)]
-        private static bool MatchRecipeThoroughFromCachedPool(Recipe __instance, ref List<Item> __result,
+        private static bool MatchRecipeThoroughFromCachedPool(Recipe __instance,
+            ref List<Item> __result,
             bool __runOriginal)
         {
             if (!__runOriginal || !cacheRecipeItemPool) return __runOriginal;
@@ -123,8 +127,10 @@ namespace CUCoreLib.Patches
             {
                 var body = PlayerCamera.main.body;
                 recipeItemPool = body.GetAllItemsThorough();
-                foreach (var hit in Physics2D.OverlapCircleAll(body.transform.position, 10f, LayerMask.GetMask("Item")))
-                    if (hit.TryGetComponent<Item>(out var nearby) && body.DoPickupCheck(nearby, true))
+                foreach (var hit in Physics2D.OverlapCircleAll(body.transform.position,
+                    10f, LayerMask.GetMask("Item")))
+                    if (hit.TryGetComponent<Item>(out var nearby)
+                        && body.DoPickupCheck(nearby, true))
                         recipeItemPool.Add(nearby);
             }
 
@@ -180,15 +186,19 @@ namespace CUCoreLib.Patches
         [HarmonyPostfix]
         private static void ApplySelectedRecipeAnimation(PlayerCamera __instance)
         {
-            if (__instance == null || __instance.craftingPanel == null || Recipes.recipes == null) return;
+            if (__instance == null
+                || __instance.craftingPanel == null
+                || Recipes.recipes == null) return;
 
             var selectedRecipe = __instance.selectedRecipe;
             if (selectedRecipe < 0 || selectedRecipe >= Recipes.recipes.Count) return;
 
             var recipe = Recipes.recipes[selectedRecipe];
-            if (recipe?.result == null || string.IsNullOrWhiteSpace(recipe.result.id)) return;
+            if (recipe?.result == null
+                || string.IsNullOrWhiteSpace(recipe.result.id)) return;
 
-            var image = __instance.craftingPanel.transform.GetChild(6).GetComponent<Image>();
+            var image = __instance.craftingPanel.transform.GetChild(6)
+                .GetComponent<Image>();
             AssetLoader.TryApplyAnimation(image, recipe.result.id);
         }
 
@@ -198,13 +208,15 @@ namespace CUCoreLib.Patches
         {
             // I don't like rewriting the entire method, but it was this or ILCode.. 
             // Here's hoping it doesn't break other mods :p
-            if (__instance == null || __instance.isLiquid ||
-                !ItemRegistry.RegisteredItems.ContainsKey(__instance.id)) return true;
+            if (__instance == null
+                || __instance.isLiquid
+                || !ItemRegistry.RegisteredItems.ContainsKey(__instance.id)) return true;
 
             // Vanilla fail
             var skillDiff = PlayerCamera.main.body.skills.INT - recipeInt;
             var conditionMult = 1f;
-            if (skillDiff < 0 && Random.value < 0.5f) conditionMult = Random.Range(0.2f, 0.9f);
+            if (skillDiff < 0 && Random.value < 0.5f)
+                conditionMult = Random.Range(0.2f, 0.9f);
 
             for (var j = 0; j < __instance.amount; j++)
             {
@@ -219,13 +231,14 @@ namespace CUCoreLib.Patches
                     PlayerCamera.main.body.AutoPickUpItem(component);
                     KrokMpCompatibilityPatches.EnsureItemNetworkRegistered(resultObj);
 
-                    if (!__instance.dontDrainResultLiquid &&
-                        component.TryGetComponent<WaterContainerItem>(out var wat))
+                    if (!__instance.dontDrainResultLiquid
+                        && component.TryGetComponent<WaterContainerItem>(out var wat))
                         wat.stack = new List<LiquidStack>();
                 }
                 else
                 {
-                    CUCoreLibPlugin.Log.LogError($"Failed to craftspawn '{__instance.id}'!");
+                    CUCoreLibPlugin.Log.LogError(
+                        $"Failed to craftspawn '{__instance.id}'!");
                 }
             }
 
