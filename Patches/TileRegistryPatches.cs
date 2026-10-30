@@ -32,8 +32,13 @@ namespace CUCoreLib.Patches
             return false;
         }
 
-        [HarmonyPatch(typeof(WorldGeneration), nameof(WorldGeneration.DamageBlock), typeof(Vector2Int), typeof(float),
-            typeof(bool), typeof(bool), typeof(bool))]
+        [HarmonyPatch(typeof(WorldGeneration),
+            nameof(WorldGeneration.DamageBlock),
+            typeof(Vector2Int),
+            typeof(float),
+            typeof(bool),
+            typeof(bool),
+            typeof(bool))]
         [HarmonyPrefix]
         private static void TrackCustomTileBreak(
             WorldGeneration __instance,
@@ -57,12 +62,21 @@ namespace CUCoreLib.Patches
             };
         }
 
-        [HarmonyPatch(typeof(WorldGeneration), nameof(WorldGeneration.DamageBlock), typeof(Vector2Int), typeof(float),
-            typeof(bool), typeof(bool), typeof(bool))]
+        [HarmonyPatch(typeof(WorldGeneration),
+            nameof(WorldGeneration.DamageBlock),
+            typeof(Vector2Int),
+            typeof(float),
+            typeof(bool),
+            typeof(bool),
+            typeof(bool))]
         [HarmonyPostfix]
-        private static void SpawnCustomTileDrops(WorldGeneration __instance, Vector2Int pos, BreakDropState __state)
+        private static void SpawnCustomTileDrops(WorldGeneration __instance,
+            Vector2Int pos, BreakDropState __state)
         {
-            if (__state == null || !__state.ShouldSpawn || __instance == null || __instance.GetBlock(pos) != 0) return;
+            if (__state == null
+                || !__state.ShouldSpawn
+                || __instance == null
+                || __instance.GetBlock(pos) != 0) return;
 
             // Multiplayer clients replay block damage from the server for visuals only. KrokMP defaults to
             // its Client mode before a transport starts, so only suppress drops during an active session.

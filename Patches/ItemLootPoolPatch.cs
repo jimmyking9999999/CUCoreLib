@@ -27,28 +27,34 @@ namespace CUCoreLib.Patches
             }
             catch
             {
+                // ignored
             }
 
             var injectedCount = 0;
-            foreach (var item in ItemRegistry.RegisteredItems.OrderBy(item => item.Key, StringComparer.Ordinal).ToArray())
+            foreach (var item in ItemRegistry.RegisteredItems
+                .OrderBy(item => item.Key, StringComparer.Ordinal).ToArray())
                 try
                 {
                     injectedCount += EnsureItemInLootPool(item.Key, item.Value);
                 }
                 catch
                 {
+                    // ignored
                 }
 
             if (injectedCount <= 0) return;
 
             if (!hasLoggedInjection) hasLoggedInjection = true;
 
-            CUCoreLibPlugin.Log.LogInfo($"LootPool injected {injectedCount} custom items.");
+            CUCoreLibPlugin.Log.LogInfo(
+                $"LootPool injected {injectedCount} custom items.");
         }
 
         internal static int EnsureItemInLootPool(string id, ItemInfo def)
         {
-            if (ItemLootPool.pool == null || string.IsNullOrWhiteSpace(id) || def == null) return 0;
+            if (ItemLootPool.pool == null
+                || string.IsNullOrWhiteSpace(id)
+                || def == null) return 0;
 
             RemoveExistingEntries(id);
 
@@ -57,11 +63,14 @@ namespace CUCoreLib.Patches
             var category = def.category;
             if (string.IsNullOrEmpty(category) || category == "nospawn") return 0;
 
-            if (!ItemLootPool.pool.ContainsKey(category)) ItemLootPool.pool.Add(category, new List<string>());
+            if (!ItemLootPool.pool.ContainsKey(category))
+                ItemLootPool.pool.Add(category, new List<string>());
 
             var frequency = 1;
             if (def is CustomItemInfo customInfo)
-                frequency = DropPoolRegistry.GetEntryCount(id, customInfo, "category:" + category);
+                frequency =
+                    DropPoolRegistry.GetEntryCount(id, customInfo,
+                        "category:" + category);
 
             for (var i = 0; i < frequency; i++) ItemLootPool.pool[category].Add(id);
 
@@ -73,7 +82,8 @@ namespace CUCoreLib.Patches
             if (ItemLootPool.pool == null || string.IsNullOrWhiteSpace(id)) return;
 
             foreach (var poolItems in ItemLootPool.pool.Values)
-                poolItems.RemoveAll(itemId => string.Equals(itemId, id, StringComparison.OrdinalIgnoreCase));
+                poolItems.RemoveAll(itemId =>
+                    string.Equals(itemId, id, StringComparison.OrdinalIgnoreCase));
         }
     }
 }

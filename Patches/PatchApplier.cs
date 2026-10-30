@@ -59,12 +59,16 @@ namespace CUCoreLib.Patches
         // Discover attributes
         private static bool HasPatchAttribute(Type type)
         {
-            if (type.GetCustomAttributes(typeof(HarmonyPatch), false).Length > 0) return true;
+            if (type.GetCustomAttributes(typeof(HarmonyPatch), false).Length > 0)
+                return true;
 
-            return type.GetMethods(BindingFlags.Public | BindingFlags.NonPublic |
-                                   BindingFlags.Instance | BindingFlags.Static |
-                                   BindingFlags.DeclaredOnly)
-                .Any(method => method.GetCustomAttributes(typeof(HarmonyPatch), false).Length > 0);
+            return type.GetMethods(BindingFlags.Public
+                    | BindingFlags.NonPublic
+                    | BindingFlags.Instance
+                    | BindingFlags.Static
+                    | BindingFlags.DeclaredOnly)
+                .Any(method =>
+                    method.GetCustomAttributes(typeof(HarmonyPatch), false).Length > 0);
         }
     }
 }

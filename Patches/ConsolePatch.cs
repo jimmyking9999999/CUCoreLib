@@ -11,13 +11,14 @@ using CUCoreLib.Registries;
 using HarmonyLib;
 using Newtonsoft.Json.Linq;
 using UnityEngine;
+using Random = UnityEngine.Random;
 
 namespace CUCoreLib.Patches
 {
     [HarmonyPatch(typeof(ConsoleScript), "RegisterAllCommands")]
     internal static class ConsolePatch
     {
-        private static readonly System.Reflection.FieldInfo RegisteredSpawnEntitiesField =
+        private static readonly FieldInfo RegisteredSpawnEntitiesField =
             AccessTools.Field(typeof(ConsoleScript), "registeredSpawnEntities");
 
         private static Command healCommand;
@@ -39,24 +40,31 @@ namespace CUCoreLib.Patches
 
         internal static void RefreshStatusFieldAutofill()
         {
-            var body = PlayerCamera.main != null ? PlayerCamera.main.body : null;
+            var body = PlayerCamera.main != null
+                ? PlayerCamera.main.body
+                : null;
             if (body == null) return;
 
             var limbStatusFields = new List<string>();
             if (body.limbs != null)
                 foreach (var limb in body.limbs)
                     if (limb != null)
-                        limbStatusFields.AddRange(BuildStatusFieldAutofill(StatusRegistry.EnumerateLimbStatuses(limb)));
+                        limbStatusFields.AddRange(
+                            BuildStatusFieldAutofill(
+                                StatusRegistry.EnumerateLimbStatuses(limb)));
 
             ReplaceStatusFieldAutofill(ConsoleScript.SearchExact("setbodyfield"), 0,
                 BuildStatusFieldAutofill(StatusRegistry.EnumerateBodyStatuses(body)));
-            ReplaceStatusFieldAutofill(ConsoleScript.SearchExact("setlimbfield"), 1, limbStatusFields);
+            ReplaceStatusFieldAutofill(ConsoleScript.SearchExact("setlimbfield"), 1,
+                limbStatusFields);
         }
 
-        private static void ReplaceStatusFieldAutofill(Command command, int argumentIndex, IEnumerable<string> values)
+        private static void ReplaceStatusFieldAutofill(Command command, int argumentIndex,
+            IEnumerable<string> values)
         {
             if (command == null || values == null) return;
-            if (command.argAutofill == null) command.argAutofill = new Dictionary<int, List<string>>();
+            if (command.argAutofill == null)
+                command.argAutofill = new Dictionary<int, List<string>>();
             if (!command.argAutofill.TryGetValue(argumentIndex, out var entries))
                 command.argAutofill[argumentIndex] = entries = new List<string>();
 
@@ -65,7 +73,8 @@ namespace CUCoreLib.Patches
             entries.RemoveAll(entry => entry.Contains("."));
 
             foreach (var value in values)
-                if (!entries.Contains(value, StringComparer.OrdinalIgnoreCase)) entries.Add(value);
+                if (!entries.Contains(value, StringComparer.OrdinalIgnoreCase))
+                    entries.Add(value);
         }
 
         private static IEnumerable<string> BuildStatusFieldAutofill<TStatus>(
@@ -75,9 +84,12 @@ namespace CUCoreLib.Patches
 
             foreach (var entry in statuses)
             {
-                if (entry.Key == null || entry.Value == null || entry.Key == typeof(BodyFormulaData)) continue;
+                if (entry.Key == null
+                    || entry.Value == null
+                    || entry.Key == typeof(BodyFormulaData)) continue;
 
-                foreach (var field in entry.Key.GetFields(BindingFlags.Instance | BindingFlags.Public))
+                foreach (var field in entry.Key.GetFields(BindingFlags.Instance
+                    | BindingFlags.Public))
                     if (field.FieldType.IsPrimitive)
                         yield return entry.Key.Name + "." + field.Name;
             }
@@ -86,11 +98,16 @@ namespace CUCoreLib.Patches
         [HarmonyPostfix]
         private static void AddBuiltInCommands(ConsoleScript __instance)
         {
-            var existingCustomSpawn = ConsoleScript.Commands.FirstOrDefault(c => c.name == "cuspawn");
-            if (existingCustomSpawn != null) ConsoleScript.Commands.Remove(existingCustomSpawn);
-            var existingSpawnCategory = ConsoleScript.Commands.FirstOrDefault(c => c.name == "spawncategory");
-            if (existingSpawnCategory != null) ConsoleScript.Commands.Remove(existingSpawnCategory);
-            var existingSetTile = ConsoleScript.Commands.FirstOrDefault(c => c.name == "settile");
+            var existingCustomSpawn =
+                ConsoleScript.Commands.FirstOrDefault(c => c.name == "cuspawn");
+            if (existingCustomSpawn != null)
+                ConsoleScript.Commands.Remove(existingCustomSpawn);
+            var existingSpawnCategory =
+                ConsoleScript.Commands.FirstOrDefault(c => c.name == "spawncategory");
+            if (existingSpawnCategory != null)
+                ConsoleScript.Commands.Remove(existingSpawnCategory);
+            var existingSetTile =
+                ConsoleScript.Commands.FirstOrDefault(c => c.name == "settile");
             if (existingSetTile != null) ConsoleScript.Commands.Remove(existingSetTile);
 
             ConsoleScript.Commands.Add(new Command("spawncategory",
@@ -99,39 +116,55 @@ namespace CUCoreLib.Patches
                 {
                     CUCoreUtils.ConsoleCheckForWorld(__instance);
                     if (args == null || args.Length < 2)
-                        throw new Exception("Usage: spawncategory [category] [position] [modGUID]");
+                        throw new Exception(
+                            "Usage: spawncategory [category] [position] [modGUID]");
 
                     var category = args[1];
-                    Vector2 position = Camera.main.ScreenToWorldPoint(Input.mousePosition);
-                    if (args.Length > 2)
-                        position = ParsePositionOrThrow(__instance, args[2]);
-
-                    var modGuid = args.Length > 3 ? args[3] : null;
-                    var items = string.Equals(category, "modded", StringComparison.OrdinalIgnoreCase)
-                        ? GetModdedSpawnCategoryIds(modGuid)
-                        : (ItemLootPool.AllItemsFromPool(category) ??
-                           throw new Exception("Invalid item category \"" + category + "\"."))
-                        .Select(entry => entry.Item1);
-
-                    items = items
-                        .Select(SpawnIdHelpers.NormalizeSpawnId)
-                        .Where(id => !string.IsNullOrWhiteSpace(id) && !BuildingEntityRegistry.IsRegistered(id))
-                        .Distinct(StringComparer.OrdinalIgnoreCase)
-                        .ToList();
-
-                    foreach (var itemId in items)
+                    if (Camera.main != null)
                     {
-                        var obj = Utils.Create(itemId,
-                            position + UnityEngine.Random.insideUnitCircle * 3f, 0f);
-                        var body = obj != null ? obj.GetComponent<Rigidbody2D>() : null;
-                        if (body != null) body.gravityScale = 0f;
-                    }
+                        Vector2 position =
+                            Camera.main.ScreenToWorldPoint(Input.mousePosition);
+                        if (args.Length > 2)
+                            position = ParsePositionOrThrow(__instance, args[2]);
 
-                    CUCoreUtils.ConsoleLog(__instance,
-                        $"Spawned all items from category \"{category}\" at {position}.");
-                }, BuildSpawnCategoryAutofill(), ("category", "The ID of the category to spawn from."),
+                        var modGuid = args.Length > 3
+                            ? args[3]
+                            : null;
+                        var items = string.Equals(category, "modded",
+                            StringComparison.OrdinalIgnoreCase)
+                            ? GetModdedSpawnCategoryIds(modGuid)
+                            : (ItemLootPool.AllItemsFromPool(category)
+                                ?? throw new Exception("Invalid item category \""
+                                    + category
+                                    + "\"."))
+                            .Select(entry => entry.Item1);
+
+                        items = items
+                            .Select(SpawnIdHelpers.NormalizeSpawnId)
+                            .Where(id =>
+                                !string.IsNullOrWhiteSpace(id)
+                                && !BuildingEntityRegistry.IsRegistered(id))
+                            .Distinct(StringComparer.OrdinalIgnoreCase)
+                            .ToList();
+
+                        foreach (var itemId in items)
+                        {
+                            var obj = Utils.Create(itemId,
+                                position + Random.insideUnitCircle * 3f, 0f);
+                            var body = obj != null
+                                ? obj.GetComponent<Rigidbody2D>()
+                                : null;
+                            if (body != null) body.gravityScale = 0f;
+                        }
+
+                        CUCoreUtils.ConsoleLog(__instance,
+                            $"Spawned all items from category \"{category}\" at {position}.");
+                    }
+                }, BuildSpawnCategoryAutofill(),
+                ("category", "The ID of the category to spawn from."),
                 ("position", "Where to spawn the item"),
-                ("modGUID", "Optional BepInEx plugin GUID filter for the modded category. Use normal for no filter.")));
+                ("modGUID",
+                    "Optional BepInEx plugin GUID filter for the modded category. Use normal for no filter.")));
 
             ConsoleScript.Commands.Add(new Command("cuspawn",
                 "Spawns a vanilla prefab or CUCoreLib-registered item/building.",
@@ -140,32 +173,44 @@ namespace CUCoreLib.Patches
                     if (args.Length < 2) throw new Exception("Usage: cuspawn [id]");
 
                     var query = args[1];
-                    Vector2 pos = Camera.main.ScreenToWorldPoint(Input.mousePosition);  // maybe null
-                    if (args.Length > 2 && TryParsePosition(__instance, args[2], out var parsedPosition))
-                        pos = parsedPosition;
-
-                    float? condition = null;
-                    if (args.Length > 3 && float.TryParse(args[3], out var parsedCondition))
-                        condition = parsedCondition;
-
-                    var count = 1;
-                    if (args.Length > 4) int.TryParse(args[4], out count);
-
-                    var bestMatch = FindBestMatch(query);
-
-                    if (string.IsNullOrEmpty(bestMatch))
-                        throw new Exception($"Could not find entity '{query}'.");
-
-                    var successCount = 0;
-                    for (var i = 0; i < count; i++)
+                    if (Camera.main != null)
                     {
-                        var obj = CustomInstantiate.InstantiateReturn(bestMatch, pos, Quaternion.identity, condition);
-                        if (obj != null) successCount++;
+                        Vector2 pos =
+                            Camera.main.ScreenToWorldPoint(Input
+                                .mousePosition); // maybe null
+                        if (args.Length > 2
+                            && TryParsePosition(__instance, args[2],
+                                out var parsedPosition))
+                            pos = parsedPosition;
+
+                        float? condition = null;
+                        if (args.Length > 3
+                            && float.TryParse(args[3], out var parsedCondition))
+                            condition = parsedCondition;
+
+                        var count = 1;
+                        if (args.Length > 4) int.TryParse(args[4], out count);
+
+                        var bestMatch = FindBestMatch(query);
+
+                        if (string.IsNullOrEmpty(bestMatch))
+                            throw new Exception($"Could not find entity '{query}'.");
+
+                        for (var i = 0; i < count; i++)
+                        {
+                            var obj = CustomInstantiate.InstantiateReturn(bestMatch, pos,
+                                Quaternion.identity, condition);
+                            if (obj != null)
+                            {
+                            }
+                        }
                     }
 
                     // CUCoreLibPlugin.Log.LogInfo($"Spawned {successCount}x '{bestMatch}' at {pos}.");
-                }, BuildCustomSpawnAutofill(), ("id", "Item or object ID."), ("position", "Spawn position."),
-                ("condition", "Item condition."), ("count", "Number of objects to spawn.")));
+                }, BuildCustomSpawnAutofill(), ("id", "Item or object ID."),
+                ("position", "Spawn position."),
+                ("condition", "Item condition."),
+                ("count", "Number of objects to spawn.")));
 
             ConsoleScript.Commands.Add(new Command("settile",
                 "Places a vanilla or CUCoreLib-registered tile at the chosen block position.",
@@ -173,37 +218,54 @@ namespace CUCoreLib.Patches
                 {
                     CUCoreUtils.ConsoleCheckForWorld(__instance);
 
-                    if (args.Length < 2) throw new Exception("Usage: settile [tileIndex or tileId] [position]");
+                    if (args.Length < 2)
+                        throw new Exception(
+                            "Usage: settile [tileIndex or tileId] [position]");
 
                     var customTile = TileRegistry.TryGetIndex(args[1], out var tileIndex);
                     if (!customTile && !ushort.TryParse(args[1], out tileIndex))
-                        throw new Exception($"'{args[1]}' is not a valid tile index or registered tile ID.");
+                        throw new Exception(
+                            $"'{args[1]}' is not a valid tile index or registered tile ID.");
 
-                    Vector2 worldPosition = Camera.main.ScreenToWorldPoint(Input.mousePosition);    // maybe null
-                    if (args.Length > 2 && TryParsePosition(__instance, args[2], out var parsedPosition))
-                        worldPosition = parsedPosition;
-
-                    var blockPosition = WorldGeneration.world.WorldToBlockPos(worldPosition);
-                    string tileLabel;
-                    if (!customTile && tileIndex < TileRegistry.FirstCustomTileIndex)
+                    if (Camera.main != null)
                     {
-                        WorldGeneration.world.SetBlock(blockPosition, tileIndex);
-                        tileLabel = "vanilla";
+                        Vector2 worldPosition =
+                            Camera.main.ScreenToWorldPoint(Input
+                                .mousePosition); // maybe null
+                        if (args.Length > 2
+                            && TryParsePosition(__instance, args[2],
+                                out var parsedPosition))
+                            worldPosition = parsedPosition;
+
+                        var blockPosition =
+                            WorldGeneration.world.WorldToBlockPos(worldPosition);
+                        string tileLabel;
+                        if (!customTile && tileIndex < TileRegistry.FirstCustomTileIndex)
+                        {
+                            WorldGeneration.world.SetBlock(blockPosition, tileIndex);
+                            tileLabel = "vanilla";
+                        }
+                        else
+                        {
+                            if (!TileRegistry.TryGetDefinition(tileIndex,
+                                out var definition))
+                                throw new Exception(
+                                    $"Tile index '{tileIndex}' is not registered.");
+
+                            if (!TileRegistry.SetBlock(WorldGeneration.world,
+                                blockPosition,
+                                tileIndex))
+                                throw new Exception(
+                                    $"Failed to place tile '{tileIndex}' at block {blockPosition}.");
+
+                            tileLabel = definition.ID;
+                        }
+
+                        CUCoreUtils.ConsoleLog(__instance,
+                            $"Placed tile {tileIndex} ({tileLabel}) at {blockPosition.x},{blockPosition.y}.");
                     }
-                    else
-                    {
-                        if (!TileRegistry.TryGetDefinition(tileIndex, out var definition))
-                            throw new Exception($"Tile index '{tileIndex}' is not registered.");
-
-                        if (!TileRegistry.SetBlock(WorldGeneration.world, blockPosition, tileIndex))
-                            throw new Exception($"Failed to place tile '{tileIndex}' at block {blockPosition}.");
-
-                        tileLabel = definition.ID;
-                    }
-
-                    CUCoreUtils.ConsoleLog(__instance,
-                        $"Placed tile {tileIndex} ({tileLabel}) at {blockPosition.x},{blockPosition.y}.");
-                }, BuildSetTileAutofill(), ("tileIndex", "Vanilla index or registered custom tile ID/index."),
+                }, BuildSetTileAutofill(),
+                ("tileIndex", "Vanilla index or registered custom tile ID/index."),
                 ("position", "Tile position.")));
 
             ConsoleCommandRegistry.InjectRegisteredCommands();
@@ -238,8 +300,9 @@ namespace CUCoreLib.Patches
 
         private static bool IsHealCommand(string[] args)
         {
-            return args != null && args.Length > 0 &&
-                   string.Equals(args[0], "heal", StringComparison.OrdinalIgnoreCase);
+            return args != null
+                && args.Length > 0
+                && string.Equals(args[0], "heal", StringComparison.OrdinalIgnoreCase);
         }
 
         private static void HookHealCommand()
@@ -252,7 +315,9 @@ namespace CUCoreLib.Patches
             {
                 originalAction?.Invoke(args);
                 if (!MultiplayerBridge.IsRunning)
-                    PlayerEventPatches.NotifyHeal(PlayerCamera.main != null ? PlayerCamera.main.body : null);
+                    PlayerEventPatches.NotifyHeal(PlayerCamera.main != null
+                        ? PlayerCamera.main.body
+                        : null);
             };
             healCommand = command;
         }
@@ -286,12 +351,18 @@ namespace CUCoreLib.Patches
 
         private static bool TrySetBodyStatusField(ConsoleScript console, string[] args)
         {
-            if (args == null || args.Length < 3 || typeof(Body).GetField(args[1]) != null) return false;
+            if (args == null || args.Length < 3 || typeof(Body).GetField(args[1]) != null)
+                return false;
 
-            var target = args.Length > 3 ? args[3] : null;
-            var body = PlayerCamera.main != null ? PlayerCamera.main.body : null;
-            var resolvesLocally = body != null &&
-                                  IsCustomStatusField(StatusRegistry.EnumerateBodyStatuses(body), args[1]);
+            var target = args.Length > 3
+                ? args[3]
+                : null;
+            var body = PlayerCamera.main != null
+                ? PlayerCamera.main.body
+                : null;
+            var resolvesLocally = body != null
+                && IsCustomStatusField(StatusRegistry.EnumerateBodyStatuses(body),
+                    args[1]);
 
             // No explicit target and not a custom status on the local body: leave it to vanilla (unchanged).
             if (!resolvesLocally && string.IsNullOrWhiteSpace(target)) return false;
@@ -302,10 +373,15 @@ namespace CUCoreLib.Patches
 
         private static bool TrySetLimbStatusField(ConsoleScript console, string[] args)
         {
-            if (args == null || args.Length < 4 || typeof(Limb).GetField(args[2]) != null) return false;
+            if (args == null || args.Length < 4 || typeof(Limb).GetField(args[2]) != null)
+                return false;
 
-            var target = args.Length > 4 ? args[4] : null;
-            var body = PlayerCamera.main != null ? PlayerCamera.main.body : null;
+            var target = args.Length > 4
+                ? args[4]
+                : null;
+            var body = PlayerCamera.main != null
+                ? PlayerCamera.main.body
+                : null;
             var resolvesLocally = BodyHasCustomLimbStatusField(body, args[1], args[2]);
 
             if (!resolvesLocally && string.IsNullOrWhiteSpace(target)) return false;
@@ -314,26 +390,29 @@ namespace CUCoreLib.Patches
             return true;
         }
 
-        private static bool BodyHasCustomLimbStatusField(Body body, string limbQuery, string fieldQuery)
+        private static bool BodyHasCustomLimbStatusField(Body body, string limbQuery,
+            string fieldQuery)
         {
-            if (body == null || body.limbs == null || string.IsNullOrWhiteSpace(limbQuery)) return false;
+            if (body == null
+                || body.limbs == null
+                || string.IsNullOrWhiteSpace(limbQuery)) return false;
 
             if (string.Equals(limbQuery, "all", StringComparison.OrdinalIgnoreCase))
-            {
-                foreach (var limb in body.limbs)
-                    if (limb != null && IsCustomStatusField(StatusRegistry.EnumerateLimbStatuses(limb), fieldQuery))
-                        return true;
-                return false;
-            }
+                return body.limbs.Any(limb => limb != null
+                    && IsCustomStatusField(StatusRegistry.EnumerateLimbStatuses(limb),
+                        fieldQuery));
 
             var limb2 = body.LimbByName(limbQuery);
-            return limb2 != null && IsCustomStatusField(StatusRegistry.EnumerateLimbStatuses(limb2), fieldQuery);
+            return limb2 != null
+                && IsCustomStatusField(StatusRegistry.EnumerateLimbStatuses(limb2),
+                    fieldQuery);
         }
 
         // Custom statuses are host-authoritative: a client's write is forwarded to the host and applied to
         // the host's copy of the target body, then carried back by the normal per-second status poll. On the
         // host (or in singleplayer) the write is applied directly.
-        private static void DispatchStatusField(ConsoleScript console, string slot, string fieldQuery,
+        private static void DispatchStatusField(ConsoleScript console, string slot,
+            string fieldQuery,
             string rawValue, string target)
         {
             if (MultiplayerBridge.IsRunning && !MultiplayerBridge.IsServer)
@@ -346,81 +425,103 @@ namespace CUCoreLib.Patches
                 };
                 if (!string.IsNullOrWhiteSpace(target)) payload["target"] = target;
 
-                if (!MultiplayerApi.RequestServer(MultiplayerSyncRegistry.PlayerStatusSetFieldChannel, payload,
-                        response => CUCoreUtils.ConsoleLog(console,
-                            response?.Value<string>("message") ?? "Set custom status field.")))
-                    CUCoreUtils.ConsoleLog(console, "ERROR: could not reach the host to set the custom status field.");
+                if (!MultiplayerApi.RequestServer(
+                    MultiplayerSyncRegistry.PlayerStatusSetFieldChannel, payload,
+                    response => CUCoreUtils.ConsoleLog(console,
+                        response?.Value<string>("message")
+                        ?? "Set custom status field.")))
+                    CUCoreUtils.ConsoleLog(console,
+                        "ERROR: could not reach the host to set the custom status field.");
                 return;
             }
 
-            CUCoreUtils.ConsoleLog(console, ApplyStatusFieldOnHost(slot, fieldQuery, rawValue, target, 0u));
+            CUCoreUtils.ConsoleLog(console,
+                ApplyStatusFieldOnHost(slot, fieldQuery, rawValue, target, 0u));
         }
 
-        internal static string ApplyStatusFieldOnHost(string slot, string fieldQuery, string rawValue, string target,
+        internal static string ApplyStatusFieldOnHost(string slot, string fieldQuery,
+            string rawValue, string target,
             uint senderClientId)
         {
-            if (string.IsNullOrWhiteSpace(fieldQuery)) return "ERROR: missing status field.";
+            if (string.IsNullOrWhiteSpace(fieldQuery))
+                return "ERROR: missing status field.";
 
             var bodies = ResolveStatusTargetBodies(target, senderClientId);
             if (bodies.Count == 0)
-                return "ERROR: no target player found for \"" + (string.IsNullOrWhiteSpace(target) ? "self" : target) +
-                       "\".";
+                return "ERROR: no target player found for \""
+                    + (string.IsNullOrWhiteSpace(target)
+                        ? "self"
+                        : target)
+                    + "\".";
 
             var applied = 0;
             object lastValue = null;
-            foreach (var body in bodies)
-            {
-                if (body == null) continue;
-
+            foreach (var body in bodies.Where(body => body != null))
                 if (string.Equals(slot, "body", StringComparison.OrdinalIgnoreCase))
                 {
-                    if (TrySetStatusField(StatusRegistry.EnumerateBodyStatuses(body), fieldQuery, rawValue,
-                            out lastValue))
+                    if (TrySetStatusField(StatusRegistry.EnumerateBodyStatuses(body),
+                        fieldQuery, rawValue,
+                        out lastValue))
                         applied++;
                 }
-                else if (ApplyLimbStatusField(body, slot, fieldQuery, rawValue, out lastValue))
+                else if (ApplyLimbStatusField(body, slot, fieldQuery, rawValue,
+                    out lastValue))
                 {
                     applied++;
                 }
-            }
 
             return applied > 0
-                ? "Set custom status field \"" + fieldQuery + "\" to \"" + lastValue + "\" on " + applied +
-                  " target(s)."
-                : "ERROR: no custom status field \"" + fieldQuery + "\" found on the target(s).";
+                ? "Set custom status field \""
+                + fieldQuery
+                + "\" to \""
+                + lastValue
+                + "\" on "
+                + applied
+                + " target(s)."
+                : "ERROR: no custom status field \""
+                + fieldQuery
+                + "\" found on the target(s).";
         }
 
-        private static bool ApplyLimbStatusField(Body body, string limbQuery, string fieldQuery, string rawValue,
+        private static bool ApplyLimbStatusField(Body body, string limbQuery,
+            string fieldQuery, string rawValue,
             out object value)
         {
             value = null;
-            if (body == null || body.limbs == null || string.IsNullOrWhiteSpace(limbQuery)) return false;
+            if (body == null
+                || body.limbs == null
+                || string.IsNullOrWhiteSpace(limbQuery)) return false;
 
             if (string.Equals(limbQuery, "all", StringComparison.OrdinalIgnoreCase))
             {
                 var any = false;
                 foreach (var limb in body.limbs)
-                    if (limb != null && TrySetStatusField(StatusRegistry.EnumerateLimbStatuses(limb), fieldQuery,
+                    if (limb != null
+                        && TrySetStatusField(StatusRegistry.EnumerateLimbStatuses(limb),
+                            fieldQuery,
                             rawValue, out value))
                         any = true;
                 return any;
             }
 
             var target = body.LimbByName(limbQuery);
-            return target != null &&
-                   TrySetStatusField(StatusRegistry.EnumerateLimbStatuses(target), fieldQuery, rawValue, out value);
+            return target != null
+                && TrySetStatusField(StatusRegistry.EnumerateLimbStatuses(target),
+                    fieldQuery, rawValue, out value);
         }
 
-        private static List<Body> ResolveStatusTargetBodies(string target, uint senderClientId)
+        private static List<Body> ResolveStatusTargetBodies(string target,
+            uint senderClientId)
         {
             var result = new List<Body>();
 
             if (string.IsNullOrWhiteSpace(target))
             {
                 // No explicit target: the sender's own body for a forwarded client write, else the local player.
-                Body senderBody;
-                if (senderClientId != 0u && MultiplayerApi.TryGetBodyFromClientId(senderClientId, out senderBody) &&
-                    senderBody != null)
+                if (senderClientId != 0u
+                    && MultiplayerApi.TryGetBodyFromClientId(senderClientId,
+                        out var senderBody)
+                    && senderBody != null)
                     result.Add(senderBody);
                 else if (PlayerCamera.main != null && PlayerCamera.main.body != null)
                     result.Add(PlayerCamera.main.body);
@@ -430,12 +531,13 @@ namespace CUCoreLib.Patches
             if (MultiplayerBridge.IsRunning)
             {
                 var all = string.Equals(target, "@a", StringComparison.OrdinalIgnoreCase);
-                foreach (var player in MultiplayerApi.EnumeratePlayers())
-                {
-                    if (player.Value == null) continue;
-                    if (all || string.Equals(player.Key, target, StringComparison.OrdinalIgnoreCase))
-                        result.Add(player.Value);
-                }
+                result.AddRange(
+                    from player in MultiplayerApi.EnumeratePlayers()
+                    where player.Value != null
+                    where all
+                        || string.Equals(player.Key, target,
+                            StringComparison.OrdinalIgnoreCase)
+                    select player.Value);
 
                 return result;
             }
@@ -446,46 +548,60 @@ namespace CUCoreLib.Patches
             return result;
         }
 
-        private static bool IsCustomStatusField<TStatus>(IEnumerable<KeyValuePair<Type, TStatus>> statuses,
+        private static bool IsCustomStatusField<TStatus>(
+            IEnumerable<KeyValuePair<Type, TStatus>> statuses,
             string fieldQuery) where TStatus : StatusBase
         {
             if (statuses == null || string.IsNullOrWhiteSpace(fieldQuery)) return false;
 
             var separator = fieldQuery.LastIndexOf('.');
-            var statusName = separator > 0 ? fieldQuery.Substring(0, separator) : null;
-            var fieldName = separator > 0 ? fieldQuery.Substring(separator + 1) : fieldQuery;
+            var statusName = separator > 0
+                ? fieldQuery.Substring(0, separator)
+                : null;
+            var fieldName = separator > 0
+                ? fieldQuery.Substring(separator + 1)
+                : fieldQuery;
 
-            foreach (var entry in statuses)
-            {
-                if (entry.Value == null || (statusName != null && !StatusNameMatches(entry.Key, statusName))) continue;
-                if (entry.Key.GetField(fieldName, BindingFlags.Instance | BindingFlags.Public) != null) return true;
-            }
-
-            return false;
+            return statuses.Where(entry => entry.Value != null
+                    && (statusName == null || StatusNameMatches(entry.Key, statusName)))
+                .Any(entry =>
+                    entry.Key.GetField(fieldName,
+                        BindingFlags.Instance | BindingFlags.Public)
+                    != null);
         }
 
-        private static bool TrySetStatusField<TStatus>(IEnumerable<KeyValuePair<Type, TStatus>> statuses,
-            string fieldQuery, string rawValue, out object value) where TStatus : StatusBase
+        private static bool TrySetStatusField<TStatus>(
+            IEnumerable<KeyValuePair<Type, TStatus>> statuses,
+            string fieldQuery, string rawValue, out object value)
+            where TStatus : StatusBase
         {
             value = null;
             if (statuses == null || string.IsNullOrWhiteSpace(fieldQuery)) return false;
 
             var separator = fieldQuery.LastIndexOf('.');
-            var statusName = separator > 0 ? fieldQuery.Substring(0, separator) : null;
-            var fieldName = separator > 0 ? fieldQuery.Substring(separator + 1) : fieldQuery;
+            var statusName = separator > 0
+                ? fieldQuery.Substring(0, separator)
+                : null;
+            var fieldName = separator > 0
+                ? fieldQuery.Substring(separator + 1)
+                : fieldQuery;
             FieldInfo matchedField = null;
             TStatus matchedStatus = null;
 
             foreach (var entry in statuses)
             {
-                if (entry.Value == null || (statusName != null && !StatusNameMatches(entry.Key, statusName))) continue;
+                if (entry.Value == null
+                    || (statusName != null && !StatusNameMatches(entry.Key, statusName)))
+                    continue;
 
-                var field = entry.Key.GetField(fieldName, BindingFlags.Instance | BindingFlags.Public);
+                var field = entry.Key.GetField(fieldName,
+                    BindingFlags.Instance | BindingFlags.Public);
                 if (field == null) continue;
 
                 if (matchedField != null)
-                    throw new Exception("Status field \"" + fieldQuery +
-                                        "\" is ambiguous. Use StatusType.Field to choose one.");
+                    throw new Exception("Status field \""
+                        + fieldQuery
+                        + "\" is ambiguous. Use StatusType.Field to choose one.");
 
                 matchedField = field;
                 matchedStatus = entry.Value;
@@ -493,7 +609,8 @@ namespace CUCoreLib.Patches
 
             if (matchedField == null) return false;
 
-            value = TypeDescriptor.GetConverter(matchedField.FieldType).ConvertFromInvariantString(rawValue);
+            value = TypeDescriptor.GetConverter(matchedField.FieldType)
+                .ConvertFromInvariantString(rawValue);
             matchedField.SetValue(matchedStatus, value);
             return true;
         }
@@ -502,11 +619,15 @@ namespace CUCoreLib.Patches
         {
             if (statusType == null) return false;
 
-            if (string.Equals(statusType.Name, statusName, StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(statusType.FullName, statusName, StringComparison.OrdinalIgnoreCase)) return true;
+            if (string.Equals(statusType.Name, statusName,
+                    StringComparison.OrdinalIgnoreCase)
+                || string.Equals(statusType.FullName, statusName,
+                    StringComparison.OrdinalIgnoreCase)) return true;
 
             var options = statusType.GetCustomAttribute<StatusOptionsAttribute>();
-            return options != null && string.Equals(options.Key, statusName, StringComparison.OrdinalIgnoreCase);
+            return options != null
+                && string.Equals(options.Key, statusName,
+                    StringComparison.OrdinalIgnoreCase);
         }
 
         private static Dictionary<int, List<string>> BuildSpawnAutofill()
@@ -573,7 +694,8 @@ namespace CUCoreLib.Patches
             var spawnCommand = ConsoleScript.SearchExact("spawn");
             if (spawnCommand == null) return;
 
-            if (spawnCommand.argAutofill == null) spawnCommand.argAutofill = new Dictionary<int, List<string>>();
+            if (spawnCommand.argAutofill == null)
+                spawnCommand.argAutofill = new Dictionary<int, List<string>>();
 
             if (!spawnCommand.argAutofill.TryGetValue(0, out var spawnIds))
             {
@@ -581,7 +703,8 @@ namespace CUCoreLib.Patches
                 spawnCommand.argAutofill[0] = spawnIds;
             }
 
-            foreach (var id in BuildSpawnAutofill()[0].Where(id => !spawnIds.Contains(id, StringComparer.OrdinalIgnoreCase)))
+            foreach (var id in BuildSpawnAutofill()[0].Where(id =>
+                !spawnIds.Contains(id, StringComparer.OrdinalIgnoreCase)))
                 spawnIds.Add(id);
         }
 
@@ -615,8 +738,9 @@ namespace CUCoreLib.Patches
         {
             if (console == null) return false;
 
-            return RegisteredSpawnEntitiesField != null && RegisteredSpawnEntitiesField.GetValue(console) is bool registered &&
-                   registered;
+            return RegisteredSpawnEntitiesField != null
+                && RegisteredSpawnEntitiesField.GetValue(console) is bool registered
+                && registered;
         }
 
         private static void RefreshCustomSpawnAutofill()
@@ -635,7 +759,8 @@ namespace CUCoreLib.Patches
             {
                 if (prefab == null) continue;
 
-                if (prefab.GetComponent<Item>() == null && prefab.GetComponent<BuildingEntity>() == null) continue;
+                if (prefab.GetComponent<Item>() == null
+                    && prefab.GetComponent<BuildingEntity>() == null) continue;
 
                 ids.Add(prefab.name);
             }
@@ -652,7 +777,8 @@ namespace CUCoreLib.Patches
                     Enumerable.Range(0, TileRegistry.FirstCustomTileIndex)
                         .Select(index => index.ToString())
                         .Concat(TileRegistry.GetRegisteredIds())
-                        .Concat(TileRegistry.GetRegisteredIndices().Select(index => index.ToString()))
+                        .Concat(TileRegistry.GetRegisteredIndices()
+                            .Select(index => index.ToString()))
                         .Distinct(StringComparer.OrdinalIgnoreCase)
                         .ToList()
                 }
@@ -685,7 +811,8 @@ namespace CUCoreLib.Patches
             };
         }
 
-        private static bool TryGetVanillaTileVisual(ushort tileIndex, out string tileId, out string displayName)
+        private static bool TryGetVanillaTileVisual(ushort tileIndex, out string tileId,
+            out string displayName)
         {
             tileId = null;
             displayName = null;
@@ -900,7 +1027,8 @@ namespace CUCoreLib.Patches
         {
             // 1. Exact Match (Fastest)
             if (ItemRegistry.RegisteredItems.ContainsKey(query)) return query;
-            if (BuildingEntityRegistry.IsRegistered(query) || Resources.Load<GameObject>(query) != null) return query;
+            if (BuildingEntityRegistry.IsRegistered(query)
+                || Resources.Load<GameObject>(query) != null) return query;
 
             // 2. Build List
             var candidates = new List<string>();
@@ -913,10 +1041,12 @@ namespace CUCoreLib.Patches
             return FindClosestMatch(query, candidates);
         }
 
-        private static bool TryParsePosition(ConsoleScript console, string value, out Vector2 position)
+        private static bool TryParsePosition(ConsoleScript console, string value,
+            out Vector2 position)
         {
             position = default;
-            var parsePosition = AccessTools.Method(typeof(ConsoleScript), "ParsePosition", new[] { typeof(string) });
+            var parsePosition = AccessTools.Method(typeof(ConsoleScript), "ParsePosition",
+                new[] { typeof(string) });
             if (console == null || parsePosition == null) return false;
 
             try
@@ -932,19 +1062,23 @@ namespace CUCoreLib.Patches
 
         private static Vector2 ParsePositionOrThrow(ConsoleScript console, string value)
         {
-            var parsePosition = AccessTools.Method(typeof(ConsoleScript), "ParsePosition", new[] { typeof(string) });
+            var parsePosition = AccessTools.Method(typeof(ConsoleScript), "ParsePosition",
+                new[] { typeof(string) });
             if (console == null || parsePosition == null)
                 throw new Exception("Could not access ConsoleScript.ParsePosition().");
 
             return (Vector2)parsePosition.Invoke(console, new object[] { value });
         }
 
-        private static void EnsureArgumentCount(ConsoleScript console, string[] args, int desired)
+        private static void EnsureArgumentCount(ConsoleScript console, string[] args,
+            int desired)
         {
-            var checkArgumentCount = AccessTools.Method(typeof(ConsoleScript), "CheckArgumentCount",
+            var checkArgumentCount = AccessTools.Method(typeof(ConsoleScript),
+                "CheckArgumentCount",
                 new[] { typeof(string[]), typeof(int) });
             if (console == null || checkArgumentCount == null)
-                throw new Exception("Could not access ConsoleScript.CheckArgumentCount().");
+                throw new Exception(
+                    "Could not access ConsoleScript.CheckArgumentCount().");
 
             checkArgumentCount.Invoke(console, new object[] { args, desired });
         }
@@ -955,20 +1089,21 @@ namespace CUCoreLib.Patches
             var normalizedModGuid = NormalizeSpawnCategoryModGuid(modGuid);
             var ownerFilteredIds = normalizedModGuid == null
                 ? null
-                : new HashSet<string>(ItemRegistry.GetRegisteredItemIdsForOwner(normalizedModGuid),
+                : new HashSet<string>(
+                    ItemRegistry.GetRegisteredItemIdsForOwner(normalizedModGuid),
                     StringComparer.OrdinalIgnoreCase);
 
             if (Item.GlobalItems != null)
-                foreach (var id in Item.GlobalItems.Keys)
-                    if (CUCoreUtils.IsModdedItem(id) &&
-                        (ownerFilteredIds == null || ownerFilteredIds.Contains(id)) &&
-                        !moddedIds.Contains(id, StringComparer.OrdinalIgnoreCase))
-                        moddedIds.Add(id);
+                foreach (var id in Item.GlobalItems.Keys.Where(id =>
+                    CUCoreUtils.IsModdedItem(id)
+                    && (ownerFilteredIds == null || ownerFilteredIds.Contains(id))
+                    && !moddedIds.Contains(id, StringComparer.OrdinalIgnoreCase)))
+                    moddedIds.Add(id);
 
             foreach (var id in ItemRegistry.GetRegisteredItemIds())
-                if (CUCoreUtils.IsModdedItem(id) &&
-                    (ownerFilteredIds == null || ownerFilteredIds.Contains(id)) &&
-                    !moddedIds.Contains(id, StringComparer.OrdinalIgnoreCase))
+                if (CUCoreUtils.IsModdedItem(id)
+                    && (ownerFilteredIds == null || ownerFilteredIds.Contains(id))
+                    && !moddedIds.Contains(id, StringComparer.OrdinalIgnoreCase))
                     moddedIds.Add(id);
 
             return moddedIds;
@@ -1022,7 +1157,8 @@ namespace CUCoreLib.Patches
             return bestMatch;
         }
 
-        private static bool TryGetFloodFillVisual(byte liquidByte, out string liquidId, out string displayName)
+        private static bool TryGetFloodFillVisual(byte liquidByte, out string liquidId,
+            out string displayName)
         {
             liquidId = null;
             displayName = null;
@@ -1055,24 +1191,24 @@ namespace CUCoreLib.Patches
                     return true;
             }
 
-            if (!LiquidTileRegistry.TryGetTileId(liquidByte, out liquidId) || string.IsNullOrWhiteSpace(liquidId))
-            {
-                return false;
-            }
+            if (!LiquidTileRegistry.TryGetTileId(liquidByte, out liquidId)
+                || string.IsNullOrWhiteSpace(liquidId)) return false;
 
-            CustomLiquidInfo customInfo;
-            if (LiquidRegistry.TryGetCustomInfo(liquidId, out customInfo) &&
-                customInfo != null &&
-                !string.IsNullOrWhiteSpace(customInfo.name))
+            if (LiquidRegistry.TryGetCustomInfo(liquidId, out var customInfo)
+                && customInfo != null
+                && !string.IsNullOrWhiteSpace(customInfo.name))
             {
                 displayName = customInfo.name;
                 return true;
             }
 
-            LiquidType liquidType;
-            if (Liquids.Registry != null && Liquids.Registry.TryGetValue(liquidId, out liquidType) && liquidType != null)
+            if (Liquids.Registry != null
+                && Liquids.Registry.TryGetValue(liquidId, out var liquidType)
+                && liquidType != null)
             {
-                var localeKey = !string.IsNullOrWhiteSpace(liquidType.localeName) ? liquidType.localeName : liquidId;
+                var localeKey = !string.IsNullOrWhiteSpace(liquidType.localeName)
+                    ? liquidType.localeName
+                    : liquidId;
                 displayName = Locale.GetOther(localeKey);
                 return true;
             }
@@ -1083,16 +1219,14 @@ namespace CUCoreLib.Patches
 
         private static string FormatFloodFillAutofill(string value)
         {
-            byte liquidByte;
-            if (!byte.TryParse(value, out liquidByte)) return value;
+            if (!byte.TryParse(value, out var liquidByte)
+                || !TryGetFloodFillVisual(liquidByte, out var liquidId,
+                    out var displayName)
+                || string.IsNullOrWhiteSpace(liquidId)) return value;
 
-            string liquidId;
-            string displayName;
-            if (!TryGetFloodFillVisual(liquidByte, out liquidId, out displayName) || string.IsNullOrWhiteSpace(liquidId))
-                return value;
-
-            if (string.IsNullOrWhiteSpace(displayName) ||
-                string.Equals(displayName, liquidId, StringComparison.OrdinalIgnoreCase))
+            if (string.IsNullOrWhiteSpace(displayName)
+                || string.Equals(displayName, liquidId,
+                    StringComparison.OrdinalIgnoreCase))
                 return value + " - " + liquidId;
 
             return value + " - " + liquidId + " - " + displayName;
@@ -1100,45 +1234,50 @@ namespace CUCoreLib.Patches
 
         private static string FormatSetTileAutofill(string value)
         {
-            ushort tileIndex;
-            if (!ushort.TryParse(value, out tileIndex)) return value;
+            if (!ushort.TryParse(value, out var tileIndex)) return value;
 
-            string vanillaTileId;
-            string vanillaDisplayName;
-            if (TryGetVanillaTileVisual(tileIndex, out vanillaTileId, out vanillaDisplayName) &&
-                !string.IsNullOrWhiteSpace(vanillaTileId))
+            if (TryGetVanillaTileVisual(tileIndex, out var vanillaTileId,
+                    out var vanillaDisplayName)
+                && !string.IsNullOrWhiteSpace(vanillaTileId))
             {
-                if (string.IsNullOrWhiteSpace(vanillaDisplayName) ||
-                    string.Equals(vanillaDisplayName, vanillaTileId, StringComparison.OrdinalIgnoreCase))
+                if (string.IsNullOrWhiteSpace(vanillaDisplayName)
+                    || string.Equals(vanillaDisplayName, vanillaTileId,
+                        StringComparison.OrdinalIgnoreCase))
                     return value + " - " + vanillaTileId;
 
                 return value + " - " + vanillaTileId + " - " + vanillaDisplayName;
             }
 
-            CustomTileDefinition definition;
-            if (!TileRegistry.TryGetDefinition(tileIndex, out definition) || definition == null ||
-                string.IsNullOrWhiteSpace(definition.ID))
+            if (!TileRegistry.TryGetDefinition(tileIndex, out var definition)
+                || definition == null
+                || string.IsNullOrWhiteSpace(definition.ID))
                 return value;
 
-            if (string.IsNullOrWhiteSpace(definition.Name) ||
-                string.Equals(definition.Name, definition.ID, StringComparison.OrdinalIgnoreCase))
+            if (string.IsNullOrWhiteSpace(definition.Name)
+                || string.Equals(definition.Name, definition.ID,
+                    StringComparison.OrdinalIgnoreCase))
                 return value + " - " + definition.ID;
 
             return value + " - " + definition.ID + " - " + definition.Name;
         }
 
-        private static bool TryGetAutofillFormatter(string commandName, int argumentIndex,
+        private static bool TryGetAutofillFormatter(
+            string commandName,
+            int argumentIndex,
             out Func<string, string> formatter)
         {
             formatter = null;
 
-            if (string.Equals(commandName, "floodfill", StringComparison.OrdinalIgnoreCase) && argumentIndex == 1)
+            if (string.Equals(commandName, "floodfill",
+                    StringComparison.OrdinalIgnoreCase)
+                && argumentIndex == 1)
             {
                 formatter = FormatFloodFillAutofill;
                 return true;
             }
 
-            if (string.Equals(commandName, "settile", StringComparison.OrdinalIgnoreCase) && argumentIndex == 0)
+            if (string.Equals(commandName, "settile", StringComparison.OrdinalIgnoreCase)
+                && argumentIndex == 0)
             {
                 formatter = FormatSetTileAutofill;
                 return true;
@@ -1147,7 +1286,8 @@ namespace CUCoreLib.Patches
             return false;
         }
 
-        private static string FormatAutofillSuggestionLine(string line, Func<string, string> formatter)
+        private static string FormatAutofillSuggestionLine(string line,
+            Func<string, string> formatter)
         {
             if (string.IsNullOrEmpty(line) || formatter == null) return line;
 
@@ -1155,8 +1295,8 @@ namespace CUCoreLib.Patches
             var suffix = string.Empty;
             var content = line;
 
-            while (content.StartsWith("<color=", StringComparison.Ordinal) ||
-                   content.StartsWith("</color>", StringComparison.Ordinal))
+            while (content.StartsWith("<color=", StringComparison.Ordinal)
+                || content.StartsWith("</color>", StringComparison.Ordinal))
             {
                 if (content.StartsWith("<color=", StringComparison.Ordinal))
                 {
@@ -1179,7 +1319,9 @@ namespace CUCoreLib.Patches
             }
 
             var formatted = formatter(content);
-            return string.Equals(formatted, content, StringComparison.Ordinal) ? line : prefix + formatted + suffix;
+            return string.Equals(formatted, content, StringComparison.Ordinal)
+                ? line
+                : prefix + formatted + suffix;
         }
 
         public static int LevenshteinDistance(string s, string t)
@@ -1200,13 +1342,15 @@ namespace CUCoreLib.Patches
             }
 
             for (var i = 1; i <= n; i++)
-            for (var j = 1; j <= m; j++)
-            {
-                var cost = t[j - 1] == s[i - 1] ? 0 : 1;
-                d[i, j] = Math.Min(
-                    Math.Min(d[i - 1, j] + 1, d[i, j - 1] + 1),
-                    d[i - 1, j - 1] + cost);
-            }
+                for (var j = 1; j <= m; j++)
+                {
+                    var cost = t[j - 1] == s[i - 1]
+                        ? 0
+                        : 1;
+                    d[i, j] = Math.Min(
+                        Math.Min(d[i - 1, j] + 1, d[i, j - 1] + 1),
+                        d[i - 1, j - 1] + cost);
+                }
 
             return d[n, m];
         }
@@ -1225,18 +1369,22 @@ namespace CUCoreLib.Patches
 
         private static bool IsStatusFieldCommand(string commandName)
         {
-            return string.Equals(commandName, "setbodyfield", StringComparison.OrdinalIgnoreCase) ||
-                   string.Equals(commandName, "setlimbfield", StringComparison.OrdinalIgnoreCase);
+            return string.Equals(commandName, "setbodyfield",
+                    StringComparison.OrdinalIgnoreCase)
+                || string.Equals(commandName, "setlimbfield",
+                    StringComparison.OrdinalIgnoreCase);
         }
 
         [HarmonyPatch(typeof(ConsoleScript), "HandleDescriptionText")]
         [HarmonyPostfix]
         private static void LabelCommandAutofill(ConsoleScript __instance, string[] args)
         {
-            if (__instance?.descriptionText == null || args == null || args.Length < 2) return;
+            if (__instance?.descriptionText == null
+                || args == null
+                || args.Length < 2) return;
 
-            Func<string, string> formatter;
-            if (!TryGetAutofillFormatter(args[0], args.Length - 2, out formatter)) return;
+            if (!TryGetAutofillFormatter(args[0], args.Length - 2, out var formatter))
+                return;
 
             var text = __instance.descriptionText.text;
             var newlineIndex = text.IndexOf('\n');
@@ -1246,7 +1394,8 @@ namespace CUCoreLib.Patches
             for (var i = 0; i < lines.Length; i++)
                 lines[i] = FormatAutofillSuggestionLine(lines[i], formatter);
 
-            __instance.descriptionText.text = text.Substring(0, newlineIndex + 1) + string.Join("\n", lines);
+            __instance.descriptionText.text = text.Substring(0, newlineIndex + 1)
+                + string.Join("\n", lines);
         }
 
         [HarmonyPatch(typeof(ConsoleScript), "RegisterPlayerDetails")]
@@ -1256,9 +1405,8 @@ namespace CUCoreLib.Patches
             private static void Prefix()
             {
                 var spawnCategoryCommand = ConsoleScript.SearchExact("spawncategory");
-                if (spawnCategoryCommand?.argAutofill == null) return;
 
-                spawnCategoryCommand.argAutofill.Remove(0);
+                spawnCategoryCommand?.argAutofill?.Remove(0);
             }
 
             [HarmonyPostfix]

@@ -14,7 +14,9 @@ namespace CUCoreLib.Patches
         [HarmonyPrefix]
         private static void AddAllMoodles_Prefix(MoodleManager __instance)
         {
-            var body = PlayerCamera.main != null ? PlayerCamera.main.body : null;
+            var body = PlayerCamera.main != null
+                ? PlayerCamera.main.body
+                : null;
             if (__instance == null || body == null) return;
 
             MoodleRegistry.AddQueuedMoodles(__instance, true);
@@ -34,7 +36,8 @@ namespace CUCoreLib.Patches
         // Sadly needed to ensure custom moodles can be placed in both the important and nonimportant moodles
         // PRs welcome :)
         [HarmonyTranspiler]
-        private static IEnumerable<CodeInstruction> AddAllMoodles_Transpiler(IEnumerable<CodeInstruction> instructions)
+        private static IEnumerable<CodeInstruction> AddAllMoodles_Transpiler(
+            IEnumerable<CodeInstruction> instructions)
         {
             var codes = new List<CodeInstruction>(instructions);
             for (var i = 0; i < codes.Count; i++)
@@ -42,17 +45,22 @@ namespace CUCoreLib.Patches
                 var instruction = codes[i];
                 yield return instruction;
 
-                if (instruction.opcode != OpCodes.Ldc_I4_1 || i + 1 >= codes.Count ||
-                    codes[i + 1].opcode != OpCodes.Stfld || !(codes[i + 1].operand is FieldInfo field) ||
-                    field.Name != "sideMoodles") continue;
+                if (instruction.opcode != OpCodes.Ldc_I4_1
+                    || i + 1 >= codes.Count
+                    || codes[i + 1].opcode != OpCodes.Stfld
+                    || !(codes[i + 1].operand is FieldInfo field)
+                    || field.Name != "sideMoodles") continue;
                 yield return new CodeInstruction(OpCodes.Ldarg_0);
-                yield return CodeInstruction.Call(typeof(MoodleManagerPatches), nameof(AddSideCustomMoodles));
+                yield return CodeInstruction.Call(typeof(MoodleManagerPatches),
+                    nameof(AddSideCustomMoodles));
             }
         }
 
         private static void AddSideCustomMoodles(MoodleManager manager)
         {
-            var body = PlayerCamera.main != null ? PlayerCamera.main.body : null;
+            var body = PlayerCamera.main != null
+                ? PlayerCamera.main.body
+                : null;
             if (manager == null || body == null) return;
 
             MoodleRegistry.AddQueuedMoodles(manager, false);
@@ -83,8 +91,8 @@ namespace CUCoreLib.Patches
                     break;
                 }
 
-            if (!MoodleRegistry.TryGetAnimationId(iconKey, out var animationId) ||
-                string.IsNullOrWhiteSpace(animationId)) return;
+            if (!MoodleRegistry.TryGetAnimationId(iconKey, out var animationId)
+                || string.IsNullOrWhiteSpace(animationId)) return;
 
             if (__instance.transform.childCount == 0) return;
 

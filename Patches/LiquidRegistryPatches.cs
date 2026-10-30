@@ -13,7 +13,8 @@ namespace CUCoreLib.Patches
             AccessTools.Field(typeof(Liquids), nameof(Liquids.Registry));
 
         private static readonly MethodInfo GetMiniBarrelLiquidsMethod =
-            AccessTools.Method(typeof(LiquidRegistry), nameof(LiquidRegistry.GetMiniBarrelLiquids));
+            AccessTools.Method(typeof(LiquidRegistry),
+                nameof(LiquidRegistry.GetMiniBarrelLiquids));
 
         [HarmonyPatch(typeof(Liquids), nameof(Liquids.LiquidExists))]
         [HarmonyPostfix]
@@ -25,15 +26,18 @@ namespace CUCoreLib.Patches
 
         [HarmonyPatch(typeof(WorldGeneration), "DistributeMiniBarrels")]
         [HarmonyTranspiler]
-        private static IEnumerable<CodeInstruction> ExcludeUnobtainableLiquidsFromMiniBarrels(
-            IEnumerable<CodeInstruction> instructions)
+        private static IEnumerable<CodeInstruction>
+            ExcludeUnobtainableLiquidsFromMiniBarrels(
+                IEnumerable<CodeInstruction> instructions)
         {
             foreach (var instruction in instructions)
             {
-                if (LiquidsRegistryField != null && GetMiniBarrelLiquidsMethod != null &&
-                    instruction.LoadsField(LiquidsRegistryField))
+                if (LiquidsRegistryField != null
+                    && GetMiniBarrelLiquidsMethod != null
+                    && instruction.LoadsField(LiquidsRegistryField))
                 {
-                    yield return new CodeInstruction(OpCodes.Call, GetMiniBarrelLiquidsMethod)
+                    yield return new CodeInstruction(OpCodes.Call,
+                        GetMiniBarrelLiquidsMethod)
                     {
                         labels = instruction.labels,
                         blocks = instruction.blocks

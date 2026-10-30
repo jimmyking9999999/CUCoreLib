@@ -11,14 +11,17 @@ using UnityEngine;
 namespace CUCoreLib.Patches
 {
     /// <summary>
-    /// Optional integration for QoL Unknown's multiplayer client-inventory restore.
-    /// QoL stores vanilla save JSON, but its restore path used Resources.Load directly; that cannot find
-    /// CUCoreLib's runtime custom-item templates and silently drops those entries.
+    ///     Optional integration for QoL Unknown's multiplayer client-inventory restore.
+    ///     QoL stores vanilla save JSON, but its restore path used Resources.Load directly; that cannot find
+    ///     CUCoreLib's runtime custom-item templates and silently drops those entries.
     /// </summary>
     internal static class QoLUnknownCompatibilityPatches
     {
         private const string QoLUnknownPluginGuid = "org.bepinex.plugins.qolunknown";
-        private const string QoLMultiplayerSaveBundleTypeName = "QoL_Unknown.MultiplayerSaveBundle";
+
+        private const string QoLMultiplayerSaveBundleTypeName =
+            "QoL_Unknown.MultiplayerSaveBundle";
+
         private static bool _installed;
         private static bool _retryScheduled;
 
@@ -29,7 +32,8 @@ namespace CUCoreLib.Patches
             var bundleType = ResolveLoadedType(QoLMultiplayerSaveBundleTypeName);
             if (bundleType == null)
             {
-                if (Chainloader.PluginInfos.ContainsKey(QoLUnknownPluginGuid)) ScheduleRetry(harmony);
+                if (Chainloader.PluginInfos.ContainsKey(QoLUnknownPluginGuid))
+                    ScheduleRetry(harmony);
                 return;
             }
 
@@ -40,25 +44,31 @@ namespace CUCoreLib.Patches
                     transpiler: new HarmonyMethod(typeof(QoLUnknownCompatibilityPatches),
                         nameof(ApplySavedItems_Transpiler)));
                 _installed = true;
-                CUCoreLibPlugin.Log?.LogInfo("CUCoreLib installed QoL Unknown custom-item save compatibility.");
+                CUCoreLibPlugin.Log?.LogInfo(
+                    "CUCoreLib installed QoL Unknown custom-item save compatibility.");
                 return;
             }
 
             ScheduleRetry(harmony);
         }
 
-        private static IEnumerable<CodeInstruction> ApplySavedItems_Transpiler(IEnumerable<CodeInstruction> instructions)
+        private static IEnumerable<CodeInstruction> ApplySavedItems_Transpiler(
+            IEnumerable<CodeInstruction> instructions)
         {
-            var resourcesLoad = typeof(Resources).GetMethods(BindingFlags.Public | BindingFlags.Static)
-                .FirstOrDefault(method => method.Name == nameof(Resources.Load) && !method.IsGenericMethod &&
-                                          method.GetParameters().Length == 1 &&
-                                          method.GetParameters()[0].ParameterType == typeof(string));
+            var resourcesLoad = typeof(Resources)
+                .GetMethods(BindingFlags.Public | BindingFlags.Static)
+                .FirstOrDefault(method => method.Name == nameof(Resources.Load)
+                    && !method.IsGenericMethod
+                    && method.GetParameters().Length == 1
+                    && method.GetParameters()[0].ParameterType == typeof(string));
             var resolveSavedResource = AccessTools.Method(typeof(CustomInstantiate),
                 nameof(CustomInstantiate.ResolveSavedResource));
 
             foreach (var instruction in instructions)
             {
-                if (resourcesLoad != null && resolveSavedResource != null && instruction.Calls(resourcesLoad))
+                if (resourcesLoad != null
+                    && resolveSavedResource != null
+                    && instruction.Calls(resourcesLoad))
                 {
                     yield return new CodeInstruction(OpCodes.Call, resolveSavedResource);
                     continue;
