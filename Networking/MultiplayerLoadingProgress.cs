@@ -27,7 +27,9 @@ namespace CUCoreLib.Networking
             if (!MultiplayerBridge.IsAvailable || !MultiplayerBridge.IsServer) return;
 
             if (string.IsNullOrWhiteSpace(label)) label = DefaultLabel;
-            if (label == _lastLabel && current == _lastCurrent && total == _lastTotal) return;
+            if (label == _lastLabel
+                && current == _lastCurrent
+                && total == _lastTotal) return;
 
             var isFinal = total > 0 && current >= total;
             var now = Time.realtimeSinceStartup;
@@ -43,7 +45,7 @@ namespace CUCoreLib.Networking
                 ["label"] = label,
                 ["current"] = current,
                 ["total"] = total
-            }, includeHost: false, reliable: false);
+            }, false, false);
         }
 
         private static void Apply(JToken payload)

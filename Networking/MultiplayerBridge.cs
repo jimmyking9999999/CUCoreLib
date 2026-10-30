@@ -52,8 +52,10 @@ namespace CUCoreLib.Networking
         private static readonly Dictionary<string, Func<JToken, JToken>> ServerHandlers =
             new Dictionary<string, Func<JToken, JToken>>(StringComparer.Ordinal);
 
-        private static readonly Dictionary<string, Func<uint, JToken, JToken>> ServerHandlersWithSender =
-            new Dictionary<string, Func<uint, JToken, JToken>>(StringComparer.Ordinal);
+        private static readonly Dictionary<string, Func<uint, JToken, JToken>>
+            ServerHandlersWithSender =
+                new Dictionary<string, Func<uint, JToken, JToken>>(StringComparer
+                    .Ordinal);
 
         private static readonly Dictionary<string, Action<JToken>> ClientHandlers =
             new Dictionary<string, Action<JToken>>(StringComparer.Ordinal);
@@ -67,8 +69,10 @@ namespace CUCoreLib.Networking
         private static Assembly _krokAssembly;
         private static Type _mpType;
         private static Type _netType;
+
         private static readonly Dictionary<string, PropertyInfo> NetBoolProperties =
             new Dictionary<string, PropertyInfo>(StringComparer.Ordinal);
+
         private static Type _netModeType;
         private static Type _serverMainType;
         private static Type _clientMainType;
@@ -85,7 +89,6 @@ namespace CUCoreLib.Networking
         private static MethodInfo _registerCustomClientReceiverMethod;
         private static MemberInfo _playerIdMember;
         private static bool _playerIdMemberWarned;
-        private static bool _receiversInstalled;
         private static MethodInfo _writerPutStringMethod;
         private static MethodInfo _readerGetStringMethod;
         private static MethodInfo _writerPutUShortMethod;
@@ -109,12 +112,14 @@ namespace CUCoreLib.Networking
 
         public static bool IsAvailable { get; private set; }
 
-        public static bool ReceiversInstalled => _receiversInstalled;
+        public static bool ReceiversInstalled { get; private set; }
 
         internal static Assembly KrokMpAssembly =>
-            _krokAssembly ?? (_krokAssembly = AppDomain.CurrentDomain.GetAssemblies()
+            _krokAssembly
+            ?? (_krokAssembly = AppDomain.CurrentDomain.GetAssemblies()
                 .FirstOrDefault(assembly =>
-                    string.Equals(assembly.GetName().Name, PluginGuid, StringComparison.OrdinalIgnoreCase)));
+                    string.Equals(assembly.GetName().Name, PluginGuid,
+                        StringComparison.OrdinalIgnoreCase)));
 
         public static bool IsRunning => GetNetBool("IsRunning");
         public static bool IsClient => GetNetBool("IsClient");
@@ -130,26 +135,31 @@ namespace CUCoreLib.Networking
             try
             {
                 if (_krokAssembly == null)
-                    _krokAssembly = AppDomain.CurrentDomain.GetAssemblies().FirstOrDefault(assembly =>
-                        assembly.GetType(MpTypeName, false) != null);
+                    _krokAssembly = AppDomain.CurrentDomain.GetAssemblies()
+                        .FirstOrDefault(assembly =>
+                            assembly.GetType(MpTypeName, false) != null);
 
                 var netType = _krokAssembly?.GetType(NetTypeName, false);
-                var running = netType?.GetProperty("IsRunning", BindingFlags.Public | BindingFlags.Static);
+                var running = netType?.GetProperty("IsRunning",
+                    BindingFlags.Public | BindingFlags.Static);
                 if (running?.PropertyType != typeof(bool))
                     return KrokMpSaveScope.Unsupported;
                 if (!GetStaticBool(running))
                     return KrokMpSaveScope.NotActive;
 
-                var isClient = netType.GetProperty("IsClient", BindingFlags.Public | BindingFlags.Static);
+                var isClient = netType.GetProperty("IsClient",
+                    BindingFlags.Public | BindingFlags.Static);
                 if (isClient?.PropertyType == typeof(bool) && GetStaticBool(isClient))
                     return KrokMpSaveScope.Client;
 
                 var savesType = _krokAssembly.GetType(SavesystemPatchTypeName, false);
                 var replacement = savesType?.GetField("savedatapathreplacement",
                     BindingFlags.Public | BindingFlags.Static)?.GetValue(null) as string;
-                var root = savesType?.GetProperty("mpsavefolder", BindingFlags.Public | BindingFlags.Static)
+                var root = savesType?.GetProperty("mpsavefolder",
+                        BindingFlags.Public | BindingFlags.Static)
                     ?.GetValue(null, null) as string;
-                if (string.IsNullOrWhiteSpace(replacement) || string.IsNullOrWhiteSpace(root))
+                if (string.IsNullOrWhiteSpace(replacement)
+                    || string.IsNullOrWhiteSpace(root))
                     return KrokMpSaveScope.Unsupported;
 
                 var normalizedReplacement = Path.GetFullPath(replacement)
@@ -158,11 +168,13 @@ namespace CUCoreLib.Networking
                     .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
                 directory = normalizedReplacement;
 
-                if (string.Equals(normalizedReplacement, normalizedRoot, StringComparison.OrdinalIgnoreCase))
+                if (string.Equals(normalizedReplacement, normalizedRoot,
+                    StringComparison.OrdinalIgnoreCase))
                     return KrokMpSaveScope.Shared;
 
                 var rootPrefix = normalizedRoot + Path.DirectorySeparatorChar;
-                return normalizedReplacement.StartsWith(rootPrefix, StringComparison.OrdinalIgnoreCase)
+                return normalizedReplacement.StartsWith(rootPrefix,
+                    StringComparison.OrdinalIgnoreCase)
                     ? KrokMpSaveScope.Player
                     : KrokMpSaveScope.Unsupported;
             }
@@ -186,7 +198,8 @@ namespace CUCoreLib.Networking
             }
             catch (Exception ex)
             {
-                CUCoreLibPlugin.Log?.LogWarning("CUCoreLib failed to configure KrokMP local identity.\n" + ex);
+                CUCoreLibPlugin.Log?.LogWarning(
+                    "CUCoreLib failed to configure KrokMP local identity.\n" + ex);
                 return false;
             }
         }
@@ -203,7 +216,8 @@ namespace CUCoreLib.Networking
 
         public static bool TryAnnounceGameStart()
         {
-            if (!TryResolveRuntime() || _serverAnnounceGameStartMethod == null) return false;
+            if (!TryResolveRuntime() || _serverAnnounceGameStartMethod == null)
+                return false;
 
             try
             {
@@ -212,7 +226,8 @@ namespace CUCoreLib.Networking
             }
             catch (Exception ex)
             {
-                CUCoreLibPlugin.Log?.LogWarning("CUCoreLib failed to announce KrokMP game start.\n" + ex);
+                CUCoreLibPlugin.Log?.LogWarning(
+                    "CUCoreLib failed to announce KrokMP game start.\n" + ex);
                 return false;
             }
         }
@@ -236,12 +251,15 @@ namespace CUCoreLib.Networking
             ScheduleRetry();
         }
 
-        public static void RegisterServerHandler(string channel, Func<JToken, JToken> handler)
+        public static void RegisterServerHandler(string channel,
+            Func<JToken, JToken> handler)
         {
-            if (!string.IsNullOrWhiteSpace(channel) && handler != null) ServerHandlers[channel.Trim()] = handler;
+            if (!string.IsNullOrWhiteSpace(channel) && handler != null)
+                ServerHandlers[channel.Trim()] = handler;
         }
 
-        internal static void RegisterServerHandler(string channel, Func<uint, JToken, JToken> handler)
+        internal static void RegisterServerHandler(string channel,
+            Func<uint, JToken, JToken> handler)
         {
             if (!string.IsNullOrWhiteSpace(channel) && handler != null)
                 ServerHandlersWithSender[channel.Trim()] = handler;
@@ -249,50 +267,66 @@ namespace CUCoreLib.Networking
 
         public static void RegisterClientHandler(string channel, Action<JToken> handler)
         {
-            if (!string.IsNullOrWhiteSpace(channel) && handler != null) ClientHandlers[channel.Trim()] = handler;
+            if (!string.IsNullOrWhiteSpace(channel) && handler != null)
+                ClientHandlers[channel.Trim()] = handler;
         }
 
-        public static bool SendToServer(string channel, object payload = null, bool reliable = true)
+        public static bool SendToServer(string channel, object payload = null,
+            bool reliable = true)
         {
-            return SendMessage(RequestChannel, channel, "event", payload, reliable, null, 0u, null);
+            return SendMessage(RequestChannel, channel, "event", payload, reliable, null,
+                0u, null);
         }
 
-        public static bool RequestServer(string channel, object payload, Action<JToken> onResponse,
+        public static bool RequestServer(
+            string channel,
+            object payload,
+            Action<JToken> onResponse,
             bool reliable = true)
         {
             var requestId = Guid.NewGuid().ToString("N");
             if (onResponse != null) PendingResponses[requestId] = onResponse;
 
-            var sent = SendMessage(RequestChannel, channel, "request", payload, reliable, requestId, 0u, null);
+            var sent = SendMessage(RequestChannel, channel, "request", payload, reliable,
+                requestId, 0u, null);
             if (!sent) PendingResponses.Remove(requestId);
             return sent;
         }
 
-        public static bool SendToClient(uint clientId, string channel, object payload = null, bool reliable = true)
+        public static bool SendToClient(uint clientId, string channel,
+            object payload = null, bool reliable = true)
         {
-            return SendMessage(ResponseChannel, channel, "event", payload, reliable, null, clientId, null);
+            return SendMessage(ResponseChannel, channel, "event", payload, reliable, null,
+                clientId, null);
         }
 
-        public static bool Broadcast(string channel, object payload = null, bool includeHost = false,
+        public static bool Broadcast(string channel, object payload = null,
+            bool includeHost = false,
             bool reliable = true)
         {
             if (!IsAvailable || !IsServer) return false;
 
-            var targets = includeHost ? GetMemberList("AllClientIds") : GetMemberList("AllClientIdsExceptHost");
-            return SendMessage(ResponseChannel, channel, "event", payload, reliable, null, 0u, targets);
+            var targets = includeHost
+                ? GetMemberList("AllClientIds")
+                : GetMemberList("AllClientIdsExceptHost");
+            return SendMessage(ResponseChannel, channel, "event", payload, reliable, null,
+                0u, targets);
         }
 
-        public static bool BroadcastEverywhere(string channel, object payload = null, bool reliable = true)
+        public static bool BroadcastEverywhere(string channel, object payload = null,
+            bool reliable = true)
         {
             return BroadcastRelayed(channel, null, payload, reliable);
         }
 
-        public static bool BroadcastToPeer(string channel, uint clientId, object payload = null, bool reliable = true)
+        public static bool BroadcastToPeer(string channel, uint clientId,
+            object payload = null, bool reliable = true)
         {
             return BroadcastRelayed(channel, clientId, payload, reliable);
         }
 
-        private static bool BroadcastRelayed(string channel, uint? target, object payload, bool reliable)
+        private static bool BroadcastRelayed(string channel, uint? target, object payload,
+            bool reliable)
         {
             if (string.IsNullOrWhiteSpace(channel)) return false;
 
@@ -321,11 +355,15 @@ namespace CUCoreLib.Networking
             return SendToServer(RelayChannel, envelope);
         }
 
-        private static bool Deliver(string channel, uint? target, JToken payload, bool reliable)
+        private static bool Deliver(
+            string channel,
+            uint? target,
+            JToken payload,
+            bool reliable)
         {
             if (target == null)
             {
-                Broadcast(channel, payload, includeHost: false, reliable: reliable);
+                Broadcast(channel, payload, false, reliable);
                 InvokeClientHandler(channel, payload);
                 return true;
             }
@@ -353,19 +391,14 @@ namespace CUCoreLib.Networking
         {
             if (!(GetMemberList(memberName) is IEnumerable list)) return false;
 
-            foreach (var entry in list)
-            {
-                if (ConvertClientIdToUInt(entry) == clientId) return true;
-            }
-
-            return false;
+            return list.Cast<object>().Any(entry => ConvertClientIdToUInt(entry) == clientId);
         }
 
         internal static JToken NormalizePayload(object payload)
         {
             if (payload == null) return null;
 
-            return payload is JToken token ? token : JToken.FromObject(payload);
+            return payload as JToken ?? JToken.FromObject(payload);
         }
 
         internal static void HandleServerMessageObject(object senderPlayer, object reader)
@@ -386,7 +419,8 @@ namespace CUCoreLib.Networking
             try
             {
                 if (_playerIdMember == null)
-                    _playerIdMember = MultiplayerApi.FindKrokMpMember(player.GetType(), "clientId");
+                    _playerIdMember =
+                        MultiplayerApi.FindKrokMpMember(player.GetType(), "clientId");
 
                 object clientId;
                 switch (_playerIdMember)
@@ -412,12 +446,16 @@ namespace CUCoreLib.Networking
             }
             catch (Exception ex)
             {
-                CUCoreLibPlugin.Log?.LogWarning("CUCoreLib could not read the multiplayer sender id.\n" + ex);
+                CUCoreLibPlugin.Log?.LogWarning(
+                    "CUCoreLib could not read the multiplayer sender id.\n" + ex);
                 return 0u;
             }
         }
 
-        private static void HandleEnvelope(uint senderClientId, object reader, bool serverSide)
+        private static void HandleEnvelope(
+            uint senderClientId,
+            object reader,
+            bool serverSide)
         {
             if (!TryReadEnvelope(reader, out var envelope)) return;
 
@@ -430,8 +468,8 @@ namespace CUCoreLib.Networking
 
             if (string.Equals(kind, "response", StringComparison.Ordinal))
             {
-                if (string.IsNullOrWhiteSpace(requestId) ||
-                    !PendingResponses.TryGetValue(requestId, out var callback)) return;
+                if (string.IsNullOrWhiteSpace(requestId)
+                    || !PendingResponses.TryGetValue(requestId, out var callback)) return;
                 PendingResponses.Remove(requestId);
                 callback(payload);
 
@@ -439,11 +477,11 @@ namespace CUCoreLib.Networking
             }
 
             if (serverSide)
-            {
                 try
                 {
                     JToken response;
-                    if (ServerHandlersWithSender.TryGetValue(channel, out var senderHandler))
+                    if (ServerHandlersWithSender.TryGetValue(channel,
+                        out var senderHandler))
                         response = senderHandler(senderClientId, payload);
                     else if (ServerHandlers.TryGetValue(channel, out var handler))
                         response = handler(payload);
@@ -451,18 +489,19 @@ namespace CUCoreLib.Networking
                         return;
 
                     if (response != null && !string.IsNullOrWhiteSpace(requestId))
-                        SendEnvelopeToClient(senderClientId, channel, "response", response, requestId, true);
+                        SendEnvelopeToClient(senderClientId, channel, "response",
+                            response, requestId, true);
                 }
                 catch (Exception ex)
                 {
-                    CUCoreLibPlugin.Log?.LogWarning("CUCoreLib multiplayer server handler failed for '" + channel +
-                                                    "'.\n" + ex);
+                    CUCoreLibPlugin.Log?.LogWarning(
+                        "CUCoreLib multiplayer server handler failed for '"
+                        + channel
+                        + "'.\n"
+                        + ex);
                 }
-            }
             else
-            {
                 InvokeClientHandler(channel, payload);
-            }
         }
 
         private static void InvokeClientHandler(string channel, JToken payload)
@@ -474,13 +513,23 @@ namespace CUCoreLib.Networking
             }
             catch (Exception ex)
             {
-                CUCoreLibPlugin.Log?.LogWarning("CUCoreLib multiplayer client handler failed for '" + channel +
-                                                "'.\n" + ex);
+                CUCoreLibPlugin.Log?.LogWarning(
+                    "CUCoreLib multiplayer client handler failed for '"
+                    + channel
+                    + "'.\n"
+                    + ex);
             }
         }
 
-        private static bool SendMessage(string netChannel, string channel, string kind, object payload, bool reliable,
-            string requestId, uint clientId, object targets)
+        private static bool SendMessage(
+            string netChannel,
+            string channel,
+            string kind,
+            object payload,
+            bool reliable,
+            string requestId,
+            uint clientId,
+            object targets)
         {
             if (!IsAvailable || string.IsNullOrWhiteSpace(channel)) return false;
 
@@ -496,8 +545,13 @@ namespace CUCoreLib.Networking
             return SendEnvelope(netChannel, envelope, reliable, clientId, targets);
         }
 
-        private static bool SendEnvelopeToClient(uint clientId, string channel, string kind, JToken payload,
-            string requestId, bool reliable)
+        private static bool SendEnvelopeToClient(
+            uint clientId,
+            string channel,
+            string kind,
+            JToken payload,
+            string requestId,
+            bool reliable)
         {
             var envelope = new JObject
             {
@@ -511,12 +565,15 @@ namespace CUCoreLib.Networking
             return SendEnvelope(ResponseChannel, envelope, reliable, clientId, null);
         }
 
-        private static bool SendEnvelope(string netChannel, JObject envelope, bool reliable, uint clientId,
+        private static bool SendEnvelope(string netChannel, JObject envelope,
+            bool reliable, uint clientId,
             object targets)
         {
             if (!TryBuildWriter(netChannel, envelope, out var writer)) return false;
 
-            var delivery = reliable ? _reliableOrdered : _reliableUnordered;
+            var delivery = reliable
+                ? _reliableOrdered
+                : _reliableUnordered;
             try
             {
                 if (targets != null)
@@ -534,7 +591,8 @@ namespace CUCoreLib.Networking
                         new[]
                         {
                             delivery, writer,
-                            ConvertClientId(clientId, _serverSendToMethod.GetParameters()[2].ParameterType)
+                            ConvertClientId(clientId,
+                                _serverSendToMethod.GetParameters()[2].ParameterType)
                         });
                     return true;
                 }
@@ -545,30 +603,38 @@ namespace CUCoreLib.Networking
             }
             catch (Exception ex)
             {
-                CUCoreLibPlugin.Log?.LogWarning("CUCoreLib multiplayer bridge failed to send a message.\n" + ex);
+                CUCoreLibPlugin.Log?.LogWarning(
+                    "CUCoreLib multiplayer bridge failed to send a message.\n" + ex);
                 return false;
             }
         }
 
-        private static bool TryBuildWriter(string netChannel, JObject envelope, out object writer)
+        private static bool TryBuildWriter(string netChannel, JObject envelope,
+            out object writer)
         {
             writer = null;
             if (_createNamedWriterMethod == null) return false;
 
             try
             {
-                writer = _createNamedWriterMethod.Invoke(null, new object[] { netChannel });
+                writer = _createNamedWriterMethod.Invoke(null,
+                    new object[] { netChannel });
                 if (writer == null) return false;
 
                 var json = JsonConvert.SerializeObject(envelope, Formatting.None);
-                var encoded = Convert.ToBase64String(CUCoreUtils.CompressGZip(Encoding.UTF8.GetBytes(json)));
+                var encoded =
+                    Convert.ToBase64String(
+                        CUCoreUtils.CompressGZip(Encoding.UTF8.GetBytes(json)));
 
-                return MultiplayerPayloadFrame.Write(writer, encoded, _writerPutStringMethod,
-                    _writerPutUShortMethod, _writerPutUIntMethod, _writerPutBytesWithLengthMethod);
+                return MultiplayerPayloadFrame.Write(writer, encoded,
+                    _writerPutStringMethod,
+                    _writerPutUShortMethod, _writerPutUIntMethod,
+                    _writerPutBytesWithLengthMethod);
             }
             catch (Exception ex)
             {
-                CUCoreLibPlugin.Log?.LogWarning("CUCoreLib multiplayer bridge failed to build a message.\n" + ex);
+                CUCoreLibPlugin.Log?.LogWarning(
+                    "CUCoreLib multiplayer bridge failed to build a message.\n" + ex);
             }
 
             writer = null;
@@ -595,7 +661,8 @@ namespace CUCoreLib.Networking
             }
             catch (Exception ex)
             {
-                CUCoreLibPlugin.Log?.LogWarning("CUCoreLib multiplayer bridge failed to read a message.\n" + ex);
+                CUCoreLibPlugin.Log?.LogWarning(
+                    "CUCoreLib multiplayer bridge failed to read a message.\n" + ex);
                 return false;
             }
         }
@@ -604,10 +671,14 @@ namespace CUCoreLib.Networking
         {
             if (reader == null) return null;
 
-            if (_readerGetUShortMethod != null && _readerGetUIntMethod != null &&
-                _readerGetBytesSegmentMethod != null && _readerGetBytesWithLengthMethod != null)
-                return MultiplayerPayloadFrame.Read(reader, _readerGetStringMethod, _readerGetUShortMethod,
-                    _readerGetUIntMethod, _readerGetBytesSegmentMethod, _readerGetBytesWithLengthMethod,
+            if (_readerGetUShortMethod != null
+                && _readerGetUIntMethod != null
+                && _readerGetBytesSegmentMethod != null
+                && _readerGetBytesWithLengthMethod != null)
+                return MultiplayerPayloadFrame.Read(reader, _readerGetStringMethod,
+                    _readerGetUShortMethod,
+                    _readerGetUIntMethod, _readerGetBytesSegmentMethod,
+                    _readerGetBytesWithLengthMethod,
                     _readerAvailableBytesProperty);
 
             if (_readerGetStringMethod != null)
@@ -622,70 +693,85 @@ namespace CUCoreLib.Networking
             if (getString == null) return null;
             var value = getString.Invoke(reader, null);
             return value as string;
-
         }
 
         private static void InstallNamedReceivers()
         {
-            if (_receiversInstalled) return;
-            if (_registerCustomServerReceiverMethod == null || _registerCustomClientReceiverMethod == null) return;
+            if (ReceiversInstalled) return;
+            if (_registerCustomServerReceiverMethod == null
+                || _registerCustomClientReceiverMethod == null) return;
 
-            var serverDelegate = CreateReceiverDelegate(_registerCustomServerReceiverMethod,
+            var serverDelegate = CreateReceiverDelegate(
+                _registerCustomServerReceiverMethod,
                 typeof(MultiplayerBridge).GetMethod(nameof(HandleServerMessageObject),
                     BindingFlags.NonPublic | BindingFlags.Static));
-            var clientDelegate = CreateReceiverDelegate(_registerCustomClientReceiverMethod,
+            var clientDelegate = CreateReceiverDelegate(
+                _registerCustomClientReceiverMethod,
                 typeof(MultiplayerBridge).GetMethod(nameof(HandleClientMessageObject),
                     BindingFlags.NonPublic | BindingFlags.Static));
             if (serverDelegate == null || clientDelegate == null) return;
 
-            var serverInstalled = TryRegisterNamedReceiver(_registerCustomServerReceiverMethod, RequestChannel,
+            var serverInstalled = TryRegisterNamedReceiver(
+                _registerCustomServerReceiverMethod, RequestChannel,
                 serverDelegate);
-            var clientInstalled = TryRegisterNamedReceiver(_registerCustomClientReceiverMethod, ResponseChannel,
+            var clientInstalled = TryRegisterNamedReceiver(
+                _registerCustomClientReceiverMethod, ResponseChannel,
                 clientDelegate);
-            _receiversInstalled = serverInstalled && clientInstalled;
+            ReceiversInstalled = serverInstalled && clientInstalled;
         }
 
-        private static bool TryRegisterNamedReceiver(MethodInfo registerMethod, string name, Delegate receiver)
+        private static bool TryRegisterNamedReceiver(
+            MethodInfo registerMethod,
+            string name,
+            Delegate receiver)
         {
             try
             {
                 registerMethod.Invoke(null, new object[] { name, receiver });
                 return true;
             }
-            catch (TargetInvocationException ex) when (ex.InnerException != null &&
-                                                       ex.InnerException.GetType().Name == "DuplicateNameException")
+            catch (TargetInvocationException ex) when (ex.InnerException != null
+                && ex.InnerException.GetType().Name == "DuplicateNameException")
             {
                 // An earlier attempt registered this name already, we're fine
                 return true;
             }
             catch (Exception ex)
             {
-                CUCoreLibPlugin.Log?.LogWarning("CUCoreLib could not register the multiplayer receiver '" + name +
-                                                "'.\n" + ex);
+                CUCoreLibPlugin.Log?.LogWarning(
+                    "CUCoreLib could not register the multiplayer receiver '"
+                    + name
+                    + "'.\n"
+                    + ex);
                 return false;
             }
         }
 
         private static void InstallKrokMpTransportHook()
         {
-            if (_transportHookInstalled || _harmony == null || _netType == null || _netModeType == null) return;
+            if (_transportHookInstalled
+                || _harmony == null
+                || _netType == null
+                || _netModeType == null) return;
 
             try
             {
-               // Prevent net.shutdownreset
+                // Prevent net.shutdownreset
                 var transportCreated = AccessTools.Method(_netType, "TransportCreated",
                     new[] { _netModeType, typeof(bool) });
                 if (transportCreated == null) return;
 
                 _harmony.Patch(transportCreated,
                     postfix: new HarmonyMethod(typeof(MultiplayerBridge).GetMethod(
-                        nameof(HandleKrokMpTransportCreated), BindingFlags.NonPublic | BindingFlags.Static)));
+                        nameof(HandleKrokMpTransportCreated),
+                        BindingFlags.NonPublic | BindingFlags.Static)));
                 _transportHookInstalled = true;
             }
             catch (Exception ex)
             {
-                CUCoreLibPlugin.Log?.LogWarning("CUCoreLib could not hook KrokMP transport creation, consider reloading the session \n" +
-                                                ex);
+                CUCoreLibPlugin.Log?.LogWarning(
+                    "CUCoreLib could not hook KrokMP transport creation, consider reloading the session \n"
+                    + ex);
                 return;
             }
 
@@ -695,8 +781,9 @@ namespace CUCoreLib.Networking
             }
             catch (Exception ex)
             {
-                CUCoreLibPlugin.Log?.LogWarning("CUCoreLib failed to restore multiplayer state for an active KrokMP session.\n" +
-                                                ex);
+                CUCoreLibPlugin.Log?.LogWarning(
+                    "CUCoreLib failed to restore multiplayer state for an active KrokMP session.\n"
+                    + ex);
             }
         }
 
@@ -707,13 +794,15 @@ namespace CUCoreLib.Networking
             {
                 DropPoolRegistry.ResetGeneration();
                 MultiplayerSyncRegistry.MarkNewTransportSession();
-              // I hate doing it this way, but keep on requesting the initial snapshot until we get it
-              // guh.
+                // I hate doing it this way, but keep on requesting the initial snapshot until we get it
+                // guh.
                 MultiplayerSyncRegistry.RequestInitialSnapshotForNewSession();
             }
         }
 
-        private static Delegate CreateReceiverDelegate(MethodInfo registerMethod, MethodInfo helperMethod)
+        private static Delegate CreateReceiverDelegate(
+            MethodInfo registerMethod,
+            MethodInfo helperMethod)
         {
             if (registerMethod == null || helperMethod == null) return null;
 
@@ -746,7 +835,8 @@ namespace CUCoreLib.Networking
                     parameterType = parameterType.GetElementType();
                 }
 
-                if (parameterType != null && parameterType.IsValueType) il.Emit(OpCodes.Box, parameterType);
+                if (parameterType != null && parameterType.IsValueType)
+                    il.Emit(OpCodes.Box, parameterType);
             }
 
             il.Emit(OpCodes.Call, helperMethod);
@@ -773,14 +863,17 @@ namespace CUCoreLib.Networking
         private static bool TryResolveRuntime()
         {
             if (_krokAssembly == null)
-                _krokAssembly = AppDomain.CurrentDomain.GetAssemblies().FirstOrDefault(assembly =>
-                    string.Equals(assembly.GetName().Name, PluginGuid, StringComparison.OrdinalIgnoreCase));
+                _krokAssembly = AppDomain.CurrentDomain.GetAssemblies()
+                    .FirstOrDefault(assembly =>
+                        string.Equals(assembly.GetName().Name, PluginGuid,
+                            StringComparison.OrdinalIgnoreCase));
 
             if (!IsKrokMpExpected()) return false;
 
             if (_krokAssembly == null)
                 _krokAssembly = AppDomain.CurrentDomain.GetAssemblies()
-                    .FirstOrDefault(assembly => assembly.GetType(MpTypeName, false) != null);
+                    .FirstOrDefault(assembly =>
+                        assembly.GetType(MpTypeName, false) != null);
 
             if (_krokAssembly == null) return false;
 
@@ -790,52 +883,74 @@ namespace CUCoreLib.Networking
             _netModeType = _krokAssembly.GetType(NetTypeEnumName, false);
             _serverMainType = _krokAssembly.GetType(ServerMainTypeName, false);
             _clientMainType = _krokAssembly.GetType(ClientMainTypeName, false);
-            _liteNetTransportType = _krokAssembly.GetType(LiteNetTransportTypeName, false);
+            _liteNetTransportType =
+                _krokAssembly.GetType(LiteNetTransportTypeName, false);
             _mainMenuType = _krokAssembly.GetType(MainMenuTypeName, false);
-            if (_mpType == null || _netType == null || _netModeType == null || _serverMainType == null ||
-                _clientMainType == null || _liteNetTransportType == null || _mainMenuType == null) return false;
+            if (_mpType == null
+                || _netType == null
+                || _netModeType == null
+                || _serverMainType == null
+                || _clientMainType == null
+                || _liteNetTransportType == null
+                || _mainMenuType == null) return false;
 
-            var liteNetLibAssembly = AppDomain.CurrentDomain.GetAssemblies().FirstOrDefault(assembly =>
-                string.Equals(assembly.GetName().Name, "LiteNetLib", StringComparison.OrdinalIgnoreCase));
+            var liteNetLibAssembly = AppDomain.CurrentDomain.GetAssemblies()
+                .FirstOrDefault(assembly =>
+                    string.Equals(assembly.GetName().Name, "LiteNetLib",
+                        StringComparison.OrdinalIgnoreCase));
             if (liteNetLibAssembly == null) return false;
 
-            _readerType = liteNetLibAssembly.GetType("LiteNetLib.Utils.NetDataReader", false);
-            _writerType = liteNetLibAssembly.GetType("LiteNetLib.Utils.NetDataWriter", false);
+            _readerType =
+                liteNetLibAssembly.GetType("LiteNetLib.Utils.NetDataReader", false);
+            _writerType =
+                liteNetLibAssembly.GetType("LiteNetLib.Utils.NetDataWriter", false);
             if (_readerType == null || _writerType == null) return false;
 
             _deliveryMethodType = ResolveDeliveryMethodType();
             if (_deliveryMethodType == null) return false;
 
-            _createNamedWriterMethod = ResolveMethod(_mpType, new[] { "CreateNamedWriter" },
+            _createNamedWriterMethod = ResolveMethod(_mpType,
+                new[] { "CreateNamedWriter" },
                 new[] { typeof(string) });
             _clientSendMethod = ResolveMethod(_netType, new[] { "Client_Send" },
                 new[] { _deliveryMethodType, _writerType });
             _serverSendToMethod = ResolveMethod(_netType, new[] { "Server_SendTo" },
                 new[] { _deliveryMethodType, _writerType, typeof(uint) });
-            _serverSendToClientsMethod = ResolveSendToClientsMethod(_netType, _deliveryMethodType, _writerType);
+            _serverSendToClientsMethod =
+                ResolveSendToClientsMethod(_netType, _deliveryMethodType, _writerType);
             _registerCustomServerReceiverMethod = ResolveMethod(_mpType,
                 new[] { "RegisterCustomServerReceiver" }, new[] { typeof(string), null });
             _registerCustomClientReceiverMethod = ResolveMethod(_mpType,
                 new[] { "RegisterCustomClientReceiver" }, new[] { typeof(string), null });
             _writerPutStringMethod = ResolveStringPutMethod();
             _readerGetStringMethod = ResolveStringGetMethod();
-            _writerPutUShortMethod = _writerType.GetMethod("Put", new[] { typeof(ushort) });
+            _writerPutUShortMethod =
+                _writerType.GetMethod("Put", new[] { typeof(ushort) });
             _writerPutUIntMethod = _writerType.GetMethod("Put", new[] { typeof(uint) });
-            _writerPutBytesWithLengthMethod = _writerType.GetMethod("PutBytesWithLength", new[] { typeof(byte[]) });
+            _writerPutBytesWithLengthMethod = _writerType.GetMethod("PutBytesWithLength",
+                new[] { typeof(byte[]) });
             _readerGetUShortMethod = _readerType.GetMethod("GetUShort", Type.EmptyTypes);
             _readerGetUIntMethod = _readerType.GetMethod("GetUInt", Type.EmptyTypes);
-            _readerGetBytesSegmentMethod = _readerType.GetMethod("GetBytesSegment", new[] { typeof(int) });
-            _readerGetBytesWithLengthMethod = _readerType.GetMethod("GetBytesWithLength", Type.EmptyTypes);
+            _readerGetBytesSegmentMethod =
+                _readerType.GetMethod("GetBytesSegment", new[] { typeof(int) });
+            _readerGetBytesWithLengthMethod =
+                _readerType.GetMethod("GetBytesWithLength", Type.EmptyTypes);
             _readerAvailableBytesProperty = _readerType.GetProperty("AvailableBytes");
-            _liteNetConnectMethod = ResolveMethod(_liteNetTransportType, new[] { "OnWantToConnect" },
+            _liteNetConnectMethod = ResolveMethod(_liteNetTransportType,
+                new[] { "OnWantToConnect" },
                 new[] { typeof(string), _netModeType });
-            _serverAnnounceGameStartMethod = ResolveMethod(_serverMainType, new[] { "Server_Announce_GAME_START" },
+            _serverAnnounceGameStartMethod = ResolveMethod(_serverMainType,
+                new[] { "Server_Announce_GAME_START" },
                 Type.EmptyTypes);
 
-            if (_createNamedWriterMethod == null || _clientSendMethod == null || _serverSendToMethod == null ||
-                _serverSendToClientsMethod == null || _registerCustomServerReceiverMethod == null ||
-                _registerCustomClientReceiverMethod == null || _liteNetConnectMethod == null ||
-                _serverAnnounceGameStartMethod == null) return false;
+            if (_createNamedWriterMethod == null
+                || _clientSendMethod == null
+                || _serverSendToMethod == null
+                || _serverSendToClientsMethod == null
+                || _registerCustomServerReceiverMethod == null
+                || _registerCustomClientReceiverMethod == null
+                || _liteNetConnectMethod == null
+                || _serverAnnounceGameStartMethod == null) return false;
 
             _reliableOrdered = Enum.Parse(_deliveryMethodType, "ReliableOrdered");
             _reliableUnordered = Enum.Parse(_deliveryMethodType, "ReliableUnordered");
@@ -846,24 +961,34 @@ namespace CUCoreLib.Networking
         {
             if (_krokAssembly != null) return true;
 
-            return Chainloader.PluginInfos.ContainsKey(PluginGuid) || AppDomain.CurrentDomain.GetAssemblies().Any(assembly => assembly.GetType(MpTypeName, false) != null);
+            return Chainloader.PluginInfos.ContainsKey(PluginGuid)
+                || AppDomain.CurrentDomain.GetAssemblies().Any(assembly =>
+                    assembly.GetType(MpTypeName, false) != null);
         }
 
-        private static MethodInfo ResolveMethod(Type type, string[] methodNames, Type[] parameterTypes)
+        private static MethodInfo ResolveMethod(
+            Type type,
+            string[] methodNames,
+            Type[] parameterTypes)
         {
             if (type == null) return null;
 
-            foreach (var method in type.GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static))
+            foreach (var method in type.GetMethods(BindingFlags.Public
+                | BindingFlags.NonPublic
+                | BindingFlags.Static))
             {
-                if (methodNames == null ||
-                    !methodNames.Any(name => string.Equals(method.Name, name, StringComparison.Ordinal))) continue;
+                if (methodNames == null
+                    || !methodNames.Any(name =>
+                        string.Equals(method.Name, name, StringComparison.Ordinal)))
+                    continue;
 
                 if (parameterTypes == null) return method;
 
                 var parameters = method.GetParameters();
                 if (parameters.Length != parameterTypes.Length) continue;
 
-                var matches = !parameters.Where((t, i) => !ParameterMatches(parameterTypes[i], t.ParameterType)).Any();
+                var matches = !parameters.Where((t, i) =>
+                    !ParameterMatches(parameterTypes[i], t.ParameterType)).Any();
 
                 if (matches) return method;
             }
@@ -871,21 +996,29 @@ namespace CUCoreLib.Networking
             return null;
         }
 
-        private static MethodInfo ResolveSendToClientsMethod(Type netType, Type deliveryMethodType,
+        private static MethodInfo ResolveSendToClientsMethod(
+            Type netType,
+            Type deliveryMethodType,
             Type writerType)
         {
             // KrokMP ships several Server_SendToClients overloads:
             //   (in DeliveryMethod, in NetDataWriter, in knetid)
             //   (in DeliveryMethod, in NetDataWriter, in IReadOnlyList<ScavPlayer>)
             //   (in DeliveryMethod, in NetDataWriter, in IEnumerable<knetid>)
-            
+
             var candidates = netType
-                .GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static)
-                .Where(candidate => string.Equals(candidate.Name, "Server_SendToClients", StringComparison.Ordinal))
-                .Select(candidate => new { Method = candidate, Parameters = candidate.GetParameters() })
-                .Where(candidate => candidate.Parameters.Length == 3 &&
-                                    ParameterMatches(deliveryMethodType, candidate.Parameters[0].ParameterType) &&
-                                    ParameterMatches(writerType, candidate.Parameters[1].ParameterType))
+                .GetMethods(BindingFlags.Public
+                    | BindingFlags.NonPublic
+                    | BindingFlags.Static)
+                .Where(candidate => string.Equals(candidate.Name, "Server_SendToClients",
+                    StringComparison.Ordinal))
+                .Select(candidate => new
+                    { Method = candidate, Parameters = candidate.GetParameters() })
+                .Where(candidate => candidate.Parameters.Length == 3
+                    && ParameterMatches(deliveryMethodType,
+                        candidate.Parameters[0].ParameterType)
+                    && ParameterMatches(writerType,
+                        candidate.Parameters[1].ParameterType))
                 .ToArray();
 
             MethodInfo looseFallback = null;
@@ -893,24 +1026,28 @@ namespace CUCoreLib.Networking
             {
                 var targetsType = UnwrapByRef(candidate.Parameters[2].ParameterType);
                 if (targetsType == null || !targetsType.IsGenericType) continue;
-                if (targetsType.GetGenericTypeDefinition() != typeof(IEnumerable<>)) continue;
+                if (targetsType.GetGenericTypeDefinition() != typeof(IEnumerable<>))
+                    continue;
 
                 var elementType = targetsType.GetGenericArguments()[0];
                 if (IsClientIdType(elementType)) return candidate.Method;
-                if (looseFallback == null && elementType.IsValueType) looseFallback = candidate.Method;
+                if (looseFallback == null && elementType.IsValueType)
+                    looseFallback = candidate.Method;
             }
 
-          
+
             return looseFallback;
         }
 
         private static MethodInfo GetSendToClientsInvoker()
         {
-            if (_serverSendToClientsInvoker != null &&
-                ReferenceEquals(_serverSendToClientsInvokerSource, _serverSendToClientsMethod))
+            if (_serverSendToClientsInvoker != null
+                && ReferenceEquals(_serverSendToClientsInvokerSource,
+                    _serverSendToClientsMethod))
                 return _serverSendToClientsInvoker;
 
-            _serverSendToClientsInvoker = BuildSendToClientsInvoker(_serverSendToClientsMethod);
+            _serverSendToClientsInvoker =
+                BuildSendToClientsInvoker(_serverSendToClientsMethod);
             _serverSendToClientsInvokerSource = _serverSendToClientsMethod;
             return _serverSendToClientsInvoker;
         }
@@ -920,18 +1057,19 @@ namespace CUCoreLib.Networking
             if (method == null) return null;
 
             var parameters = method.GetParameters();
-            if (parameters.Length != 3) return method;
-
-            if (!parameters.Any(parameter => parameter.ParameterType.IsByRef)) return method;
+            if (parameters.Length != 3 || !parameters.Any(parameter => parameter.ParameterType.IsByRef)) return method;
 
             var deliveryType = UnwrapByRef(parameters[0].ParameterType);
             var writerType = UnwrapByRef(parameters[1].ParameterType);
             var targetsType = UnwrapByRef(parameters[2].ParameterType);
-           
-            if (deliveryType == null || writerType == null || targetsType == null || targetsType.IsValueType)
+
+            if (deliveryType == null
+                || writerType == null
+                || targetsType == null
+                || targetsType.IsValueType)
                 return method;
 
-        
+
             var invoker = new DynamicMethod(
                 "CUCoreLib_MP_SendToClients_Invoker_" + _dynamicMethodCounter++,
                 typeof(void),
@@ -962,7 +1100,9 @@ namespace CUCoreLib.Networking
 
         private static Type UnwrapByRef(Type type)
         {
-            return type != null && type.IsByRef ? type.GetElementType() : type;
+            return type != null && type.IsByRef
+                ? type.GetElementType()
+                : type;
         }
 
         private static Type ResolveDeliveryMethodType()
@@ -972,44 +1112,42 @@ namespace CUCoreLib.Networking
 
             var parameters = method.GetParameters();
             return parameters.Length > 0
-                ? (parameters[0].ParameterType.IsByRef
+                ? parameters[0].ParameterType.IsByRef
                     ? parameters[0].ParameterType.GetElementType()
-                    : parameters[0].ParameterType)
+                    : parameters[0].ParameterType
                 : null;
         }
 
         private static MethodInfo ResolveStringPutMethod()
         {
             var extensions = _krokAssembly.GetType(ExtensionsTypeName, false);
-            if (extensions == null) return null;    // Use null propagation
 
-            return extensions.GetMethods(BindingFlags.Public | BindingFlags.Static)
+            return extensions?.GetMethods(BindingFlags.Public | BindingFlags.Static)
                 .FirstOrDefault(method =>
                 {
                     var parameters = method.GetParameters();
-                    return method.Name == "Put" &&
-                           parameters.Length == 3 &&
-                           parameters[0].ParameterType == _writerType &&
-                           parameters[1].ParameterType == typeof(string) &&
-                           parameters[2].ParameterType == typeof(bool);
+                    return method.Name == "Put"
+                        && parameters.Length == 3
+                        && parameters[0].ParameterType == _writerType
+                        && parameters[1].ParameterType == typeof(string)
+                        && parameters[2].ParameterType == typeof(bool);
                 });
         }
 
         private static MethodInfo ResolveStringGetMethod()
         {
             var extensions = _krokAssembly.GetType(ExtensionsTypeName, false);
-            if (extensions == null) return null;
 
-            return extensions.GetMethods(BindingFlags.Public | BindingFlags.Static)
+            return extensions?.GetMethods(BindingFlags.Public | BindingFlags.Static)
                 .FirstOrDefault(method =>
                 {
                     var parameters = method.GetParameters();
-                    return method.Name == "Get" &&
-                           parameters.Length == 3 &&
-                           parameters[0].ParameterType == _readerType &&
-                           parameters[1].IsOut &&
-                           parameters[1].ParameterType == typeof(string).MakeByRefType() &&
-                           parameters[2].ParameterType == typeof(bool);
+                    return method.Name == "Get"
+                        && parameters.Length == 3
+                        && parameters[0].ParameterType == _readerType
+                        && parameters[1].IsOut
+                        && parameters[1].ParameterType == typeof(string).MakeByRefType()
+                        && parameters[2].ParameterType == typeof(bool);
                 });
         }
 
@@ -1017,8 +1155,9 @@ namespace CUCoreLib.Networking
         {
             if (_serverMainType == null) return null;
 
-            var property = _serverMainType.GetProperty(memberName, BindingFlags.Public | BindingFlags.Static);
-            return property != null 
+            var property = _serverMainType.GetProperty(memberName,
+                BindingFlags.Public | BindingFlags.Static);
+            return property != null
                 ? property.GetValue(null, null)
                 : null;
         }
@@ -1029,8 +1168,10 @@ namespace CUCoreLib.Networking
 
             if (!NetBoolProperties.TryGetValue(memberName, out var property))
             {
-                property = _netType.GetProperty(memberName, BindingFlags.Public | BindingFlags.Static);
-                if (property == null || property.PropertyType != typeof(bool)) return false;
+                property = _netType.GetProperty(memberName,
+                    BindingFlags.Public | BindingFlags.Static);
+                if (property == null || property.PropertyType != typeof(bool))
+                    return false;
                 NetBoolProperties[memberName] = property;
             }
 
@@ -1049,29 +1190,38 @@ namespace CUCoreLib.Networking
 
             if (actualType == expectedType) return true;
 
-            var normalizedActual = actualType.IsByRef ? actualType.GetElementType() : actualType;
-            var normalizedExpected = expectedType.IsByRef ? expectedType.GetElementType() : expectedType;
+            var normalizedActual = actualType.IsByRef
+                ? actualType.GetElementType()
+                : actualType;
+            var normalizedExpected = expectedType.IsByRef
+                ? expectedType.GetElementType()
+                : expectedType;
             if (normalizedActual == null || normalizedExpected == null) return false;
 
             if (normalizedActual == normalizedExpected) return true;
 
-            if (normalizedExpected == typeof(IEnumerable)) return typeof(IEnumerable).IsAssignableFrom(normalizedActual);
+            if (normalizedExpected == typeof(IEnumerable))
+                return typeof(IEnumerable).IsAssignableFrom(normalizedActual);
 
             if (normalizedExpected.IsAssignableFrom(normalizedActual)) return true;
 
-            return IsUnsignedIntegerLike(normalizedExpected) && IsClientIdType(normalizedActual);
+            return IsUnsignedIntegerLike(normalizedExpected)
+                && IsClientIdType(normalizedActual);
         }
 
         internal static object ConvertClientId(uint clientId, Type targetType)
         {
-            var normalizedType = targetType.IsByRef ? targetType.GetElementType() : targetType;
+            var normalizedType = targetType.IsByRef
+                ? targetType.GetElementType()
+                : targetType;
             if (normalizedType == null || normalizedType == typeof(uint)) return clientId;
 
             if (normalizedType.IsEnum) return Enum.ToObject(normalizedType, clientId);
-            if (IsUnsignedIntegerLike(normalizedType)) return Convert.ChangeType(clientId, normalizedType);
+            if (IsUnsignedIntegerLike(normalizedType))
+                return Convert.ChangeType(clientId, normalizedType);
 
-            var idField = normalizedType.GetField("id", BindingFlags.Public | BindingFlags.NonPublic |
-                                                        BindingFlags.Instance);
+            var idField = normalizedType.GetField("id",
+                BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
             if (idField != null && IsUnsignedIntegerLike(idField.FieldType))
             {
                 var value = Activator.CreateInstance(normalizedType);
@@ -1084,22 +1234,25 @@ namespace CUCoreLib.Networking
 
         internal static bool IsClientIdType(Type type)
         {
-            var normalizedType = type.IsByRef ? type.GetElementType() : type;
+            var normalizedType = type.IsByRef
+                ? type.GetElementType()
+                : type;
             if (normalizedType == null) return false;
             if (IsUnsignedIntegerLike(normalizedType)) return true;
 
-            var idField = normalizedType.GetField("id", BindingFlags.Public | BindingFlags.NonPublic |
-                                                        BindingFlags.Instance);
+            var idField = normalizedType.GetField("id",
+                BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
             return idField != null && IsUnsignedIntegerLike(idField.FieldType);
         }
 
         private static uint ConvertClientIdToUInt(object clientId)
         {
             if (clientId == null) return 0u;
-            if (IsUnsignedIntegerLike(clientId.GetType())) return Convert.ToUInt32(clientId);
+            if (IsUnsignedIntegerLike(clientId.GetType()))
+                return Convert.ToUInt32(clientId);
 
-            var idField = clientId.GetType().GetField("id", BindingFlags.Public | BindingFlags.NonPublic |
-                                                        BindingFlags.Instance);
+            var idField = clientId.GetType().GetField("id",
+                BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
             return idField != null && IsUnsignedIntegerLike(idField.FieldType)
                 ? Convert.ToUInt32(idField.GetValue(clientId))
                 : 0u;
@@ -1107,38 +1260,51 @@ namespace CUCoreLib.Networking
 
         private static bool IsUnsignedIntegerLike(Type type)
         {
-            return type == typeof(byte) || type == typeof(ushort) || type == typeof(uint) || type == typeof(ulong);
+            return type == typeof(byte)
+                || type == typeof(ushort)
+                || type == typeof(uint)
+                || type == typeof(ulong);
         }
 
         private static bool TryStartLocalConnection(string address, string modeName)
         {
-            if (!TryResolveRuntime() || _liteNetConnectMethod == null || _netModeType == null) return false;
+            if (!TryResolveRuntime()
+                || _liteNetConnectMethod == null
+                || _netModeType == null) return false;
 
             try
             {
-                var targetAddress = string.IsNullOrWhiteSpace(address) ? "localhost:7790" : address.Trim();
+                var targetAddress = string.IsNullOrWhiteSpace(address)
+                    ? "localhost:7790"
+                    : address.Trim();
                 var mode = Enum.Parse(_netModeType, modeName);
-                var result = _liteNetConnectMethod.Invoke(null, new object[] { targetAddress, mode });
+                var result =
+                    _liteNetConnectMethod.Invoke(null, new[] { targetAddress, mode });
                 return result is bool connected && connected;
             }
             catch (Exception ex)
             {
-                CUCoreLibPlugin.Log?.LogWarning("CUCoreLib failed to start KrokMP localhost quick test mode.\n" + ex);
+                CUCoreLibPlugin.Log?.LogWarning(
+                    "CUCoreLib failed to start KrokMP localhost quick test mode.\n" + ex);
                 return false;
             }
         }
 
         private static void SetStaticString(Type type, string memberName, string value)
         {
-            var field = type.GetField(memberName, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static);
+            var field = type.GetField(memberName,
+                BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static);
             if (field != null && field.FieldType == typeof(string))
             {
                 field.SetValue(null, value ?? string.Empty);
                 return;
             }
 
-            var property = type.GetProperty(memberName, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static);
-            if (property != null && property.CanWrite && property.PropertyType == typeof(string))
+            var property = type.GetProperty(memberName,
+                BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static);
+            if (property != null
+                && property.CanWrite
+                && property.PropertyType == typeof(string))
             {
                 property.SetValue(null, value ?? string.Empty, null);
                 return;
