@@ -27,8 +27,9 @@ namespace CUCoreLib.Helpers
             if (string.IsNullOrWhiteSpace(localeName)) return;
 
             var normalizedLocaleName = localeName.Trim();
-            
-            var isEnglish = string.Equals(normalizedLocaleName, "EN", StringComparison.OrdinalIgnoreCase);
+
+            var isEnglish = string.Equals(normalizedLocaleName, "EN",
+                StringComparison.OrdinalIgnoreCase);
             if (!isEnglish)
                 ApplyLocaleFile("EN");
 
@@ -131,14 +132,19 @@ namespace CUCoreLib.Helpers
             MergeSectionIfAbsent(target.other, source["title"]);
         }
 
-        public static string GetLocalizedText(string category, string key, string fallback = null)
+        public static string GetLocalizedText(string category, string key,
+            string fallback = null)
         {
-            if (string.IsNullOrWhiteSpace(key)) return string.IsNullOrWhiteSpace(fallback) ? string.Empty : fallback;
+            if (string.IsNullOrWhiteSpace(key))
+                return string.IsNullOrWhiteSpace(fallback)
+                    ? string.Empty
+                    : fallback;
 
             var normalizedKey = key.Trim();
             var normalizedCategory = (category ?? string.Empty).Trim().ToLowerInvariant();
 
-            var value = TryReadValue(Locale.currentLang, normalizedCategory, normalizedKey);
+            var value = TryReadValue(Locale.currentLang, normalizedCategory,
+                normalizedKey);
             if (!string.IsNullOrWhiteSpace(value)) return value;
 
             return !string.IsNullOrWhiteSpace(fallback)
@@ -151,24 +157,29 @@ namespace CUCoreLib.Helpers
             var visitedPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             var genericFileName = localeName + ".json";
             var scopedFileNames = new HashSet<string>(
-                GetLoadedPluginGuidsOrdered().Select(guid => localeName + "-" + guid + ".json"),
+                GetLoadedPluginGuidsOrdered()
+                    .Select(guid => localeName + "-" + guid + ".json"),
                 StringComparer.OrdinalIgnoreCase);
 
             var genericFiles = new List<string>();
             AddIfExists(genericFiles, visitedPaths,
                 Path.Combine(Paths.ConfigPath, "CUCoreLib", "Locales", genericFileName));
-            AddRangeIfExists(genericFiles, visitedPaths, FindPluginGenericOverlayFiles(genericFileName));
+            AddRangeIfExists(genericFiles, visitedPaths,
+                FindPluginGenericOverlayFiles(genericFileName));
 
             var scopedFiles = new List<string>();
-            foreach (var scopedFileName in scopedFileNames.OrderBy(name => name, StringComparer.OrdinalIgnoreCase))
+            foreach (var scopedFileName in scopedFileNames.OrderBy(name => name,
+                StringComparer.OrdinalIgnoreCase))
                 AddIfExists(scopedFiles, visitedPaths,
-                    Path.Combine(Paths.ConfigPath, "CUCoreLib", "Locales", scopedFileName));
+                    Path.Combine(Paths.ConfigPath, "CUCoreLib", "Locales",
+                        scopedFileName));
             AddRangeIfExists(scopedFiles, visitedPaths,
                 FindPluginScopedOverlayFiles(localeName, scopedFileNames));
 
             // Generic files merge first so scoped '{LangCode}-{modGuid}.json' files win within the loose layer.
             return genericFiles.OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
-                .Concat(scopedFiles.OrderBy(path => path, StringComparer.OrdinalIgnoreCase))
+                .Concat(scopedFiles.OrderBy(path => path,
+                    StringComparer.OrdinalIgnoreCase))
                 .ToList();
         }
 
@@ -178,8 +189,8 @@ namespace CUCoreLib.Helpers
             var visitedPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
             foreach (var pluginInfo in Chainloader.PluginInfos.Values
-                         .Where(info => info != null)
-                         .OrderBy(GetPluginSortKey, StringComparer.OrdinalIgnoreCase))
+                .Where(info => info != null)
+                .OrderBy(GetPluginSortKey, StringComparer.OrdinalIgnoreCase))
             {
                 var pluginLocation = NormalizeExistingPath(pluginInfo.Location);
                 if (string.IsNullOrWhiteSpace(pluginLocation)) continue;
@@ -187,27 +198,34 @@ namespace CUCoreLib.Helpers
                 var pluginDirectory = Path.GetDirectoryName(pluginLocation);
                 if (string.IsNullOrWhiteSpace(pluginDirectory)) continue;
 
-                AddIfExists(results, visitedPaths, Path.Combine(pluginDirectory, fileName));
-                AddIfExists(results, visitedPaths, Path.Combine(pluginDirectory, "Locales", fileName));
-                AddRangeIfExists(results, visitedPaths, EnumerateMatchingFiles(pluginDirectory, fileName));
+                AddIfExists(results, visitedPaths,
+                    Path.Combine(pluginDirectory, fileName));
+                AddIfExists(results, visitedPaths,
+                    Path.Combine(pluginDirectory, "Locales", fileName));
+                AddRangeIfExists(results, visitedPaths,
+                    EnumerateMatchingFiles(pluginDirectory, fileName));
             }
 
-            var pluginRoot = Path.Combine(Path.GetDirectoryName(Paths.ConfigPath) ?? string.Empty, "plugins");
+            var pluginRoot =
+                Path.Combine(Path.GetDirectoryName(Paths.ConfigPath) ?? string.Empty,
+                    "plugins");
             if (!Directory.Exists(pluginRoot)) return results;
 
-            AddRangeIfExists(results, visitedPaths, EnumerateMatchingFiles(pluginRoot, fileName));
+            AddRangeIfExists(results, visitedPaths,
+                EnumerateMatchingFiles(pluginRoot, fileName));
 
             return results;
         }
 
-        private static List<string> FindPluginScopedOverlayFiles(string localeName, ISet<string> scopedFileNames)
+        private static List<string> FindPluginScopedOverlayFiles(string localeName,
+            ISet<string> scopedFileNames)
         {
             var results = new List<string>();
             var visitedPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
             foreach (var pluginInfo in Chainloader.PluginInfos.Values
-                         .Where(info => info != null)
-                         .OrderBy(GetPluginSortKey, StringComparer.OrdinalIgnoreCase))
+                .Where(info => info != null)
+                .OrderBy(GetPluginSortKey, StringComparer.OrdinalIgnoreCase))
             {
                 var pluginLocation = NormalizeExistingPath(pluginInfo.Location);
                 if (string.IsNullOrWhiteSpace(pluginLocation)) continue;
@@ -217,8 +235,10 @@ namespace CUCoreLib.Helpers
 
                 foreach (var scopedFileName in scopedFileNames)
                 {
-                    AddIfExists(results, visitedPaths, Path.Combine(pluginDirectory, scopedFileName));
-                    AddIfExists(results, visitedPaths, Path.Combine(pluginDirectory, "Locales", scopedFileName));
+                    AddIfExists(results, visitedPaths,
+                        Path.Combine(pluginDirectory, scopedFileName));
+                    AddIfExists(results, visitedPaths,
+                        Path.Combine(pluginDirectory, "Locales", scopedFileName));
                 }
 
                 AddRangeIfExists(results, visitedPaths,
@@ -226,7 +246,9 @@ namespace CUCoreLib.Helpers
                         .Where(path => scopedFileNames.Contains(Path.GetFileName(path))));
             }
 
-            var pluginRoot = Path.Combine(Path.GetDirectoryName(Paths.ConfigPath) ?? string.Empty, "plugins");
+            var pluginRoot =
+                Path.Combine(Path.GetDirectoryName(Paths.ConfigPath) ?? string.Empty,
+                    "plugins");
             if (!Directory.Exists(pluginRoot)) return results;
 
             AddRangeIfExists(results, visitedPaths,
@@ -236,7 +258,8 @@ namespace CUCoreLib.Helpers
             return results;
         }
 
-        private static List<EmbeddedLocaleResource> FindEmbeddedOverlayResources(string localeName)
+        private static List<EmbeddedLocaleResource> FindEmbeddedOverlayResources(
+            string localeName)
         {
             var results = new List<EmbeddedLocaleResource>();
             var visited = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -246,42 +269,46 @@ namespace CUCoreLib.Helpers
                 .ToList();
 
             foreach (var pluginInfo in plugins)
-                AddMatchingEmbeddedResources(results, visited, pluginInfo, localeName + ".json");
+                AddMatchingEmbeddedResources(results, visited, pluginInfo,
+                    localeName + ".json");
 
             foreach (var pluginInfo in plugins)
             {
                 var guid = pluginInfo.Metadata?.GUID;
                 if (string.IsNullOrWhiteSpace(guid)) continue;
 
-                AddMatchingEmbeddedResources(results, visited, pluginInfo, localeName + "-" + guid.Trim() + ".json");
+                AddMatchingEmbeddedResources(results, visited, pluginInfo,
+                    localeName + "-" + guid.Trim() + ".json");
             }
 
             return results;
         }
 
-        private static void AddMatchingEmbeddedResources(List<EmbeddedLocaleResource> results, ISet<string> visited,
+        private static void AddMatchingEmbeddedResources(
+            List<EmbeddedLocaleResource> results, ISet<string> visited,
             PluginInfo pluginInfo, string fileName)
         {
             var assembly = ResolvePluginAssembly(pluginInfo);
             if (assembly == null) return;
 
             var normalizedFileName = NormalizeResourceName(fileName);
-            foreach (var resourceName in assembly.GetManifestResourceNames()
-                         .Where(name => ResourceNameMatchesLocale(name, normalizedFileName))
-                         .OrderBy(name => name, StringComparer.OrdinalIgnoreCase))
-            {
-                var uniqueKey = (assembly.FullName ?? assembly.GetName().Name ?? string.Empty) + "|" + resourceName;
-                if (!visited.Add(uniqueKey)) continue;
-
-                results.Add(new EmbeddedLocaleResource(assembly, resourceName));
-            }
+            results.AddRange(
+                from resourceName in assembly.GetManifestResourceNames()
+                    .Where(name => ResourceNameMatchesLocale(name, normalizedFileName))
+                    .OrderBy(name => name, StringComparer.OrdinalIgnoreCase)
+                let uniqueKey = (assembly.FullName)
+                    + "|"
+                    + resourceName
+                where visited.Add(uniqueKey)
+                select new EmbeddedLocaleResource(assembly, resourceName));
         }
 
         private static List<string> GetLoadedPluginGuidsOrdered()
         {
             return Chainloader.PluginInfos.Values
-                .Where(info => info != null && info.Metadata != null &&
-                               !string.IsNullOrWhiteSpace(info.Metadata.GUID))
+                .Where(info =>
+                    info?.Metadata != null
+                    && !string.IsNullOrWhiteSpace(info.Metadata.GUID))
                 .Select(info => info.Metadata.GUID.Trim())
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .OrderBy(guid => guid, StringComparer.OrdinalIgnoreCase)
@@ -290,11 +317,16 @@ namespace CUCoreLib.Helpers
 
         private static JObject LoadEmbeddedLocaleJson(EmbeddedLocaleResource resource)
         {
-            if (resource == null || resource.Assembly == null || string.IsNullOrWhiteSpace(resource.ResourceName))
+            if (resource == null
+                || resource.Assembly == null
+                || string.IsNullOrWhiteSpace(resource.ResourceName))
                 return null;
 
-            var json = AssetLoader.LoadEmbeddedText(resource.ResourceName, resource.Assembly);
-            return string.IsNullOrWhiteSpace(json) ? null : JObject.Parse(json);
+            var json =
+                AssetLoader.LoadEmbeddedText(resource.ResourceName, resource.Assembly);
+            return string.IsNullOrWhiteSpace(json)
+                ? null
+                : JObject.Parse(json);
         }
 
         private static void MergeLocaleJson(Language target, JObject source)
@@ -319,7 +351,8 @@ namespace CUCoreLib.Helpers
             MergeSection(target.other, source["title"]);
         }
 
-        private static void MergeSection(Dictionary<string, string> target, JToken sectionToken)
+        private static void MergeSection(Dictionary<string, string> target,
+            JToken sectionToken)
         {
             if (target == null || sectionToken == null) return;
 
@@ -338,7 +371,8 @@ namespace CUCoreLib.Helpers
             }
         }
 
-        private static void MergeSectionIfAbsent(Dictionary<string, string> target, JToken sectionToken)
+        private static void MergeSectionIfAbsent(Dictionary<string, string> target,
+            JToken sectionToken)
         {
             if (target == null || sectionToken == null) return;
 
@@ -354,7 +388,8 @@ namespace CUCoreLib.Helpers
                 if (string.IsNullOrWhiteSpace(value)) continue;
 
                 var key = property.Name.Trim();
-                if (target.TryGetValue(key, out var existing) && !string.IsNullOrWhiteSpace(existing)) continue;
+                if (target.TryGetValue(key, out var existing)
+                    && !string.IsNullOrWhiteSpace(existing)) continue;
 
                 target[key] = value;
             }
@@ -392,10 +427,13 @@ namespace CUCoreLib.Helpers
         {
             if (language == null || string.IsNullOrWhiteSpace(key)) return string.Empty;
 
-            var section = category == "item" ? language.main :
-                category == "building" ? language.buildings :
-                category == "moodle" ? language.moodles :
-                language.other;
+            var section = category == "item"
+                ? language.main
+                : category == "building"
+                    ? language.buildings
+                    : category == "moodle"
+                        ? language.moodles
+                        : language.other;
 
             if (section == null) return string.Empty;
 
@@ -406,7 +444,8 @@ namespace CUCoreLib.Helpers
 
         private static string GetPluginSortKey(PluginInfo pluginInfo)
         {
-            if (pluginInfo?.Metadata != null && !string.IsNullOrWhiteSpace(pluginInfo.Metadata.GUID))
+            if (pluginInfo?.Metadata != null
+                && !string.IsNullOrWhiteSpace(pluginInfo.Metadata.GUID))
                 return pluginInfo.Metadata.GUID.Trim();
 
             if (!string.IsNullOrWhiteSpace(pluginInfo?.Location))
@@ -417,7 +456,9 @@ namespace CUCoreLib.Helpers
 
         private static Assembly ResolvePluginAssembly(PluginInfo pluginInfo)
         {
-            var instanceAssembly = pluginInfo?.Instance != null ? pluginInfo.Instance.GetType().Assembly : null;
+            var instanceAssembly = pluginInfo?.Instance != null
+                ? pluginInfo.Instance.GetType().Assembly
+                : null;
             if (instanceAssembly != null) return instanceAssembly;
 
             var normalizedLocation = NormalizeExistingPath(pluginInfo?.Location);
@@ -428,7 +469,8 @@ namespace CUCoreLib.Helpers
                 {
                     try
                     {
-                        return string.Equals(NormalizeExistingPath(assembly.Location), normalizedLocation,
+                        return string.Equals(NormalizeExistingPath(assembly.Location),
+                            normalizedLocation,
                             StringComparison.OrdinalIgnoreCase);
                     }
                     catch
@@ -445,7 +487,9 @@ namespace CUCoreLib.Helpers
             try
             {
                 var fullPath = Path.GetFullPath(path);
-                return File.Exists(fullPath) ? fullPath : null;
+                return File.Exists(fullPath)
+                    ? fullPath
+                    : null;
             }
             catch
             {
@@ -460,24 +504,31 @@ namespace CUCoreLib.Helpers
                 : resourceName.Trim().Replace('/', '.').Replace('\\', '.');
         }
 
-        private static bool ResourceNameMatchesLocale(string resourceName, string normalizedFileName)
+        private static bool ResourceNameMatchesLocale(string resourceName,
+            string normalizedFileName)
         {
-            if (string.IsNullOrWhiteSpace(resourceName) || string.IsNullOrWhiteSpace(normalizedFileName)) return false;
+            if (string.IsNullOrWhiteSpace(resourceName)
+                || string.IsNullOrWhiteSpace(normalizedFileName)) return false;
 
             var normalizedResourceName = NormalizeResourceName(resourceName);
-            return string.Equals(normalizedResourceName, normalizedFileName, StringComparison.OrdinalIgnoreCase) ||
-                   normalizedResourceName.EndsWith("." + normalizedFileName, StringComparison.OrdinalIgnoreCase);
+            return string.Equals(normalizedResourceName, normalizedFileName,
+                    StringComparison.OrdinalIgnoreCase)
+                || normalizedResourceName.EndsWith("." + normalizedFileName,
+                    StringComparison.OrdinalIgnoreCase);
         }
 
-        private static void AddIfExists(ICollection<string> results, ISet<string> visitedPaths, string path)
+        private static void AddIfExists(ICollection<string> results,
+            ISet<string> visitedPaths, string path)
         {
             var normalizedPath = NormalizeExistingPath(path);
-            if (string.IsNullOrWhiteSpace(normalizedPath) || !visitedPaths.Add(normalizedPath)) return;
+            if (string.IsNullOrWhiteSpace(normalizedPath)
+                || !visitedPaths.Add(normalizedPath)) return;
 
             results.Add(normalizedPath);
         }
 
-        private static void AddRangeIfExists(ICollection<string> results, ISet<string> visitedPaths,
+        private static void AddRangeIfExists(ICollection<string> results,
+            ISet<string> visitedPaths,
             IEnumerable<string> paths)
         {
             if (paths == null) return;
@@ -486,19 +537,23 @@ namespace CUCoreLib.Helpers
                 AddIfExists(results, visitedPaths, path);
         }
 
-        private static IEnumerable<string> EnumerateMatchingFiles(string rootPath, string fileName)
+        private static IEnumerable<string> EnumerateMatchingFiles(string rootPath,
+            string fileName)
         {
-            if (string.IsNullOrWhiteSpace(rootPath) || string.IsNullOrWhiteSpace(fileName) ||
-                !Directory.Exists(rootPath))
+            if (string.IsNullOrWhiteSpace(rootPath)
+                || string.IsNullOrWhiteSpace(fileName)
+                || !Directory.Exists(rootPath))
                 return Enumerable.Empty<string>();
 
             try
             {
-                return Directory.EnumerateFiles(rootPath, fileName, SearchOption.AllDirectories);
+                return Directory.EnumerateFiles(rootPath, fileName,
+                    SearchOption.AllDirectories);
             }
             catch (Exception ex)
             {
-                Logger?.LogWarning($"Failed to scan locale overlays under '{rootPath}': {ex.Message}");
+                Logger?.LogWarning(
+                    $"Failed to scan locale overlays under '{rootPath}': {ex.Message}");
                 return Enumerable.Empty<string>();
             }
         }
@@ -508,7 +563,8 @@ namespace CUCoreLib.Helpers
             var normalizedPath = NormalizeExistingPath(path);
             if (string.IsNullOrWhiteSpace(normalizedPath)) return "<unknown>";
 
-            foreach (var pluginInfo in Chainloader.PluginInfos.Values.Where(info => info != null))
+            foreach (var pluginInfo in Chainloader.PluginInfos.Values.Where(info =>
+                info != null))
             {
                 var pluginLocation = NormalizeExistingPath(pluginInfo.Location);
                 if (string.IsNullOrWhiteSpace(pluginLocation)) continue;
@@ -516,7 +572,8 @@ namespace CUCoreLib.Helpers
                 var pluginDirectory = Path.GetDirectoryName(pluginLocation);
                 if (string.IsNullOrWhiteSpace(pluginDirectory)) continue;
 
-                if (!normalizedPath.StartsWith(pluginDirectory, StringComparison.OrdinalIgnoreCase)) continue;
+                if (!normalizedPath.StartsWith(pluginDirectory,
+                    StringComparison.OrdinalIgnoreCase)) continue;
 
                 if (!string.IsNullOrWhiteSpace(pluginInfo.Metadata?.GUID))
                     return pluginInfo.Metadata.GUID.Trim();
@@ -528,7 +585,8 @@ namespace CUCoreLib.Helpers
             }
 
             var configLocaleRoot = Path.Combine(Paths.ConfigPath, "CUCoreLib", "Locales");
-            if (normalizedPath.StartsWith(configLocaleRoot, StringComparison.OrdinalIgnoreCase))
+            if (normalizedPath.StartsWith(configLocaleRoot,
+                StringComparison.OrdinalIgnoreCase))
                 return "CUCoreLib config locale folder";
 
             return Path.GetDirectoryName(normalizedPath) ?? "<unknown>";

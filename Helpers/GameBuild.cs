@@ -3,7 +3,7 @@ using System;
 namespace CUCoreLib.Helpers
 {
     /// <summary>
-    /// Which Casualties Unknown build is running
+    ///     Which Casualties Unknown build is running
     /// </summary>
     [Flags]
     public enum GameBuild
@@ -15,7 +15,9 @@ namespace CUCoreLib.Helpers
 
     public static class GameBuildInfo
     {
-        public static GameBuild Current => CUCoreUtils.IsDemo() ? GameBuild.Demo : GameBuild.Full;
+        public static GameBuild Current => CUCoreUtils.IsDemo()
+            ? GameBuild.Demo
+            : GameBuild.Full;
 
         public static bool IsFullGame => !CUCoreUtils.IsDemo();
 
@@ -26,16 +28,16 @@ namespace CUCoreLib.Helpers
     }
 
     /// <summary>
-    /// Restricts a <c>[HarmonyPatch]</c> family to (a) specific build(s)
+    ///     Restricts a <c>[HarmonyPatch]</c> family to (a) specific build(s)
     /// </summary>
-    [AttributeUsage(AttributeTargets.Class, AllowMultiple = false, Inherited = false)]
+    [AttributeUsage(AttributeTargets.Class, Inherited = false)]
     public sealed class AppliesToBuildAttribute : Attribute
     {
-        public GameBuild Build { get; }
-
         public AppliesToBuildAttribute(GameBuild build)
         {
             Build = build;
         }
+
+        public GameBuild Build { get; }
     }
 }

@@ -5,6 +5,7 @@ using System.Linq;
 using System.Reflection;
 using BepInEx.Bootstrap;
 using UnityEngine;
+using Object = UnityEngine.Object;
 
 namespace CUCoreLib.Helpers
 {
@@ -13,8 +14,12 @@ namespace CUCoreLib.Helpers
         private static readonly Dictionary<string, WatchDescriptor> DescriptorByName =
             new Dictionary<string, WatchDescriptor>(StringComparer.OrdinalIgnoreCase);
 
-        private static readonly List<WatchDescriptor> AllDescriptors = new List<WatchDescriptor>();
-        private static readonly List<WatchDescriptor> ActiveWatches = new List<WatchDescriptor>();
+        private static readonly List<WatchDescriptor> AllDescriptors =
+            new List<WatchDescriptor>();
+
+        private static readonly List<WatchDescriptor> ActiveWatches =
+            new List<WatchDescriptor>();
+
         private static readonly List<string> RootAutofill = new List<string>
         {
             "add",
@@ -38,7 +43,7 @@ namespace CUCoreLib.Helpers
             RebuildDescriptorCache();
 
             _overlayRoot = new GameObject("CUCoreLib.DebugWatchOverlay");
-            UnityEngine.Object.DontDestroyOnLoad(_overlayRoot);
+            Object.DontDestroyOnLoad(_overlayRoot);
             _overlayRoot.hideFlags = HideFlags.HideAndDontSave;
             _overlayRoot.AddComponent<DebugWatchOverlayBehaviour>();
         }
@@ -82,7 +87,8 @@ namespace CUCoreLib.Helpers
         internal static IReadOnlyList<string> GetActiveWatchLines()
         {
             return ActiveWatches
-                .Select(descriptor => $"{descriptor.DisplayName}: {FormatValue(descriptor)}")
+                .Select(descriptor =>
+                    $"{descriptor.DisplayName}: {FormatValue(descriptor)}")
                 .ToList();
         }
 
@@ -136,8 +142,10 @@ namespace CUCoreLib.Helpers
                 {
                     if (type == null) continue;
 
-                    foreach (var field in type.GetFields(BindingFlags.Public | BindingFlags.NonPublic |
-                                                         BindingFlags.Static | BindingFlags.FlattenHierarchy))
+                    foreach (var field in type.GetFields(BindingFlags.Public
+                        | BindingFlags.NonPublic
+                        | BindingFlags.Static
+                        | BindingFlags.FlattenHierarchy))
                     {
                         if (!IsSupportedField(field)) continue;
 
@@ -151,24 +159,20 @@ namespace CUCoreLib.Helpers
             }
 
             AllDescriptors.Sort((left, right) =>
-                string.Compare(left.DisplayName, right.DisplayName, StringComparison.OrdinalIgnoreCase));
+                string.Compare(left.DisplayName, right.DisplayName,
+                    StringComparison.OrdinalIgnoreCase));
         }
 
         private static IEnumerable<Assembly> GetCandidateAssemblies()
         {
-            foreach (var plugin in Chainloader.PluginInfos.Values)
-            {
-                var assembly = plugin?.Instance?.GetType().Assembly;
-                if (assembly == null) continue;
-                yield return assembly;
-            }
+            return Chainloader.PluginInfos.Values.Select(plugin => plugin?.Instance?.GetType().Assembly).Where(assembly => assembly != null);
         }
 
         private static bool IsSupportedField(FieldInfo field)
         {
             if (field == null) return false;
             if (!field.IsStatic) return false;
-            
+
             Type fieldType;
             try
             {
@@ -178,7 +182,7 @@ namespace CUCoreLib.Helpers
             {
                 return false;
             }
-            
+
             return IsSupportedValueType(fieldType);
         }
 
@@ -206,7 +210,8 @@ namespace CUCoreLib.Helpers
             return false;
         }
 
-        private static bool TryResolveDescriptor(string query, out WatchDescriptor descriptor, out string message)
+        private static bool TryResolveDescriptor(string query,
+            out WatchDescriptor descriptor, out string message)
         {
             descriptor = null;
             if (string.IsNullOrWhiteSpace(query))
@@ -224,8 +229,10 @@ namespace CUCoreLib.Helpers
 
             var matches = AllDescriptors
                 .Where(candidate =>
-                    candidate.DisplayName.EndsWith(trimmedQuery, StringComparison.OrdinalIgnoreCase) ||
-                    candidate.ShortName.Equals(trimmedQuery, StringComparison.OrdinalIgnoreCase))
+                    candidate.DisplayName.EndsWith(trimmedQuery,
+                        StringComparison.OrdinalIgnoreCase)
+                    || candidate.ShortName.Equals(trimmedQuery,
+                        StringComparison.OrdinalIgnoreCase))
                 .ToList();
 
             if (matches.Count == 1)
@@ -237,7 +244,8 @@ namespace CUCoreLib.Helpers
 
             if (matches.Count > 1)
             {
-                message = $"Ambiguous debug watch '{trimmedQuery}'. Use a more specific type path.";
+                message =
+                    $"Ambiguous debug watch '{trimmedQuery}'. Use a more specific type path.";
                 return false;
             }
 
@@ -264,7 +272,10 @@ namespace CUCoreLib.Helpers
 
             var underlying = Nullable.GetUnderlyingType(declaredType) ?? declaredType;
             if (underlying == typeof(string)) return (string)value;
-            if (underlying == typeof(bool)) return ((bool)value) ? "true" : "false";
+            if (underlying == typeof(bool))
+                return (bool)value
+                    ? "true"
+                    : "false";
             if (underlying.IsEnum) return value.ToString();
 
             if (underlying == typeof(float))
@@ -295,8 +306,8 @@ namespace CUCoreLib.Helpers
         {
             if (!_overlayVisible) return false;
             if (ActiveWatches.Count == 0) return false;
-            if (WorldGeneration.world == null) return false;
-            return PlayerCamera.main != null;
+            if (!WorldGeneration.world) return false;
+            return PlayerCamera.main;
         }
 
         private static GUIStyle GetOverlayStyle()

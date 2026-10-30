@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
@@ -7,8 +8,8 @@ using System.Text;
 using BepInEx;
 using BepInEx.Configuration;
 using CUCoreLib.Networking;
-using UnityEngine.SceneManagement;
 using UnityEngine;
+using Object = UnityEngine.Object;
 
 namespace CUCoreLib.Helpers
 {
@@ -37,7 +38,8 @@ namespace CUCoreLib.Helpers
         {
             if (_configFile != null) return;
 
-            _quickTestStatePath = Path.Combine(Paths.ConfigPath, QuickTestStateDirectoryName, QuickTestStateFileName);
+            _quickTestStatePath = Path.Combine(Paths.ConfigPath,
+                QuickTestStateDirectoryName, QuickTestStateFileName);
             _configFile = CUCoreLibPlugin.GetOrCreateSharedConfig();
             _launchInSandbox = CUCoreLibPlugin.BindSharedConfig(
                 SectionName,
@@ -77,59 +79,73 @@ namespace CUCoreLib.Helpers
                 PlayerPrefs.SetInt("radlinedisable", 0);
                 WorldGeneration.runSettings = null;
                 menu.StartCoroutine(menu.WaitLoad());
-                CUCoreLibPlugin.Log?.LogInfo("CUCoreLib launch override: starting tutorial sandbox.");
+                CUCoreLibPlugin.Log?.LogInfo(
+                    "CUCoreLib launch override: starting tutorial sandbox.");
                 return true;
             }
 
             if (_launchInDebugWorld == null || !_launchInDebugWorld.Value) return false;
-            var runSettings = new Dictionary<string, object>(RunSettings.GetPreset("normal").presetValues)
-            {
-                ["debugworld"] = true
-            };
+            var runSettings =
+                new Dictionary<string, object>(RunSettings.GetPreset("normal")
+                    .presetValues)
+                {
+                    ["debugworld"] = true
+                };
 
             SaveSystem.loadedRun = false;
             WorldGeneration.runSettings = runSettings;
             menu.StartCoroutine(menu.WaitLoad());
-            CUCoreLibPlugin.Log?.LogInfo("CUCoreLib launch override: starting normal debug world.");
+            CUCoreLibPlugin.Log?.LogInfo(
+                "CUCoreLib launch override: starting normal debug world.");
             return true;
         }
 
-        internal static bool TryConsumePendingSandboxCourse(TutorialHandler tutorialHandler)
+        internal static bool TryConsumePendingSandboxCourse(
+            TutorialHandler tutorialHandler)
         {
             if (!_pendingSandboxCourse || tutorialHandler == null) return false;
 
             _pendingSandboxCourse = false;
             tutorialHandler.StartCourse(typeof(SandboxCourse));
-            if (tutorialHandler.courseSelectScreen != null) tutorialHandler.courseSelectScreen.SetActive(false);
+            if (tutorialHandler.courseSelectScreen != null)
+                tutorialHandler.courseSelectScreen.SetActive(false);
 
-            CUCoreLibPlugin.Log?.LogInfo("CUCoreLib launch override: entered sandbox course.");
+            CUCoreLibPlugin.Log?.LogInfo(
+                "CUCoreLib launch override: entered sandbox course.");
             return true;
         }
 
         private static bool TryConsumeMultiplayerQuickTest(PreRunScript menu)
         {
-            if (_multiplayerQuickTestConsumed || _multiplayerQuickTest == null || !_multiplayerQuickTest.Value)
+            if (_multiplayerQuickTestConsumed
+                || _multiplayerQuickTest == null
+                || !_multiplayerQuickTest.Value)
                 return false;
 
             _multiplayerQuickTestConsumed = true;
             if (!MultiplayerBridge.IsAvailable)
             {
-                CUCoreLibPlugin.Log?.LogInfo("CUCoreLib multiplayerQuickTest skipped because KrokMP is not available.");
+                CUCoreLibPlugin.Log?.LogInfo(
+                    "CUCoreLib multiplayerQuickTest skipped because KrokMP is not available.");
                 return false;
             }
 
             var role = ClaimQuickTestRole();
             if (role == QuickTestRole.None)
             {
-                CUCoreLibPlugin.Log?.LogWarning("CUCoreLib multiplayerQuickTest could not determine a quick-test role.");
+                CUCoreLibPlugin.Log?.LogWarning(
+                    "CUCoreLib multiplayerQuickTest could not determine a quick-test role.");
                 return false;
             }
 
             var address = NormalizeQuickTestAddress(_multiplayerQuickTestAddress?.Value);
-            var username = role == QuickTestRole.Host ? HostUserName : ClientUserName;
+            var username = role == QuickTestRole.Host
+                ? HostUserName
+                : ClientUserName;
             if (!MultiplayerBridge.TryConfigureLocalIdentity(username, address))
             {
-                CUCoreLibPlugin.Log?.LogWarning("CUCoreLib multiplayerQuickTest failed to configure KrokMP localhost identity.");
+                CUCoreLibPlugin.Log?.LogWarning(
+                    "CUCoreLib multiplayerQuickTest failed to configure KrokMP localhost identity.");
                 return false;
             }
 
@@ -139,7 +155,10 @@ namespace CUCoreLib.Helpers
 
             if (!started)
             {
-                CUCoreLibPlugin.Log?.LogWarning("CUCoreLib multiplayerQuickTest failed to start localhost " + role + ".");
+                CUCoreLibPlugin.Log?.LogWarning(
+                    "CUCoreLib multiplayerQuickTest failed to start localhost "
+                    + role
+                    + ".");
                 return false;
             }
 
@@ -147,16 +166,18 @@ namespace CUCoreLib.Helpers
             if (role == QuickTestRole.Host)
             {
                 CUCoreUtils.StartCoroutine(HostQuickTestStartRoutine(menu));
-                CUCoreLibPlugin.Log?.LogInfo("CUCoreLib multiplayerQuickTest: starting localhost host as 'Host'.");
+                CUCoreLibPlugin.Log?.LogInfo(
+                    "CUCoreLib multiplayerQuickTest: starting localhost host as 'Host'.");
                 return true;
             }
 
             CUCoreUtils.StartCoroutine(ClientQuickTestStartRoutine());
-            CUCoreLibPlugin.Log?.LogInfo("CUCoreLib multiplayerQuickTest: starting localhost client as 'Client'.");
+            CUCoreLibPlugin.Log?.LogInfo(
+                "CUCoreLib multiplayerQuickTest: starting localhost client as 'Client'.");
             return false;
         }
 
-        private static System.Collections.IEnumerator HostQuickTestStartRoutine(PreRunScript menu)
+        private static IEnumerator HostQuickTestStartRoutine(PreRunScript menu)
         {
             Application.runInBackground = true;
             yield return new WaitForSecondsRealtime(3f);
@@ -164,22 +185,27 @@ namespace CUCoreLib.Helpers
             TrySkipWarningScreen();
             ScrollableText.ForceClose();
 
-            var liveMenu = menu != null ? menu : UnityEngine.Object.FindObjectOfType<PreRunScript>();
+            var liveMenu = menu != null
+                ? menu
+                : Object.FindObjectOfType<PreRunScript>();
             if (liveMenu == null)
             {
-                CUCoreLibPlugin.Log?.LogWarning("CUCoreLib multiplayerQuickTest host start could not find PreRunScript.");
+                CUCoreLibPlugin.Log?.LogWarning(
+                    "CUCoreLib multiplayerQuickTest host start could not find PreRunScript.");
                 yield break;
             }
 
             SaveSystem.loadedRun = false;
-            WorldGeneration.runSettings = liveMenu.runSettings ??
-                                          new Dictionary<string, object>(RunSettings.GetPreset("normal").presetValues);
+            WorldGeneration.runSettings = liveMenu.runSettings
+                ?? new Dictionary<string, object>(RunSettings.GetPreset("normal")
+                    .presetValues);
             liveMenu.StartRun();
 
-            CUCoreUtils.CallWhen(() => WorldGeneration.world != null, TryAnnounceGameStart, 0.1f);
+            CUCoreUtils.CallWhen(() => WorldGeneration.world != null,
+                TryAnnounceGameStart, 0.1f);
         }
 
-        private static System.Collections.IEnumerator ClientQuickTestStartRoutine()
+        private static IEnumerator ClientQuickTestStartRoutine()
         {
             Application.runInBackground = true;
             yield return new WaitForSecondsRealtime(1f);
@@ -192,7 +218,8 @@ namespace CUCoreLib.Helpers
             if (!MultiplayerBridge.IsServer) return;
 
             if (MultiplayerBridge.TryAnnounceGameStart())
-                CUCoreLibPlugin.Log?.LogInfo("CUCoreLib multiplayerQuickTest: announced game start to localhost clients.");
+                CUCoreLibPlugin.Log?.LogInfo(
+                    "CUCoreLib multiplayerQuickTest: announced game start to localhost clients.");
         }
 
         private static void TrySkipWarningScreen()
@@ -203,7 +230,9 @@ namespace CUCoreLib.Helpers
 
         private static string NormalizeQuickTestAddress(string address)
         {
-            return string.IsNullOrWhiteSpace(address) ? DefaultQuickTestAddress : address.Trim();
+            return string.IsNullOrWhiteSpace(address)
+                ? DefaultQuickTestAddress
+                : address.Trim();
         }
 
         private static QuickTestRole ClaimQuickTestRole()
@@ -211,7 +240,8 @@ namespace CUCoreLib.Helpers
             try
             {
                 var directory = Path.GetDirectoryName(_quickTestStatePath);
-                if (!string.IsNullOrWhiteSpace(directory)) Directory.CreateDirectory(directory);
+                if (!string.IsNullOrWhiteSpace(directory))
+                    Directory.CreateDirectory(directory);
 
                 var state = LoadQuickTestState().Normalize();
                 var processId = Process.GetCurrentProcess().Id;
@@ -237,7 +267,9 @@ namespace CUCoreLib.Helpers
             }
             catch (Exception ex)
             {
-                CUCoreLibPlugin.Log?.LogWarning("CUCoreLib multiplayerQuickTest failed to claim host/client role.\n" + ex);
+                CUCoreLibPlugin.Log?.LogWarning(
+                    "CUCoreLib multiplayerQuickTest failed to claim host/client role.\n"
+                    + ex);
                 return QuickTestRole.None;
             }
         }
@@ -273,18 +305,23 @@ namespace CUCoreLib.Helpers
                 normalized.HostProcessId.ToString(CultureInfo.InvariantCulture),
                 normalized.HostHeartbeatUtc.ToString("O", CultureInfo.InvariantCulture),
                 normalized.ClientProcessId.ToString(CultureInfo.InvariantCulture),
-                normalized.ClientHeartbeatUtc.ToString("O", CultureInfo.InvariantCulture));
+                normalized.ClientHeartbeatUtc.ToString("O",
+                    CultureInfo.InvariantCulture));
             File.WriteAllText(_quickTestStatePath, serialized, Encoding.UTF8);
         }
 
         private static int ParseInt(string value)
         {
-            return int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed) ? parsed : 0;
+            return int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture,
+                out var parsed)
+                ? parsed
+                : 0;
         }
 
         private static DateTime ParseUtc(string value)
         {
-            return DateTime.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var parsed)
+            return DateTime.TryParse(value, CultureInfo.InvariantCulture,
+                DateTimeStyles.RoundtripKind, out var parsed)
                 ? parsed
                 : DateTime.MinValue;
         }
@@ -293,7 +330,8 @@ namespace CUCoreLib.Helpers
         {
             if (processId <= 0) return false;
             if (heartbeatUtc == DateTime.MinValue) return false;
-            if ((DateTime.UtcNow - heartbeatUtc).TotalSeconds > QuickTestStateTtlSeconds) return false;
+            if ((DateTime.UtcNow - heartbeatUtc).TotalSeconds > QuickTestStateTtlSeconds)
+                return false;
 
             try
             {
@@ -314,13 +352,16 @@ namespace CUCoreLib.Helpers
 
         private sealed class QuickTestState
         {
-            public int HostProcessId;
-            public DateTime HostHeartbeatUtc;
-            public int ClientProcessId;
             public DateTime ClientHeartbeatUtc;
+            public int ClientProcessId;
+            public DateTime HostHeartbeatUtc;
+            public int HostProcessId;
 
-            public bool HasLiveHost => IsProcessSlotAlive(HostProcessId, HostHeartbeatUtc);
-            public bool HasLiveClient => IsProcessSlotAlive(ClientProcessId, ClientHeartbeatUtc);
+            public bool HasLiveHost =>
+                IsProcessSlotAlive(HostProcessId, HostHeartbeatUtc);
+
+            public bool HasLiveClient =>
+                IsProcessSlotAlive(ClientProcessId, ClientHeartbeatUtc);
 
             public QuickTestState Normalize()
             {

@@ -7,13 +7,12 @@ namespace CUCoreLib.Helpers
     [DisallowMultipleComponent]
     public sealed class AnimatedImage : MonoBehaviour
     {
-        private RegisteredSpriteAnimation _animation;
         private Image _image;
         private float _time;
 
         public string AnimationId { get; private set; }
 
-        public RegisteredSpriteAnimation Animation => _animation;
+        public RegisteredSpriteAnimation Animation { get; private set; }
 
         private void Awake()
         {
@@ -22,8 +21,8 @@ namespace CUCoreLib.Helpers
 
         private void Update()
         {
-            if (!_image || _animation?.Frames == null ||
-                _animation.Frames.Length == 0) return;
+            if (!_image || Animation?.Frames == null || Animation.Frames.Length == 0)
+                return;
 
             _time += Time.unscaledDeltaTime;
             ApplyCurrentFrame();
@@ -38,30 +37,32 @@ namespace CUCoreLib.Helpers
         public void SetAnimation(string animationId, RegisteredSpriteAnimation animation)
         {
             AnimationId = animationId;
-            _animation = animation;
+            Animation = animation;
             _time = 0f;
             ApplyCurrentFrame();
         }
 
         private void ApplyCurrentFrame()
         {
-            if (_image == null || _animation == null || _animation.Frames == null ||
-                _animation.Frames.Length == 0) return;
+            if (!_image
+                || Animation?.Frames == null
+                || Animation.Frames.Length == 0) return;
 
             var frameIndex = ResolveFrameIndex();
-            var frame = _animation.Frames[frameIndex];
-            if (frame != null) _image.sprite = frame;
+            var frame = Animation.Frames[frameIndex];
+            if (frame) _image.sprite = frame;
         }
 
         private int ResolveFrameIndex()
         {
-            if (_animation == null || _animation.Frames == null || _animation.Frames.Length == 0) return 0;
+            if (Animation?.Frames == null
+                || Animation.Frames.Length == 0) return 0;
 
-            if (_animation.Frames.Length == 1 || _animation.FramesPerSecond <= 0f) return 0;
+            if (Animation.Frames.Length == 1 || Animation.FramesPerSecond <= 0f) return 0;
 
-            var frameCount = _animation.Frames.Length;
-            var frameIndex = Mathf.FloorToInt(_time * _animation.FramesPerSecond);
-            if (_animation.Loop)
+            var frameCount = Animation.Frames.Length;
+            var frameIndex = Mathf.FloorToInt(_time * Animation.FramesPerSecond);
+            if (Animation.Loop)
                 frameIndex %= frameCount;
             else
                 frameIndex = Mathf.Min(frameIndex, frameCount - 1);

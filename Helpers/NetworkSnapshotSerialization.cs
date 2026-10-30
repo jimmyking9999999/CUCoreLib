@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Newtonsoft.Json.Linq;
 using UnityEngine;
+using Object = UnityEngine.Object;
 
 namespace CUCoreLib.Helpers
 {
@@ -12,6 +13,7 @@ namespace CUCoreLib.Helpers
             new Dictionary<SpritePayloadKey, string>();
 
         private static int _spriteDedupeDepth;
+
         // Make cache persistant across multiple snapshots
         internal static IDisposable BeginSpriteDedupeScope()
         {
@@ -22,14 +24,6 @@ namespace CUCoreLib.Helpers
         internal static void InvalidateSpritePayloadCache()
         {
             SpritePayloadCache.Clear();
-        }
-
-        private sealed class SpriteDedupeScope : IDisposable
-        {
-            public void Dispose()
-            {
-                if (_spriteDedupeDepth > 0) _spriteDedupeDepth--;
-            }
         }
 
         internal static JObject WriteSprite(Sprite sprite)
@@ -76,10 +70,13 @@ namespace CUCoreLib.Helpers
             var encoded = obj.Value<string>("data");
             if (string.IsNullOrWhiteSpace(encoded)) return null;
 
-            if (!TryDecodeBase64(encoded, out var data) || data == null || data.Length == 0) return null;
+            if (!TryDecodeBase64(encoded, out var data)
+                || data == null
+                || data.Length == 0) return null;
 
             var ppu = obj.Value<float?>("ppu") ?? AssetLoader.PPU_WORLD;
-            var pivot = new Vector2(obj.Value<float?>("px") ?? 0.5f, obj.Value<float?>("py") ?? 0.5f);
+            var pivot = new Vector2(obj.Value<float?>("px") ?? 0.5f,
+                obj.Value<float?>("py") ?? 0.5f);
             var sprite = AssetLoader.LoadSpriteFromBytes(data, ppu, pivot);
             if (sprite == null) return sprite;
             var name = obj.Value<string>("name");
@@ -135,16 +132,18 @@ namespace CUCoreLib.Helpers
             var stacks = new List<LiquidStack>();
             if (array == null) return stacks;
 
-            stacks.AddRange(from obj
-                in array.OfType<JObject>()
+            stacks.AddRange(
+                from obj
+                    in array.OfType<JObject>()
                 let liquidId = obj.Value<string>("liquidId")
-                where !string.IsNullOrWhiteSpace(liquidId) 
+                where !string.IsNullOrWhiteSpace(liquidId)
                 select new LiquidStack(liquidId, obj.Value<float?>("amount") ?? 0f));
 
             return stacks;
         }
 
-        internal static JArray WriteCraftingQualities(IEnumerable<CraftingQuality> qualities)
+        internal static JArray WriteCraftingQualities(
+            IEnumerable<CraftingQuality> qualities)
         {
             if (qualities == null) return null;
 
@@ -169,16 +168,18 @@ namespace CUCoreLib.Helpers
             var qualities = new List<CraftingQuality>();
             if (array == null) return qualities;
 
-            qualities.AddRange(from obj
-                in array.OfType<JObject>() 
+            qualities.AddRange(
+                from obj
+                    in array.OfType<JObject>()
                 let id = obj.Value<string>("id")
-                where !string.IsNullOrWhiteSpace(id) 
+                where !string.IsNullOrWhiteSpace(id)
                 select new CraftingQuality(id, obj.Value<float?>("amount") ?? 1f));
 
             return qualities;
         }
 
-        internal static JObject WriteSpriteDictionary(IReadOnlyDictionary<string, Sprite> sprites)
+        internal static JObject WriteSpriteDictionary(
+            IReadOnlyDictionary<string, Sprite> sprites)
         {
             if (sprites == null || sprites.Count == 0) return null;
 
@@ -197,7 +198,8 @@ namespace CUCoreLib.Helpers
         internal static Dictionary<string, Sprite> ReadSpriteDictionary(JToken token)
         {
             var obj = token as JObject;
-            var sprites = new Dictionary<string, Sprite>(StringComparer.OrdinalIgnoreCase);
+            var sprites =
+                new Dictionary<string, Sprite>(StringComparer.OrdinalIgnoreCase);
             if (obj == null) return sprites;
 
             foreach (var property in obj.Properties())
@@ -213,7 +215,8 @@ namespace CUCoreLib.Helpers
             return sprites;
         }
 
-        internal static JObject WriteVector2Dictionary(IReadOnlyDictionary<string, Vector2> offsets)
+        internal static JObject WriteVector2Dictionary(
+            IReadOnlyDictionary<string, Vector2> offsets)
         {
             if (offsets == null || offsets.Count == 0) return null;
 
@@ -235,12 +238,14 @@ namespace CUCoreLib.Helpers
         internal static Dictionary<string, Vector2> ReadVector2Dictionary(JToken token)
         {
             var obj = token as JObject;
-            var offsets = new Dictionary<string, Vector2>(StringComparer.OrdinalIgnoreCase);
+            var offsets =
+                new Dictionary<string, Vector2>(StringComparer.OrdinalIgnoreCase);
             if (obj == null) return offsets;
 
             foreach (var property in obj.Properties())
             {
-                if (string.IsNullOrWhiteSpace(property.Name) || !(property.Value is JObject vector)) continue;
+                if (string.IsNullOrWhiteSpace(property.Name)
+                    || !(property.Value is JObject vector)) continue;
 
                 offsets[property.Name] = new Vector2(
                     vector.Value<float?>("x") ?? 0f,
@@ -261,7 +266,7 @@ namespace CUCoreLib.Helpers
 
                 // maybe null
                 // 111
-                array.Add(type.AssemblyQualifiedName ?? type.FullName);
+                array.Add((type.AssemblyQualifiedName ?? type.FullName) ?? "");
             }
 
             return array;
@@ -271,7 +276,8 @@ namespace CUCoreLib.Helpers
         {
             if (!(token is JArray array)) return null;
 
-            return (from entry in array
+            return (
+                    from entry in array
                     select entry?
                         .Value<string>()
                     into typeName
@@ -303,15 +309,22 @@ namespace CUCoreLib.Helpers
             var x = Mathf.Clamp(Mathf.FloorToInt(rect.x), 0, texture.width);
             var y = Mathf.Clamp(Mathf.FloorToInt(rect.y), 0, texture.height);
             var width = Mathf.Clamp(Mathf.RoundToInt(rect.width), 0, texture.width - x);
-            var height = Mathf.Clamp(Mathf.RoundToInt(rect.height), 0, texture.height - y);
-            if (width <= 0 || height <= 0 || (x == 0 && y == 0 && width == texture.width && height == texture.height))
+            var height =
+                Mathf.Clamp(Mathf.RoundToInt(rect.height), 0, texture.height - y);
+            if (width <= 0
+                || height <= 0
+                || (x == 0
+                    && y == 0
+                    && width == texture.width
+                    && height == texture.height))
                 return WriteTexture(texture);
 
             try
             {
                 if (texture.isReadable)
                 {
-                    var cropped = new Texture2D(width, height, TextureFormat.RGBA32, false);
+                    var cropped =
+                        new Texture2D(width, height, TextureFormat.RGBA32, false);
                     try
                     {
                         cropped.SetPixels(texture.GetPixels(x, y, width, height));
@@ -320,7 +333,7 @@ namespace CUCoreLib.Helpers
                     }
                     finally
                     {
-                        UnityEngine.Object.DestroyImmediate(cropped);
+                        Object.DestroyImmediate(cropped);
                     }
                 }
             }
@@ -333,7 +346,8 @@ namespace CUCoreLib.Helpers
             var previous = RenderTexture.active;
             try
             {
-                renderTexture = RenderTexture.GetTemporary(texture.width, texture.height, 0,
+                renderTexture = RenderTexture.GetTemporary(texture.width, texture.height,
+                    0,
                     RenderTextureFormat.Default, RenderTextureReadWrite.Linear);
                 Graphics.Blit(texture, renderTexture);
                 RenderTexture.active = renderTexture;
@@ -347,7 +361,7 @@ namespace CUCoreLib.Helpers
                 }
                 finally
                 {
-                    UnityEngine.Object.DestroyImmediate(readable);
+                    Object.DestroyImmediate(readable);
                 }
             }
             catch
@@ -379,12 +393,14 @@ namespace CUCoreLib.Helpers
             var previous = RenderTexture.active;
             try
             {
-                renderTexture = RenderTexture.GetTemporary(texture.width, texture.height, 0,
+                renderTexture = RenderTexture.GetTemporary(texture.width, texture.height,
+                    0,
                     RenderTextureFormat.Default, RenderTextureReadWrite.Linear);
                 Graphics.Blit(texture, renderTexture);
                 RenderTexture.active = renderTexture;
 
-                var readable = new Texture2D(texture.width, texture.height, TextureFormat.RGBA32, false);
+                var readable = new Texture2D(texture.width, texture.height,
+                    TextureFormat.RGBA32, false);
                 readable.ReadPixels(new Rect(0, 0, texture.width, texture.height), 0, 0);
                 readable.Apply();
                 return readable.EncodeToPNG();
@@ -414,13 +430,22 @@ namespace CUCoreLib.Helpers
             }
         }
 
+        private sealed class SpriteDedupeScope : IDisposable
+        {
+            public void Dispose()
+            {
+                if (_spriteDedupeDepth > 0) _spriteDedupeDepth--;
+            }
+        }
+
         // Identifies the pixel payload of a sprite: same texture, rect, pixels-per-
         // unit and pivot produce an identical wire payload, so one entry can serve
         // every sprite sharing them. Sprite names are deliberately excluded (they
         // are cosmetic and the first writer wins).
         private readonly struct SpritePayloadKey : IEquatable<SpritePayloadKey>
         {
-            private SpritePayloadKey(int textureId, float x, float y, float width, float height, float ppu,
+            private SpritePayloadKey(int textureId, float x, float y, float width,
+                float height, float ppu,
                 float pivotX, float pivotY)
             {
                 TextureId = textureId;
@@ -444,16 +469,22 @@ namespace CUCoreLib.Helpers
 
             public static SpritePayloadKey From(Sprite sprite)
             {
-                return new SpritePayloadKey(sprite.texture.GetInstanceID(), sprite.rect.x, sprite.rect.y,
+                return new SpritePayloadKey(sprite.texture.GetInstanceID(), sprite.rect.x,
+                    sprite.rect.y,
                     sprite.rect.width, sprite.rect.height, sprite.pixelsPerUnit,
                     sprite.pivot.x, sprite.pivot.y);
             }
 
             public bool Equals(SpritePayloadKey other)
             {
-                return TextureId == other.TextureId && X == other.X && Y == other.Y &&
-                       Width == other.Width && Height == other.Height && Ppu == other.Ppu &&
-                       PivotX == other.PivotX && PivotY == other.PivotY;
+                return TextureId == other.TextureId
+                    && Mathf.Approximately(X, other.X)
+                    && Mathf.Approximately(Y, other.Y)
+                    && Mathf.Approximately(Width, other.Width)
+                    && Mathf.Approximately(Height, other.Height)
+                    && Mathf.Approximately(Ppu, other.Ppu)
+                    && Mathf.Approximately(PivotX, other.PivotX)
+                    && Mathf.Approximately(PivotY, other.PivotY);
             }
 
             public override bool Equals(object obj)

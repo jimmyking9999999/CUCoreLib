@@ -18,7 +18,8 @@ namespace CUCoreLib.Helpers
             new Dictionary<string, GameObject>(StringComparer.OrdinalIgnoreCase);
 
         // Shared buffer avoids per-shape allocations (physics)
-        private static readonly List<Vector2> SharedPhysicsShapeBuffer = new List<Vector2>();
+        private static readonly List<Vector2> SharedPhysicsShapeBuffer =
+            new List<Vector2>();
 
         internal static void ClearTemplateCache(string id)
         {
@@ -27,7 +28,8 @@ namespace CUCoreLib.Helpers
             _templateCache.Remove(id);
         }
 
-        public static GameObject InstantiateReturn(string id, Vector3 position, Quaternion rotation,
+        public static GameObject InstantiateReturn(string id, Vector3 position,
+            Quaternion rotation,
             float? condition = null)
         {
             if (string.IsNullOrWhiteSpace(id)) return null;
@@ -36,11 +38,13 @@ namespace CUCoreLib.Helpers
             var prefab = ResolvePrefab(id);
             return prefab == null
                 ? null
-                : PrepareInstantiatedObject(InstantiateInActiveScene(prefab, position, rotation), condition);
+                : PrepareInstantiatedObject(
+                    InstantiateInActiveScene(prefab, position, rotation), condition);
         }
 
         // Makes gameobjects scene-bound, to hopefully retain them specifically 
-        internal static GameObject InstantiateInActiveScene(GameObject prefab, Vector3 position, Quaternion rotation)
+        internal static GameObject InstantiateInActiveScene(GameObject prefab,
+            Vector3 position, Quaternion rotation)
         {
             var instance = Object.Instantiate(prefab, position, rotation);
             if (instance == null) return null;
@@ -55,7 +59,8 @@ namespace CUCoreLib.Helpers
 
             ResourceCache.TryInitialize();
 
-            if (BuildingEntityRegistry.IsRegistered(id)) return BuildingEntityRegistry.GetOrCreatePrefab(id);
+            if (BuildingEntityRegistry.IsRegistered(id))
+                return BuildingEntityRegistry.GetOrCreatePrefab(id);
 
             if (ResourceCache.AllPrefabs.TryGetValue(id, out var cached)) return cached;
 
@@ -66,18 +71,21 @@ namespace CUCoreLib.Helpers
         }
 
         /// <summary>
-        /// Resolves a saved or externally-restored item resource.  Vanilla resources are returned unchanged;
-        /// CUCoreLib runtime item templates are returned when the ID is registered by a dependent mod.
+        ///     Resolves a saved or externally-restored item resource.  Vanilla resources are returned unchanged;
+        ///     CUCoreLib runtime item templates are returned when the ID is registered by a dependent mod.
         /// </summary>
         public static Object ResolveSavedResource(string id)
         {
             if (string.IsNullOrWhiteSpace(id)) return null;
 
             var vanilla = Resources.Load(id);
-            return vanilla != null ? vanilla : GetOrCreateTemplate(id);
+            return vanilla != null
+                ? vanilla
+                : GetOrCreateTemplate(id);
         }
 
-        internal static GameObject PrepareInstantiatedObject(GameObject obj, float? condition = null, bool save = false)
+        internal static GameObject PrepareInstantiatedObject(GameObject obj,
+            float? condition = null, bool save = false)
         {
             if (obj == null) return null;
 
@@ -88,7 +96,7 @@ namespace CUCoreLib.Helpers
                 // Matches vanilla's throw path so custom sprite colliders do not tunnel through terrain.
                 if (ItemRegistry.TryGetCustomInfo(item, out _) && item.rb != null)
                     item.rb.collisionDetectionMode = CollisionDetectionMode2D.Continuous;
-                if(!save)
+                if (!save)
                     ItemRegistryPatches.MarkPendingBatteryInitialization(obj);
             }
 
@@ -103,9 +111,11 @@ namespace CUCoreLib.Helpers
             if (string.IsNullOrWhiteSpace(id)) return null;
             id = SpawnIdHelpers.NormalizeSpawnId(id);
 
-            if (_templateCache.TryGetValue(id, out var cachedTemplate)) return cachedTemplate;
+            if (_templateCache.TryGetValue(id, out var cachedTemplate))
+                return cachedTemplate;
 
-            if (!ItemRegistry.RegisteredItems.TryGetValue(id, out var itemInfo)) return null;
+            if (!ItemRegistry.RegisteredItems.TryGetValue(id, out var itemInfo))
+                return null;
 
             var template = CreateTemplate(id, itemInfo);
             if (template == null) return null;
@@ -137,10 +147,7 @@ namespace CUCoreLib.Helpers
                 }
                 default:
                 {
-                    if (info.Light != null)
-                    {
-                        EnsureLightItemHasLight(obj, info.Light);
-                    }
+                    if (info.Light != null) EnsureLightItemHasLight(obj, info.Light);
 
                     break;
                 }
@@ -156,15 +163,14 @@ namespace CUCoreLib.Helpers
             }
 
             if (item != null && info.wearable && obj.GetComponent<Wearable>() == null)
-            {
                 obj.AddComponent<Wearable>();
-            }
 
             if (item != null && info.Gun != null)
                 ItemRegistryPatches.ApplyGunProperties(item, info);
 
             var waterContainer = obj.GetComponent<WaterContainerItem>();
-            if (waterContainer != null) ItemRegistryPatches.ApplyLiquidMask(waterContainer, info);
+            if (waterContainer != null)
+                ItemRegistryPatches.ApplyLiquidMask(waterContainer, info);
 
             var sr = obj.GetComponent<SpriteRenderer>();
             var icon = ItemRegistry.GetIcon(info);
@@ -178,7 +184,7 @@ namespace CUCoreLib.Helpers
             if (info.Battery != null)
             {
                 var batteryItem = obj.GetComponent<BatteryItem>();
-                var createdBattery = batteryItem == null;   // not use
+                var createdBattery = batteryItem == null; // not use
                 if (batteryItem == null) batteryItem = obj.AddComponent<BatteryItem>();
 
                 ItemRegistryPatches.ApplyBatteryProperties(item, batteryItem, info, true);
@@ -194,20 +200,19 @@ namespace CUCoreLib.Helpers
             if (obj == null || sprite == null) return;
 
             if (!TryGetTrimmedColliderData(sprite, out var trimmedCollider))
-            {
                 trimmedCollider = CreateFullSpriteColliderData(sprite);
-            }
 
             // Preserve current collider settings
             var existingCollider = obj.GetComponent<Collider2D>();
-            
+
             // For some reason the first time items are spawned existingCollider gives us the incorrect collider data
             // sloppiest fix ever but without this items just dont have collision on first spawn
             if (TryApplyPolygonCollider(obj, sprite, null, trimmedCollider)) return;
             ApplyBoxCollider(obj, null, trimmedCollider);
         }
 
-        private static bool TryApplyPolygonCollider(GameObject obj, Sprite sprite, Collider2D existingCollider,
+        private static bool TryApplyPolygonCollider(GameObject obj, Sprite sprite,
+            Collider2D existingCollider,
             TrimmedColliderData trimmedCollider)
         {
             var shapeCount = sprite.GetPhysicsShapeCount();
@@ -224,9 +229,9 @@ namespace CUCoreLib.Helpers
                 SharedPhysicsShapeBuffer.Clear();
                 sprite.GetPhysicsShape(i, SharedPhysicsShapeBuffer);
                 for (var j = 0; j < SharedPhysicsShapeBuffer.Count; j++)
-                {
-                    SharedPhysicsShapeBuffer[j] = ClampPointToTrimmedBounds(SharedPhysicsShapeBuffer[j], trimmedCollider);
-                }
+                    SharedPhysicsShapeBuffer[j] =
+                        ClampPointToTrimmedBounds(SharedPhysicsShapeBuffer[j],
+                            trimmedCollider);
 
                 polygon.SetPath(i, SharedPhysicsShapeBuffer);
             }
@@ -236,7 +241,8 @@ namespace CUCoreLib.Helpers
             return true;
         }
 
-        private static void ApplyBoxCollider(GameObject obj, Collider2D existingCollider, TrimmedColliderData trimmedCollider)
+        private static void ApplyBoxCollider(GameObject obj, Collider2D existingCollider,
+            TrimmedColliderData trimmedCollider)
         {
             var box = obj.GetComponent<BoxCollider2D>();
             if (box == null) box = obj.AddComponent<BoxCollider2D>();
@@ -247,7 +253,8 @@ namespace CUCoreLib.Helpers
             RemoveOtherColliders(obj, box);
         }
 
-        private static bool TryGetTrimmedColliderData(Sprite sprite, out TrimmedColliderData trimmedCollider)
+        private static bool TryGetTrimmedColliderData(Sprite sprite,
+            out TrimmedColliderData trimmedCollider)
         {
             trimmedCollider = default;
             if (sprite == null || sprite.texture == null) return false;
@@ -303,10 +310,13 @@ namespace CUCoreLib.Helpers
             return true;
         }
 
-        private static TrimmedColliderData CreateTrimmedColliderData(Sprite sprite, int minPixelX, int minPixelY,
+        private static TrimmedColliderData CreateTrimmedColliderData(Sprite sprite,
+            int minPixelX, int minPixelY,
             int maxPixelX, int maxPixelY)
         {
-            var pixelsPerUnit = sprite.pixelsPerUnit > 0f ? sprite.pixelsPerUnit : 1f;
+            var pixelsPerUnit = sprite.pixelsPerUnit > 0f
+                ? sprite.pixelsPerUnit
+                : 1f;
             var pivotInPixels = sprite.pivot;
 
             var left = (minPixelX - pivotInPixels.x) / pixelsPerUnit;
@@ -336,7 +346,8 @@ namespace CUCoreLib.Helpers
                 bounds.center.y + extents.y);
         }
 
-        private static Vector2 ClampPointToTrimmedBounds(Vector2 point, TrimmedColliderData trimmedCollider)
+        private static Vector2 ClampPointToTrimmedBounds(Vector2 point,
+            TrimmedColliderData trimmedCollider)
         {
             return new Vector2(
                 Mathf.Clamp(point.x, trimmedCollider.MinX, trimmedCollider.MaxX),
@@ -369,17 +380,23 @@ namespace CUCoreLib.Helpers
         {
             if (target == null) return;
 
-            // Disabled objects/components do not affect templates instantiated before Unity completes
-            // the deferred destroy, and Object.Destroy is permitted from physics callbacks.
-            if (target is GameObject gameObject)
-                gameObject.SetActive(false);
-            else if (target is Behaviour behaviour)
-                behaviour.enabled = false;
+            switch (target)
+            {
+                // Disabled objects/components do not affect templates instantiated before Unity completes
+                // the deferred destroy, and Object.Destroy is permitted from physics callbacks.
+                case GameObject gameObject:
+                    gameObject.SetActive(false);
+                    break;
+                case Behaviour behaviour:
+                    behaviour.enabled = false;
+                    break;
+            }
 
             Object.Destroy(target);
         }
 
-        private static void EnsureLightItemHasLight(GameObject obj, LightProperties properties)
+        private static void EnsureLightItemHasLight(GameObject obj,
+            LightProperties properties)
         {
             if (properties == null) return;
 
@@ -417,9 +434,11 @@ namespace CUCoreLib.Helpers
             if (info.Container != null) return "smallpack";
             if (info.Battery != null) return "flashlight";
             if (info.Light != null) return "bandage";
-            if (info.capacity > 0f || (info.defaultContents != null && info.defaultContents.Count > 0))
+            if (info.capacity > 0f
+                || (info.defaultContents != null && info.defaultContents.Count > 0))
                 return "waterbottle";
-            if (info.category == "water" || info.category == "liquid") return "waterbottle";
+            if (info.category == "water" || info.category == "liquid")
+                return "waterbottle";
 
             return "bandage";
         }
@@ -438,7 +457,8 @@ namespace CUCoreLib.Helpers
             public readonly float MinY;
             public readonly float MaxY;
 
-            public TrimmedColliderData(Vector2 size, Vector2 center, float minX, float maxX, float minY, float maxY)
+            public TrimmedColliderData(Vector2 size, Vector2 center, float minX,
+                float maxX, float minY, float maxY)
             {
                 Size = size;
                 Center = center;
