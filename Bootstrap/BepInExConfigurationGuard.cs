@@ -1,4 +1,3 @@
-using System;
 using System.IO;
 using BepInEx.Configuration;
 using BepInEx.Logging;
@@ -8,12 +7,12 @@ namespace CUCoreLib.Bootstrap
     internal static class BepInExConfigurationGuard
     {
         private const string HideManagerGameObjectKey = "HideManagerGameObject";
-        internal static void EnsureManagerIsHidden(string configPath, ManualLogSource logger)
+
+        internal static void EnsureManagerIsHidden(
+            string configPath,
+            ManualLogSource logger)
         {
-            if (!File.Exists(configPath))
-            {
-                return;
-            }
+            if (!File.Exists(configPath)) return;
 
             try
             {
@@ -24,7 +23,8 @@ namespace CUCoreLib.Bootstrap
                     {
                         SaveOnConfigSet = false
                     };
-                    var entry = config.Bind("Chainloader", HideManagerGameObjectKey, false,
+                    var entry = config.Bind("Chainloader", HideManagerGameObjectKey,
+                        false,
                         "If enabled, hides BepInEx Manager GameObject from Unity.");
                     if (entry.Value) return;
 
@@ -33,10 +33,10 @@ namespace CUCoreLib.Bootstrap
                     wasEnabled = true;
                 });
                 if (!wasEnabled) return;
-
             }
             catch
             {
+                // ignored
             }
         }
     }
