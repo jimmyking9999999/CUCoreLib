@@ -18,8 +18,13 @@ namespace CUCoreLib.Networking
         internal const string EventKind = "event";
 
         private const string SnapshotChannel = "cucorelib.sync.snapshot";
-        internal const string PlayerStatusSnapshotChannel = "cucorelib.sync.statuses.player";
-        internal const string PlayerStatusSetFieldChannel = "cucorelib.sync.statuses.setfield";
+
+        internal const string PlayerStatusSnapshotChannel =
+            "cucorelib.sync.statuses.player";
+
+        internal const string PlayerStatusSetFieldChannel =
+            "cucorelib.sync.statuses.setfield";
+
         private const string SnapshotModuleKey = "modules";
 
         private static readonly Dictionary<string, Func<JObject>> CaptureModules =
@@ -41,9 +46,11 @@ namespace CUCoreLib.Networking
 
         [ThreadStatic] private static string _snapshotLanguage;
 
-        public static void RegisterModule(string key, Func<JObject> capture, Action<JObject> apply = null)
+        public static void RegisterModule(string key, Func<JObject> capture,
+            Action<JObject> apply = null)
         {
-            ContentReloadSession.AssertNotActive("MultiplayerSyncRegistry.RegisterModule()",
+            ContentReloadSession.AssertNotActive(
+                "MultiplayerSyncRegistry.RegisterModule()",
                 "Multiplayer registration is excluded from strict content reload.");
 
             if (string.IsNullOrWhiteSpace(key) || capture == null) return;
@@ -74,8 +81,11 @@ namespace CUCoreLib.Networking
                         }
                         catch (Exception ex)
                         {
-                            CUCoreLibPlugin.Log?.LogWarning("CUCoreLib multiplayer snapshot capture failed for module '" +
-                                                            entry.Key + "'.\n" + ex);
+                            CUCoreLibPlugin.Log?.LogWarning(
+                                "CUCoreLib multiplayer snapshot capture failed for module '"
+                                + entry.Key
+                                + "'.\n"
+                                + ex);
                         }
                 }
             }
@@ -105,7 +115,11 @@ namespace CUCoreLib.Networking
             var modules = snapshot[SnapshotModuleKey] as JObject ?? snapshot;
 
             foreach (var property in modules.Properties().OrderBy(property =>
-                         property.Name == "locale" ? -1 : property.Name == "lootpools" ? 1 : 0))
+                property.Name == "locale"
+                    ? -1
+                    : property.Name == "lootpools"
+                        ? 1
+                        : 0))
             {
                 if (!ApplyModules.TryGetValue(property.Name, out var apply)) continue;
 
@@ -115,8 +129,11 @@ namespace CUCoreLib.Networking
                 }
                 catch (Exception ex)
                 {
-                    CUCoreLibPlugin.Log?.LogWarning("CUCoreLib multiplayer snapshot apply failed for module '" +
-                                                    property.Name + "'.\n" + ex);
+                    CUCoreLibPlugin.Log?.LogWarning(
+                        "CUCoreLib multiplayer snapshot apply failed for module '"
+                        + property.Name
+                        + "'.\n"
+                        + ex);
                 }
             }
 
@@ -152,24 +169,33 @@ namespace CUCoreLib.Networking
 
         public static void RegisterBuiltIns()
         {
-            ContentReloadSession.AssertNotActive("MultiplayerSyncRegistry.RegisterBuiltIns()",
+            ContentReloadSession.AssertNotActive(
+                "MultiplayerSyncRegistry.RegisterBuiltIns()",
                 "Multiplayer registration is excluded from reload :(");
 
             if (_builtInsRegistered) return;
 
             _builtInsRegistered = true;
 
-            RegisterModule("locale", () => LocaleRegistry.CaptureNetworkSnapshot(_snapshotLanguage),
+            RegisterModule("locale",
+                () => LocaleRegistry.CaptureNetworkSnapshot(_snapshotLanguage),
                 LocaleRegistry.ApplyNetworkSnapshot);
-            RegisterModule("liquids", CaptureLiquidManifest, LiquidRegistry.ApplyNetworkSnapshot);
-            RegisterModule("items", CaptureItemManifest, ItemRegistry.ApplyNetworkSnapshot);
-            RegisterModule("recipes", RecipeRegistry.CaptureNetworkSnapshot, RecipeRegistry.ApplyNetworkSnapshot);
-            RegisterModule("lootpools", DropPoolRegistry.CaptureNetworkSnapshot, DropPoolRegistry.ApplyNetworkSnapshot);
-            RegisterModule("tiles", TileRegistry.CaptureNetworkSnapshot, TileRegistry.ApplyNetworkSnapshot);
-            RegisterModule("buildings", CaptureBuildingManifest, BuildingEntityRegistry.ApplyNetworkSnapshot);
+            RegisterModule("liquids", CaptureLiquidManifest,
+                LiquidRegistry.ApplyNetworkSnapshot);
+            RegisterModule("items", CaptureItemManifest,
+                ItemRegistry.ApplyNetworkSnapshot);
+            RegisterModule("recipes", RecipeRegistry.CaptureNetworkSnapshot,
+                RecipeRegistry.ApplyNetworkSnapshot);
+            RegisterModule("lootpools", DropPoolRegistry.CaptureNetworkSnapshot,
+                DropPoolRegistry.ApplyNetworkSnapshot);
+            RegisterModule("tiles", TileRegistry.CaptureNetworkSnapshot,
+                TileRegistry.ApplyNetworkSnapshot);
+            RegisterModule("buildings", CaptureBuildingManifest,
+                BuildingEntityRegistry.ApplyNetworkSnapshot);
             RegisterModule("liquidtiles", LiquidTileRegistry.CaptureNetworkSnapshot,
                 LiquidTileRegistry.ApplyNetworkSnapshot);
-            RegisterModule("moodles", MoodleRegistry.CaptureNetworkSnapshot, MoodleRegistry.ApplyNetworkSnapshot);
+            RegisterModule("moodles", MoodleRegistry.CaptureNetworkSnapshot,
+                MoodleRegistry.ApplyNetworkSnapshot);
             RegisterModule("settings", ModOptionsRegistry.CaptureNetworkSnapshot,
                 ModOptionsRegistry.ApplyNetworkSnapshot);
 
@@ -207,7 +233,9 @@ namespace CUCoreLib.Networking
             var wait = new WaitForSecondsRealtime(0.1f);
             while (!RequestInitialSnapshot())
             {
-                if (!MultiplayerBridge.IsAvailable || !MultiplayerBridge.IsRunning || !MultiplayerBridge.IsClient)
+                if (!MultiplayerBridge.IsAvailable
+                    || !MultiplayerBridge.IsRunning
+                    || !MultiplayerBridge.IsClient)
                     break;
 
                 yield return wait;
@@ -219,8 +247,10 @@ namespace CUCoreLib.Networking
         public static bool RequestInitialSnapshot()
         {
             if (_initialSnapshotRequested) return true;
-            if (!MultiplayerBridge.IsAvailable || !MultiplayerBridge.IsRunning ||
-                !MultiplayerBridge.IsClient || !MultiplayerBridge.IsConnected) return false;
+            if (!MultiplayerBridge.IsAvailable
+                || !MultiplayerBridge.IsRunning
+                || !MultiplayerBridge.IsClient
+                || !MultiplayerBridge.IsConnected) return false;
 
             _initialSnapshotRequested = MultiplayerBridge.RequestServer(
                 SnapshotChannel,
@@ -248,7 +278,8 @@ namespace CUCoreLib.Networking
 
         public static bool BroadcastSnapshot(bool includeHost = false)
         {
-            if (!MultiplayerBridge.IsAvailable || !MultiplayerBridge.IsServer) return false;
+            if (!MultiplayerBridge.IsAvailable || !MultiplayerBridge.IsServer)
+                return false;
 
             return MultiplayerBridge.Broadcast(
                 SnapshotChannel,
@@ -262,7 +293,9 @@ namespace CUCoreLib.Networking
 
             _hostSnapshotBroadcastQueued = true;
             CUCoreUtils.CallWhen(
-                () => MultiplayerBridge.IsAvailable && MultiplayerBridge.IsServer && !IsHostGeneratingWorld(),
+                () => MultiplayerBridge.IsAvailable
+                    && MultiplayerBridge.IsServer
+                    && !IsHostGeneratingWorld(),
                 () =>
                 {
                     _hostSnapshotBroadcastQueued = false;
@@ -290,13 +323,12 @@ namespace CUCoreLib.Networking
         private static JObject CaptureLiquidManifest()
         {
             var root = new JObject();
-            var liquids = new JArray();
 
             // This peer is the ordering source: publish the exact registry order KrokMP's byte IDs
             // are derived from, so clients rebuild the same indexes instead of their own load order.
             KrokMpCompatibilityPatches.SetCanonicalLiquidOrder(null);
             if (Liquids.Registry != null)
-                root["__registryOrder"] = new JArray(Liquids.Registry.Keys.ToArray());
+                root["__registryOrder"] = new JArray(Liquids.Registry.Keys.ToArray<object>());
 
             foreach (var id in LiquidRegistry.GetRegisteredLiquidIds())
             {
@@ -312,9 +344,11 @@ namespace CUCoreLib.Networking
                     ["healthUsable"] = info.healthUsable,
                     ["injectable"] = info.injectable,
                     ["injectionSickness"] = info.injectionSickness,
-                    ["localeFromItem"] = info.localeFromItem
-                    , ["unobtainable"] = info.unobtainable
-                    , ["qualities"] = NetworkSnapshotSerialization.WriteCraftingQualities(info.qualities)
+                    ["localeFromItem"] = info.localeFromItem,
+                    ["unobtainable"] = info.unobtainable,
+                    ["qualities"] =
+                        NetworkSnapshotSerialization.WriteCraftingQualities(
+                            info.qualities)
                 };
 
                 root[id] = liquid;

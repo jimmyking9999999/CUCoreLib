@@ -1,20 +1,22 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using BepInEx.Bootstrap;
 using CUCoreLib.ContentReload;
-using CUCoreLib.Patches;
 using CUCoreLib.Registries;
 using Newtonsoft.Json.Linq;
-using UnityEngine;
 
 namespace CUCoreLib.Networking
 {
     public static class MultiplayerApi
     {
         private const string CustomPlayerDataChannel = "cucorelib.playerdata.get";
-        private const string CustomPlayerLimbDataChannel = "cucorelib.playerdata.limbs.get";
+
+        private const string CustomPlayerLimbDataChannel =
+            "cucorelib.playerdata.limbs.get";
+
         private const string BodyFieldChannel = "cucorelib.bodyfield.apply";
         private const string NetPlayerTypeName = "Together.ScavPlayer";
         private const string KrokMpPluginGuid = "CasualtiesMP";
@@ -28,7 +30,11 @@ namespace CUCoreLib.Networking
             new[] { "ScavPlayer", "LOCAL_PLAYER", "LocalPlayer" },
             new[] { "ScavPlayer", "clientId", "playerId" },
             new[] { "ScavPlayer", "is_local", "IsLocal" },
-            new[] { "ScavPlayer", "TryGetNetPlayerAndBodyFromClientId", "TryGetPlayerAndBodyFromClientId" },
+            new[]
+            {
+                "ScavPlayer", "TryGetNetPlayerAndBodyFromClientId",
+                "TryGetPlayerAndBodyFromClientId"
+            },
             new[] { "NetBody", "is_player", "IsPlayer" },
             new[] { "NetBody", "is_local", "IsLocal" },
             new[] { "Net", "running", "IsRunning" },
@@ -38,8 +44,16 @@ namespace CUCoreLib.Networking
             new[] { "Net", "is_connected", "IsConnected" },
             new[] { "Net", "type", "Type" },
             new[] { "Net", "TRANSPORT", "Transport" },
-            new[] { "NetObjectRegistry", "ObjectCanBeIgnoredForNetwork", "ObjectShouldNotBeSynced" },
-            new[] { "NetObjectRegistry", "Server_EnsureItemNetworkRegistered", "Server_EnsureItemIsNetworkRegistered" },
+            new[]
+            {
+                "NetObjectRegistry", "ObjectCanBeIgnoredForNetwork",
+                "ObjectShouldNotBeSynced"
+            },
+            new[]
+            {
+                "NetObjectRegistry", "Server_EnsureItemNetworkRegistered",
+                "Server_EnsureItemIsNetworkRegistered"
+            },
             new[] { "Net", "MY_SERVER_INFO", "MyServerInfo" },
             new[] { "SyncInfo", "LoadObjectResource", "InstantiateResource" }
         };
@@ -47,8 +61,15 @@ namespace CUCoreLib.Networking
         private static readonly string[][] KrokMpTypeAliases =
         {
             new[] { "KrokoshaCasualtiesMP.NetPlayer", "Together.ScavPlayer" },
-            new[] { "KrokoshaCasualtiesMP.KrokoshaScavMultiplayer", "Together.Multiplayer" },
-            new[] { "KrokoshaCasualtiesMP.NewCoolerObjectPacketWriteReadSystem", "Together.SyncInfo" },
+            new[]
+            {
+                "KrokoshaCasualtiesMP.KrokoshaScavMultiplayer", "Together.Multiplayer"
+            },
+            new[]
+            {
+                "KrokoshaCasualtiesMP.NewCoolerObjectPacketWriteReadSystem",
+                "Together.SyncInfo"
+            },
             new[]
             {
                 "KrokoshaCasualtiesMP.Krokosha_BuildingEntity_Rope_TrackerComponent",
@@ -56,11 +77,16 @@ namespace CUCoreLib.Networking
             },
             new[]
             {
-                "KrokoshaCasualtiesMP.KrokoshaCoopModAssets", "KrokoshaCasualtiesMP.CoopModAssets",
+                "KrokoshaCasualtiesMP.KrokoshaCoopModAssets",
+                "KrokoshaCasualtiesMP.CoopModAssets",
                 "Together.CoopModAssets"
             },
             new[] { "KrokoshaCasualtiesMP.FontUntils", "Together.FontUtils" },
-            new[] { "KrokoshaCasualtiesMP.HingeJointState", "Together.ClientMain+SavedHingeJointState" },
+            new[]
+            {
+                "KrokoshaCasualtiesMP.HingeJointState",
+                "Together.ClientMain+SavedHingeJointState"
+            },
             new[] { "KrokoshaCasualtiesMP.StatePrinter", "Together.StatePrinter" }
         };
 
@@ -78,14 +104,19 @@ namespace CUCoreLib.Networking
         private static FieldInfo _netPlayerBodyField;
         private static bool _playerDataHandlersRegistered;
         private static bool _bodyFieldHandlersRegistered;
+
         private static readonly Dictionary<string, FieldInfo> BodyFieldCache =
             new Dictionary<string, FieldInfo>(StringComparer.Ordinal);
+
         private static readonly Dictionary<string, FieldInfo> LimbFieldCache =
             new Dictionary<string, FieldInfo>(StringComparer.Ordinal);
+
         private static readonly Dictionary<string, FieldInfo> BodyBoolFieldCache =
             new Dictionary<string, FieldInfo>(StringComparer.Ordinal);
+
         private static readonly Dictionary<string, FieldInfo> LimbBoolFieldCache =
             new Dictionary<string, FieldInfo>(StringComparer.Ordinal);
+
         private static FieldInfo _limbBodyField;
 
         public static bool IsAvailable => MultiplayerBridge.IsAvailable;
@@ -94,14 +125,16 @@ namespace CUCoreLib.Networking
         public static bool IsServer => MultiplayerBridge.IsServer;
         public static bool IsHost => MultiplayerBridge.IsHost;
 
-        public static bool BridgeReceiversInstalled => MultiplayerBridge.ReceiversInstalled;
+        public static bool BridgeReceiversInstalled =>
+            MultiplayerBridge.ReceiversInstalled;
 
         public static Version KrokMpVersion
         {
             get
             {
                 if (_krokMpVersion != null) return _krokMpVersion;
-                if (Chainloader.PluginInfos.TryGetValue(KrokMpPluginGuid, out var info) && info?.Metadata != null)
+                if (Chainloader.PluginInfos.TryGetValue(KrokMpPluginGuid, out var info)
+                    && info?.Metadata != null)
                     _krokMpVersion = info.Metadata.Version;
                 return _krokMpVersion;
             }
@@ -113,20 +146,17 @@ namespace CUCoreLib.Networking
         {
             if (string.IsNullOrWhiteSpace(name)) return null;
 
-            foreach (var candidate in TypeCandidates(name.Trim()))
-            {
-                var type = ResolveLoadedType(candidate);
-                if (type != null) return type;
-            }
-
-            return null;
+            return TypeCandidates(name.Trim()).Select(ResolveLoadedType).FirstOrDefault(type => type != null);
         }
+
         public static MemberInfo FindKrokMpMember(Type type, string name)
         {
             if (type == null || string.IsNullOrWhiteSpace(name)) return null;
 
-            const BindingFlags flags = BindingFlags.Public | BindingFlags.NonPublic |
-                                       BindingFlags.Instance | BindingFlags.Static;
+            const BindingFlags flags = BindingFlags.Public
+                | BindingFlags.NonPublic
+                | BindingFlags.Instance
+                | BindingFlags.Static;
 
             foreach (var candidate in MemberCandidates(type.Name, name.Trim()))
             {
@@ -145,25 +175,26 @@ namespace CUCoreLib.Networking
             return FindKrokMpMember(ResolveKrokMpType(typeName), name);
         }
 
-        public static MethodInfo FindKrokMpMethod(Type type, string name, Type[] parameterTypes = null)
+        public static MethodInfo FindKrokMpMethod(Type type, string name,
+            Type[] parameterTypes = null)
         {
             if (type == null || string.IsNullOrWhiteSpace(name)) return null;
 
-            const BindingFlags flags = BindingFlags.Public | BindingFlags.NonPublic |
-                                       BindingFlags.Instance | BindingFlags.Static;
+            const BindingFlags flags = BindingFlags.Public
+                | BindingFlags.NonPublic
+                | BindingFlags.Instance
+                | BindingFlags.Static;
 
-            foreach (var candidate in MemberCandidates(type.Name, name.Trim()))
-            foreach (var method in type.GetMethods(flags))
-            {
-                if (string.Equals(method.Name, candidate, StringComparison.Ordinal) &&
-                    ParametersMatch(method, parameterTypes))
-                    return method;
-            }
-
-            return null;
+            return (
+                from candidate in MemberCandidates(type.Name, name.Trim())
+                from method in type.GetMethods(flags)
+                where string.Equals(method.Name, candidate, StringComparison.Ordinal)
+                    && ParametersMatch(method, parameterTypes)
+                select method).FirstOrDefault();
         }
 
-        public static MethodInfo FindKrokMpMethod(string typeName, string name, Type[] parameterTypes = null)
+        public static MethodInfo FindKrokMpMethod(string typeName, string name,
+            Type[] parameterTypes = null)
         {
             return FindKrokMpMethod(ResolveKrokMpType(typeName), name, parameterTypes);
         }
@@ -180,7 +211,8 @@ namespace CUCoreLib.Networking
                 var expected = UnwrapByRef(parameterTypes[index]);
                 var actual = UnwrapByRef(parameters[index].ParameterType);
                 if (expected == null || actual == null) return false;
-                if (expected != actual && !expected.IsAssignableFrom(actual)) return false;
+                if (expected != actual && !expected.IsAssignableFrom(actual))
+                    return false;
             }
 
             return true;
@@ -188,10 +220,13 @@ namespace CUCoreLib.Networking
 
         private static Type UnwrapByRef(Type type)
         {
-            return type != null && type.IsByRef ? type.GetElementType() : type;
+            return type != null && type.IsByRef
+                ? type.GetElementType()
+                : type;
         }
 
-        public static void RegisterServerHandler(string channel, Func<JToken, JToken> handler)
+        public static void RegisterServerHandler(string channel,
+            Func<JToken, JToken> handler)
         {
             ContentReloadSession.AssertNotActive("MultiplayerApi.RegisterServerHandler()",
                 "Multiplayer registration is excluded from strict content reload.");
@@ -218,58 +253,68 @@ namespace CUCoreLib.Networking
         }
 
         /// <summary>
-        /// Sends to the selected client when called on the server, otherwise sends to the server.
-        /// The target client ID is ignored on clients. Does not relay between clients or broadcast.
+        ///     Sends to the selected client when called on the server, otherwise sends to the server.
+        ///     The target client ID is ignored on clients. Does not relay between clients or broadcast.
         /// </summary>
-        public static bool SendToPeer(uint targetClientId, string channel, object payload = null, bool reliable = true)
+        public static bool SendToPeer(uint targetClientId, string channel,
+            object payload = null, bool reliable = true)
         {
             return IsServer
                 ? SendToClient(targetClientId, channel, payload, reliable)
                 : SendToServer(channel, payload, reliable);
         }
 
-        public static bool SendToServer(string channel, object payload = null, bool reliable = true)
+        public static bool SendToServer(string channel, object payload = null,
+            bool reliable = true)
         {
             return MultiplayerBridge.SendToServer(channel, payload, reliable);
         }
 
-        public static bool RequestServer(string channel, object payload, Action<JToken> onResponse,
+        public static bool RequestServer(string channel, object payload,
+            Action<JToken> onResponse,
             bool reliable = true)
         {
-            return MultiplayerBridge.RequestServer(channel, payload, onResponse, reliable);
+            return MultiplayerBridge.RequestServer(channel, payload, onResponse,
+                reliable);
         }
 
-        public static bool SendToClient(uint clientId, string channel, object payload = null, bool reliable = true)
+        public static bool SendToClient(uint clientId, string channel,
+            object payload = null, bool reliable = true)
         {
             return MultiplayerBridge.SendToClient(clientId, channel, payload, reliable);
         }
 
-        public static bool Broadcast(string channel, object payload = null, bool includeHost = false,
+        public static bool Broadcast(string channel, object payload = null,
+            bool includeHost = false,
             bool reliable = true)
         {
             return MultiplayerBridge.Broadcast(channel, payload, includeHost, reliable);
         }
 
         /// <summary>
-        /// Sends to every instance in the lobby, including this one: the host broadcasts and applies
-        /// locally, a client asks the host to relay, and with no session the local handler just runs.
-        /// Pair it with RegisterHandler on the same channel.
+        ///     Sends to every instance in the lobby, including this one: the host broadcasts and applies
+        ///     locally, a client asks the host to relay, and with no session the local handler just runs.
+        ///     Pair it with RegisterHandler on the same channel.
         /// </summary>
-        public static bool BroadcastEverywhere(string channel, object payload = null, bool reliable = true)
+        public static bool BroadcastEverywhere(string channel, object payload = null,
+            bool reliable = true)
         {
             return MultiplayerBridge.BroadcastEverywhere(channel, payload, reliable);
         }
 
         /// <summary>
-        /// Sends to one instance whichever role you hold: host to any client, client to the host, and
-        /// client to another client through the host. Unknown ids return false.
+        ///     Sends to one instance whichever role you hold: host to any client, client to the host, and
+        ///     client to another client through the host. Unknown ids return false.
         /// </summary>
-        public static bool BroadcastToPeer(string channel, uint clientId, object payload = null, bool reliable = true)
+        public static bool BroadcastToPeer(string channel, uint clientId,
+            object payload = null, bool reliable = true)
         {
-            return MultiplayerBridge.BroadcastToPeer(channel, clientId, payload, reliable);
+            return MultiplayerBridge.BroadcastToPeer(channel, clientId, payload,
+                reliable);
         }
 
-        public static void RegisterSyncModule(string key, Func<JObject> capture, Action<JObject> apply = null)
+        public static void RegisterSyncModule(string key, Func<JObject> capture,
+            Action<JObject> apply = null)
         {
             ContentReloadSession.AssertNotActive("MultiplayerApi.RegisterSyncModule()",
                 "Multiplayer registration is excluded from strict content reload.");
@@ -338,7 +383,8 @@ namespace CUCoreLib.Networking
             };
         }
 
-        public static bool RequestCustomPlayerData(uint clientId, Action<JObject> onResponse, bool reliable = true)
+        public static bool RequestCustomPlayerData(uint clientId,
+            Action<JObject> onResponse, bool reliable = true)
         {
             RegisterCustomPlayerDataHandlers();
             return RequestServer(
@@ -348,7 +394,8 @@ namespace CUCoreLib.Networking
                 reliable);
         }
 
-        public static bool RequestCustomPlayerLimbData(uint clientId, Action<JObject> onResponse, bool reliable = true)
+        public static bool RequestCustomPlayerLimbData(uint clientId,
+            Action<JObject> onResponse, bool reliable = true)
         {
             RegisterCustomPlayerDataHandlers();
             return RequestServer(
@@ -360,7 +407,8 @@ namespace CUCoreLib.Networking
 
         public static void RegisterCustomPlayerDataHandlers()
         {
-            ContentReloadSession.AssertNotActive("MultiplayerApi.RegisterCustomPlayerDataHandlers()",
+            ContentReloadSession.AssertNotActive(
+                "MultiplayerApi.RegisterCustomPlayerDataHandlers()",
                 "Multiplayer registration is excluded from strict content reload.");
 
             if (_playerDataHandlersRegistered) return;
@@ -475,13 +523,15 @@ namespace CUCoreLib.Networking
 
         internal static void RegisterBodyFieldHandlers()
         {
-            ContentReloadSession.AssertNotActive("MultiplayerApi.RegisterBodyFieldHandlers()",
+            ContentReloadSession.AssertNotActive(
+                "MultiplayerApi.RegisterBodyFieldHandlers()",
                 "Multiplayer registration is excluded from strict content reload.");
 
             if (_bodyFieldHandlersRegistered) return;
 
             _bodyFieldHandlersRegistered = true;
-            MultiplayerBridge.RegisterServerHandler(BodyFieldChannel, HandleBodyFieldRequest);
+            MultiplayerBridge.RegisterServerHandler(BodyFieldChannel,
+                HandleBodyFieldRequest);
         }
 
         private static JToken HandleBodyFieldRequest(uint senderClientId, JToken payload)
@@ -497,9 +547,11 @@ namespace CUCoreLib.Networking
             bool success;
             if (string.Equals(mode, "setbool", StringComparison.Ordinal))
             {
-                var boolValue = payload?.Value<bool?>("boolValue") ?? false;
+                var boolValue = payload.Value<bool?>("boolValue") ?? false;
                 if (string.Equals(targetKind, "limb", StringComparison.Ordinal)
-                    && limbIndex >= 0 && body.limbs != null && limbIndex < body.limbs.Length)
+                    && limbIndex >= 0
+                    && body.limbs != null
+                    && limbIndex < body.limbs.Length)
                     success = ApplyLimbBoolField(body.limbs[limbIndex], field, boolValue);
                 else
                     success = ApplyBodyBoolField(body, field, boolValue);
@@ -509,8 +561,11 @@ namespace CUCoreLib.Networking
                 var value = payload?.Value<float?>("value") ?? 0f;
                 var isDelta = string.Equals(mode, "add", StringComparison.Ordinal);
                 if (string.Equals(targetKind, "limb", StringComparison.Ordinal)
-                    && limbIndex >= 0 && body.limbs != null && limbIndex < body.limbs.Length)
-                    success = ApplyLimbField(body.limbs[limbIndex], field, value, isDelta);
+                    && limbIndex >= 0
+                    && body.limbs != null
+                    && limbIndex < body.limbs.Length)
+                    success = ApplyLimbField(body.limbs[limbIndex], field, value,
+                        isDelta);
                 else
                     success = ApplyBodyField(body, field, value, isDelta);
             }
@@ -518,7 +573,8 @@ namespace CUCoreLib.Networking
             return new JObject { ["success"] = success };
         }
 
-        private static bool SendBodyFieldRequest(string target, string field, string mode, float value, int limbIndex)
+        private static bool SendBodyFieldRequest(string target, string field, string mode,
+            float value, int limbIndex)
         {
             return SendToServer(BodyFieldChannel, new JObject
             {
@@ -530,7 +586,8 @@ namespace CUCoreLib.Networking
             });
         }
 
-        private static bool SendBodyBoolFieldRequest(string target, string field, bool value, int limbIndex)
+        private static bool SendBodyBoolFieldRequest(string target, string field,
+            bool value, int limbIndex)
         {
             return SendToServer(BodyFieldChannel, new JObject
             {
@@ -542,7 +599,8 @@ namespace CUCoreLib.Networking
             });
         }
 
-        private static bool ApplyBodyField(Body body, string field, float value, bool isDelta)
+        private static bool ApplyBodyField(Body body, string field, float value,
+            bool isDelta)
         {
             if (string.IsNullOrWhiteSpace(field)) return false;
 
@@ -556,7 +614,8 @@ namespace CUCoreLib.Networking
             return true;
         }
 
-        private static bool ApplyLimbField(Limb limb, string field, float value, bool isDelta)
+        private static bool ApplyLimbField(Limb limb, string field, float value,
+            bool isDelta)
         {
             if (string.IsNullOrWhiteSpace(field)) return false;
 
@@ -596,7 +655,8 @@ namespace CUCoreLib.Networking
         {
             if (BodyFieldCache.TryGetValue(name, out var cached)) return cached;
 
-            var field = typeof(Body).GetField(name, BindingFlags.Public | BindingFlags.Instance);
+            var field =
+                typeof(Body).GetField(name, BindingFlags.Public | BindingFlags.Instance);
             if (field != null && field.FieldType != typeof(float)) field = null;
 
             BodyFieldCache[name] = field;
@@ -607,7 +667,8 @@ namespace CUCoreLib.Networking
         {
             if (LimbFieldCache.TryGetValue(name, out var cached)) return cached;
 
-            var field = typeof(Limb).GetField(name, BindingFlags.Public | BindingFlags.Instance);
+            var field =
+                typeof(Limb).GetField(name, BindingFlags.Public | BindingFlags.Instance);
             if (field != null && field.FieldType != typeof(float)) field = null;
 
             LimbFieldCache[name] = field;
@@ -618,7 +679,8 @@ namespace CUCoreLib.Networking
         {
             if (BodyBoolFieldCache.TryGetValue(name, out var cached)) return cached;
 
-            var field = typeof(Body).GetField(name, BindingFlags.Public | BindingFlags.Instance);
+            var field =
+                typeof(Body).GetField(name, BindingFlags.Public | BindingFlags.Instance);
             if (field != null && field.FieldType != typeof(bool)) field = null;
 
             BodyBoolFieldCache[name] = field;
@@ -629,7 +691,8 @@ namespace CUCoreLib.Networking
         {
             if (LimbBoolFieldCache.TryGetValue(name, out var cached)) return cached;
 
-            var field = typeof(Limb).GetField(name, BindingFlags.Public | BindingFlags.Instance);
+            var field =
+                typeof(Limb).GetField(name, BindingFlags.Public | BindingFlags.Instance);
             if (field != null && field.FieldType != typeof(bool)) field = null;
 
             LimbBoolFieldCache[name] = field;
@@ -641,15 +704,15 @@ namespace CUCoreLib.Networking
             if (limb == null) return -1;
 
             if (_limbBodyField == null)
-                _limbBodyField = typeof(Limb).GetField("body", BindingFlags.Public | BindingFlags.Instance);
+                _limbBodyField = typeof(Limb).GetField("body",
+                    BindingFlags.Public | BindingFlags.Instance);
 
             var body = _limbBodyField?.GetValue(limb) as Body;
             if (body?.limbs == null) return -1;
 
             for (var i = 0; i < body.limbs.Length; i++)
-            {
-                if (body.limbs[i] == limb) return i;
-            }
+                if (body.limbs[i] == limb)
+                    return i;
 
             return -1;
         }
@@ -695,7 +758,9 @@ namespace CUCoreLib.Networking
                 case FieldInfo field:
                     return field.GetValue(instance);
                 case PropertyInfo property:
-                    return property.CanRead ? property.GetValue(instance) : null;
+                    return property.CanRead
+                        ? property.GetValue(instance)
+                        : null;
                 default:
                     return null;
             }
@@ -706,9 +771,14 @@ namespace CUCoreLib.Networking
             body = null;
             if (!TryResolveNetPlayerReflection()) return false;
 
-            var clientIdType = _tryGetNetPlayerAndBodyFromClientIdMethod.GetParameters()[0].ParameterType;
-            var args = new object[] { MultiplayerBridge.ConvertClientId(clientId, clientIdType), null, null };
-            var found = _tryGetNetPlayerAndBodyFromClientIdMethod.Invoke(null, args) is bool flag && flag;
+            var clientIdType =
+                _tryGetNetPlayerAndBodyFromClientIdMethod.GetParameters()[0]
+                    .ParameterType;
+            var args = new[]
+                { MultiplayerBridge.ConvertClientId(clientId, clientIdType), null, null };
+            var found =
+                _tryGetNetPlayerAndBodyFromClientIdMethod.Invoke(null, args) is bool flag
+                && flag;
             if (!found) return false;
 
             body = args[2] as Body;
@@ -721,7 +791,8 @@ namespace CUCoreLib.Networking
             if (body == null) return false;
 
             if (_getPlayerFromBodyMethod == null)
-                _getPlayerFromBodyMethod = FindKrokMpMethod("NetPlayer", "GetPlayerFromBody", new[] { typeof(Body) });
+                _getPlayerFromBodyMethod = FindKrokMpMethod("NetPlayer",
+                    "GetPlayerFromBody", new[] { typeof(Body) });
             if (_getPlayerFromBodyMethod == null) return false;
 
             var player = _getPlayerFromBodyMethod.Invoke(null, new object[] { body });
@@ -739,23 +810,26 @@ namespace CUCoreLib.Networking
             if (playerType == null) return result;
 
             if (_clientIdToPlayerDictMember == null)
-                _clientIdToPlayerDictMember = FindKrokMpMember(playerType, "ClientIdToPlayerDict");
+                _clientIdToPlayerDictMember =
+                    FindKrokMpMember(playerType, "ClientIdToPlayerDict");
 
-            var dict = ReadMember(_clientIdToPlayerDictMember, null) as System.Collections.IDictionary;
-            if (dict == null) return result;
+            if (!(ReadMember(_clientIdToPlayerDictMember, null) is IDictionary dict)) return result;
 
             foreach (var value in dict.Values)
             {
                 if (value == null) continue;
 
                 var type = value.GetType();
-                if (_playerNameMember == null) _playerNameMember = FindKrokMpMember(type, "playerName");
-                if (_playerBodyMember == null) _playerBodyMember = FindKrokMpMember(type, "body");
+                if (_playerNameMember == null)
+                    _playerNameMember = FindKrokMpMember(type, "playerName");
+                if (_playerBodyMember == null)
+                    _playerBodyMember = FindKrokMpMember(type, "body");
 
                 var body = ReadMember(_playerBodyMember, value) as Body;
                 if (body == null) continue;
 
-                result.Add(new KeyValuePair<string, Body>(ReadMember(_playerNameMember, value) as string, body));
+                result.Add(new KeyValuePair<string, Body>(
+                    ReadMember(_playerNameMember, value) as string, body));
             }
 
             return result;
@@ -768,19 +842,23 @@ namespace CUCoreLib.Networking
             _netPlayerType = ResolveLoadedType(NetPlayerTypeName);
             if (_netPlayerType == null) return false;
 
-            var names = MemberCandidates(_netPlayerType.Name, "TryGetNetPlayerAndBodyFromClientId").ToArray();
+            var names =
+                MemberCandidates(_netPlayerType.Name,
+                    "TryGetNetPlayerAndBodyFromClientId").ToArray();
             _tryGetNetPlayerAndBodyFromClientIdMethod = _netPlayerType
-                .GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static)
+                .GetMethods(BindingFlags.Public
+                    | BindingFlags.NonPublic
+                    | BindingFlags.Static)
                 .FirstOrDefault(method =>
                 {
                     if (!names.Contains(method.Name)) return false;
 
                     var parameters = method.GetParameters();
-                    return parameters.Length == 3 &&
-                           MultiplayerBridge.IsClientIdType(parameters[0].ParameterType) &&
-                           parameters[1].IsOut &&
-                           parameters[2].IsOut &&
-                           parameters[2].ParameterType == typeof(Body).MakeByRefType();
+                    return parameters.Length == 3
+                        && MultiplayerBridge.IsClientIdType(parameters[0].ParameterType)
+                        && parameters[1].IsOut
+                        && parameters[2].IsOut
+                        && parameters[2].ParameterType == typeof(Body).MakeByRefType();
                 });
 
             return _tryGetNetPlayerAndBodyFromClientIdMethod != null;
@@ -809,8 +887,9 @@ namespace CUCoreLib.Networking
 
             foreach (var group in KrokMpTypeAliases)
             {
-                if (!group.Any(full => string.Equals(full, name, StringComparison.Ordinal) ||
-                                       string.Equals(SimpleName(full), simple, StringComparison.Ordinal)))
+                if (!group.Any(full =>
+                    string.Equals(full, name, StringComparison.Ordinal)
+                    || string.Equals(SimpleName(full), simple, StringComparison.Ordinal)))
                     continue;
 
                 foreach (var full in group) yield return full;
@@ -823,18 +902,23 @@ namespace CUCoreLib.Networking
 
             foreach (var group in KrokMpMemberAliases)
             {
-                if (!string.Equals(group[0], typeName, StringComparison.Ordinal)) continue;
-                if (!group.Skip(1).Any(alias => string.Equals(alias, name, StringComparison.Ordinal))) continue;
+                if (!string.Equals(group[0], typeName, StringComparison.Ordinal))
+                    continue;
+                if (!group.Skip(1).Any(alias =>
+                    string.Equals(alias, name, StringComparison.Ordinal))) continue;
 
                 foreach (var alias in group.Skip(1))
-                    if (!string.Equals(alias, name, StringComparison.Ordinal)) yield return alias;
+                    if (!string.Equals(alias, name, StringComparison.Ordinal))
+                        yield return alias;
             }
         }
 
         private static string SimpleName(string fullName)
         {
             var index = fullName.LastIndexOf('.');
-            return index < 0 ? fullName : fullName.Substring(index + 1);
+            return index < 0
+                ? fullName
+                : fullName.Substring(index + 1);
         }
     }
 }

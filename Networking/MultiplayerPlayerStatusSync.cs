@@ -14,12 +14,15 @@ namespace CUCoreLib.Networking
 
         internal static void RegisterServerHandler()
         {
-            MultiplayerBridge.RegisterServerHandler(MultiplayerSyncRegistry.PlayerStatusSnapshotChannel,
-                (senderClientId, _) => MultiplayerApi.TryGetBodyFromClientId(senderClientId, out var body)
-                    ? StatusRegistry.CaptureBodyNetworkSnapshot(body)
-                    : new JObject());
+            MultiplayerBridge.RegisterServerHandler(
+                MultiplayerSyncRegistry.PlayerStatusSnapshotChannel,
+                (senderClientId, _) =>
+                    MultiplayerApi.TryGetBodyFromClientId(senderClientId, out var body)
+                        ? StatusRegistry.CaptureBodyNetworkSnapshot(body)
+                        : new JObject());
 
-            MultiplayerBridge.RegisterServerHandler(MultiplayerSyncRegistry.PlayerStatusSetFieldChannel,
+            MultiplayerBridge.RegisterServerHandler(
+                MultiplayerSyncRegistry.PlayerStatusSetFieldChannel,
                 (senderClientId, payload) =>
                 {
                     var message = ConsolePatch.ApplyStatusFieldOnHost(
@@ -37,20 +40,28 @@ namespace CUCoreLib.Networking
             if (_scheduled) return;
             _scheduled = true;
             CUCoreUtils.CallWhen(
-                () => MultiplayerBridge.IsAvailable && MultiplayerBridge.IsRunning && MultiplayerBridge.IsClient &&
-                      MultiplayerBridge.IsConnected && CUCoreUtils.IsInWorld(),
+                () => MultiplayerBridge.IsAvailable
+                    && MultiplayerBridge.IsRunning
+                    && MultiplayerBridge.IsClient
+                    && MultiplayerBridge.IsConnected
+                    && CUCoreUtils.IsInWorld(),
                 () => CUCoreUtils.StartCoroutine(Run()), 1f);
         }
 
         private static IEnumerator Run()
         {
-            while (MultiplayerBridge.IsAvailable && MultiplayerBridge.IsRunning && MultiplayerBridge.IsClient &&
-                   MultiplayerBridge.IsConnected && CUCoreUtils.IsInWorld())
+            while (MultiplayerBridge.IsAvailable
+                && MultiplayerBridge.IsRunning
+                && MultiplayerBridge.IsClient
+                && MultiplayerBridge.IsConnected
+                && CUCoreUtils.IsInWorld())
             {
-                MultiplayerBridge.RequestServer(MultiplayerSyncRegistry.PlayerStatusSnapshotChannel, null, payload =>
-                {
-                    if (payload is JObject snapshot) StatusRegistry.ApplyNetworkSnapshot(snapshot);
-                });
+                MultiplayerBridge.RequestServer(
+                    MultiplayerSyncRegistry.PlayerStatusSnapshotChannel, null, payload =>
+                    {
+                        if (payload is JObject snapshot)
+                            StatusRegistry.ApplyNetworkSnapshot(snapshot);
+                    });
                 yield return new WaitForSeconds(SyncSeconds);
             }
 

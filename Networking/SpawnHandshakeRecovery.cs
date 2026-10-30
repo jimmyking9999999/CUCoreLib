@@ -15,7 +15,7 @@ namespace CUCoreLib.Networking
     //   B
     //   (client body not replicated) once the server does answer, it sends a single reminder
     //   pack, which wins over the replication, gets dropped, and the client is stuck forever >.>
-    
+
     internal static class SpawnHandshakeRecovery
     {
         private const float IntervalSeconds = 0.5f;
@@ -25,7 +25,10 @@ namespace CUCoreLib.Networking
         private const string ClientMainTypeName = "Together.ClientMain";
         private const string ServerMainTypeName = "Together.ServerMain";
         private const string ScavPlayerTypeName = "Together.ScavPlayer";
-        private const string ReminderFlagFieldName = "_last_reminderpack_while_generating_received";
+
+        private const string ReminderFlagFieldName =
+            "_last_reminderpack_while_generating_received";
+
         private const string AllPlayersExceptHostPropertyName = "AllPlayersExceptHost";
         private const string ServerPlayerStateFieldName = "ServerPlayerState";
         private const string IsLocalPropertyName = "IsLocal";
@@ -55,14 +58,18 @@ namespace CUCoreLib.Networking
 
             _scheduled = true;
             CUCoreUtils.CallWhen(
-                () => MultiplayerBridge.IsAvailable && MultiplayerBridge.IsRunning && MultiplayerBridge.IsConnected,
+                () => MultiplayerBridge.IsAvailable
+                    && MultiplayerBridge.IsRunning
+                    && MultiplayerBridge.IsConnected,
                 () => CUCoreUtils.StartCoroutine(Run()), 1f);
         }
 
         private static IEnumerator Run()
         {
             var wait = new WaitForSecondsRealtime(IntervalSeconds);
-            while (MultiplayerBridge.IsAvailable && MultiplayerBridge.IsRunning && MultiplayerBridge.IsConnected)
+            while (MultiplayerBridge.IsAvailable
+                && MultiplayerBridge.IsRunning
+                && MultiplayerBridge.IsConnected)
             {
                 if (MultiplayerBridge.IsServer)
                     RemindUnloadedClients();
@@ -86,8 +93,9 @@ namespace CUCoreLib.Networking
         private static void ResendSpawnRequest()
         {
             if (!EnsureClientRefs()) return;
-            if (!ClientInGeneratedWorld(out _)) return;   // client has not finished its own worldgen yet
-            if (ReminderPackReceived()) return;           // server already answered, we're good
+            if (!ClientInGeneratedWorld(out _))
+                return; // client has not finished its own worldgen yet
+            if (ReminderPackReceived()) return; // server already answered, we're good
 
             try
             {
@@ -95,7 +103,9 @@ namespace CUCoreLib.Networking
             }
             catch (Exception ex)
             {
-                CUCoreLibPlugin.Log?.LogWarning("CUCoreLib spawn-handshake recovery failed to resend message 205.\n" + ex);
+                CUCoreLibPlugin.Log?.LogWarning(
+                    "CUCoreLib spawn-handshake recovery failed to resend message 205.\n"
+                    + ex);
             }
         }
 
@@ -103,7 +113,8 @@ namespace CUCoreLib.Networking
         {
             try
             {
-                return _reminderFlagField != null && (bool)_reminderFlagField.GetValue(null);
+                return _reminderFlagField != null
+                    && (bool)_reminderFlagField.GetValue(null);
             }
             catch
             {
@@ -118,7 +129,7 @@ namespace CUCoreLib.Networking
             if (_clientRefsFailed) return false;
 
             var assembly = FindKrokAssembly();
-            if (assembly == null) return false;   // Keep on trying...
+            if (assembly == null) return false; // Keep on trying...
 
             var mpType = assembly.GetType(MpTypeName, false);
             var clientMainType = assembly.GetType(ClientMainTypeName, false);
@@ -132,15 +143,17 @@ namespace CUCoreLib.Networking
                 BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static);
 
             var sendMethod = mpType
-                .GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static)
+                .GetMethods(BindingFlags.Public
+                    | BindingFlags.NonPublic
+                    | BindingFlags.Static)
                 .FirstOrDefault(method =>
                 {
                     if (method.Name != "Client_SendSimpleMessageToServer") return false;
                     var parameters = method.GetParameters();
-                    return parameters.Length == 3 &&
-                           parameters[0].ParameterType == typeof(byte).MakeByRefType() &&
-                           parameters[1].ParameterType == typeof(bool) &&
-                           parameters[2].ParameterType == typeof(bool);
+                    return parameters.Length == 3
+                        && parameters[0].ParameterType == typeof(byte).MakeByRefType()
+                        && parameters[1].ParameterType == typeof(bool)
+                        && parameters[2].ParameterType == typeof(bool);
                 });
 
             if (_reminderFlagField == null || sendMethod == null)
@@ -181,11 +194,14 @@ namespace CUCoreLib.Networking
                 il.Emit(OpCodes.Call, method);
                 il.Emit(OpCodes.Ret);
 
-                return (Action<byte, bool, bool>)invoker.CreateDelegate(typeof(Action<byte, bool, bool>));
+                return (Action<byte, bool, bool>)invoker.CreateDelegate(
+                    typeof(Action<byte, bool, bool>));
             }
             catch (Exception ex)
             {
-                CUCoreLibPlugin.Log?.LogWarning("CUCoreLib spawn-handshake recovery could not build its sender.\n" + ex);
+                CUCoreLibPlugin.Log?.LogWarning(
+                    "CUCoreLib spawn-handshake recovery could not build its sender.\n"
+                    + ex);
                 return null;
             }
         }
@@ -194,7 +210,7 @@ namespace CUCoreLib.Networking
         private static void RemindUnloadedClients()
         {
             if (!EnsureHostRefs()) return;
-            if (!ClientInGeneratedWorld(out _)) return;   // host not in-world yet
+            if (!ClientInGeneratedWorld(out _)) return; // host not in-world yet
 
             object players;
             try
@@ -203,7 +219,9 @@ namespace CUCoreLib.Networking
             }
             catch (Exception ex)
             {
-                CUCoreLibPlugin.Log?.LogWarning("CUCoreLib spawn-handshake recovery could not read the player list.\n" + ex);
+                CUCoreLibPlugin.Log?.LogWarning(
+                    "CUCoreLib spawn-handshake recovery could not read the player list.\n"
+                    + ex);
                 return;
             }
 
@@ -227,7 +245,9 @@ namespace CUCoreLib.Networking
                 }
                 catch (Exception ex)
                 {
-                    CUCoreLibPlugin.Log?.LogWarning("CUCoreLib spawn-handshake recovery failed to remind a client.\n" + ex);
+                    CUCoreLibPlugin.Log?.LogWarning(
+                        "CUCoreLib spawn-handshake recovery failed to remind a client.\n"
+                        + ex);
                 }
             }
         }
@@ -238,7 +258,7 @@ namespace CUCoreLib.Networking
             if (_hostRefsFailed) return false;
 
             var assembly = FindKrokAssembly();
-            if (assembly == null) return false;   // Together not loaded yet
+            if (assembly == null) return false; // Together not loaded yet
 
             var serverMainType = assembly.GetType(ServerMainTypeName, false);
             var scavPlayerType = assembly.GetType(ScavPlayerTypeName, false);
@@ -248,21 +268,24 @@ namespace CUCoreLib.Networking
                 return false;
             }
 
-            _allPlayersExceptHostProperty = serverMainType.GetProperty(AllPlayersExceptHostPropertyName,
+            _allPlayersExceptHostProperty = serverMainType.GetProperty(
+                AllPlayersExceptHostPropertyName,
                 BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static);
             _isLocalProperty = scavPlayerType.GetProperty(IsLocalPropertyName,
                 BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
             _serverPlayerStateField = scavPlayerType.GetField(ServerPlayerStateFieldName,
                 BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
             _remindMethod = scavPlayerType
-                .GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)
+                .GetMethods(BindingFlags.Public
+                    | BindingFlags.NonPublic
+                    | BindingFlags.Instance)
                 .FirstOrDefault(method =>
                 {
                     if (method.Name != RemindMethodName) return false;
                     var parameters = method.GetParameters();
-                    return parameters.Length == 2 &&
-                           parameters[0].ParameterType == typeof(bool) &&
-                           parameters[1].ParameterType == typeof(bool);
+                    return parameters.Length == 2
+                        && parameters[0].ParameterType == typeof(bool)
+                        && parameters[1].ParameterType == typeof(bool);
                 });
 
             var stateType = _serverPlayerStateField?.FieldType;
@@ -271,9 +294,12 @@ namespace CUCoreLib.Networking
             _isLoadedInField = stateType?.GetField(IsLoadedInFieldName,
                 BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
 
-            if (_allPlayersExceptHostProperty == null || _isLocalProperty == null ||
-                _serverPlayerStateField == null || _remindMethod == null ||
-                _didGiveSpawnField == null || _isLoadedInField == null)
+            if (_allPlayersExceptHostProperty == null
+                || _isLocalProperty == null
+                || _serverPlayerStateField == null
+                || _remindMethod == null
+                || _didGiveSpawnField == null
+                || _isLoadedInField == null)
             {
                 _hostRefsFailed = true;
                 return false;
@@ -286,7 +312,8 @@ namespace CUCoreLib.Networking
         private static Assembly FindKrokAssembly()
         {
             return AppDomain.CurrentDomain.GetAssemblies()
-                .FirstOrDefault(candidate => candidate.GetType(MpTypeName, false) != null);
+                .FirstOrDefault(candidate =>
+                    candidate.GetType(MpTypeName, false) != null);
         }
     }
 }
