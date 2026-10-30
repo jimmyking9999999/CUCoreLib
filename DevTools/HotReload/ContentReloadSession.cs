@@ -16,6 +16,9 @@ namespace CUCoreLib.ContentReload
 
         internal static bool IsActive => current != null;
 
+        internal static HotReloadMode CurrentMode =>
+            current?.Mode ?? HotReloadMode.Strict;
+
         internal static Assembly GetSourceAssemblyOverride()
         {
             return current?.SourceAssembly;
@@ -23,7 +26,8 @@ namespace CUCoreLib.ContentReload
 
         internal static string ResolveAmbientOwnerId()
         {
-            if (current != null && !string.IsNullOrWhiteSpace(current.ModGuid)) return current.ModGuid;
+            if (current != null && !string.IsNullOrWhiteSpace(current.ModGuid))
+                return current.ModGuid;
 
             try
             {
@@ -31,9 +35,12 @@ namespace CUCoreLib.ContentReload
                 foreach (var frame in trace.GetFrames() ?? Array.Empty<StackFrame>())
                 {
                     var method = frame.GetMethod();
-                    var declaringType = method != null ? method.DeclaringType : null;
+                    var declaringType = method != null
+                        ? method.DeclaringType
+                        : null;
                     var assembly = declaringType?.Assembly;
-                    if (assembly == null || assembly == typeof(CUCoreLibPlugin).Assembly) continue;
+                    if (assembly == null || assembly == typeof(CUCoreLibPlugin).Assembly)
+                        continue;
 
                     string location;
                     try
@@ -48,11 +55,10 @@ namespace CUCoreLib.ContentReload
                     if (string.IsNullOrWhiteSpace(location)) continue;
 
                     foreach (var pluginInfo in Chainloader.PluginInfos.Values
-                                 .Where(pluginInfo => pluginInfo?.Metadata != null)
-                                 .Where(pluginInfo => string.Equals(pluginInfo.Location, location, StringComparison.OrdinalIgnoreCase)))
-                    {
+                        .Where(pluginInfo => pluginInfo?.Metadata != null)
+                        .Where(pluginInfo => string.Equals(pluginInfo.Location, location,
+                            StringComparison.OrdinalIgnoreCase)))
                         return pluginInfo.Metadata.GUID;
-                    }
                 }
             }
             catch
@@ -65,14 +71,14 @@ namespace CUCoreLib.ContentReload
 
         internal static string GetPluginDirectoryOverride()
         {
-            if (current == null || string.IsNullOrWhiteSpace(current.SourceDllPath)) return null;
+            if (current == null || string.IsNullOrWhiteSpace(current.SourceDllPath))
+                return null;
 
             return Path.GetDirectoryName(current.SourceDllPath);
         }
 
-        internal static HotReloadMode CurrentMode => current?.Mode ?? HotReloadMode.Strict;
-
-        internal static IDisposable Begin(string modGuid, Assembly sourceAssembly, string sourceDllPath,
+        internal static IDisposable Begin(string modGuid, Assembly sourceAssembly,
+            string sourceDllPath,
             ContentReloadSurface allowedSurfaces, HotReloadMode mode)
         {
             var previous = current;
@@ -90,7 +96,8 @@ namespace CUCoreLib.ContentReload
             return new Scope(previous, previousWarnings);
         }
 
-        internal static void AssertAllowed(ContentReloadSurface surface, string apiName, string guidance = null)
+        internal static void AssertAllowed(ContentReloadSurface surface, string apiName,
+            string guidance = null)
         {
             if (current == null) return;
 
@@ -102,7 +109,8 @@ namespace CUCoreLib.ContentReload
                 return;
             }
 
-            throw new InvalidOperationException(BuildDisallowedMessage(apiName, guidance));
+            throw new InvalidOperationException(
+                BuildDisallowedMessage(apiName, guidance));
         }
 
         internal static void AssertNotActive(string apiName, string guidance = null)
@@ -115,7 +123,8 @@ namespace CUCoreLib.ContentReload
                 return;
             }
 
-            throw new InvalidOperationException(BuildDisallowedMessage(apiName, guidance));
+            throw new InvalidOperationException(
+                BuildDisallowedMessage(apiName, guidance));
         }
 
         private static void WarnBlocked(string apiName, string guidance)
@@ -138,17 +147,25 @@ namespace CUCoreLib.ContentReload
             var warningKey = replayRoot + "|" + apiName;
             if (warningKeys != null && !warningKeys.Add(warningKey)) return;
 
-            var message = "Blocked during flexible hot reload: " + replayRoot + " called " + apiName + ".";
+            var message = "Blocked during flexible hot reload: "
+                + replayRoot
+                + " called "
+                + apiName
+                + ".";
             if (!string.IsNullOrWhiteSpace(guidance)) message += " " + guidance;
 
             CUCoreLibPlugin.Log?.LogWarning(message);
-            if (ConsoleScript.instance != null) CUCoreUtils.ConsoleLog(ConsoleScript.instance, message);
+            if (ConsoleScript.instance != null)
+                CUCoreUtils.ConsoleLog(ConsoleScript.instance, message);
         }
 
         private static string BuildDisallowedMessage(string apiName, string guidance)
         {
-            var message = "Strict content reload for '" + current.ModGuid + "' does not allow " + apiName +
-                          ". Only item, liquid, recipe, locale/text, and basic building registration are supported.";
+            var message = "Strict content reload for '"
+                + current.ModGuid
+                + "' does not allow "
+                + apiName
+                + ". Only item, liquid, recipe, locale/text, and basic building registration are supported.";
 
             if (!string.IsNullOrWhiteSpace(guidance)) message += " " + guidance;
 

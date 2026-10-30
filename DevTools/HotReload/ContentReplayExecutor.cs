@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Reflection;
 using System.Runtime.Serialization;
 using BepInEx.Bootstrap;
@@ -25,7 +24,9 @@ namespace CUCoreLib.ContentReload
                 ModName = report?.ModName,
                 SourcePath = report?.SelectedPath,
                 SourceHash = report?.SelectedHash,
-                UnsupportedReason = report != null ? report.UnsupportedReason : "Compatibility report was null."
+                UnsupportedReason = report != null
+                    ? report.UnsupportedReason
+                    : "Compatibility report was null."
             };
 
             if (report == null)
@@ -38,11 +39,14 @@ namespace CUCoreLib.ContentReload
                 result.AddRecognizedMethod(recognizedMethod);
 
             foreach (var skippedMethod in report.SkippedMethods)
-                result.AddSkipped(skippedMethod.DisplayName + ": " + skippedMethod.Reason);
+                result.AddSkipped(skippedMethod.DisplayName
+                    + ": "
+                    + skippedMethod.Reason);
 
             if (!report.IsSupported)
             {
-                if (!string.IsNullOrWhiteSpace(report.UnsupportedReason)) result.AddError(report.UnsupportedReason);
+                if (!string.IsNullOrWhiteSpace(report.UnsupportedReason))
+                    result.AddError(report.UnsupportedReason);
 
                 return result;
             }
@@ -52,27 +56,31 @@ namespace CUCoreLib.ContentReload
             var pluginType = assembly.GetType(report.PluginTypeFullName, false);
             if (pluginType == null)
             {
-                result.AddError("Reloaded assembly did not contain plugin type '" + report.PluginTypeFullName + "'.");
+                result.AddError("Reloaded assembly did not contain plugin type '"
+                    + report.PluginTypeFullName
+                    + "'.");
                 return result;
             }
 
             var invocations = ResolveInvocations(assembly, pluginType, report, result);
             if (invocations.Count == 0)
             {
-                result.UnsupportedReason = "No invokable content methods were resolved from the reloaded assembly.";
+                result.UnsupportedReason =
+                    "No invokable content methods were resolved from the reloaded assembly.";
                 result.AddError(result.UnsupportedReason);
                 return result;
             }
 
             var existingContent = CaptureExistingContent(report.ModGuid);
             AssetLoader.InvalidateEmbeddedCachesForModGuid(report.ModGuid);
-            AssetLoader.InvalidateBundlesForModGuid(report.ModGuid, unregister: true);
+            AssetLoader.InvalidateBundlesForModGuid(report.ModGuid, true);
             ClearExistingContent(report.ModGuid, result);
             NetworkSnapshotSerialization.InvalidateSpritePayloadCache();
             var reloadMode = ContentReloadManager.GetReloadMode(report.ModGuid);
 
-            using (ContentReloadSession.Begin(report.ModGuid, assembly, report.SelectedPath,
-                       ContentReloadSurface.AllAllowed, reloadMode))
+            using (ContentReloadSession.Begin(report.ModGuid, assembly,
+                report.SelectedPath,
+                ContentReloadSurface.AllAllowed, reloadMode))
             using (ItemRegistry.BeginOwnerRegistration(report.ModGuid))
             using (LiquidRegistry.BeginOwnerRegistration(report.ModGuid))
             using (RecipeRegistry.BeginOwnerRegistration(report.ModGuid))
@@ -80,10 +88,11 @@ namespace CUCoreLib.ContentReload
             using (BuildingEntityRegistry.BeginOwnerRegistration(report.ModGuid))
             {
                 foreach (var invocation in invocations)
-                {
                     try
                     {
-                        invocation.Method.Invoke(invocation.Method.IsStatic ? null : invocation.Target, null);
+                        invocation.Method.Invoke(invocation.Method.IsStatic
+                            ? null
+                            : invocation.Target, null);
                         result.AddRanMethod(invocation.DisplayName);
                         result.AddInfo("Ran " + invocation.DisplayName + "().");
                     }
@@ -91,22 +100,35 @@ namespace CUCoreLib.ContentReload
                     {
                         var inner = ex.InnerException ?? ex;
                         Rollback(report.ModGuid, existingContent, result);
-                        result.AddError("Method '" + invocation.DisplayName + "' failed: " + inner.Message);
-                        CUCoreLibPlugin.Log?.LogWarning("CUCoreLib strict content reload failed while running '" +
-                                                        invocation.DisplayName + "' for '" + report.ModGuid + "'.\n" +
-                                                        inner);
+                        result.AddError("Method '"
+                            + invocation.DisplayName
+                            + "' failed: "
+                            + inner.Message);
+                        CUCoreLibPlugin.Log?.LogWarning(
+                            "CUCoreLib strict content reload failed while running '"
+                            + invocation.DisplayName
+                            + "' for '"
+                            + report.ModGuid
+                            + "'.\n"
+                            + inner);
                         return result;
                     }
                     catch (Exception ex)
                     {
                         Rollback(report.ModGuid, existingContent, result);
-                        result.AddError("Method '" + invocation.DisplayName + "' failed: " + ex.Message);
-                        CUCoreLibPlugin.Log?.LogWarning("CUCoreLib strict content reload failed while running '" +
-                                                        invocation.DisplayName + "' for '" + report.ModGuid + "'.\n" +
-                                                        ex);
+                        result.AddError("Method '"
+                            + invocation.DisplayName
+                            + "' failed: "
+                            + ex.Message);
+                        CUCoreLibPlugin.Log?.LogWarning(
+                            "CUCoreLib strict content reload failed while running '"
+                            + invocation.DisplayName
+                            + "' for '"
+                            + report.ModGuid
+                            + "'.\n"
+                            + ex);
                         return result;
                     }
-                }
             }
 
             FinalizeRuntimeRefresh(existingContent.Buildings?.Keys);
@@ -115,7 +137,8 @@ namespace CUCoreLib.ContentReload
             return result;
         }
 
-        private static List<ResolvedInvocation> ResolveInvocations(Assembly assembly, Type pluginType,
+        private static List<ResolvedInvocation> ResolveInvocations(Assembly assembly,
+            Type pluginType,
             ContentCompatibilityReport report, ContentReloadResult result)
         {
             var invocations = new List<ResolvedInvocation>();
@@ -124,21 +147,26 @@ namespace CUCoreLib.ContentReload
 
             foreach (var discoveredMethod in report.Methods)
             {
-                var declaringType = assembly.GetType(discoveredMethod.DeclaringTypeFullName, false);
+                var declaringType =
+                    assembly.GetType(discoveredMethod.DeclaringTypeFullName, false);
                 if (declaringType == null)
                 {
-                    result.AddSkipped(discoveredMethod.DisplayName +
-                                      ": Reloaded assembly did not contain declaring type '" +
-                                      discoveredMethod.DeclaringTypeFullName + "'.");
+                    result.AddSkipped(discoveredMethod.DisplayName
+                        + ": Reloaded assembly did not contain declaring type '"
+                        + discoveredMethod.DeclaringTypeFullName
+                        + "'.");
                     continue;
                 }
 
                 var method = declaringType.GetMethod(discoveredMethod.MethodName,
-                    BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
+                    BindingFlags.Instance
+                    | BindingFlags.Static
+                    | BindingFlags.Public
+                    | BindingFlags.NonPublic);
                 if (method == null || method.GetParameters().Length != 0)
                 {
-                    result.AddSkipped(discoveredMethod.DisplayName +
-                                      ": Reloaded assembly did not contain an invokable parameterless method.");
+                    result.AddSkipped(discoveredMethod.DisplayName
+                        + ": Reloaded assembly did not contain an invokable parameterless method.");
                     continue;
                 }
 
@@ -147,21 +175,28 @@ namespace CUCoreLib.ContentReload
                 {
                     if (discoveredMethod.IsPluginMethod)
                     {
-                        if (pluginInstance == null) pluginInstance = CreatePluginReplayInstance(pluginType, report);
+                        if (pluginInstance == null)
+                            pluginInstance =
+                                CreatePluginReplayInstance(pluginType, report);
                         target = pluginInstance;
                     }
                     else
                     {
-                        if (!hostInstances.TryGetValue(discoveredMethod.DeclaringTypeFullName, out target))
+                        if (!hostInstances.TryGetValue(
+                            discoveredMethod.DeclaringTypeFullName, out target))
                         {
-                            target = CreateHostReplayInstance(declaringType, report, out var reason);
+                            target = CreateHostReplayInstance(declaringType, report,
+                                out var reason);
                             if (target == null)
                             {
-                                result.AddSkipped(discoveredMethod.DisplayName + ": " + reason);
+                                result.AddSkipped(discoveredMethod.DisplayName
+                                    + ": "
+                                    + reason);
                                 continue;
                             }
 
-                            hostInstances[discoveredMethod.DeclaringTypeFullName] = target;
+                            hostInstances[discoveredMethod.DeclaringTypeFullName] =
+                                target;
                         }
                     }
                 }
@@ -189,7 +224,8 @@ namespace CUCoreLib.ContentReload
             };
         }
 
-        private static void ClearExistingContent(string modGuid, ContentReloadResult result)
+        private static void ClearExistingContent(string modGuid,
+            ContentReloadResult result)
         {
             ItemRegistry.ClearOwnerEntries(modGuid, result);
             LiquidRegistry.ClearOwnerEntries(modGuid, result);
@@ -198,7 +234,8 @@ namespace CUCoreLib.ContentReload
             BuildingEntityRegistry.ClearOwnerEntries(modGuid, result);
         }
 
-        private static void Rollback(string modGuid, ContentOwnerSnapshot snapshot, ContentReloadResult result)
+        private static void Rollback(string modGuid, ContentOwnerSnapshot snapshot,
+            ContentReloadResult result)
         {
             RecipeRegistry.ResetHotReloadInjectionSummary();
             ClearExistingContent(modGuid, null);
@@ -218,7 +255,10 @@ namespace CUCoreLib.ContentReload
 
             FinalizeRuntimeRefresh(snapshot.Buildings?.Keys);
 
-            result.AddSkipped("Reload failed. Restored the previous successful content state for '" + modGuid + "'.");
+            result.AddSkipped(
+                "Reload failed. Restored the previous successful content state for '"
+                + modGuid
+                + "'.");
         }
 
         private static void FinalizeRuntimeRefresh(IEnumerable<string> buildingIds)
@@ -236,7 +276,8 @@ namespace CUCoreLib.ContentReload
             }
             catch (Exception ex)
             {
-                CUCoreLibPlugin.Log?.LogWarning("CUCoreLib strict content reload item refresh failed.\n" + ex);
+                CUCoreLibPlugin.Log?.LogWarning(
+                    "CUCoreLib strict content reload item refresh failed.\n" + ex);
             }
 
             try
@@ -245,7 +286,8 @@ namespace CUCoreLib.ContentReload
             }
             catch (Exception ex)
             {
-                CUCoreLibPlugin.Log?.LogWarning("CUCoreLib strict content reload building refresh failed.\n" + ex);
+                CUCoreLibPlugin.Log?.LogWarning(
+                    "CUCoreLib strict content reload building refresh failed.\n" + ex);
             }
 
             try
@@ -254,7 +296,9 @@ namespace CUCoreLib.ContentReload
             }
             catch (Exception ex)
             {
-                CUCoreLibPlugin.Log?.LogWarning("CUCoreLib strict content reload console autofill refresh failed.\n" + ex);
+                CUCoreLibPlugin.Log?.LogWarning(
+                    "CUCoreLib strict content reload console autofill refresh failed.\n"
+                    + ex);
             }
 
             try
@@ -267,7 +311,8 @@ namespace CUCoreLib.ContentReload
             }
         }
 
-        private static object CreatePluginReplayInstance(Type pluginType, ContentCompatibilityReport report)
+        private static object CreatePluginReplayInstance(Type pluginType,
+            ContentCompatibilityReport report)
         {
             var instance = FormatterServices.GetUninitializedObject(pluginType);
             TryAssignPluginInfo(pluginType, instance, report);
@@ -275,17 +320,21 @@ namespace CUCoreLib.ContentReload
             return instance;
         }
 
-        private static object CreateHostReplayInstance(Type hostType, ContentCompatibilityReport report,
+        private static object CreateHostReplayInstance(Type hostType,
+            ContentCompatibilityReport report,
             out string reason)
         {
-            var instance = ContentHostRuntime.CreateHostInstance(hostType, report.ModGuid, out reason);
+            var instance =
+                ContentHostRuntime.CreateHostInstance(hostType, report.ModGuid,
+                    out reason);
             if (instance == null) return null;
 
             TryAssignLoggerField(hostType, instance);
             return instance;
         }
 
-        private static void TryAssignPluginInfo(Type pluginType, object instance, ContentCompatibilityReport report)
+        private static void TryAssignPluginInfo(Type pluginType, object instance,
+            ContentCompatibilityReport report)
         {
             try
             {
@@ -293,14 +342,16 @@ namespace CUCoreLib.ContentReload
                 var infoField = GetField(pluginType, "<Info>k__BackingField");
                 if (infoProperty == null && infoField == null) return;
 
-                var currentInfo = Chainloader.PluginInfos.TryGetValue(report.ModGuid, out var loadedInfo)
-                    ? loadedInfo
-                    : null;
+                var currentInfo =
+                    Chainloader.PluginInfos.TryGetValue(report.ModGuid,
+                        out var loadedInfo)
+                        ? loadedInfo
+                        : null;
                 if (currentInfo == null) return;
 
                 if (infoField != null)
                     infoField.SetValue(instance, currentInfo);
-                else if (infoProperty != null && infoProperty.CanWrite)
+                else if (infoProperty.CanWrite)
                     infoProperty.SetValue(instance, currentInfo, null);
             }
             catch
@@ -311,17 +362,22 @@ namespace CUCoreLib.ContentReload
 
         private static void TryAssignLoggerField(Type type, object instance)
         {
-            var fields = type.GetFields(BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public |
-                                        BindingFlags.NonPublic);
+            var fields = type.GetFields(BindingFlags.Instance
+                | BindingFlags.Static
+                | BindingFlags.Public
+                | BindingFlags.NonPublic);
             foreach (var field in fields)
             {
                 if (field.FieldType != typeof(ManualLogSource)) continue;
 
-                if (field.Name.IndexOf("logger", StringComparison.OrdinalIgnoreCase) < 0) continue;
+                if (field.Name.IndexOf("logger", StringComparison.OrdinalIgnoreCase) < 0)
+                    continue;
 
                 try
                 {
-                    field.SetValue(field.IsStatic ? null : instance, CUCoreLibPlugin.Log);
+                    field.SetValue(field.IsStatic
+                        ? null
+                        : instance, CUCoreLibPlugin.Log);
                 }
                 catch
                 {
@@ -335,7 +391,10 @@ namespace CUCoreLib.ContentReload
             for (var current = type; current != null; current = current.BaseType)
             {
                 var property = current.GetProperty(propertyName,
-                    BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly);
+                    BindingFlags.Instance
+                    | BindingFlags.Public
+                    | BindingFlags.NonPublic
+                    | BindingFlags.DeclaredOnly);
                 if (property != null) return property;
             }
 
@@ -347,7 +406,10 @@ namespace CUCoreLib.ContentReload
             for (var current = type; current != null; current = current.BaseType)
             {
                 var field = current.GetField(fieldName,
-                    BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly);
+                    BindingFlags.Instance
+                    | BindingFlags.Public
+                    | BindingFlags.NonPublic
+                    | BindingFlags.DeclaredOnly);
                 if (field != null) return field;
             }
 
