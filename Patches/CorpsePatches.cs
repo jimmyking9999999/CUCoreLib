@@ -1,5 +1,5 @@
-using CUCoreLib.Helpers;
 using CUCoreLib.Data;
+using CUCoreLib.Helpers;
 using CUCoreLib.Registries;
 using HarmonyLib;
 using UnityEngine;
@@ -14,29 +14,33 @@ namespace CUCoreLib.Patches
         {
             if (__instance.animalCorpse) return true;
 
-            if (__instance.categories == null || __instance.categories.Length == 0) return false;
+            if (__instance.categories == null || __instance.categories.Length == 0)
+                return false;
 
             var amount = 0;
             var roll = Random.Range(0f, 1f);
             if (roll > 0.5f) amount++;
-
             if (roll > 0.85f) amount++;
-
             if (roll > 0.95f) amount++;
 
             var corpseRenderer = __instance.GetComponent<SpriteRenderer>();
 
             for (var i = 0; i < amount; i++)
             {
-                var category = __instance.categories[Random.Range(0, __instance.categories.Length)];
-                if (!DropPoolRegistry.TryGetRandomItemId(DropPool.Corpse, category, out var randomId)) continue;
-                var spawnPos = __instance.transform.position + new Vector3(Random.Range(-3f, 3f), 3f, 0f);
+                var category =
+                    __instance.categories[Random.Range(0, __instance.categories.Length)];
+                if (!DropPoolRegistry.TryGetRandomItemId(DropPool.Corpse, category,
+                    out var randomId)) continue;
+                var spawnPos = __instance.transform.position
+                    + new Vector3(Random.Range(-3f, 3f), 3f, 0f);
                 var spawnRot = Quaternion.Euler(0f, 0f, Random.Range(0f, 360f));
 
-                var obj = CustomInstantiate.InstantiateReturn(randomId, spawnPos, spawnRot, Random.Range(0f, 1f));
+                var obj = CustomInstantiate.InstantiateReturn(randomId, spawnPos,
+                    spawnRot, Random.Range(0f, 1f));
                 if (obj == null) continue;
 
-                if (obj.TryGetComponent<SpriteRenderer>(out var objRenderer) && corpseRenderer != null)
+                if (obj.TryGetComponent<SpriteRenderer>(out var objRenderer)
+                    && corpseRenderer != null)
                     objRenderer.sortingOrder = corpseRenderer.sortingOrder + 1;
             }
 
