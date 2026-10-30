@@ -18,13 +18,17 @@ namespace CUCoreLib.Helpers
             where TKey : class
             where TValue : class
         {
-            return TableHolder<TKey, TValue>.Table.TryGetValue(target, out var value) ? value : null;
+            return TableHolder<TKey, TValue>.Table.TryGetValue(target, out var value)
+                ? value
+                : null;
         }
 
         // Generic storage
-        private static class TableHolder<TKey, TValue> where TKey : class where TValue : class
+        private static class TableHolder<TKey, TValue>
+            where TKey : class where TValue : class
         {
-            public static readonly ConditionalWeakTable<TKey, TValue> Table = new ConditionalWeakTable<TKey, TValue>();
+            public static readonly ConditionalWeakTable<TKey, TValue> Table =
+                new ConditionalWeakTable<TKey, TValue>();
         }
     }
 }

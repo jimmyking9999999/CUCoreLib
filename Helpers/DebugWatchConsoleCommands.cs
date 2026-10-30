@@ -8,7 +8,8 @@ namespace CUCoreLib.Helpers
         internal static void Run(ConsoleScript console, string[] args)
         {
             if (args == null || args.Length < 2)
-                throw new Exception("Usage: debugwatch [add|remove|list|clear|show|hide] [Type.member]");
+                throw new Exception(
+                    "Usage: debugwatch [add|remove|list|clear|show|hide] [Type.member]");
 
             var verb = args[1]?.Trim()?.ToLowerInvariant();
             switch (verb)

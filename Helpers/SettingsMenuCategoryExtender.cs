@@ -10,7 +10,9 @@ namespace CUCoreLib.Helpers
     internal sealed class SettingsMenuCategoryExtender : MonoBehaviour
     {
         private const float RailWidth = 240f;
+
         private const float FramePadding = 10f;
+
         // Frame's own left border tucks under the window's (looks better then a gap)
         private const float RailEdgeGap = -FramePadding;
         private const float RailButtonHeight = 48f;
@@ -24,19 +26,22 @@ namespace CUCoreLib.Helpers
         private const string VanillaScrollbarPath = "Scroll/Scrollbar Vertical";
         private const string RailName = "CUCoreLibModOptionTabs";
         private const string CustomTabNamePrefix = "CUCoreLibSettingsTab_";
-        private readonly Dictionary<Button, int> buttonCategoryIndices = new Dictionary<Button, int>();
+
+        private readonly Dictionary<Button, int> buttonCategoryIndices =
+            new Dictionary<Button, int>();
+
         private readonly List<TMP_Dropdown> cachedDropdowns = new List<TMP_Dropdown>();
         private int activeCategoryIndex;
         private string activeOwnedCategoryKey;
-        private float railScrollTarget = 1f;
-        private float railScrollVelocity;
         private GameObject frame;
+        private SettingsMenu menu;
         private RectTransform panel;
         private Vector2 panelHomePosition;
         private RectTransform railContent;
-        private RectTransform railViewport;
         private ScrollRect railScroll;
-        private SettingsMenu menu;
+        private float railScrollTarget = 1f;
+        private float railScrollVelocity;
+        private RectTransform railViewport;
 
         private void Update()
         {
@@ -50,16 +55,19 @@ namespace CUCoreLib.Helpers
             var wheel = Input.mouseScrollDelta.y;
             if (Mathf.Abs(wheel) < 0.01f) return;
 
-            if (railScroll && railViewport &&
-                RectTransformUtility.RectangleContainsScreenPoint(railViewport, Input.mousePosition))
+            if (railScroll
+                && railViewport
+                && RectTransformUtility.RectangleContainsScreenPoint(railViewport,
+                    Input.mousePosition))
             {
                 StepRail(wheel);
                 return;
             }
 
             var viewport = menu.content.parent as RectTransform;
-            if (!viewport ||
-                !RectTransformUtility.RectangleContainsScreenPoint(viewport, Input.mousePosition)) return;
+            if (!viewport
+                || !RectTransformUtility.RectangleContainsScreenPoint(viewport,
+                    Input.mousePosition)) return;
 
             ScrollBy(menu.content, viewport, wheel);
         }
@@ -67,11 +75,14 @@ namespace CUCoreLib.Helpers
         private bool IsMouseOverExpandedDropdown()
         {
             var mousePos = Input.mousePosition;
-            return (from dd in cachedDropdowns
+            return (
+                from dd in cachedDropdowns
                 where dd && dd.IsExpanded && dd.template
                 select dd.template).Any(templateRect =>
-                templateRect && templateRect.gameObject.activeInHierarchy &&
-                RectTransformUtility.RectangleContainsScreenPoint(templateRect, mousePos));
+                templateRect
+                && templateRect.gameObject.activeInHierarchy
+                && RectTransformUtility.RectangleContainsScreenPoint(templateRect,
+                    mousePos));
         }
 
         // Fix cloned viewports/scroll rects
@@ -125,7 +136,8 @@ namespace CUCoreLib.Helpers
             if (!menu) return;
 
             var helper = menu.GetComponent<SettingsMenuCategoryExtender>();
-            if (!helper) helper = menu.gameObject.AddComponent<SettingsMenuCategoryExtender>();
+            if (!helper)
+                helper = menu.gameObject.AddComponent<SettingsMenuCategoryExtender>();
 
             helper.Initialize(menu);
         }
@@ -135,7 +147,8 @@ namespace CUCoreLib.Helpers
             if (!SettingsMenu.instance) return;
 
             EnsureAttached(SettingsMenu.instance);
-            var helper = SettingsMenu.instance.GetComponent<SettingsMenuCategoryExtender>();
+            var helper =
+                SettingsMenu.instance.GetComponent<SettingsMenuCategoryExtender>();
             helper?.RefreshVisibleTab();
         }
 
@@ -154,8 +167,10 @@ namespace CUCoreLib.Helpers
         internal void OnTabSelected(Setting.SettingCategory category)
         {
             activeCategoryIndex = (int)category;
-            if (ModOptionsRegistry.TryGetOwnedCustomCategory(category, out var entry) && entry != null)
-                activeOwnedCategoryKey = ModOptionsRegistry.NormalizeCustomCategoryKey(entry.DisplayName);
+            if (ModOptionsRegistry.TryGetOwnedCustomCategory(category, out var entry)
+                && entry != null)
+                activeOwnedCategoryKey =
+                    ModOptionsRegistry.NormalizeCustomCategoryKey(entry.DisplayName);
             else
                 activeOwnedCategoryKey = null;
             SnapContentToTop();
@@ -168,12 +183,15 @@ namespace CUCoreLib.Helpers
             if (menu == null) return;
 
             RebuildRail();
-            if (!string.IsNullOrWhiteSpace(activeOwnedCategoryKey) &&
-                ModOptionsRegistry.TryGetOwnedCustomCategory(activeOwnedCategoryKey, out var activeEntry) &&
-                activeEntry != null)
+            if (!string.IsNullOrWhiteSpace(activeOwnedCategoryKey)
+                && ModOptionsRegistry.TryGetOwnedCustomCategory(activeOwnedCategoryKey,
+                    out var activeEntry)
+                && activeEntry != null)
                 activeCategoryIndex = activeEntry.CategoryIndex;
             // Prevent snapping
-            var scrollY = menu.content != null ? menu.content.anchoredPosition.y : 0f;
+            var scrollY = menu.content != null
+                ? menu.content.anchoredPosition.y
+                : 0f;
             menu.SelectTab(activeCategoryIndex);
             if (menu.content != null)
             {
@@ -199,9 +217,8 @@ namespace CUCoreLib.Helpers
 
             if (!BuildRail(template)) return;
 
-            for (var i = 0; i < categories.Count; i++)
+            foreach (var category in categories)
             {
-                var category = categories[i];
                 var clone = Instantiate(template.gameObject, railContent, false);
                 clone.name = CustomTabNamePrefix + category.DisplayName;
 
@@ -216,18 +233,20 @@ namespace CUCoreLib.Helpers
                 var categoryIndex = category.CategoryIndex;
                 button.onClick.AddListener(delegate { menu.SelectTab(categoryIndex); });
 
-                var templateLabel = template.GetComponentInChildren<TextMeshProUGUI>(true);
-                var templateFontSize = templateLabel ? templateLabel.fontSize : 24f;
+                var templateLabel =
+                    template.GetComponentInChildren<TextMeshProUGUI>(true);
+                var templateFontSize = templateLabel
+                    ? templateLabel.fontSize
+                    : 24f;
 
                 var label = clone.GetComponentInChildren<TextMeshProUGUI>(true);
                 if (label)
                 {
                     label.text = category.DisplayName;
                     foreach (var localizer in label.GetComponents<MonoBehaviour>()
-                                 .Where(component => component && component.GetType().Name.Contains("Local")))
-                    {
+                        .Where(component =>
+                            component && component.GetType().Name.Contains("Local")))
                         Destroy(localizer);
-                    }
 
                     NormalizeTabLabel(label, templateFontSize);
                 }
@@ -264,7 +283,8 @@ namespace CUCoreLib.Helpers
 
             // The rail hangs past the panel's right edge, so slide the panel left by half of that
             // overhang. Panel and rail then read as one centred block.
-            var overhang = Mathf.Min(RailWidth + RailEdgeGap, rootRect.rect.xMax - panelTopRight.x);
+            var overhang = Mathf.Min(RailWidth + RailEdgeGap,
+                rootRect.rect.xMax - panelTopRight.x);
             var slide = overhang * 0.5f;
             panelRect.anchoredPosition = panelHomePosition - Vector2.right * slide;
             panelTopLeft -= Vector3.right * slide;
@@ -276,58 +296,77 @@ namespace CUCoreLib.Helpers
             frame.transform.SetAsFirstSibling();
 
             var frameRect = frame.transform as RectTransform;
-            frameRect.anchorMin = new Vector2(0.5f, 0.5f);
-            frameRect.anchorMax = new Vector2(0.5f, 0.5f);
-            frameRect.pivot = new Vector2(1f, 1f);
-            frameRect.sizeDelta = new Vector2(RailWidth, panelTopLeft.y - panelBottomLeft.y);
-            frameRect.anchoredPosition = new Vector2(
-                Mathf.Min(panelTopRight.x + RailEdgeGap + RailWidth, rootRect.rect.xMax) - rootRect.rect.center.x,
-                panelTopLeft.y - rootRect.rect.center.y);
+            if (frameRect != null)
+            {
+                frameRect.anchorMin = new Vector2(0.5f, 0.5f);
+                frameRect.anchorMax = new Vector2(0.5f, 0.5f);
+                frameRect.pivot = new Vector2(1f, 1f);
+                frameRect.sizeDelta =
+                    new Vector2(RailWidth, panelTopLeft.y - panelBottomLeft.y);
+                frameRect.anchoredPosition = new Vector2(
+                    Mathf.Min(panelTopRight.x + RailEdgeGap + RailWidth,
+                        rootRect.rect.xMax)
+                    - rootRect.rect.center.x,
+                    panelTopLeft.y - rootRect.rect.center.y);
 
-            CopyImage(panelRect.GetComponent<Image>(), frameRect);
+                CopyImage(panelRect.GetComponent<Image>(), frameRect);
 
-            var rail = new GameObject(RailName, typeof(RectTransform), typeof(RectMask2D), typeof(ScrollRect));
-            rail.transform.SetParent(frameRect, false);
+                var rail = new GameObject(RailName, typeof(RectTransform),
+                    typeof(RectMask2D),
+                    typeof(ScrollRect));
+                rail.transform.SetParent(frameRect, false);
 
-            var railRect = rail.transform as RectTransform;
-            railRect.anchorMin = Vector2.zero;
-            railRect.anchorMax = Vector2.one;
-            railRect.offsetMin = new Vector2(FramePadding, FramePadding);
-            railRect.offsetMax = new Vector2(-(FramePadding + ScrollbarWidth + ScrollbarGap), -FramePadding);
+                var railRect = rail.transform as RectTransform;
+                if (railRect != null)
+                {
+                    railRect.anchorMin = Vector2.zero;
+                    railRect.anchorMax = Vector2.one;
+                    railRect.offsetMin = new Vector2(FramePadding, FramePadding);
+                    railRect.offsetMax =
+                        new Vector2(-(FramePadding + ScrollbarWidth + ScrollbarGap),
+                            -FramePadding);
 
-            railViewport = railRect;
+                    railViewport = railRect;
 
-            railScroll = railRect.GetComponent<ScrollRect>();
-            railScroll.horizontal = false;
-            railScroll.vertical = true;
-            railScroll.movementType = ScrollRect.MovementType.Clamped;
-            railScroll.inertia = false;
-            railScroll.viewport = railRect;
+                    railScroll = railRect.GetComponent<ScrollRect>();
+                    railScroll.horizontal = false;
+                    railScroll.vertical = true;
+                    railScroll.movementType = ScrollRect.MovementType.Clamped;
+                    railScroll.inertia = false;
+                    railScroll.viewport = railRect;
 
-            var contentGo = new GameObject("Content", typeof(RectTransform), typeof(VerticalLayoutGroup),
-                typeof(ContentSizeFitter));
-            contentGo.transform.SetParent(railRect, false);
+                    var contentGo = new GameObject("Content", typeof(RectTransform),
+                        typeof(VerticalLayoutGroup),
+                        typeof(ContentSizeFitter));
+                    contentGo.transform.SetParent(railRect, false);
 
-            railContent = contentGo.transform as RectTransform;
-            railContent.anchorMin = new Vector2(0f, 1f);
-            railContent.anchorMax = new Vector2(1f, 1f);
-            railContent.pivot = new Vector2(0.5f, 1f);
-            railContent.anchoredPosition = Vector2.zero;
-            railContent.sizeDelta = Vector2.zero;
+                    railContent = contentGo.transform as RectTransform;
+                    if (railContent != null)
+                    {
+                        railContent.anchorMin = new Vector2(0f, 1f);
+                        railContent.anchorMax = new Vector2(1f, 1f);
+                        railContent.pivot = new Vector2(0.5f, 1f);
+                        railContent.anchoredPosition = Vector2.zero;
+                        railContent.sizeDelta = Vector2.zero;
 
-            railScroll.content = railContent;
+                        railScroll.content = railContent;
+                    }
 
-            var layoutGroup = contentGo.GetComponent<VerticalLayoutGroup>();
-            layoutGroup.childAlignment = TextAnchor.UpperCenter;
-            layoutGroup.spacing = RailSpacing;
-            layoutGroup.childControlWidth = true;
-            layoutGroup.childForceExpandWidth = true;
-            layoutGroup.childControlHeight = true;
-            layoutGroup.childForceExpandHeight = false;
+                    var layoutGroup = contentGo.GetComponent<VerticalLayoutGroup>();
+                    layoutGroup.childAlignment = TextAnchor.UpperCenter;
+                    layoutGroup.spacing = RailSpacing;
+                    layoutGroup.childControlWidth = true;
+                    layoutGroup.childForceExpandWidth = true;
+                    layoutGroup.childControlHeight = true;
+                    layoutGroup.childForceExpandHeight = false;
 
-            contentGo.GetComponent<ContentSizeFitter>().verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+                    contentGo.GetComponent<ContentSizeFitter>().verticalFit =
+                        ContentSizeFitter.FitMode.PreferredSize;
+                }
 
-            AttachScrollbar(panelRect, frameRect);
+                AttachScrollbar(panelRect, frameRect);
+            }
+
             return true;
         }
 
@@ -339,14 +378,19 @@ namespace CUCoreLib.Helpers
             // Cloning the window's own scrollbar keeps the handle art and track metrics identical.
             var clone = Instantiate(source.gameObject, frameRect, false);
             var rect = clone.transform as RectTransform;
-            rect.anchorMin = new Vector2(1f, 0f);
-            rect.anchorMax = new Vector2(1f, 1f);
-            rect.pivot = new Vector2(1f, 1f);
-            rect.offsetMin = new Vector2(-(FramePadding + ScrollbarWidth), FramePadding);
-            rect.offsetMax = new Vector2(-FramePadding, -FramePadding);
+            if (rect != null)
+            {
+                rect.anchorMin = new Vector2(1f, 0f);
+                rect.anchorMax = new Vector2(1f, 1f);
+                rect.pivot = new Vector2(1f, 1f);
+                rect.offsetMin =
+                    new Vector2(-(FramePadding + ScrollbarWidth), FramePadding);
+                rect.offsetMax = new Vector2(-FramePadding, -FramePadding);
+            }
 
             railScroll.verticalScrollbar = clone.GetComponent<Scrollbar>();
-            railScroll.verticalScrollbarVisibility = ScrollRect.ScrollbarVisibility.Permanent;
+            railScroll.verticalScrollbarVisibility =
+                ScrollRect.ScrollbarVisibility.Permanent;
         }
 
         private static void CopyImage(Image source, RectTransform target)
@@ -397,7 +441,9 @@ namespace CUCoreLib.Helpers
 
                 var image = pair.Key.GetComponent<Image>();
                 if (image)
-                    image.sprite = pair.Value == activeCategoryIndex ? menu.buttonOpen : menu.buttonClosed;
+                    image.sprite = pair.Value == activeCategoryIndex
+                        ? menu.buttonOpen
+                        : menu.buttonClosed;
             }
         }
 
@@ -412,7 +458,7 @@ namespace CUCoreLib.Helpers
 
         private void ClampScrollPosition()
         {
-            if (menu?.content == null) return;
+            if (!menu?.content) return;
 
             ScrollBy(menu.content, menu.content.parent as RectTransform, 0f);
         }
@@ -428,7 +474,8 @@ namespace CUCoreLib.Helpers
                 return;
             }
 
-            railScrollTarget = Mathf.Clamp01(railScrollTarget + wheel * RailWheelRowStep / range);
+            railScrollTarget =
+                Mathf.Clamp01(railScrollTarget + wheel * RailWheelRowStep / range);
         }
 
         // Normalised position is the only ScrollRect surface that moves the content and the
@@ -437,17 +484,21 @@ namespace CUCoreLib.Helpers
         {
             if (!railScroll || !railContent) return;
 
-            railScroll.verticalNormalizedPosition = Mathf.SmoothDamp(railScroll.verticalNormalizedPosition,
+            railScroll.verticalNormalizedPosition = Mathf.SmoothDamp(
+                railScroll.verticalNormalizedPosition,
                 railScrollTarget, ref railScrollVelocity, RailScrollTime);
         }
 
-        private static void ScrollBy(RectTransform content, RectTransform viewport, float wheel)
+        private static void ScrollBy(RectTransform content, RectTransform viewport,
+            float wheel)
         {
             if (!content || !viewport) return;
 
             var maxScroll = Mathf.Max(0f, content.rect.height - viewport.rect.height);
             var anchoredPosition = content.anchoredPosition;
-            anchoredPosition.y = Mathf.Clamp(anchoredPosition.y - wheel * ScrollPixelsPerWheelStep, 0f, maxScroll);
+            anchoredPosition.y =
+                Mathf.Clamp(anchoredPosition.y - wheel * ScrollPixelsPerWheelStep, 0f,
+                    maxScroll);
             content.anchoredPosition = anchoredPosition;
         }
 
