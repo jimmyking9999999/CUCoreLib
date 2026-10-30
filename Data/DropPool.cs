@@ -3,7 +3,7 @@ using System;
 namespace CUCoreLib.Data
 {
     /// <summary>
-    /// Optional fixed loot sources for custom items. Leave null to use vanilla category fallback only.
+    ///     Optional fixed loot sources for custom items. Leave null to use vanilla category fallback only.
     /// </summary>
     [Flags]
     public enum DropPool : ushort
@@ -20,6 +20,12 @@ namespace CUCoreLib.Data
         DropCapsule = 1 << 7,
         CapsuleContainer = 1 << 8,
 
-        All = Corpse | MedicalCrate | FoodCrate | ContainerCrate | AllTraders | DropCapsule | CapsuleContainer
+        All = Corpse
+            | MedicalCrate
+            | FoodCrate
+            | ContainerCrate
+            | AllTraders
+            | DropCapsule
+            | CapsuleContainer
     }
 }
