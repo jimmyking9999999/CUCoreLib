@@ -19,10 +19,13 @@ namespace CUCoreLib.Saving
                 if (StatusRegistry.TryCapture(entry.Value, out var payload))
                     statuses.Add(payload);
 
-            return statuses.Count == 0 ? null : statuses;
+            return statuses.Count == 0
+                ? null
+                : statuses;
         }
 
-        public void Restore(Limb limb, int limbIndex, JToken payload, int version, SaveRestoreContext context)
+        public void Restore(Limb limb, int limbIndex, JToken payload, int version,
+            SaveRestoreContext context)
         {
             StatusRegistry.RestoreLimbStatuses(limb, payload as JArray);
         }

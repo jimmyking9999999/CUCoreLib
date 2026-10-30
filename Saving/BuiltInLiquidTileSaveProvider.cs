@@ -20,7 +20,8 @@ namespace CUCoreLib.Saving
             };
         }
 
-        public void Restore(WorldSaveContext context, JToken payload, int version, SaveRestoreContext contextForRestore)
+        public void Restore(WorldSaveContext context, JToken payload, int version,
+            SaveRestoreContext contextForRestore)
         {
             if (!(payload is JObject obj)) return;
 
@@ -30,7 +31,8 @@ namespace CUCoreLib.Saving
             {
                 // Flooded cells belong to the layer that captured them, unlike the id-to-byte mapping.
                 // Payloads that carry no layer restore as they did before the guard existed.
-                if (layer.HasValue && layer != WorldGeneration.world?.biomeDepth) obj["world"] = null;
+                if (layer.HasValue && layer != WorldGeneration.world?.biomeDepth)
+                    obj["world"] = null;
 
                 LiquidTileRegistry.ApplyNetworkSnapshot(obj);
             });

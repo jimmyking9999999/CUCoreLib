@@ -17,7 +17,8 @@ namespace CUCoreLib.Saving
             var buildings = new JArray();
             foreach (var runtime in BuildingEntityRegistry.GetActiveRuntimes())
             {
-                if (runtime == null || string.IsNullOrWhiteSpace(runtime.DefinitionId)) continue;
+                if (runtime == null || string.IsNullOrWhiteSpace(runtime.DefinitionId))
+                    continue;
                 if (!runtime.TryGetComponent(out BuildingEntity building)) continue;
 
                 buildings.Add(new JObject
@@ -38,10 +39,13 @@ namespace CUCoreLib.Saving
             };
         }
 
-        public void Restore(WorldSaveContext context, JToken payload, int version, SaveRestoreContext contextForRestore)
+        public void Restore(WorldSaveContext context, JToken payload, int version,
+            SaveRestoreContext contextForRestore)
         {
             // Version 1 payloads are the bare buildings array, with no layer tag around them.
-            var buildings = payload is JObject root ? root["buildings"] as JArray : payload as JArray;
+            var buildings = payload is JObject root
+                ? root["buildings"] as JArray
+                : payload as JArray;
             var layer = (payload as JObject)?.Value<int?>("layer");
             if (buildings == null) return;
 
@@ -60,17 +64,21 @@ namespace CUCoreLib.Saving
                     var id = (string)token["id"];
                     if (!BuildingEntityRegistry.TryGetDefinition(id, out _))
                     {
-                        CUCoreLibPlugin.Log?.LogWarning("CUCoreLib Save: Skipped unknown custom building '" + id +
-                                                        "'.");
+                        CUCoreLibPlugin.Log?.LogWarning(
+                            "CUCoreLib Save: Skipped unknown custom building '"
+                            + id
+                            + "'.");
                         continue;
                     }
 
                     var position = ReadVector2(token["position"]);
                     var rotation = (float?)token["rotation"] ?? 0f;
-                    var instance = BuildingEntityRegistry.Spawn(id, position, Quaternion.Euler(0f, 0f, rotation));
+                    var instance = BuildingEntityRegistry.Spawn(id, position,
+                        Quaternion.Euler(0f, 0f, rotation));
                     if (instance == null) continue;
 
-                    instance.transform.localScale = ReadVector3(token["scale"], instance.transform.localScale);
+                    instance.transform.localScale = ReadVector3(token["scale"],
+                        instance.transform.localScale);
                     if (!instance.TryGetComponent(out BuildingEntity building)) continue;
                     building.SetHealth((float?)token["health"] ?? building.GetHealth());
                     BuildingEntityRegistry.RestoreSeating(instance, context.World,

@@ -25,25 +25,6 @@ namespace CUCoreLib.Saving
 
         private static bool _warnedUnsupportedKrokMpScope;
 
-        internal sealed class LoadState
-        {
-            internal readonly KrokMpSaveScope Scope;
-            internal readonly JObject Payload;
-            internal readonly Body Body;
-            internal readonly PlayerCamera PlayerCamera;
-            internal readonly WorldGeneration World;
-
-            internal LoadState(KrokMpSaveScope scope, JObject payload, Body body, PlayerCamera playerCamera,
-                WorldGeneration world)
-            {
-                Scope = scope;
-                Payload = payload;
-                Body = body;
-                PlayerCamera = playerCamera;
-                World = world;
-            }
-        }
-
         internal static void EmbedIntoSaveFile()
         {
             try
@@ -54,8 +35,11 @@ namespace CUCoreLib.Saving
                 var json = SaveSystem.Unzip(File.ReadAllBytes(path));
                 var saveRoot = JObject.Parse(json);
                 var playerCamera = PlayerCamera.main;
-                var body = playerCamera != null ? playerCamera.body : null;
-                var cuRoot = CapturePayload(scope, body, playerCamera, WorldGeneration.world);
+                var body = playerCamera != null
+                    ? playerCamera.body
+                    : null;
+                var cuRoot = CapturePayload(scope, body, playerCamera,
+                    WorldGeneration.world);
                 if (cuRoot == null) return;
 
                 saveRoot[RootKey] = cuRoot;
@@ -73,16 +57,18 @@ namespace CUCoreLib.Saving
             try
             {
                 if (!TryGetSavePath(out var scope, out var path)) return null;
-                if (scope == KrokMpSaveScope.NotActive && (!SaveSystem.loadedRun || !SaveSystem.HasSave())) return null;
+                if (scope == KrokMpSaveScope.NotActive
+                    && (!SaveSystem.loadedRun || !SaveSystem.HasSave())) return null;
                 if (!File.Exists(path)) return null;
 
                 var json = SaveSystem.Unzip(File.ReadAllBytes(path));
                 var saveRoot = JObject.Parse(json);
-                var payload = saveRoot[RootKey] as JObject;
-                if (payload == null) return null;
+                if (!(saveRoot[RootKey] is JObject payload)) return null;
 
                 var playerCamera = PlayerCamera.main;
-                return new LoadState(scope, payload, playerCamera != null ? playerCamera.body : null, playerCamera,
+                return new LoadState(scope, payload, playerCamera != null
+                        ? playerCamera.body
+                        : null, playerCamera,
                     WorldGeneration.world);
             }
             catch (Exception ex)
@@ -94,32 +80,39 @@ namespace CUCoreLib.Saving
 
         internal static void ApplyRestore(LoadState state)
         {
-            if (state == null || state.Payload == null || !SaveSystem.loadedRun) return;
+            if (state?.Payload == null || !SaveSystem.loadedRun) return;
 
             try
             {
-                var restoreContext = new SaveRestoreContext(state.Body, state.PlayerCamera, state.World);
+                var restoreContext =
+                    new SaveRestoreContext(state.Body, state.PlayerCamera, state.World);
 
                 if (state.Scope != KrokMpSaveScope.Player)
                 {
-                    WarnUnknownProviders(state.Payload["global"] as JObject, SaveRegistry.GlobalProviderKeys, "global");
-                    WarnUnknownProviders(state.Payload["world"] as JObject, SaveRegistry.WorldProviderKeys, "world");
-                    ApplyGlobalProviders(state.Payload["global"] as JObject, restoreContext);
-                    ApplyWorldProviders(state.Payload["world"] as JObject, restoreContext, state.Body, state.PlayerCamera,
+                    WarnUnknownProviders(state.Payload["global"] as JObject,
+                        SaveRegistry.GlobalProviderKeys, "global");
+                    WarnUnknownProviders(state.Payload["world"] as JObject,
+                        SaveRegistry.WorldProviderKeys, "world");
+                    ApplyGlobalProviders(state.Payload["global"] as JObject,
+                        restoreContext);
+                    ApplyWorldProviders(state.Payload["world"] as JObject, restoreContext,
+                        state.Body, state.PlayerCamera,
                         state.World);
                 }
 
                 if (state.Scope != KrokMpSaveScope.Shared && state.Body != null)
                 {
                     ApplyBodyState(state.Body, state.Payload, restoreContext);
-                    ApplyItemProviders(state.Body, state.Payload["items"] as JObject, restoreContext);
+                    ApplyItemProviders(state.Body, state.Payload["items"] as JObject,
+                        restoreContext);
                 }
 
                 restoreContext.ExecuteDeferred();
             }
             catch (Exception ex)
             {
-                SaveLogger.Warn("Unexpected failure while restoring CUCoreLib save payload D:", ex);
+                SaveLogger.Warn(
+                    "Unexpected failure while restoring CUCoreLib save payload D:", ex);
             }
         }
 
@@ -139,24 +132,29 @@ namespace CUCoreLib.Saving
         {
             if (body == null || payload == null) return;
 
-            var context = new SaveRestoreContext(body, PlayerCamera.main, WorldGeneration.world);
+            var context =
+                new SaveRestoreContext(body, PlayerCamera.main, WorldGeneration.world);
             ApplyBodyState(body, payload, context);
             context.ExecuteDeferred();
         }
 
-        private static void ApplyBodyState(Body body, JObject payload, SaveRestoreContext context)
+        private static void ApplyBodyState(Body body, JObject payload,
+            SaveRestoreContext context)
         {
-            WarnUnknownProviders(payload["body"] as JObject, SaveRegistry.BodyProviderKeys, "body");
+            WarnUnknownProviders(payload["body"] as JObject,
+                SaveRegistry.BodyProviderKeys, "body");
             ApplyBodyProviders(body, payload["body"] as JObject, context);
             ApplyLimbProviders(body, payload["limbs"] as JArray, context);
         }
 
-        private static JObject CapturePayload(KrokMpSaveScope scope, Body body, PlayerCamera playerCamera,
+        private static JObject CapturePayload(KrokMpSaveScope scope, Body body,
+            PlayerCamera playerCamera,
             WorldGeneration world)
         {
             if (scope != KrokMpSaveScope.Shared && body == null)
             {
-                SaveLogger.Warn("Skipping custom save capture because the player body is not ready.");
+                SaveLogger.Warn(
+                    "Skipping custom save capture because the player body is not ready.");
                 return null;
             }
 
@@ -168,7 +166,8 @@ namespace CUCoreLib.Saving
             if (scope != KrokMpSaveScope.Player)
             {
                 root["global"] = CaptureGlobalProviders() ?? new JObject();
-                root["world"] = CaptureWorldProviders(body, playerCamera, world) ?? new JObject();
+                root["world"] = CaptureWorldProviders(body, playerCamera, world)
+                    ?? new JObject();
             }
 
             if (scope != KrokMpSaveScope.Shared)
@@ -186,7 +185,8 @@ namespace CUCoreLib.Saving
             var result = new JObject();
 
             foreach (var entry in SaveRegistry.GlobalProviders)
-                CaptureProvider(entry.Key, entry.Value, result, () => entry.Value.Capture());
+                CaptureProvider(entry.Key, entry.Value, result,
+                    () => entry.Value.Capture());
 
             return result;
         }
@@ -196,7 +196,8 @@ namespace CUCoreLib.Saving
             var result = new JObject();
 
             foreach (var entry in SaveRegistry.BodyProviders)
-                CaptureProvider(entry.Key, entry.Value, result, () => entry.Value.Capture(body));
+                CaptureProvider(entry.Key, entry.Value, result,
+                    () => entry.Value.Capture(body));
 
             return result;
         }
@@ -244,18 +245,21 @@ namespace CUCoreLib.Saving
             return result;
         }
 
-        private static JObject CaptureWorldProviders(Body body, PlayerCamera playerCamera, WorldGeneration world)
+        private static JObject CaptureWorldProviders(Body body, PlayerCamera playerCamera,
+            WorldGeneration world)
         {
             var result = new JObject();
             var context = new WorldSaveContext(body, playerCamera, world);
 
             foreach (var entry in SaveRegistry.WorldProviders)
-                CaptureProvider(entry.Key, entry.Value, result, () => entry.Value.Capture(context));
+                CaptureProvider(entry.Key, entry.Value, result,
+                    () => entry.Value.Capture(context));
 
             return result;
         }
 
-        private static void CaptureProvider(string key, object provider, JObject destination, Func<JToken> capture)
+        private static void CaptureProvider(string key, object provider,
+            JObject destination, Func<JToken> capture)
         {
             try
             {
@@ -271,41 +275,56 @@ namespace CUCoreLib.Saving
             }
         }
 
-        private static void ApplyGlobalProviders(JObject payloadRoot, SaveRestoreContext context)
+        private static void ApplyGlobalProviders(JObject payloadRoot,
+            SaveRestoreContext context)
         {
             if (payloadRoot == null) return;
 
             foreach (var property in payloadRoot.Properties())
             {
-                if (!SaveRegistry.GlobalProviders.TryGetValue(property.Name, out var provider))
+                if (!SaveRegistry.GlobalProviders.TryGetValue(property.Name,
+                    out var provider))
                 {
-                    SaveLogger.Warn("Skipping missing global save provider '" + property.Name + "'.");
+                    SaveLogger.Warn("Skipping missing global save provider '"
+                        + property.Name
+                        + "'.");
                     continue;
                 }
 
                 RestoreProvider(property.Name, property.Value as JObject,
-                    delegate(JToken payload, int version) { provider.Restore(payload, version, context); });
+                    delegate(JToken payload, int version)
+                    {
+                        provider.Restore(payload, version, context);
+                    });
             }
         }
 
-        private static void ApplyBodyProviders(Body body, JObject payloadRoot, SaveRestoreContext context)
+        private static void ApplyBodyProviders(Body body, JObject payloadRoot,
+            SaveRestoreContext context)
         {
             if (payloadRoot == null) return;
 
             foreach (var property in payloadRoot.Properties())
             {
-                if (!SaveRegistry.BodyProviders.TryGetValue(property.Name, out var provider))
+                if (!SaveRegistry.BodyProviders.TryGetValue(property.Name,
+                    out var provider))
                 {
-                    SaveLogger.Warn("Skipping missing body save provider '" + property.Name + "'.");
+                    SaveLogger.Warn("Skipping missing body save provider '"
+                        + property.Name
+                        + "'.");
                     continue;
                 }
 
                 RestoreProvider(property.Name, property.Value as JObject,
-                    delegate(JToken payload, int version) { provider.Restore(body, payload, version, context); });
+                    delegate(JToken payload, int version)
+                    {
+                        provider.Restore(body, payload, version, context);
+                    });
             }
         }
 
-        private static void ApplyLimbProviders(Body body, JArray payloadRoot, SaveRestoreContext context)
+        private static void ApplyLimbProviders(Body body, JArray payloadRoot,
+            SaveRestoreContext context)
         {
             if (payloadRoot == null || body.limbs == null) return;
 
@@ -314,21 +333,27 @@ namespace CUCoreLib.Saving
                 if (i >= body.limbs.Length)
                 {
                     SaveLogger.Warn(
-                        "Skipping saved limb payload at index " + i + " because that limb no longer exists.");
+                        "Skipping saved limb payload at index "
+                        + i
+                        + " because that limb no longer exists.");
                     continue;
                 }
 
-                var limbObject = payloadRoot[i] as JObject;
-                if (limbObject == null) continue;
+                if (!(payloadRoot[i] is JObject limbObject)) continue;
 
-                WarnUnknownProviders(limbObject, SaveRegistry.LimbProviderKeys, "limb[" + i + "]");
+                WarnUnknownProviders(limbObject, SaveRegistry.LimbProviderKeys,
+                    "limb[" + i + "]");
 
                 foreach (var property in limbObject.Properties())
                 {
-                    if (!SaveRegistry.LimbProviders.TryGetValue(property.Name, out var provider))
+                    if (!SaveRegistry.LimbProviders.TryGetValue(property.Name,
+                        out var provider))
                     {
-                        SaveLogger.Warn("Skipping missing limb save provider '" + property.Name + "' for limb index " +
-                                        i + ".");
+                        SaveLogger.Warn("Skipping missing limb save provider '"
+                            + property.Name
+                            + "' for limb index "
+                            + i
+                            + ".");
                         continue;
                     }
 
@@ -343,37 +368,47 @@ namespace CUCoreLib.Saving
             }
         }
 
-        private static void ApplyItemProviders(Body body, JObject payloadRoot, SaveRestoreContext context)
+        private static void ApplyItemProviders(Body body, JObject payloadRoot,
+            SaveRestoreContext context)
         {
             if (payloadRoot == null) return;
 
             var itemLookup = new Dictionary<string, Item>(StringComparer.Ordinal);
-            foreach (var entry in BuildItemEntries(body)) itemLookup[entry.Key] = entry.Item;
+            foreach (var entry in BuildItemEntries(body))
+                itemLookup[entry.Key] = entry.Item;
 
             foreach (var itemProperty in payloadRoot.Properties())
             {
-                if (!itemLookup.TryGetValue(itemProperty.Name, out var item) || item == null)
+                if (!itemLookup.TryGetValue(itemProperty.Name, out var item)
+                    || item == null)
                 {
-                    SaveLogger.Warn("Skipping saved item payload for missing item key '" + itemProperty.Name + "'.");
+                    SaveLogger.Warn("Skipping saved item payload for missing item key '"
+                        + itemProperty.Name
+                        + "'.");
                     continue;
                 }
 
-                var itemObject = itemProperty.Value as JObject;
-                if (itemObject == null) continue;
+                if (!(itemProperty.Value is JObject itemObject)) continue;
 
-                WarnUnknownProviders(itemObject, SaveRegistry.ItemProviderKeys, "item[" + itemProperty.Name + "]");
+                WarnUnknownProviders(itemObject, SaveRegistry.ItemProviderKeys,
+                    "item[" + itemProperty.Name + "]");
 
                 foreach (var providerProperty in itemObject.Properties())
                 {
-                    if (!SaveRegistry.ItemProviders.TryGetValue(providerProperty.Name, out var provider))
+                    if (!SaveRegistry.ItemProviders.TryGetValue(providerProperty.Name,
+                        out var provider))
                     {
-                        SaveLogger.Warn("Skipping missing item save provider '" + providerProperty.Name +
-                                        "' for item key '" + itemProperty.Name + "'.");
+                        SaveLogger.Warn("Skipping missing item save provider '"
+                            + providerProperty.Name
+                            + "' for item key '"
+                            + itemProperty.Name
+                            + "'.");
                         continue;
                     }
 
                     var itemKey = itemProperty.Name;
-                    RestoreProvider(providerProperty.Name, providerProperty.Value as JObject,
+                    RestoreProvider(providerProperty.Name,
+                        providerProperty.Value as JObject,
                         delegate(JToken payload, int version)
                         {
                             provider.Restore(item, itemKey, payload, version, context);
@@ -382,7 +417,8 @@ namespace CUCoreLib.Saving
             }
         }
 
-        private static void ApplyWorldProviders(JObject payloadRoot, SaveRestoreContext context, Body body,
+        private static void ApplyWorldProviders(JObject payloadRoot,
+            SaveRestoreContext context, Body body,
             PlayerCamera playerCamera, WorldGeneration world)
         {
             if (payloadRoot == null) return;
@@ -391,9 +427,12 @@ namespace CUCoreLib.Saving
 
             foreach (var property in payloadRoot.Properties())
             {
-                if (!SaveRegistry.WorldProviders.TryGetValue(property.Name, out var provider))
+                if (!SaveRegistry.WorldProviders.TryGetValue(property.Name,
+                    out var provider))
                 {
-                    SaveLogger.Warn("Skipping missing world save provider '" + property.Name + "'.");
+                    SaveLogger.Warn("Skipping missing world save provider '"
+                        + property.Name
+                        + "'.");
                     continue;
                 }
 
@@ -405,11 +444,14 @@ namespace CUCoreLib.Saving
             }
         }
 
-        private static void RestoreProvider(string key, JObject wrappedPayload, Action<JToken, int> restore)
+        private static void RestoreProvider(string key, JObject wrappedPayload,
+            Action<JToken, int> restore)
         {
             if (wrappedPayload == null)
             {
-                SaveLogger.Warn("Skipping malformed save payload for provider '" + key + "'.");
+                SaveLogger.Warn("Skipping malformed save payload for provider '"
+                    + key
+                    + "'.");
                 return;
             }
 
@@ -487,15 +529,19 @@ namespace CUCoreLib.Saving
             return entries;
         }
 
-        private static void AppendContainerEntries(List<SaveItemEntry> entries, Item parentItem, string parentKey)
+        private static void AppendContainerEntries(List<SaveItemEntry> entries,
+            Item parentItem, string parentKey)
         {
-            if (entries == null || parentItem == null || !parentItem.GetComponent<Container>()) return;
+            if (entries == null
+                || parentItem == null
+                || !parentItem.GetComponent<Container>()) return;
 
             // Nested container items must inherit the parent key
             var nestedIndex = 0;
             foreach (Transform child in parentItem.transform)
             {
-                if (child == null || !child.TryGetComponent(out Item nestedItem)) continue;
+                if (child == null || !child.TryGetComponent(out Item nestedItem))
+                    continue;
 
                 var key = parentKey + "/container:" + nestedIndex;
                 entries.Add(new SaveItemEntry { Key = key, Item = nestedItem });
@@ -503,14 +549,19 @@ namespace CUCoreLib.Saving
             }
         }
 
-        private static void WarnUnknownProviders(JObject payloadRoot, IEnumerable<string> knownKeys, string scope)
+        private static void WarnUnknownProviders(JObject payloadRoot,
+            IEnumerable<string> knownKeys, string scope)
         {
             if (payloadRoot == null) return;
 
             var known = new HashSet<string>(knownKeys, StringComparer.Ordinal);
             foreach (var property in payloadRoot.Properties())
                 if (!known.Contains(property.Name))
-                    SaveLogger.Warn("Skipping unknown " + scope + " save provider '" + property.Name + "'.");
+                    SaveLogger.Warn("Skipping unknown "
+                        + scope
+                        + " save provider '"
+                        + property.Name
+                        + "'.");
         }
 
         private static bool TryGetSavePath(out KrokMpSaveScope scope, out string path)
@@ -528,16 +579,38 @@ namespace CUCoreLib.Saving
                 case KrokMpSaveScope.Client:
                     path = null;
                     return false;
+                case KrokMpSaveScope.Unsupported:
                 default:
                     if (!_warnedUnsupportedKrokMpScope)
                     {
                         _warnedUnsupportedKrokMpScope = true;
-                        SaveLogger.Warn("Skipping CUCoreLib save-provider persistence because KrokMP's active save " +
-                                        "directory could not be resolved safely.");
+                        SaveLogger.Warn(
+                            "Skipping CUCoreLib save-provider persistence because KrokMP's active save "
+                            + "directory could not be resolved safely.");
                     }
 
                     path = null;
                     return false;
+            }
+        }
+
+        internal sealed class LoadState
+        {
+            internal readonly Body Body;
+            internal readonly JObject Payload;
+            internal readonly PlayerCamera PlayerCamera;
+            internal readonly KrokMpSaveScope Scope;
+            internal readonly WorldGeneration World;
+
+            internal LoadState(KrokMpSaveScope scope, JObject payload, Body body,
+                PlayerCamera playerCamera,
+                WorldGeneration world)
+            {
+                Scope = scope;
+                Payload = payload;
+                Body = body;
+                PlayerCamera = playerCamera;
+                World = world;
             }
         }
     }
