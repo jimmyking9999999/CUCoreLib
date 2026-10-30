@@ -51,11 +51,13 @@ namespace CUCoreLib.Patches
         }
     }
 
-    [HarmonyPatch(typeof(SettingsMenu), nameof(SettingsMenu.SelectTab), typeof(Setting.SettingCategory))]
+    [HarmonyPatch(typeof(SettingsMenu), nameof(SettingsMenu.SelectTab),
+        typeof(Setting.SettingCategory))]
     internal static class SettingsMenuSelectTabPatch
     {
         [HarmonyPostfix]
-        private static void Postfix(SettingsMenu __instance, Setting.SettingCategory category,
+        private static void Postfix(SettingsMenu __instance,
+            Setting.SettingCategory category,
             List<GameObject> ___spawnedSettings)
         {
             SettingsMenuCategoryExtender.EnsureAttached(__instance);
@@ -68,21 +70,24 @@ namespace CUCoreLib.Patches
             RestoreRegisteredKeybindTooltips(___spawnedSettings, category);
         }
 
-        private static void RestoreRegisteredKeybindTooltips(List<GameObject> spawnedSettings, Setting.SettingCategory category)
+        private static void RestoreRegisteredKeybindTooltips(
+            List<GameObject> spawnedSettings, Setting.SettingCategory category)
         {
             if (spawnedSettings == null) return;
 
             // Content still contains the previous tab's rows until Unity finishes deferred destruction.
             var displayedSettingIndex = 0;
-            foreach (var setting in Settings.GetAllSettings())
+            foreach (var setting in Settings.GetAllSettings().Where(setting =>
+                setting != null && setting.category == category))
             {
-                if (setting == null || setting.category != category) continue;
                 if (displayedSettingIndex >= spawnedSettings.Count) return;
 
                 if (setting is SettingKeybind)
                 {
                     var option = ModOptionsRegistry.RegisteredOptions.Find(candidate =>
-                        candidate != null && candidate.Id == setting.name && candidate.Kind == ModOptionKind.Keybind);
+                        candidate != null
+                        && candidate.Id == setting.name
+                        && candidate.Kind == ModOptionKind.Keybind);
                     if (option != null && !string.IsNullOrWhiteSpace(option.Description))
                     {
                         var row = spawnedSettings[displayedSettingIndex];
@@ -91,10 +96,12 @@ namespace CUCoreLib.Patches
                             displayedSettingIndex++;
                             continue;
                         }
+
                         var tooltipTarget = row.transform.GetChild(0);
                         var tooltip = tooltipTarget.GetComponent<UITooltip>();
                         if (tooltip != null)
-                            tooltip.tipDesc = Locale.GetOther("gameset" + setting.name + "dsc");
+                            tooltip.tipDesc =
+                                Locale.GetOther("gameset" + setting.name + "dsc");
                     }
                 }
 
@@ -129,10 +136,12 @@ namespace CUCoreLib.Patches
         }
     }
 
-    [HarmonyPatch(typeof(SettingsMenu), nameof(SettingsMenu.SelectTab), typeof(Setting.SettingCategory))]
+    [HarmonyPatch(typeof(SettingsMenu), nameof(SettingsMenu.SelectTab),
+        typeof(Setting.SettingCategory))]
     internal static class SettingsMenuSelectTabStringPatch
     {
-        private static readonly List<SettingString> DeferredStringSettings = new List<SettingString>();
+        private static readonly List<SettingString> DeferredStringSettings =
+            new List<SettingString>();
 
         [HarmonyPrefix]
         private static void Prefix(Setting.SettingCategory category)
@@ -141,31 +150,30 @@ namespace CUCoreLib.Patches
             if (Settings.settings == null) return;
 
             for (var i = Settings.settings.Count - 1; i >= 0; i--)
-            {
-                if (Settings.settings[i] is SettingString stringSetting && stringSetting.category == category)
+                if (Settings.settings[i] is SettingString stringSetting
+                    && stringSetting.category == category)
                 {
                     DeferredStringSettings.Add(stringSetting);
                     Settings.settings.RemoveAt(i);
                 }
-            }
 
             DeferredStringSettings.Reverse();
         }
 
         [HarmonyPostfix]
-        private static void Postfix(SettingsMenu __instance, Setting.SettingCategory category,
+        private static void Postfix(
+            SettingsMenu __instance,
+            Setting.SettingCategory category,
             List<GameObject> ___spawnedSettings)
         {
-            if (DeferredStringSettings.Count == 0 || __instance == null || !__instance.content ||
-                ___spawnedSettings == null) return;
+            if (DeferredStringSettings.Count == 0
+                || __instance == null
+                || !__instance.content
+                || ___spawnedSettings == null) return;
 
-            var num = 0f;
-            foreach (var spawned in ___spawnedSettings)
-            {
-                if (!spawned) continue;
-                var rect = spawned.GetComponent<RectTransform>();
-                if (rect) num += rect.sizeDelta.y;
-            }
+            var num = ___spawnedSettings.Where(spawned => spawned)
+                .Select(spawned => spawned.GetComponent<RectTransform>())
+                .Where(rect => rect).Sum(rect => rect.sizeDelta.y);
 
             foreach (var stringSetting in DeferredStringSettings)
             {
@@ -183,35 +191,40 @@ namespace CUCoreLib.Patches
                     });
 
                     var option = ModOptionsRegistry.RegisteredOptions.Find(candidate =>
-                        candidate != null && candidate.Id == stringSetting.name &&
-                        candidate.Kind == ModOptionKind.Text);
-                    if (option != null && !string.IsNullOrWhiteSpace(option.Placeholder) && inputField.placeholder)
+                        candidate != null
+                        && candidate.Id == stringSetting.name
+                        && candidate.Kind == ModOptionKind.Text);
+                    if (option != null
+                        && !string.IsNullOrWhiteSpace(option.Placeholder)
+                        && inputField.placeholder)
                     {
-                        var placeholderText = inputField.placeholder.GetComponent<TMP_Text>();
+                        var placeholderText =
+                            inputField.placeholder.GetComponent<TMP_Text>();
                         if (placeholderText) placeholderText.text = option.Placeholder;
                     }
                 }
 
                 g.transform.GetChild(0).GetComponent<TextMeshProUGUI>().text =
                     Locale.GetOther("gameset" + stringSetting.name);
-                var tooltip = g.transform.GetChild(0).gameObject.AddComponent<UITooltip>();
+                var tooltip = g.transform.GetChild(0).gameObject
+                    .AddComponent<UITooltip>();
                 tooltip.skipLocale = true;
                 tooltip.tipName = Locale.GetOther("gameset" + stringSetting.name);
                 tooltip.tipDesc = Locale.GetOther("gameset" + stringSetting.name + "dsc");
 
                 g.GetComponent<RectTransform>().anchoredPosition =
-                    new Vector2(0f, 0f - num - g.GetComponent<RectTransform>().sizeDelta.y * 0.5f);
+                    new Vector2(0f,
+                        0f - num - g.GetComponent<RectTransform>().sizeDelta.y * 0.5f);
                 num += g.GetComponent<RectTransform>().sizeDelta.y;
                 ___spawnedSettings.Add(g);
             }
 
-            __instance.content.sizeDelta = new Vector2(__instance.content.sizeDelta.x, num);
+            __instance.content.sizeDelta =
+                new Vector2(__instance.content.sizeDelta.x, num);
 
-            foreach (var stringSetting in DeferredStringSettings)
-            {
-                if (!Settings.settings.Contains(stringSetting))
-                    Settings.settings.Add(stringSetting);
-            }
+            foreach (var stringSetting in DeferredStringSettings.Where(stringSetting =>
+                !Settings.settings.Contains(stringSetting)))
+                Settings.settings.Add(stringSetting);
 
             DeferredStringSettings.Clear();
         }
@@ -228,21 +241,25 @@ namespace CUCoreLib.Patches
 
             try
             {
-                var savedData = JsonConvert.DeserializeObject<List<SettingSaveData>>(File.ReadAllText(path));
+                var savedData =
+                    JsonConvert.DeserializeObject<List<SettingSaveData>>(
+                        File.ReadAllText(path));
                 if (savedData == null) return;
 
                 foreach (var data in savedData)
                 {
                     if (data?.name == null) continue;
 
-                    var setting = Settings.settings?.Find(s => s != null && s.name == data.name);
+                    var setting =
+                        Settings.settings?.Find(s => s != null && s.name == data.name);
                     if (setting is SettingString stringSetting)
                         stringSetting.value = data.value?.ToString() ?? string.Empty;
                 }
             }
             catch (Exception ex)
             {
-                CUCoreLibPlugin.Log?.LogError($"Failed to load string settings: {ex.Message}");
+                CUCoreLibPlugin.Log?.LogError(
+                    $"Failed to load string settings: {ex.Message}");
             }
         }
     }
