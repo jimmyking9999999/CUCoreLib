@@ -14,6 +14,11 @@ namespace CUCoreLib.Patches
         {
             if (__instance.animalCorpse) return true;
 
+            var body = PlayerCamera.main != null ? PlayerCamera.main.body : null;
+            if (GameBuildInfo.IsFullGame && body != null && body.charType == 2 &&
+                __instance.TryGetComponent<BuildingEntity>(out var building))
+                building.cantHit = false;
+
             if (__instance.categories == null || __instance.categories.Length == 0) return false;
 
             var amount = 0;

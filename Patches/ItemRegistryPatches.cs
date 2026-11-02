@@ -237,6 +237,13 @@ namespace CUCoreLib.Patches
                 return;
             }
 
+            if (parameters.Length == 2)
+            {
+                var swap = wearable.GetComponent(parameters[1].ParameterType);
+                WearableCreateSpritesMethod.Invoke(wearable, new object[] { body, swap });
+                return;
+            }
+
             WearableCreateSpritesMethod.Invoke(wearable, new object[] { body });
         }
 

@@ -185,7 +185,7 @@ namespace CUCoreLib.Patches
 
                     var blockPosition = WorldGeneration.world.WorldToBlockPos(worldPosition);
                     string tileLabel;
-                    if (!customTile && tileIndex < TileRegistry.FirstCustomTileIndex)
+                    if (!customTile && tileIndex < TileRegistry.FirstRuntimeTileIndex)
                     {
                         WorldGeneration.world.SetBlock(blockPosition, tileIndex);
                         tileLabel = "vanilla";
@@ -649,7 +649,7 @@ namespace CUCoreLib.Patches
             {
                 {
                     0,
-                    Enumerable.Range(0, TileRegistry.FirstCustomTileIndex)
+                    Enumerable.Range(0, TileRegistry.FirstRuntimeTileIndex)
                         .Select(index => index.ToString())
                         .Concat(TileRegistry.GetRegisteredIds())
                         .Concat(TileRegistry.GetRegisteredIndices().Select(index => index.ToString()))

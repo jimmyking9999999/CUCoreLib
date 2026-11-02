@@ -591,12 +591,12 @@ StructureRegistry.RegisterFromEmbeddedJson(
 StructureRegistry.RegisterFromFile(
     "crashsite",
     Path.Combine(Paths.PluginPath, "MyMod", "Structures", "crashsite.json"));</code></pre>
-      <p>The structure ID is the stable runtime key. The exported JSON keeps ownership of the actual block/object/item layout and the default five-depth <span class="inline-code">spawnCounts</span> values.</p>
+      <p>The structure ID is the stable runtime key. The exported JSON keeps ownership of the actual block/object/item layout and the <span class="inline-code">spawnCounts</span> values, which the editor writes as the five layers a Demo-era file carried.</p>
     </section>
 
     <section class="lesson-card">
       <h2>Spawn counts and overrides</h2>
-      <p>The importer reuses the same five-depth <span class="inline-code">spawnCounts</span> array the structure editor already exports. If your mod wants to tweak density after import, override the counts in code without rewriting the JSON.</p>
+      <p>The importer reuses the same <span class="inline-code">spawnCounts</span> array the structure editor exports. A payload shorter than five entries still fills the missing Demo-era layers with the default count of 4. Anything past the authored length spawns nothing, so a five-entry file stays on layers 1-5 and only gains the full game's deeper layers once the counts are extended (up to 12 entries). If your mod wants to tweak density after import, override the counts in code without rewriting the JSON.</p>
       <pre><code>StructureRegistry.RegisterFromEmbeddedJson(
     "fieldlab",
     "Structures.field_lab.json");
@@ -1326,6 +1326,19 @@ function fullGameTransitionPage(): string {
     </section>
 
     <section class="lesson-card">
+      <h2>Compatibility fixes handled by CUCoreLib, to watch out for</h2>
+      <p>Demo-era CUCoreLib registration and placement calls remain supported. Your mods do not need changes for these fixes, though this may break hardcoded references.</p>
+      <ul>
+        <li><strong>Terrain IDs.</strong> The full game reserves indices 36–42 for vanilla terrain. Existing numeric registrations in that range are relocated to >43.</li>
+        <li><strong>Tile queries.</strong> Numeric queries such as <span class="inline-code">TryGetDefinition(world.GetBlock(position), out ...)</span> prioritize vanilla tiles, as such. To query a relocated registration directly, use its stable ID or find its current index with <span class="inline-code">TryGetIndex</span>.</li>
+        <li><strong>Liquid IDs.</strong> CUCoreLib reserves full-game liquid tile byte 7 for red sludge and starts custom allocation at 8 (7 on the Demo).</li>
+        <li><strong>Generation.</strong> Custom terrain, liquids, buildings, and scattered items affect all new layers by default, you may want to adjust your logic accordingly.</li>
+        <li><strong>Wearable refresh.</strong> CUCoreLib supplies the full game's optional sprite-swap component when refreshing worn items, while retaining the Demo's original call.</li>
+        <li><strong>Trader stock.</strong> The <span class="inline-code">untradeable</span> flag is now present in the full game, and is applied to items with the unobtainable flag.</li>
+      </ul>
+    </section>
+
+    <section class="lesson-card">
       <h2>Detecting which build is running</h2>
       <p>Below is a list of inital functions that can help determine what version is running, and how to handle specific version logic:</p>
       <table>
@@ -1359,7 +1372,21 @@ public static class FullGameOnlyPatch
       <p>In your mods, some code references the demo's Assembly-CSharp.dll, which is different in the full game's version. Some of the known breakages include:</p>
       
       <p>- <span class="inline-code">Body.Eat</span> is <span class="inline-code">Eat(float hungerAmount, float weightGain)</span>. On the full game it is <span class="inline-code">Eat(float hungerAmount, float weightGain, int foodType)</span>.</p>
-      <p>To resolve this, you can use (todo finish this <3).</p>
+      <p>To resolve this, use reflection to call the correct overload based on the running build:</p>
+      <pre><code>using System.Reflection;
+using CUCoreLib.Helpers;
+
+// Works on demo, Playtest, and full:
+if (GameBuildInfo.IsFullGame)
+{
+    typeof(Body).GetMethod("Eat", new[] { typeof(float), typeof(float), typeof(int) })
+        ?.Invoke(body, new object[] { amount, weight, 0 });
+}
+else
+{
+    typeof(Body).GetMethod("Eat", new[] { typeof(float), typeof(float) })
+        ?.Invoke(body, new object[] { amount, weight });
+}</code></pre>
   
       <p>- <span class="inline-code">BuildingEntity.health</span> is a public field. On the full game it is a public property backed by <span class="inline-code">_health</span>, and its setter also runs <span class="inline-code">CheckDamage()</span>.</p>
       <p>To resolve this, use CUCoreLib's accessor instead of touching the member directly:</p>
@@ -1372,7 +1399,100 @@ public static class FullGameOnlyPatch
 // After (works on demo, Playtest, and full):
 building.SetHealth(building.GetHealth() - damage);
 if (building.GetHealth() < 0.5f) return;</code></pre>
-    <p>- </p>
+
+      <p>- <span class="inline-code">GlobalDark.betaBuild</span> is a public field on the demo. On the full game, the field is removed entirely, and the beta-build text is set directly in <span class="inline-code">Awake()</span>.</p>
+      <p>To resolve this, find the text by content instead of by field reference:</p>
+      <pre><code>using TMPro;
+using UnityEngine;
+
+// Before (breaks on the full game):
+// TMP_Text betaBuildText = globalDark.betaBuild;
+
+// After (works on demo, Playtest, and full):
+TMP_Text betaBuildText = globalDark.GetComponentsInChildren&lt;TextMeshProUGUI&gt;(true)
+    .FirstOrDefault(text =&gt; text != null &amp;&amp;
+        (text.text?.StartsWith("This is a beta build (", StringComparison.Ordinal) == true ||
+         text.text?.StartsWith("This is a modded beta build (", StringComparison.Ordinal) == true));</code></pre>
+
+      <p>- <span class="inline-code">Locale.GetPauseQuote()</span> takes no parameters on the demo. On the full game it takes a <span class="inline-code">string context</span> parameter.</p>
+      <p>To resolve this, use reflection to call the correct overload:</p>
+      <pre><code>using System.Reflection;
+using CUCoreLib.Helpers;
+
+// Works on demo, Playtest, and full:
+string quote;
+if (GameBuildInfo.IsFullGame)
+{
+    quote = (string)typeof(Locale).GetMethod("GetPauseQuote", new[] { typeof(string) })
+        ?.Invoke(null, new object[] { "" });
+}
+else
+{
+    quote = (string)typeof(Locale).GetMethod("GetPauseQuote", Type.EmptyTypes)
+        ?.Invoke(null, null);
+}</code></pre>
+
+      <p>- <span class="inline-code">PlayerCamera.CharacterIndexToLocaleName(int index)</span> exists on the demo. On the full game, the method is removed entirely.</p>
+      <p>To resolve this, check the build and provide a fallback:</p>
+      <pre><code>using CUCoreLib.Helpers;
+
+// Works on demo, Playtest, and full:
+string name;
+if (GameBuildInfo.IsFullGame)
+{
+    // Method removed
+    name = "Unknown";
+}
+else
+{
+    name = PlayerCamera.CharacterIndexToLocaleName(index);
+}</code></pre>
+
+      <p>- <strong>Name-only Harmony patches become ambiguous when methods gain overloads.</strong> For instance, <span class="inline-code">Body.Eat(float, float)</span> with <span class="inline-code">Eat(float, float, int foodType)</span>, and <span class="inline-code">WorldGeneration.SetBlock</span> with <span class="inline-code">(Vector2Int, ushort)</span>, <span class="inline-code">(int, int, ushort)</span>, and <span class="inline-code">(Vector2, ushort)</span>.</p> 
+      <p>A <span class="inline-code">[HarmonyPatch(typeof(T), "Name")]</span> attribute that worked on the demo now throws <span class="inline-code">AmbiguousMatchException</span> during <span class="inline-code">PatchAll</span>, aborting the entire mod load.</p>
+      <p>To resolve this, pin the patch to the specific overload by parameter types. Two approaches work:</p>
+      <pre><code>using HarmonyLib;
+using System.Reflection;
+
+// 1. Pin by parameter types in the attribute
+[HarmonyPatch(typeof(Body), "Eat", new[] { typeof(float), typeof(float), typeof(int) })]
+public static class EatPatch
+{
+    [HarmonyPostfix]
+    static void AfterEat(Body __instance) { /* ... */ }
+}
+
+// Or 2. Use TargetMethod() convention for build-agnostic resolution
+[HarmonyPatch]
+public static class EatPatch
+{
+    static MethodBase TargetMethod()
+    {
+        // Resolve widest overload on full, only overload on demo
+        return AccessTools.GetDeclaredMethods(typeof(Body))
+            .Where(m =&gt; m.Name == "Eat" &amp;&amp; !m.IsStatic)
+            .OrderByDescending(m =&gt; m.GetParameters().Length)
+            .FirstOrDefault();
+    }
+
+    [HarmonyPostfix]
+    static void AfterEat(Body __instance) { /* ... */ }
+}</code></pre>
+      <p>Approach 2 is useful when a single DLL must run on both builds and the overload set differs.</p>
+    </section>
+
+    <section class="lesson-card">
+      <h2>Build system gotchas</h2>
+      <p>When retargeting your mod to build against the full game's assemblies, you'll hit a few build-system issues:</p>
+
+      <p><strong>vars.targets auto-detects the Demo.</strong> This will be updated for the CCLTemplate, however most mod projects ship a <span class="inline-code">vars.targets</span> that auto-detects the Demo install and prefers the installed CUCoreLib over the sibling build output. To retarget to the full game, pass explicit properties or adjust your build settings:</p>
+      <pre><code>msbuild YourMod.csproj -restore -t:Build ^
+  -p:BaseGamePath="C:\\Program Files (x86)\\Steam\\steamapps\\common\\Casualties Unknown" ^
+  -p:GameAssembliesDir="C:\\Program Files (x86)\\Steam\\steamapps\\common\\Casualties Unknown\\CasualtiesUnknown_Data\\Managed" ^
+  -p:GameManagedDir="C:\\Program Files (x86)\\Steam\\steamapps\\common\\Casualties Unknown\\CasualtiesUnknown_Data\\Managed" ^
+  -p:AssemblyCSharpPath="C:\\Program Files (x86)\\Steam\\steamapps\\common\\Casualties Unknown\\CasualtiesUnknown_Data\\Managed\\Assembly-CSharp.dll" ^
+  -p:CUCoreLibDllPath="C:\\Program Files (x86)\\Steam\\steamapps\\common\\Casualties Unknown\\BepInEx\\plugins\\CUCoreLib.dll"</code></pre>
+
     </section>
 
   `;
@@ -2275,35 +2395,35 @@ LiquidTileRegistry.Register("acidbrinepool", new CustomLiquidTileInfo
 
     <section class="lesson-card">
       <h2>Visuals</h2>
-      <p>Custom liquid tiles keep using the game's fluid rendering path, but you can steer how the visuals are sourced. The final display color is the linked liquid's color multiplied by <span class="inline-code">Tint</span>.</p>
-      <p>When you need a real custom surface instead of "vanilla water, but with a different texture", use <span class="inline-code">LiquidVisualHelper</span> to build a dedicated <span class="inline-code">VisualMaterial</span> from an embedded texture, loose file, or explicit shader name.</p>
-      <pre><code>Material acidMaterial = LiquidVisualHelper.CreateLiquidMaterialFromEmbeddedTexture(
-    "Images.acidbrine-surface.png",
-    shaderName: "Legacy Shaders/Particles/Alpha Blended"
-);
-
-LiquidTileRegistry.Register("acidbrinepool", new CustomLiquidTileInfo
+      <p>Custom liquid tiles keep using the game's fluid rendering path. For a custom surface, set <span class="inline-code">Texture</span> to your PNG and use <span class="inline-code">Opacity</span> for translucency:</p>
+      <pre><code>LiquidTileRegistry.Register("acidbrinepool", new CustomLiquidTileInfo
 {
     LiquidId = "acidbrine",
     FillLiquidId = "acidbrine",
-    VisualMode = LiquidTileVisualMode.Material,
-    VisualMaterial = acidMaterial,
+    Texture = "Images.acidbrine-surface.png",
+    Opacity = 0.7f,
     Tint = Color.white
 });</code></pre>
+      <p><span class="inline-code">Texture</span> accepts an embedded resource in the registering assembly, or a loose file with an absolute path or a path relative to that assembly's directory. The two-argument <span class="inline-code">Register(id, info)</span> captures the caller assembly. Wrapper libraries can use <span class="inline-code">Register(id, info, Assembly sourceAssembly)</span> to select the assembly that owns the texture.</p>
+      <p>When the texture loads successfully, it takes precedence over <span class="inline-code">VisualMode</span> and <span class="inline-code">VisualMaterial</span>. CUCoreLib automatically clones the game's magma material, binds your image to <span class="inline-code">_MagmaTex</span>, and sets <span class="inline-code">_EmmisTex</span> to black so the pool respects room lighting. Filtering is always bilinear with repeat wrapping. Particle quads fit one cell while keeping the shorter surface row.</p>
+      <p><strong>The PNG must already tile seamlessly</strong>, preferably with fully opaque pixels: it repeats once per world cell. CUCoreLib does not generate or validate seams, and there is no seamless toggle. For this texture path only, rendered alpha is the logical liquid color's alpha × <span class="inline-code">Tint.a</span> × <span class="inline-code">Opacity</span>; opacity defaults to <span class="inline-code">0.7f</span> and is clamped to 0–1.</p>
+      <p>Local texture assets are not transmitted in multiplayer. Every peer needs the same texture installed.</p>
       <div class="table-wrap">
         <table class="field-table">
           <thead><tr><th>Field</th><th>Type</th><th>What it does</th></tr></thead>
           <tbody>
-            <tr><td><span class="inline-code">VisualMode</span></td><td><span class="inline-code">LiquidTileVisualMode</span></td><td>Chooses whether the tile reuses an existing vanilla fluid visual, a custom material, a sprite texture, or a generated high-res image.</td></tr>
+            <tr><td><span class="inline-code">Texture</span></td><td><span class="inline-code">string</span></td><td>Seamlessly tiling PNG resource or file path. A successful load overrides the visual mode/material with a room-lit magma material clone.</td></tr>
+            <tr><td><span class="inline-code">Opacity</span></td><td><span class="inline-code">float</span></td><td>Texture-path alpha multiplier on logical liquid color alpha × Tint.a. Defaults to 0.7; clamped to 0–1. Does not affect other visual paths.</td></tr>
+            <tr><td><span class="inline-code">VisualMode</span></td><td><span class="inline-code">LiquidTileVisualMode</span></td><td>Chooses whether the tile reuses an existing vanilla fluid visual, a custom material, a sprite texture, or a generated high-res image when no texture loads.</td></tr>
             <tr><td><span class="inline-code">ExistingVisualLiquidByte</span></td><td><span class="inline-code">byte</span></td><td>Base vanilla liquid visual to clone from. Defaults to <span class="inline-code">1</span> which is water.</td></tr>
             <tr><td><span class="inline-code">Tint</span></td><td><span class="inline-code">Color</span></td><td>Multiplier applied to the linked liquid color for fluid rendering and tile tooltip color.</td></tr>
-            <tr><td><span class="inline-code">VisualMaterial</span></td><td><span class="inline-code">Material</span></td><td>Material override used when <span class="inline-code">VisualMode</span> is <span class="inline-code">Material</span>. This is the full custom surface path.</td></tr>
+            <tr><td><span class="inline-code">VisualMaterial</span></td><td><span class="inline-code">Material</span></td><td>Manual or imported material override used when <span class="inline-code">VisualMode</span> is <span class="inline-code">Material</span> and no texture loads.</td></tr>
             <tr><td><span class="inline-code">VisualSprite</span></td><td><span class="inline-code">Sprite</span></td><td>Sprite texture override used when <span class="inline-code">VisualMode</span> is <span class="inline-code">Sprite</span>. It still reuses the current fluid material.</td></tr>
             <tr><td><span class="inline-code">HighResImage</span></td><td><span class="inline-code">Texture2D</span></td><td>Texture override used when <span class="inline-code">VisualMode</span> is <span class="inline-code">HighResImageGenerated</span>. It still reuses the current fluid material.</td></tr>
           </tbody>
         </table>
       </div>
-      <p>Most mods should start with <span class="inline-code">ExistingLiquidPlusTint</span> and move to <span class="inline-code">VisualMaterial</span> when the liquid needs a truly distinct surface look or a custom shader path.</p>
+      <p>Without <span class="inline-code">Texture</span>, existing manual/imported materials, sprite, high-res image, and tint behavior are unchanged. Use <span class="inline-code">ExistingLiquidPlusTint</span> for a recolored vanilla liquid, <span class="inline-code">Texture</span> for a custom room-lit surface, or <span class="inline-code">VisualMaterial</span> for a custom shader path.</p>
     </section>
 
     <section class="lesson-card">

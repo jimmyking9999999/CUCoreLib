@@ -21,6 +21,7 @@ namespace CUCoreLib.Registries
         private const int SupportedSchemaVersion = 4;
         private const int LegacySchemaVersion = 2;
         private const int SpawnDepthCount = 5;
+        private const int MaxSpawnDepthCount = 12;
         private const int NonOverlapPlacementMaxAttempts = 24;
         private const int LargeStructureCellWarningThreshold = 4096;
         private const int LargeSpawnCountWarningThreshold = 40;
@@ -130,6 +131,24 @@ namespace CUCoreLib.Registries
         public static IEnumerable<string> GetRegisteredIds()
         {
             return RegisteredDefinitions.Keys.OrderBy(key => key, StringComparer.OrdinalIgnoreCase).ToArray();
+        }
+
+        internal static void RemapTileIndices(IReadOnlyDictionary<ushort, ushort> mapping)
+        {
+            foreach (var definition in RegisteredDefinitions.Values)
+            {
+                var structure = definition.CompiledStructure;
+                if (structure == null) continue;
+
+                foreach (var blocks in new[] { structure.BlockIDs, structure.BackgroundIDs })
+                {
+                    if (blocks == null) continue;
+                    for (var x = 0; x < blocks.GetLength(0); x++)
+                    for (var y = 0; y < blocks.GetLength(1); y++)
+                        if (blocks[x, y] >= 0 && mapping.TryGetValue((ushort)blocks[x, y], out var newIndex))
+                            blocks[x, y] = newIndex;
+                }
+            }
         }
 
         public static bool TrySetSpawnCounts(string id, params int[] spawnCounts)
@@ -320,7 +339,7 @@ namespace CUCoreLib.Registries
             var totalSpawnCount = definition.SpawnCounts?.Sum() ?? 0;
             if (totalSpawnCount > LargeSpawnCountWarningThreshold)
                 CUCoreLibPlugin.Log?.LogWarning("Structure '" + definition.ID + "' requests " + totalSpawnCount +
-                                                " total placements across its five spawn depths. Large totals can slow world generation.");
+                                                " total placements across its spawn depths. Large totals can slow world generation.");
 
             if (definition.TerrainGenAreaCount > 0)
                 CUCoreLibPlugin.Log?.LogInfo("Structure '" + definition.ID + "' includes " +
@@ -829,18 +848,20 @@ namespace CUCoreLib.Registries
             return NormalizeSpawnCounts(raw?.Select(token => token.Value<int?>() ?? 4).ToArray());
         }
 
+        // Skip >5 for demo
         private static int[] NormalizeSpawnCounts(int[] raw)
         {
             var spawnCounts = raw ?? new[] { 4, 4, 4, 4, 4 };
+            if (spawnCounts.Length > MaxSpawnDepthCount)
+            {
+                spawnCounts = spawnCounts.Take(MaxSpawnDepthCount).ToArray();
+            }
+
             if (spawnCounts.Length < SpawnDepthCount)
             {
                 var expanded = spawnCounts.ToList();
                 while (expanded.Count < SpawnDepthCount) expanded.Add(4);
                 spawnCounts = expanded.ToArray();
-            }
-            else if (spawnCounts.Length > SpawnDepthCount)
-            {
-                spawnCounts = spawnCounts.Take(SpawnDepthCount).ToArray();
             }
 
             return spawnCounts.Select(count => Mathf.Max(0, count)).ToArray();

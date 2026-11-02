@@ -1,3 +1,4 @@
+using System.Collections;
 using CUCoreLib.Registries;
 using HarmonyLib;
 using UnityEngine;
@@ -7,10 +8,31 @@ namespace CUCoreLib.Patches
     [HarmonyPatch]
     internal static class LiquidTileRegistryPatches
     {
+        private static bool _generatingTerrain;
+        private static bool _generatedLiquidTiles;
+
+        [HarmonyPatch(typeof(WorldGeneration), "WorldGenerateTerrain")]
+        [HarmonyPostfix]
+        private static IEnumerator TrackTerrainGeneration(IEnumerator __result)
+        {
+            _generatingTerrain = true;
+            _generatedLiquidTiles = false;
+            try
+            {
+                while (__result.MoveNext()) yield return __result.Current;
+            }
+            finally
+            {
+                _generatingTerrain = false;
+            }
+        }
+
         [HarmonyPatch(typeof(WorldGeneration), "GenerateOres")]
         [HarmonyPostfix]
         private static void GenerateRegisteredLiquidTiles(WorldGeneration __instance)
         {
+            if (_generatingTerrain && _generatedLiquidTiles) return;
+            _generatedLiquidTiles = true;
             LiquidTileRegistry.GenerateWorldTiles(__instance);
         }
 

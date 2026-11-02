@@ -704,6 +704,44 @@ namespace CUCoreLib.Data
         /// Tool condition/battery lost per successful hit.
         /// </summary>
         public float ConditionLossOnHit = 0.02f;
+
+        /// <param name = "PassState">
+        /// A object reference(T**) to send to a AfterAttackDele delegate.
+        /// </param>
+        /// <param name = "attackinfo">
+        /// The AttackInfo class that Tool uses, this resets.
+        /// </param>
+        /// <param name = "body">
+        /// The player that the item belongs to.
+        /// </param>
+        /// <param name = "item">
+        /// The item that Tool belongs to.
+        /// </param>
+        /// <returns>
+        /// Boolean that determines if the rest of `Tool::useAction` runs.
+        /// </returns>
+        public delegate bool BeforeAttackDele(ref object PassState, AttackInfo attackinfo, Body body, Item item);
+        /// <param name = "PassState">
+        /// A object reference(T**) from a BeforeAttackDele delegate.
+        /// </param>
+        // Warns about undocumented args.
+        #pragma warning disable CS1573
+        public delegate void AfterAttackDele(ref object PassState, AttackInfo attackinfo, Body body, Item item);
+        #pragma warning restore CS1573
+
+        /// <summary>
+        /// A boolean function that is called before the attack happens.
+        /// </summary>
+        /// <remarks>
+        /// Exists because some people would rather write a harmony prefix to change the damage of the attack rather than use `ItemInfo::useAction` directly with `Body::Attack` in a if statement,<br/>
+        /// if you are reading this, you now know there is a better way of doing this and may now instead use that instead of making two plus one functions to do the same thing.
+        /// </remarks>
+        public BeforeAttackDele BeforeAttack = null;
+
+        /// <summary>
+        /// A void function that is called after the attack happens.
+        /// </summary>
+        public AfterAttackDele AfterAttack = null;
     }
 
     /// <summary>
@@ -770,6 +808,40 @@ namespace CUCoreLib.Data
         /// Local offset for the vanilla muzzle-particle transform.
         /// </summary>
         public Vector2? MuzzleOffset;
+
+        /// <param name = "PassState">
+        /// A object reference(T**) to send to a AfterAttackDele delegate.
+        /// </param>
+        /// <param name = "guninfo">
+        /// The GunScript that Gun uses, this doesn't reset.
+        /// </param>
+        /// <param name = "body">
+        /// The player that the item belongs to.
+        /// </param>
+        /// <param name = "item">
+        /// The item that Gun belongs to.
+        /// </param>
+        /// <returns>
+        /// Boolean that determines if the rest of `Gun::useAction` runs.
+        /// </returns>
+        public delegate bool BeforeAttackDele(ref object PassState, GunScript guninfo, Body body, Item item);
+        /// <param name = "PassState">
+        /// A object reference(T**) from a BeforeAttackDele delegate.
+        /// </param>
+        // Warns about undocumented args.
+        #pragma warning disable CS1573
+        public delegate void AfterAttackDele(ref object PassState, GunScript guninfo, Body body, Item item);
+        #pragma warning restore CS1573
+
+        /// <summary>
+        /// A boolean function that is called before the gunshot happens.
+        /// </summary>
+        public BeforeAttackDele BeforeAttack = null;
+
+        /// <summary>
+        /// A void function that is called after the gunshot happens.
+        /// </summary>
+        public AfterAttackDele AfterAttack = null;
     }
 
     /// <summary>

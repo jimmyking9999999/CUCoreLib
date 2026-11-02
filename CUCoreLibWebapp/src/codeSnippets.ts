@@ -1821,7 +1821,6 @@ private void RegisterPineappleJuiceContent()
 
 function liquidTileCode(): string {
   return `using CUCoreLib.Data;
-using CUCoreLib.Helpers;
 using CUCoreLib.Registries;
 using UnityEngine;
 
@@ -1854,11 +1853,8 @@ private void RegisterLiquidTiles()
         TemperaturePerSecond = 4f,
         SicknessPerSecond = 6f,
         SlipPerSecond = 0.35f,
-        VisualMode = LiquidTileVisualMode.Material,
-        VisualMaterial = LiquidVisualHelper.CreateLiquidMaterialFromEmbeddedTexture(
-            "Images.acidbrine-surface.png",
-            shaderName: "Legacy Shaders/Particles/Alpha Blended"
-        ),
+        Texture = "Images.acidbrine-surface.png",
+        Opacity = 0.7f,
         Tint = Color.white,
         SpawnAmount = 0.15f,
         MaxFloodFill = 96,

@@ -1,3 +1,4 @@
+using System.Collections;
 using CUCoreLib.Networking;
 using CUCoreLib.Registries;
 using HarmonyLib;
@@ -8,6 +9,25 @@ namespace CUCoreLib.Patches
     [HarmonyPatch]
     internal static class TileRegistryPatches
     {
+        private static bool _generatingTerrain;
+        private static bool _generatedTileOres;
+
+        [HarmonyPatch(typeof(WorldGeneration), "WorldGenerateTerrain")]
+        [HarmonyPostfix]
+        private static IEnumerator TrackTerrainGeneration(IEnumerator __result)
+        {
+            _generatingTerrain = true;
+            _generatedTileOres = false;
+            try
+            {
+                while (__result.MoveNext()) yield return __result.Current;
+            }
+            finally
+            {
+                _generatingTerrain = false;
+            }
+        }
+
         [HarmonyPatch(typeof(WorldGeneration), "Awake")]
         [HarmonyPostfix]
         private static void InjectCustomTiles(WorldGeneration __instance)
@@ -19,6 +39,8 @@ namespace CUCoreLib.Patches
         [HarmonyPostfix]
         private static void GenerateRegisteredTileOres(WorldGeneration __instance)
         {
+            if (_generatingTerrain && _generatedTileOres) return;
+            _generatedTileOres = true;
             TileRegistry.GenerateWorldTiles(__instance);
         }
 

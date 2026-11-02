@@ -111,9 +111,7 @@ namespace CUCoreLib.Saving
 
                 if (state.Scope != KrokMpSaveScope.Shared && state.Body != null)
                 {
-                    WarnUnknownProviders(state.Payload["body"] as JObject, SaveRegistry.BodyProviderKeys, "body");
-                    ApplyBodyProviders(state.Body, state.Payload["body"] as JObject, restoreContext);
-                    ApplyLimbProviders(state.Body, state.Payload["limbs"] as JArray, restoreContext);
+                    ApplyBodyState(state.Body, state.Payload, restoreContext);
                     ApplyItemProviders(state.Body, state.Payload["items"] as JObject, restoreContext);
                 }
 
@@ -123,6 +121,34 @@ namespace CUCoreLib.Saving
             {
                 SaveLogger.Warn("Unexpected failure while restoring CUCoreLib save payload D:", ex);
             }
+        }
+
+        internal static JObject CaptureBodyState(Body body)
+        {
+            if (body == null) return null;
+
+            return new JObject
+            {
+                ["version"] = SchemaVersion,
+                ["body"] = CaptureBodyProviders(body),
+                ["limbs"] = CaptureLimbProviders(body)
+            };
+        }
+
+        internal static void RestoreBodyState(Body body, JObject payload)
+        {
+            if (body == null || payload == null) return;
+
+            var context = new SaveRestoreContext(body, PlayerCamera.main, WorldGeneration.world);
+            ApplyBodyState(body, payload, context);
+            context.ExecuteDeferred();
+        }
+
+        private static void ApplyBodyState(Body body, JObject payload, SaveRestoreContext context)
+        {
+            WarnUnknownProviders(payload["body"] as JObject, SaveRegistry.BodyProviderKeys, "body");
+            ApplyBodyProviders(body, payload["body"] as JObject, context);
+            ApplyLimbProviders(body, payload["limbs"] as JArray, context);
         }
 
         private static JObject CapturePayload(KrokMpSaveScope scope, Body body, PlayerCamera playerCamera,

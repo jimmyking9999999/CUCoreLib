@@ -82,6 +82,35 @@ namespace CUCoreLib.Helpers
             return CreateLiquidMaterial(texture, baseMaterial, shaderName);
         }
 
+        internal static Texture2D LoadTileTexture(string path, Assembly sourceAssembly)
+        {
+            try
+            {
+                var filePath = Path.IsPathRooted(path)
+                    ? path
+                    : Path.Combine(Path.GetDirectoryName(sourceAssembly.Location), path);
+                return Path.IsPathRooted(path) || File.Exists(filePath)
+                    ? LoadTextureFromFile(filePath, FilterMode.Bilinear, TextureWrapMode.Repeat)
+                    : LoadEmbeddedTexture(path, sourceAssembly, FilterMode.Bilinear, TextureWrapMode.Repeat);
+            }
+            catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException || ex is ArgumentException)
+            {
+                CUCoreLibPlugin.Log?.LogWarning("Could not load liquid tile texture '" + path + "': " + ex.Message);
+                return null;
+            }
+        }
+
+        internal static int FindMagmaPrefabIndex(FluidManager manager)
+        {
+            for (var i = 0; i < manager.LiquidParticlePrefabs.Count; i++)
+            {
+                var material = manager.LiquidParticlePrefabs[i]?.GetComponent<ParticleSystemRenderer>()?.sharedMaterial;
+                if (material != null && material.shader != null && material.shader.name == "Shader Graphs/MagmaShader")
+                    return i;
+            }
+            return -1;
+        }
+
         private static Assembly ResolveSourceAssembly(Assembly sourceAssembly)
         {
             return sourceAssembly ?? ContentReloadSession.GetSourceAssemblyOverride() ?? Assembly.GetCallingAssembly();

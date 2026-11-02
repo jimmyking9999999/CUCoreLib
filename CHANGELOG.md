@@ -7,27 +7,38 @@ I figured that this would be nice to have, as to easily take a look at everythin
 
 **Fixes** refers to bugfixes that will not or are very unlikely to break your mod
 
-## v1.0.7+ (Nightly)
-
+# v1.1 (Fullgame! Yay!)
+- Note: v1.1 is the last release that promises Demo support, so new changes or APIs added after this update (v1.2 or higher) can break on a Demo install
 ### New Stuff!
+### Changes
+### Fixes
+
+
+# v1.0.7.2 (Stable)
+### New Stuff!
+- Added `CustomLiquidTileInfo.Texture` and `Opacity` for room-lit custom liquid surfaces from images
 - Added client-authoritative attribute field for statuses (Thanks, ovoid_ovvie!)
 - Implement Apply() and ApplyAbsolute() for networking status sync
 - Text option for settings
 - .cfg options are automatically appended to your mod options menu, if there are no collisions
+- ^ reverted this for now
 
 ### Changes
 - Custom liquid containers with `scaleWeightWithCondition` scale to `0.1u` at 0% condition
 - CCLBody overhaul (Thanks, @MCPO-Spartan-117)
 - Updated to **Together v5.1.4** (multiplayer), for crafting compatibility additions.
+- Structure `spawnCounts` increased to 12 entries
 
 ### Fixes
+- Updated compatibility with MP's traders
 - Fixed multiplayer crafting for recipes streamed from the host, the client now translates its recipe index to the host's one
 - The settings window now shifts left when a mod adds a custom settings sidebar, so the window + sidebar pair stays centred
 - Skipped patching vanilla recipes in MP for CCL, which should help compatibility (and for the future mp update)
 - Optimized liquid tile rendering 
+- Fixed saved body and limb statuses being skipped before their first access upon game restore (I am very smart)
 
 
-## v1.0.6 (Stable)
+## v1.0.6
 
 ### New Stuff!
 - Multiplayer snapshots now sync custom locale strings and recipes, and supports v5

@@ -377,4 +377,9 @@ TODO.md
 
 # CU Shortcut 
 CasualtiesUnknown.exe
+CasualtiesUnknownFull.exe
+CasualtiesUnknownFull.exe.lnk
 CasualtiesUnknown.exe.lnk
+
+# Evil typo
+CasualtiesUnknownFull.exe .lnk 

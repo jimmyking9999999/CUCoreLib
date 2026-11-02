@@ -38,9 +38,16 @@ namespace CUCoreLib.Data
         public LiquidTileVisualMode VisualMode = LiquidTileVisualMode.ExistingLiquidPlusTint;
         public byte ExistingVisualLiquidByte = 1;
         public Color Tint = Color.white;
+        public string Texture;
+        public float Opacity = 0.7f;
         public Material VisualMaterial;
         public Sprite VisualSprite;
         public Texture2D HighResImage;
+        internal Texture2D SurfaceTexture;
+        internal Material SurfaceMaterial;
+        internal bool SurfaceMaterialAttempted;
+        internal string LoadedTexturePath;
+        internal System.Reflection.Assembly TextureAssembly;
         public float SpawnAmount;
         public int SpawnLayers = -1;
         public int MaxFloodFill = 128;

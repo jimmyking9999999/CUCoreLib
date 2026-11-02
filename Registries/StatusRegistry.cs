@@ -4,6 +4,7 @@ using System.Reflection;
 using System.Runtime.CompilerServices;
 using CUCoreLib.Data;
 using CUCoreLib.Patches;
+using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
 namespace CUCoreLib.Registries
@@ -176,10 +177,7 @@ namespace CUCoreLib.Registries
 
             try
             {
-                var restored = (StatusBase)data.ToObject(metadata.StatusType);
-                if (restored == null) return;
-
-                collection.Set(metadata.StatusType, restored);
+                collection.Set(metadata.StatusType, data);
             }
             catch (Exception ex)
             {
@@ -264,8 +262,7 @@ namespace CUCoreLib.Registries
 
             try
             {
-                var restored = (StatusBase)data.ToObject(statusType);
-                if (restored != null) collection.Set(statusType, restored);
+                collection.Set(statusType, data);
             }
             catch (Exception ex)
             {
@@ -274,17 +271,29 @@ namespace CUCoreLib.Registries
             }
         }
 
+        private static StatusBase RestoreStatusData(StatusBase status, Type type, JObject data)
+        {
+            var serializer = JsonSerializer.CreateDefault(new JsonSerializerSettings
+            {
+                ObjectCreationHandling = ObjectCreationHandling.Replace
+            });
+            if (status == null) return (StatusBase)data.ToObject(type, serializer);
+
+            using (var reader = data.CreateReader()) serializer.Populate(reader, status);
+            return status;
+        }
+
         internal sealed class BodyStatusCollection : IStatusCollection
         {
             private readonly Dictionary<Type, BodyStatus> _entries = new Dictionary<Type, BodyStatus>();
 
             internal IEnumerable<KeyValuePair<Type, BodyStatus>> Entries => _entries;
 
-            public void Set(Type type, StatusBase status)
+            public void Set(Type type, JObject data)
             {
-                if (type == null || status == null) return;
-
-                _entries[type] = (BodyStatus)status;
+                _entries.TryGetValue(type, out var status);
+                var restored = (BodyStatus)RestoreStatusData(status, type, data);
+                if (restored != null) _entries[type] = restored;
             }
 
             public TStatus Get<TStatus>() where TStatus : BodyStatus, new()
@@ -305,11 +314,11 @@ namespace CUCoreLib.Registries
 
             internal IEnumerable<KeyValuePair<Type, LimbStatus>> Entries => _entries;
 
-            public void Set(Type type, StatusBase status)
+            public void Set(Type type, JObject data)
             {
-                if (type == null || status == null) return;
-
-                _entries[type] = (LimbStatus)status;
+                _entries.TryGetValue(type, out var status);
+                var restored = (LimbStatus)RestoreStatusData(status, type, data);
+                if (restored != null) _entries[type] = restored;
             }
 
             public TStatus Get<TStatus>() where TStatus : LimbStatus, new()
@@ -326,7 +335,7 @@ namespace CUCoreLib.Registries
 
         internal interface IStatusCollection
         {
-            void Set(Type type, StatusBase status);
+            void Set(Type type, JObject data);
         }
 
         internal sealed class StatusMetadata
@@ -368,7 +377,36 @@ namespace CUCoreLib.Registries
 
             internal static bool TryResolve(string key, out StatusMetadata metadata)
             {
-                return ByKey.TryGetValue(key, out metadata);
+                if (ByKey.TryGetValue(key, out metadata)) return true;
+
+                foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
+                {
+                    if (assembly.IsDynamic) continue;
+
+                    Type[] types;
+                    try
+                    {
+                        types = assembly.GetTypes();
+                    }
+                    catch (ReflectionTypeLoadException ex)
+                    {
+                        types = ex.Types;
+                    }
+
+                    foreach (var type in types)
+                    {
+                        if (type == null || type.IsAbstract || type.ContainsGenericParameters ||
+                            !typeof(StatusBase).IsAssignableFrom(type)) continue;
+
+                        if (TryCreate(type, out var candidate) && candidate.Key == key)
+                        {
+                            metadata = candidate;
+                            return true;
+                        }
+                    }
+                }
+
+                return false;
             }
         }
     }

@@ -2,7 +2,7 @@
   "version": "1.0",
   "library": "CUCoreLib",
   "description": "Machine-readable CUCoreLib web docs generated from the interactive docs sources.",
-  "generatedAt": "2026-10-08T19:18:10.160Z",
+  "generatedAt": "2026-11-02T21:42:41.843Z",
   "baseUrl": "/",
   "topics": [
     {
@@ -46,7 +46,7 @@
       "label": "Full Game Transition",
       "crumb": "Getting Started",
       "title": "Transitioning to the full game",
-      "lead": "What changes when Casualties Unknown leaves the demo, what breaks in a mod compiled against it, and how to ship one DLL that runs on both.",
+      "lead": "Updating your mod to the full game (soon!).",
       "appUrl": "/docs/full-game-transition/",
       "machineUrl": "/api/topics/full-game-transition.json"
     },
@@ -190,7 +190,7 @@
       "label": "Tiles",
       "crumb": "World",
       "title": "Tile API",
-      "lead": "Register terrain tiles with stable names, vanilla block behavior, and normal world or Tilemap placement.",
+      "lead": "Register terrain tiles.",
       "appUrl": "/docs/tiles/",
       "machineUrl": "/api/topics/tiles.json"
     },
@@ -199,7 +199,7 @@
       "label": "Multi-Block Structures",
       "crumb": "World",
       "title": "Multi-block structures",
-      "lead": "Planned documentation for structures made from multiple world blocks.",
+      "lead": "Creating structures in your mods.",
       "appUrl": "/docs/multi-block-structures/",
       "machineUrl": "/api/topics/multi-block-structures.json"
     },
@@ -253,7 +253,7 @@
       "label": "Settings API",
       "crumb": "Misc / API",
       "title": "Settings API",
-      "lead": "Register native settings rows in the vanilla options menu with CUCoreLib handling save, reset, apply, and labels.",
+      "lead": "Register native settings rows in the vanilla options menu with CUCoreLib!",
       "appUrl": "/docs/settings/",
       "machineUrl": "/api/topics/settings.json"
     },
@@ -289,7 +289,7 @@
       "label": "Multiplayer Sync",
       "crumb": "Misc / API",
       "title": "Multiplayer sync",
-      "lead": "KrokMP compatibility: automatic sync for registered content, plus a host-authoritative snapshot and message API.",
+      "lead": "Together v5.1.4 Multiplayer Sync.",
       "appUrl": "/docs/multi-mod-compatibility/",
       "machineUrl": "/api/topics/multi-mod-compatibility.json"
     }

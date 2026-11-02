@@ -1184,7 +1184,16 @@ namespace CUCoreLib.Registries
                         metalMoreDamage = tool.MetalMoreDamage
                     };
 
+                    object PassState = null;
+                    if (tool.BeforeAttack != null && !tool.BeforeAttack(ref PassState, attack, body, item)) {
+                        return;
+                    }
+
                     if (body.Attack(attack, 0)) item.condition -= tool.ConditionLossOnHit;
+
+                    if (tool.AfterAttack != null) {
+                        tool.AfterAttack(ref PassState, attack, body, item);
+                    }
                 };
             }
 
@@ -1194,11 +1203,22 @@ namespace CUCoreLib.Registries
                 info.usable = true;
                 info.usableWithLMB = true;
                 info.tags = AddTag(info.tags, "gun");
+                GunProperties guninfo = info.Gun;
                 info.useAction = (body, item) =>
                 {
                     if (item == null) return;
                     var gun = item.GetComponent<GunScript>();
+
+                    object PassState = null;
+                    if (guninfo.BeforeAttack != null && !guninfo.BeforeAttack(ref PassState, gun, body, item)) {
+                        return;
+                    }
+
                     if (gun != null) gun.triggerPressed = true;
+
+                    if (guninfo.AfterAttack != null) {
+                        guninfo.AfterAttack(ref PassState, gun, body, item);
+                    }
                 };
             }
         }

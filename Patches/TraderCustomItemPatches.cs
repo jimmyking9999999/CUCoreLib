@@ -29,6 +29,9 @@ namespace CUCoreLib.Patches
         private static readonly FieldInfo FillSpriteField =
             AccessTools.Field(typeof(WaterContainerItem), "fillSprite");
 
+        private static readonly FieldInfo UntradeableField =
+            AccessTools.Field(typeof(ItemInfo), "untradeable");
+
         [HarmonyPatch(typeof(PlayerCamera), nameof(PlayerCamera.RefreshTraderInventories))]
         [HarmonyPrefix]
         private static bool RefreshTraderInventories(PlayerCamera __instance)
@@ -130,6 +133,8 @@ namespace CUCoreLib.Patches
         {
             if (__instance == null || item == null) return false;
 
+            if (Networking.MultiplayerBridge.IsRunning) return true;
+
             var build = __instance.GetComponent<BuildingEntity>();
             if (build != null && build.GetHealth() < 200f) return false;
 
@@ -227,6 +232,8 @@ namespace CUCoreLib.Patches
         {
             if (__instance == null || item == null) return false;
 
+            if (Networking.MultiplayerBridge.IsRunning) return true;
+
             Container container;
             if (item.TryGetComponent(out container) && container.GetHoldingWeight() > 0f)
             {
@@ -276,6 +283,8 @@ namespace CUCoreLib.Patches
         private static bool DropInventory(TraderScript __instance)
         {
             if (__instance == null || __instance.items == null) return false;
+
+            if (Networking.MultiplayerBridge.IsRunning) return true;
 
             foreach (var traderItem in __instance.items)
             {
@@ -481,7 +490,8 @@ namespace CUCoreLib.Patches
             {
                 var category = categories[UnityEngine.Random.Range(0, categories.Length)];
                 if (!DropPoolRegistry.TryGetRandomItemId(traderPool, category, out var itemId)) continue;
-                if (!TryResolveTraderItemInfo(itemId, out var info) || info == null || info.value <= 0) continue;
+                if (!TryResolveTraderItemInfo(itemId, out var info) || info == null || info.value <= 0 ||
+                    (UntradeableField != null && (bool)UntradeableField.GetValue(info))) continue;
 
                 traderItem = new TraderItem
                 {

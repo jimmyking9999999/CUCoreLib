@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using CUCoreLib.ContentReload;
 using CUCoreLib.Data;
 using CUCoreLib.Helpers;
@@ -18,7 +19,7 @@ namespace CUCoreLib.Registries
 {
     public static class LiquidTileRegistry
     {
-        private const byte FirstCustomWorldByte = 7;
+        private static byte FirstCustomWorldByte => GameBuildInfo.IsFullGame ? (byte)8 : (byte)7;
 
         private static readonly Dictionary<string, CustomLiquidTileInfo> RegisteredTiles =
             new Dictionary<string, CustomLiquidTileInfo>(StringComparer.OrdinalIgnoreCase);
@@ -41,10 +42,16 @@ namespace CUCoreLib.Registries
         private static readonly FieldInfo LiquidParticlesField =
             AccessTools.Field(typeof(FluidManager), "liquidParticles");
 
+        private static readonly Dictionary<ParticleSystemRenderer, Material> OwnedVisualMaterials =
+            new Dictionary<ParticleSystemRenderer, Material>();
+
         private static ParticleSystem.Particle[][] _renderParticleBuffers;
         private static int[] _renderParticleCounts;
         private static Color[] _renderColors;
         private static bool[] _renderColorResolved;
+        private static bool[] _renderTextured;
+        private static FluidManager _visualManager;
+        private static bool _visualsDirty = true;
 
         private static bool _summaryLogged;
 
@@ -80,7 +87,19 @@ namespace CUCoreLib.Registries
             return SpawnLayerMask.Excluding(excludedLayerNumbers);
         }
 
+        [MethodImpl(MethodImplOptions.NoInlining)]
         public static void Register(string id, CustomLiquidTileInfo info)
+        {
+            RegisterCore(id, info, ContentReloadSession.GetSourceAssemblyOverride() ?? Assembly.GetCallingAssembly());
+        }
+
+        public static void Register(string id, CustomLiquidTileInfo info, Assembly sourceAssembly)
+        {
+            if (sourceAssembly == null) throw new ArgumentNullException(nameof(sourceAssembly));
+            RegisterCore(id, info, sourceAssembly);
+        }
+
+        private static void RegisterCore(string id, CustomLiquidTileInfo info, Assembly sourceAssembly = null)
         {
             ContentReloadSession.AssertNotActive("LiquidTileRegistry.Register()",
                 "Liquid tile registration is excluded from strict content reload.");
@@ -106,7 +125,31 @@ namespace CUCoreLib.Registries
             if (!LiquidExists(info.FillLiquidId))
                 WarnUnknownLogicalLiquid(id, info.FillLiquidId, nameof(info.FillLiquidId));
 
+            if (sourceAssembly != null && (info.Texture != info.LoadedTexturePath ||
+                sourceAssembly != info.TextureAssembly || (!string.IsNullOrWhiteSpace(info.Texture) && info.SurfaceTexture == null)))
+            {
+                Object.Destroy(info.SurfaceMaterial);
+                Object.Destroy(info.SurfaceTexture);
+                info.SurfaceMaterial = null;
+                info.SurfaceTexture = null;
+                info.SurfaceMaterialAttempted = false;
+                info.LoadedTexturePath = info.Texture;
+                info.TextureAssembly = sourceAssembly;
+                if (!string.IsNullOrWhiteSpace(info.Texture))
+                {
+                    info.SurfaceTexture = LiquidVisualHelper.LoadTileTexture(info.Texture, sourceAssembly);
+                    if (info.SurfaceTexture == null)
+                        CUCoreLibPlugin.Log?.LogWarning("Liquid tile '" + id + "' could not load Texture '" + info.Texture + "'; using its existing visual settings.");
+                }
+            }
+
+            if (RegisteredTiles.TryGetValue(id, out var previous))
+            {
+                if (previous.SurfaceMaterial != info.SurfaceMaterial) Object.Destroy(previous.SurfaceMaterial);
+                if (previous.SurfaceTexture != info.SurfaceTexture) Object.Destroy(previous.SurfaceTexture);
+            }
             RegisteredTiles[id] = info;
+            _visualsDirty = true;
             TileOwners.Assign(id, ContentReloadSession.ResolveAmbientOwnerId());
             EnsureWorldByteAssigned(id);
             EnsureFluidMappings();
@@ -308,17 +351,46 @@ namespace CUCoreLib.Registries
             var particles = LiquidParticlesField?.GetValue(manager) as List<ParticleSystem>;
             if (particles == null) return;
 
-            var maxByte = GetMaxAssignedWorldByte();
-            while (manager.LiquidParticlePrefabs.Count <= maxByte)
+            if (_visualManager != manager)
             {
-                var nextWorldByte = (byte)manager.LiquidParticlePrefabs.Count;
+                foreach (var material in OwnedVisualMaterials.Values) Object.Destroy(material);
+                OwnedVisualMaterials.Clear();
+                _visualManager = manager;
+                _visualsDirty = true;
+            }
+
+            var maxByte = GetMaxAssignedWorldByte();
+            while (manager.LiquidParticlePrefabs.Count < maxByte)
+            {
+                var nextWorldByte = (byte)(manager.LiquidParticlePrefabs.Count + 1);
                 var prefab = manager.LiquidParticlePrefabs[GetVisualPrefabIndex(manager, nextWorldByte)];
                 manager.LiquidParticlePrefabs.Add(prefab);
 
                 var clone = Object.Instantiate(prefab, manager.transform);
                 particles.Add(clone.GetComponent<ParticleSystem>());
-                ApplyVisualOverride(clone, (byte)manager.LiquidParticlePrefabs.Count);
+                _visualsDirty = true;
             }
+
+            if (!_visualsDirty) return;
+            foreach (var entry in TileIdToWorldByte)
+            {
+                var index = entry.Value - 1;
+                if (index >= particles.Count || particles[index] == null) continue;
+                var instance = particles[index].gameObject;
+                var renderer = instance.GetComponent<ParticleSystemRenderer>();
+                var prefab = manager.LiquidParticlePrefabs[GetVisualPrefabIndex(manager, entry.Value)];
+                if (renderer != null)
+                {
+                    if (OwnedVisualMaterials.TryGetValue(renderer, out var ownedMaterial))
+                    {
+                        Object.Destroy(ownedMaterial);
+                        OwnedVisualMaterials.Remove(renderer);
+                    }
+                    renderer.sharedMaterial = prefab.GetComponent<ParticleSystemRenderer>().sharedMaterial;
+                }
+                ApplyVisualOverride(instance, entry.Value, manager);
+            }
+            _visualsDirty = false;
         }
 
         public static bool RenderFluids(FluidManager manager)
@@ -347,6 +419,7 @@ namespace CUCoreLib.Registries
             {
                 _renderColors = new Color[byType.Length];
                 _renderColorResolved = new bool[byType.Length];
+                _renderTextured = new bool[byType.Length];
             }
             Array.Clear(_renderColorResolved, 0, _renderColorResolved.Length);
 
@@ -378,6 +451,7 @@ namespace CUCoreLib.Registries
                         _renderColors[index] = TryGetDisplayColor(worldByte, out var customColor)
                             ? customColor
                             : Color.white;
+                        _renderTextured[index] = TryGetTileInfo(worldByte, out var tileInfo) && tileInfo.SurfaceMaterial != null;
                         _renderColorResolved[index] = true;
                     }
 
@@ -389,14 +463,17 @@ namespace CUCoreLib.Registries
                         list = enlarged;
                         byType[index] = list;
                     }
+                    var width = _renderTextured[index] ? 1f : 1.25f;
+                    var height = openTop ? 0.625f : width;
                     list[counts[index]++] = new ParticleSystem.Particle
                     {
                         position = world.BlockToWorldPos(new Vector2Int(x, y)) +
-                                   (openTop ? new Vector2(0f, -0.3125f) : Vector2.zero),
+                                   new Vector2(0f, (height - width) * 0.5f),
                         startLifetime = 999f,
                         remainingLifetime = 999f,
                         startColor = _renderColors[index],
-                        startSize3D = new Vector2(1.25f, openTop ? 0.625f : 1.25f)
+                        startSize3D = new Vector2(width, height),
+                        rotation = 0f
                     };
                 }
             }
@@ -426,8 +503,8 @@ namespace CUCoreLib.Registries
         {
             if (snapshot == null) return;
             ApplyDefinitionSnapshot(snapshot["definitions"] as JObject);
-            ApplyMappingSnapshotInternal(snapshot["mapping"] as JObject);
-            ApplyWorldStateSnapshot(snapshot["world"] as JObject);
+            var remappedBytes = ApplyMappingSnapshotInternal(snapshot["mapping"] as JObject);
+            ApplyWorldStateSnapshot(snapshot["world"] as JObject, remappedBytes);
         }
 
         public static void RegisterBuiltIns()
@@ -460,6 +537,7 @@ namespace CUCoreLib.Registries
                     ["visualMode"] = (int)info.VisualMode,
                     ["existingVisualLiquidByte"] = info.ExistingVisualLiquidByte,
                     ["tint"] = NetworkSnapshotSerialization.WriteColor(info.Tint),
+                    ["opacity"] = info.Opacity,
                     ["spawnAmount"] = info.SpawnAmount,
                     ["spawnLayers"] = info.SpawnLayers,
                     ["maxFloodFill"] = info.MaxFloodFill,
@@ -520,7 +598,7 @@ namespace CUCoreLib.Registries
         internal static void RestoreOwnerEntries(string ownerId, IDictionary<string, CustomLiquidTileInfo> entries)
         {
             if (entries == null || entries.Count == 0) return;
-            foreach (var entry in entries) Register(entry.Key, entry.Value);
+            foreach (var entry in entries) RegisterCore(entry.Key, entry.Value, entry.Value?.TextureAssembly);
         }
 
         internal static void ClearOwnerEntries(string ownerId, ContentReloadResult result)
@@ -556,7 +634,7 @@ namespace CUCoreLib.Registries
                 if (!(property.Value is JObject obj)) continue;
 
                 RegisteredTiles.TryGetValue(property.Name, out var localInfo);
-                Register(property.Name, new CustomLiquidTileInfo
+                RegisterCore(property.Name, new CustomLiquidTileInfo
                 {
                     LiquidId = obj.Value<string>("liquidId"),
                     FillLiquidId = obj.Value<string>("fillLiquidId"),
@@ -573,6 +651,14 @@ namespace CUCoreLib.Registries
                     VisualMode = (LiquidTileVisualMode)(obj.Value<int?>("visualMode") ?? 0),
                     ExistingVisualLiquidByte = (byte)(obj.Value<int?>("existingVisualLiquidByte") ?? 1),
                     Tint = NetworkSnapshotSerialization.ReadColor(obj["tint"], Color.white),
+                    Opacity = obj.Value<float?>("opacity") ?? 0.7f,
+                    // Texture paths are local assets, never filenames supplied by a remote host.
+                    Texture = localInfo?.Texture,
+                    SurfaceTexture = localInfo?.SurfaceTexture,
+                    SurfaceMaterial = localInfo?.SurfaceMaterial,
+                    SurfaceMaterialAttempted = localInfo?.SurfaceMaterialAttempted ?? false,
+                    LoadedTexturePath = localInfo?.LoadedTexturePath,
+                    TextureAssembly = localInfo?.TextureAssembly,
                     SpawnAmount = obj.Value<float?>("spawnAmount") ?? 0f,
                     SpawnLayers = obj.Value<int?>("spawnLayers") ?? AllSpawnLayersMask,
                     MaxFloodFill = obj.Value<int?>("maxFloodFill") ?? 128,
@@ -589,7 +675,7 @@ namespace CUCoreLib.Registries
             }
         }
 
-        private static void ApplyWorldStateSnapshot(JObject snapshot)
+        private static void ApplyWorldStateSnapshot(JObject snapshot, Dictionary<byte, byte> remappedBytes)
         {
             if (snapshot == null || FluidManager.main == null || WorldGeneration.world == null || FluidManager.main.fluid == null)
                 return;
@@ -602,6 +688,11 @@ namespace CUCoreLib.Registries
                 var x = token.Value<int?>("x") ?? -1;
                 var y = token.Value<int?>("y") ?? -1;
                 var worldByte = (byte)(token.Value<int?>("b") ?? 0);
+                if (remappedBytes != null)
+                {
+                    if (!remappedBytes.TryGetValue(worldByte, out var mappedByte)) continue;
+                    worldByte = mappedByte;
+                }
                 if (!IsCustomWorldByte(worldByte)) continue;
                 if (x < 0 || y < 0 || x >= FluidManager.main.fluid.GetLength(0) ||
                     y >= FluidManager.main.fluid.GetLength(1)) continue;
@@ -671,6 +762,7 @@ namespace CUCoreLib.Registries
             WorldByteToTileId[4] = "oil";
             WorldByteToTileId[5] = "sap";
             WorldByteToTileId[6] = "dirtywater";
+            if (GameBuildInfo.IsFullGame) WorldByteToTileId[7] = "redsludge";
             FluidManager.WorldFluidToLiquidID[0] = "water";
             FluidManager.WorldFluidToLiquidID[1] = "groundwater";
             FluidManager.WorldFluidToLiquidID[2] = "lumalgae";
@@ -698,19 +790,6 @@ namespace CUCoreLib.Registries
             if (manager.liquidColors != null && manager.liquidColors.Length <= maxAssigned)
                 Array.Resize(ref manager.liquidColors, maxAssigned + 1);
 
-            var particles = LiquidParticlesField?.GetValue(manager) as List<ParticleSystem>;
-            if (particles == null) return;
-
-            while (manager.LiquidParticlePrefabs.Count <= maxAssigned)
-            {
-                var nextWorldByte = (byte)manager.LiquidParticlePrefabs.Count;
-                var prefab = manager.LiquidParticlePrefabs[GetVisualPrefabIndex(manager, nextWorldByte)];
-                manager.LiquidParticlePrefabs.Add(prefab);
-
-                var clone = Object.Instantiate(prefab, manager.transform);
-                particles.Add(clone.GetComponent<ParticleSystem>());
-                ApplyVisualOverride(clone, (byte)manager.LiquidParticlePrefabs.Count);
-            }
         }
 
         private static int GetVisualPrefabIndex(FluidManager manager, byte worldByte)
@@ -720,6 +799,12 @@ namespace CUCoreLib.Registries
 
             if (!TryGetTileInfo(worldByte, out var info) || info == null)
                 return 0;
+
+            if (info.SurfaceTexture != null)
+            {
+                var magmaIndex = LiquidVisualHelper.FindMagmaPrefabIndex(manager);
+                if (magmaIndex >= 0) return magmaIndex;
+            }
 
             var requestedByte = info.ExistingVisualLiquidByte <= 0 ? (byte)1 : info.ExistingVisualLiquidByte;
             if (requestedByte >= FirstCustomWorldByte && TryGetTileInfo(requestedByte, out var chainedInfo) &&
@@ -732,13 +817,36 @@ namespace CUCoreLib.Registries
             return prefabIndex;
         }
 
-        private static void ApplyVisualOverride(GameObject instance, byte worldByte)
+        private static void ApplyVisualOverride(GameObject instance, byte worldByte, FluidManager manager)
         {
             if (instance == null || !TryGetTileInfo(worldByte, out var info)) return;
 
             var renderer = instance.GetComponent<ParticleSystemRenderer>();
             if (renderer == null) return;
 
+            if (info.SurfaceTexture != null && !info.SurfaceMaterialAttempted)
+            {
+                info.SurfaceMaterialAttempted = true;
+                var magmaIndex = LiquidVisualHelper.FindMagmaPrefabIndex(manager);
+                if (magmaIndex >= 0)
+                {
+                    var magma = manager.LiquidParticlePrefabs[magmaIndex].GetComponent<ParticleSystemRenderer>().sharedMaterial;
+                    info.SurfaceMaterial = new Material(magma);
+                    info.SurfaceMaterial.SetTexture("_MagmaTex", info.SurfaceTexture);
+                    info.SurfaceMaterial.SetTexture("_EmmisTex", Texture2D.blackTexture);
+                }
+                else
+                {
+                    CUCoreLibPlugin.Log?.LogWarning("No magma visual found for liquid tile Texture '" + info.Texture + "'; using its existing visual settings.");
+                }
+            }
+            if (info.SurfaceMaterial != null)
+            {
+                renderer.sharedMaterial = info.SurfaceMaterial;
+                return;
+            }
+
+            var originalMaterial = renderer.sharedMaterial;
             switch (info.VisualMode)
             {
                 case LiquidTileVisualMode.Material:
@@ -768,6 +876,8 @@ namespace CUCoreLib.Registries
 
                     break;
             }
+            if (renderer.sharedMaterial != originalMaterial)
+                OwnedVisualMaterials[renderer] = renderer.sharedMaterial;
         }
 
         private static Color ResolveDisplayColor(byte worldByte, CustomLiquidTileInfo info)
@@ -781,7 +891,8 @@ namespace CUCoreLib.Registries
                 Mathf.Clamp01(baseColor.r * info.Tint.r),
                 Mathf.Clamp01(baseColor.g * info.Tint.g),
                 Mathf.Clamp01(baseColor.b * info.Tint.b),
-                Mathf.Clamp01(baseColor.a * info.Tint.a));
+                Mathf.Clamp01(baseColor.a * info.Tint.a) *
+                (info.SurfaceMaterial != null ? Mathf.Clamp01(info.Opacity) : 1f));
         }
 
         private static bool TryGetTileInfo(byte worldByte, out CustomLiquidTileInfo info)
@@ -812,23 +923,53 @@ namespace CUCoreLib.Registries
             return max;
         }
 
-        private static void ApplyMappingSnapshotInternal(JObject snapshot)
+        private static Dictionary<byte, byte> ApplyMappingSnapshotInternal(JObject snapshot)
         {
-            if (snapshot == null) return;
+            if (snapshot == null) return null;
 
+            var previousMapping = new Dictionary<byte, string>();
+            foreach (var entry in TileIdToWorldByte)
+            {
+                previousMapping[entry.Value] = entry.Key;
+                WorldByteToTileId.Remove(entry.Value);
+                FluidManager.WorldFluidToLiquidID.Remove(entry.Value);
+            }
+            TileIdToWorldByte.Clear();
+
+            var requestedMapping = new Dictionary<byte, string>();
             foreach (var property in snapshot.Properties())
             {
-                if (string.IsNullOrWhiteSpace(property.Name)) continue;
                 if (!RegisteredTiles.ContainsKey(property.Name)) continue;
-
-                var worldByte = (byte)(property.Value.Value<int?>() ?? 0);
+                var requestedByte = property.Value.Value<int?>() ?? 0;
+                if (requestedByte < 7 || requestedByte >= byte.MaxValue) continue;
+                var worldByte = (byte)requestedByte;
+                if (requestedMapping.ContainsKey(worldByte)) continue;
+                requestedMapping[worldByte] = property.Name;
                 if (worldByte < FirstCustomWorldByte) continue;
 
                 TileIdToWorldByte[property.Name] = worldByte;
                 WorldByteToTileId[worldByte] = property.Name;
             }
 
+            foreach (var id in RegisteredTiles.Keys.OrderBy(id => id, StringComparer.OrdinalIgnoreCase))
+                EnsureWorldByteAssigned(id);
+
+            // Generated cells use the local mapping; saved cells use the incoming mapping.
+            var fluid = FluidManager.main != null ? FluidManager.main.fluid : null;
+            if (fluid != null)
+                for (var x = 0; x < fluid.GetLength(0); x++)
+                for (var y = 0; y < fluid.GetLength(1); y++)
+                    if (previousMapping.TryGetValue(fluid[x, y], out var id) &&
+                        TileIdToWorldByte.TryGetValue(id, out var worldByte))
+                        fluid[x, y] = worldByte;
+
+            var remappedBytes = new Dictionary<byte, byte>();
+            foreach (var entry in requestedMapping)
+                remappedBytes[entry.Key] = TileIdToWorldByte[entry.Value];
+
+            _visualsDirty = true;
             EnsureFluidMappings();
+            return remappedBytes;
         }
 
         public static bool IsCustomWorldByte(byte worldByte)

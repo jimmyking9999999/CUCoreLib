@@ -21,6 +21,9 @@ namespace CUCoreLib.Registries
         private const int CustomTileIndexCount = byte.MaxValue - FirstCustomTileIndex + 1;
 
         public const ushort FirstCustomTileIndex = 36;
+        internal static ushort FirstRuntimeTileIndex => GameBuildInfo.IsFullGame ? (ushort)43 : FirstCustomTileIndex;
+
+        private static readonly Dictionary<ushort, string> LegacyTileIds = new Dictionary<ushort, string>();
 
         private static readonly Dictionary<ushort, CustomTileDefinition> RegisteredDefinitions =
             new Dictionary<ushort, CustomTileDefinition>();
@@ -65,7 +68,19 @@ namespace CUCoreLib.Registries
             ContentReloadSession.AssertNotActive("TileRegistry.Register()",
                 "Tile registration is excluded from strict content reload.");
 
-            return RegisterAt(tileIndex, definition, definition?.ID, true);
+            if (tileIndex >= FirstCustomTileIndex && tileIndex < FirstRuntimeTileIndex)
+            {
+                if (LegacyTileIds.ContainsKey(tileIndex)) return false;
+                var id = string.IsNullOrWhiteSpace(definition?.ID) ? "customtile" + tileIndex : definition.ID.Trim();
+                if (!TryAllocateIndex(GetAvailableId(id), out var runtimeIndex)) return false;
+                if (!RegisterAt(runtimeIndex, definition, id, false)) return false;
+
+                LegacyTileIds[tileIndex] = definition.ID;
+                MultiplayerSyncRegistry.QueueHostSnapshotBroadcast();
+                return true;
+            }
+
+            return RegisterAt(tileIndex, definition, definition?.ID, true, true);
         }
 
         /// <summary>
@@ -105,7 +120,7 @@ namespace CUCoreLib.Registries
         }
 
         private static bool RegisterAt(ushort tileIndex, CustomTileDefinition definition, string requestedId,
-            bool queueNetworkSnapshot)
+            bool queueNetworkSnapshot, bool allowLegacyRelocation = false)
         {
 
             if (!IsSupportedCustomIndex(tileIndex)) return false;
@@ -121,6 +136,10 @@ namespace CUCoreLib.Registries
                 CUCoreLibPlugin.Log?.LogWarning($"Tile registration ignored for index {tileIndex} with no sprite.");
                 return false;
             }
+
+            if (allowLegacyRelocation && RegisteredDefinitions.TryGetValue(tileIndex, out var existing) &&
+                LegacyTileIds.Values.Contains(existing.ID, StringComparer.OrdinalIgnoreCase) &&
+                !TryRelocateLegacyTile(tileIndex, existing)) return false;
 
             if (RegisteredDefinitions.ContainsKey(tileIndex))
             {
@@ -150,10 +169,56 @@ namespace CUCoreLib.Registries
             return true;
         }
 
+        private static bool TryRelocateLegacyTile(ushort oldIndex, CustomTileDefinition definition)
+        {
+            // Allocation, can't be overriding stuff
+            if (!TryAllocateIndex(definition.ID, out var newIndex))
+            {
+                CUCoreLibPlugin.Log?.LogWarning(
+                    $"Tile index {oldIndex} cannot be claimed: no free slot to relocate legacy tile '{definition.ID}'.");
+                return false;
+            }
+
+            var tile = RegisteredTiles[oldIndex];
+            DefinitionOwners.TryGetOwner(oldIndex, out var owner);
+            var hasHitSound = ResolvedHitSounds.TryGetValue(oldIndex, out var hitSound);
+            RemoveRegistration(oldIndex);
+
+            RegisteredDefinitions.Add(newIndex, definition);
+            RegisteredDefinitionIds[definition.ID] = newIndex;
+            RegisteredTiles.Add(newIndex, tile);
+            using (DefinitionOwners.BeginScope(owner))
+            {
+                DefinitionOwners.Assign(newIndex, null);
+            }
+            if (hasHitSound) ResolvedHitSounds[newIndex] = hitSound;
+
+            RemapRuntimeIndices(new Dictionary<ushort, ushort> { [oldIndex] = newIndex });
+            return true;
+        }
+
+        private static void RemapRuntimeIndices(IReadOnlyDictionary<ushort, ushort> mapping)
+        {
+            if (mapping.Count == 0) return;
+            StructureRegistry.RemapTileIndices(mapping);
+
+            var world = WorldGeneration.world;
+            if (world == null) return;
+
+            InjectRegisteredTiles(world);
+            var worldBlocks = WorldBlocksField?.GetValue(world) as ushort[,];
+            if (worldBlocks == null) return;
+
+            
+            for (var x = 0; x < worldBlocks.GetLength(0); x++)
+            for (var y = 0; y < worldBlocks.GetLength(1); y++)
+                if (mapping.TryGetValue(worldBlocks[x, y], out var newIndex)) worldBlocks[x, y] = newIndex;
+        }
+
         private static bool IsSupportedCustomIndex(ushort tileIndex)
         {
-            if (tileIndex >= FirstCustomTileIndex && tileIndex <= byte.MaxValue) return true;
-            CUCoreLibPlugin.Log?.LogWarning($"Tile index {tileIndex} ignored, custom tile indices must be between {FirstCustomTileIndex}-255");
+            if (tileIndex >= FirstRuntimeTileIndex && tileIndex <= byte.MaxValue) return true;
+            CUCoreLibPlugin.Log?.LogWarning($"Tile index {tileIndex} ignored, runtime custom tile indices must be between {FirstRuntimeTileIndex}-255");
             return false;
         }
 
@@ -163,7 +228,7 @@ namespace CUCoreLib.Registries
             for (var offset = 0; offset < CustomTileIndexCount; offset++)
             {
                 var candidate = (ushort)(FirstCustomTileIndex + (index + offset) % CustomTileIndexCount);
-                if (!RegisteredDefinitions.ContainsKey(candidate))
+                if (candidate >= FirstRuntimeTileIndex && !RegisteredDefinitions.ContainsKey(candidate))
                 {
                     tileIndex = candidate;
                     return true;
@@ -195,6 +260,12 @@ namespace CUCoreLib.Registries
                 var candidate = requestedId + "~" + suffix;
                 if (!RegisteredDefinitionIds.ContainsKey(candidate)) return candidate;
             }
+        }
+
+        private static ushort ResolveLegacyIndex(ushort tileIndex)
+        {
+            return LegacyTileIds.TryGetValue(tileIndex, out var id) && TryGetIndex(id, out var runtimeIndex)
+                ? runtimeIndex : tileIndex;
         }
 
         public static bool TryGetDefinition(ushort tileIndex, out CustomTileDefinition definition)
@@ -283,6 +354,7 @@ namespace CUCoreLib.Registries
                 root[entry.Key.ToString()] = new JObject
                 {
                     ["id"] = definition.ID ?? string.Empty,
+                    ["legacyIndex"] = LegacyTileIds.FirstOrDefault(alias => alias.Value == definition.ID).Key,
                     ["name"] = definition.Name ?? string.Empty,
                     ["description"] = definition.Description ?? string.Empty,
                     ["sprite"] = NetworkSnapshotSerialization.WriteSprite(definition.Sprite),
@@ -314,6 +386,7 @@ namespace CUCoreLib.Registries
         {
             if (snapshot == null) return;
 
+            var localIndices = new Dictionary<string, ushort>(RegisteredDefinitionIds, StringComparer.OrdinalIgnoreCase);
             var localHitSounds = RegisteredDefinitions.Values
                 .Where(definition => definition != null && !string.IsNullOrWhiteSpace(definition.ID))
                 .GroupBy(definition => definition.ID, StringComparer.OrdinalIgnoreCase)
@@ -384,15 +457,26 @@ namespace CUCoreLib.Registries
 
                 localOwners.TryGetValue(definition.ID ?? string.Empty, out var localOwner);
                 using (DefinitionOwners.BeginScope(localOwner))
-                    RegisterAt(entry.TileIndex, definition, definition.ID, false);
+                {
+                    if (!RegisterAt(entry.TileIndex, definition, definition.ID, false)) continue;
+                    var legacyIndex = obj.Value<int?>("legacyIndex") ?? 0;
+                    if (legacyIndex >= FirstCustomTileIndex && legacyIndex < FirstRuntimeTileIndex)
+                        LegacyTileIds[(ushort)legacyIndex] = definition.ID;
+                }
             }
+
+            var remappedIndices = new Dictionary<ushort, ushort>();
+            foreach (var entry in localIndices)
+                if (TryGetIndex(entry.Key, out var runtimeIndex) && runtimeIndex != entry.Value)
+                    remappedIndices[entry.Value] = runtimeIndex;
+            RemapRuntimeIndices(remappedIndices);
         }
 
         public static bool TryGetCustomData<T>(ushort tileIndex, string key, out T value)
         {
             value = default;
             if (string.IsNullOrWhiteSpace(key)) return false;
-            if (!RegisteredDefinitions.TryGetValue(tileIndex, out var definition)) return false;
+            if (!TryGetDefinition(tileIndex, out var definition)) return false;
             if (definition.CustomData == null || !definition.CustomData.TryGetValue(key, out var rawValue))
                 return false;
             if (!(rawValue is T typedValue)) return false;
@@ -460,6 +544,7 @@ namespace CUCoreLib.Registries
 
         public static bool SetBlock(WorldGeneration world, Vector2Int position, ushort tileIndex)
         {
+            tileIndex = ResolveLegacyIndex(tileIndex);
             if (world == null || !RegisteredDefinitions.ContainsKey(tileIndex)) return false;
 
             InjectRegisteredTiles(world);
@@ -474,6 +559,7 @@ namespace CUCoreLib.Registries
 
         public static bool SetBlockNoUpdate(WorldGeneration world, Vector2Int position, ushort tileIndex)
         {
+            tileIndex = ResolveLegacyIndex(tileIndex);
             if (world == null || !RegisteredDefinitions.ContainsKey(tileIndex)) return false;
 
             InjectRegisteredTiles(world);
@@ -513,7 +599,7 @@ namespace CUCoreLib.Registries
 
             foreach (var entry in RegisteredTiles) world.tiles[entry.Key] = entry.Value;
 
-            for (int i = FirstCustomTileIndex; i < requiredLength; i++)
+            for (int i = FirstRuntimeTileIndex; i < requiredLength; i++)
                 if (world.tiles[i] == null)
                     world.tiles[i] = GetReservedTile((ushort)i);
         }
