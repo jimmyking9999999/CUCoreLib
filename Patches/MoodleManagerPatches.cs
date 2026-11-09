@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Reflection;
 using System.Reflection.Emit;
@@ -11,6 +12,26 @@ namespace CUCoreLib.Patches
     [HarmonyPatch(typeof(MoodleManager), "AddAllMoodles")]
     internal static class MoodleManagerPatches
     {
+        private static readonly HashSet<string> WarnedOutOfRangeIntensities =
+            new HashSet<string>(StringComparer.Ordinal);
+
+        // Vanilla indexes backgroundIcons[intensity] without bounds checks; any mod passing a bad
+        // intensity would otherwise throw from MoodleManager.Update every frame.
+        [HarmonyPatch(typeof(MoodleManager), "AddMoodle")]
+        [HarmonyPrefix]
+        private static bool GuardAddMoodleIntensity(MoodleManager __instance, int intensity, string icon)
+        {
+            var backgrounds = __instance != null ? __instance.backgroundIcons : null;
+            if (backgrounds != null && intensity >= 0 && intensity < backgrounds.Length) return true;
+
+            if (WarnedOutOfRangeIntensities.Add((icon ?? string.Empty) + "|" + intensity))
+                CUCoreLibPlugin.Log?.LogWarning("CUCoreLib Moodles: Skipping AddMoodle call for icon '" + icon +
+                                                "' because intensity " + intensity +
+                                                " is outside the vanilla background icon range.");
+
+            return false;
+        }
+
         [HarmonyPrefix]
         private static void AddAllMoodles_Prefix(MoodleManager __instance)
         {

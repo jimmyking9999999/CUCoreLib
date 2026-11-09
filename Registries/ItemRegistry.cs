@@ -47,7 +47,13 @@ namespace CUCoreLib.Registries
                 "mushroomrope",
                 "mushroomropeend",
                 "sandvinehook",
-                "sandvinerope"
+                // Fullgame, we still got it in us...
+                "sandvinerope",
+                "guard",
+                "jackolantern",
+                "veinbottom",
+                "veinloop",
+                "veintop"
             };
 
         private static bool NetworkSpawnComponentsWarningLogged;

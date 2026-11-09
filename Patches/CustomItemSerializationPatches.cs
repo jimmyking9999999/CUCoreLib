@@ -10,9 +10,17 @@ namespace CUCoreLib.Patches
 {
     internal static class CustomItemSerializationHelpers
     {
+        private static readonly HashSet<string> WarnedUnresolvedSavedIds =
+            new HashSet<string>(System.StringComparer.Ordinal);
+
         internal static Object LoadSavedItemResource(string id)
         {
-            return CustomInstantiate.ResolveSavedResource(id);
+            var resource = CustomInstantiate.ResolveSavedResource(id);
+            if (resource == null && !string.IsNullOrWhiteSpace(id) && WarnedUnresolvedSavedIds.Add(id))
+                CUCoreLibPlugin.Log?.LogWarning("Saved item '" + id +
+                                                "' could not be resolved to a vanilla resource or a registered custom item.");
+
+            return resource;
         }
 
         internal static Object InstantiateSavedItem(Object original, Vector3 position, Quaternion rotation)

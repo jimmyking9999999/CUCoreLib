@@ -659,12 +659,15 @@ namespace CUCoreLib.Patches
             };
         }
 
+        // Yay! Red sludge
+        private static byte LastVanillaLiquidByte => GameBuildInfo.IsFullGame ? (byte)7 : (byte)6;
+
         private static Dictionary<int, List<string>> BuildFloodFillAutofill()
         {
             var values = new HashSet<byte>();
 
-            for (var liquidByte = 1; liquidByte <= 6; liquidByte++)
-                values.Add((byte)liquidByte);
+            for (var liquidByte = (byte)1; liquidByte <= LastVanillaLiquidByte; liquidByte++)
+                values.Add(liquidByte);
 
             foreach (var id in LiquidTileRegistry.GetRegisteredIds())
             {
@@ -800,9 +803,32 @@ namespace CUCoreLib.Patches
                 case 35:
                     tileId = "ilmenite";
                     break;
+                case 36:
+                    tileId = "heatedrock";
+                    break;
+                case 37:
+                    tileId = "obsidian";
+                    break;
+                case 38:
+                    tileId = "gabbro";
+                    break;
+                case 39:
+                    tileId = "mantle";
+                    break;
+                case 40:
+                    tileId = "crimsongrass";
+                    break;
+                case 41:
+                    tileId = "mush";
+                    break;
+                case 42:
+                    tileId = "indestructiblealloy";
+                    break;
                 default:
                     return false;
             }
+
+            if (!GameBuildInfo.IsFullGame && tileIndex >= TileRegistry.FirstCustomTileIndex) return false;
 
             displayName = Locale.GetOther(tileId);
             return true;
@@ -1052,6 +1078,10 @@ namespace CUCoreLib.Patches
                 case 6:
                     liquidId = "magma";
                     displayName = Locale.GetOther("magma");
+                    return true;
+                case 7 when GameBuildInfo.IsFullGame:
+                    liquidId = "redsludge";
+                    displayName = Locale.GetOther("redsludge");
                     return true;
             }
 

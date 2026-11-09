@@ -24,6 +24,7 @@ namespace CUCoreLib.Registries
             new Dictionary<string, string>(StringComparer.Ordinal);
 
         private static readonly HashSet<string> WarnedInvalidIconIds = new HashSet<string>(StringComparer.Ordinal);
+        private static readonly HashSet<string> WarnedInvalidIntensities = new HashSet<string>(StringComparer.Ordinal);
         private static readonly HashSet<string> WarnedMissingSpriteMoodles = new HashSet<string>(StringComparer.Ordinal);
         private static readonly HashSet<string> WarnedMissingAnimatedMoodles =
             new HashSet<string>(StringComparer.Ordinal);
@@ -370,6 +371,18 @@ namespace CUCoreLib.Registries
                     CUCoreLibPlugin.Log?.LogWarning("CUCoreLib Moodles: Skipping moodle '" + moodle.Name +
                                                     "' because icon '" + moodle.Icon +
                                                     "' is not registered in MoodleManager.icons.");
+
+                return;
+            }
+
+            // Fix intensity
+            var backgrounds = manager.backgroundIcons;
+            if (backgrounds == null || moodle.Intensity < 0 || moodle.Intensity >= backgrounds.Length)
+            {
+                if (WarnedInvalidIntensities.Add(moodle.Name + "|" + moodle.Intensity))
+                    CUCoreLibPlugin.Log?.LogWarning("CUCoreLib Moodles: Skipping moodle '" + moodle.Name +
+                                                    "' because intensity " + moodle.Intensity +
+                                                    " is outside the vanilla background icon range.");
 
                 return;
             }

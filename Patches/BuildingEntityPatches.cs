@@ -88,8 +88,21 @@ namespace CUCoreLib.Patches
                 method.GetParameters().Length == 1 &&
                 method.GetParameters()[0].ParameterType == typeof(string));
 
+        private static readonly MethodInfo ObjectInstantiateMethod = typeof(Object)
+            .GetMethods(BindingFlags.Public | BindingFlags.Static)
+            .First(method =>
+                method.Name == nameof(Object.Instantiate) &&
+                !method.IsGenericMethod &&
+                method.GetParameters().Length == 3 &&
+                method.GetParameters()[0].ParameterType == typeof(Object) &&
+                method.GetParameters()[1].ParameterType == typeof(Vector3) &&
+                method.GetParameters()[2].ParameterType == typeof(Quaternion));
+
         private static readonly MethodInfo ResolveSavedResourceMethod =
             AccessTools.Method(typeof(CustomInstantiate), nameof(CustomInstantiate.ResolveSavedResource));
+
+        private static readonly MethodInfo InstantiateAndActivateMethod =
+            AccessTools.Method(typeof(CustomInstantiate), nameof(CustomInstantiate.InstantiateAndActivate));
 
         [HarmonyTranspiler]
         private static IEnumerable<CodeInstruction> ResolveRuntimeCustomDrops(
@@ -100,6 +113,12 @@ namespace CUCoreLib.Patches
                 if (instruction.Calls(ResourcesLoadMethod))
                 {
                     yield return new CodeInstruction(OpCodes.Call, ResolveSavedResourceMethod);
+                    continue;
+                }
+
+                if (instruction.Calls(ObjectInstantiateMethod))
+                {
+                    yield return new CodeInstruction(OpCodes.Call, InstantiateAndActivateMethod);
                     continue;
                 }
 

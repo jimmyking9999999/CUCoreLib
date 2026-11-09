@@ -48,6 +48,14 @@ namespace CUCoreLib.Helpers
             return instance;
         }
 
+        public static Object InstantiateAndActivate(Object prefab, Vector3 position, Quaternion rotation)
+        {
+            var clone = Object.Instantiate(prefab, position, rotation);
+            if (clone is GameObject obj)
+                PrepareInstantiatedObject(obj);
+            return clone;
+        }
+
         public static GameObject ResolvePrefab(string id)
         {
             if (string.IsNullOrWhiteSpace(id)) return null;
@@ -91,6 +99,10 @@ namespace CUCoreLib.Helpers
                 if(!save)
                     ItemRegistryPatches.MarkPendingBatteryInitialization(obj);
             }
+
+            var building = obj.GetComponent<BuildingEntity>();
+            if (building != null)
+                building.requireGround = false;
 
             if (!condition.HasValue) return obj;
             if (item) item.SetCondition(condition.Value);

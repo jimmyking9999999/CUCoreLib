@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using CUCoreLib.Networking;
 using CUCoreLib.Registries;
@@ -32,7 +33,14 @@ namespace CUCoreLib.Patches
         [HarmonyPostfix]
         private static void InjectCustomTiles(WorldGeneration __instance)
         {
-            TileRegistry.InjectRegisteredTiles(__instance);
+            try
+            {
+                TileRegistry.InjectRegisteredTiles(__instance);
+            }
+            catch (Exception ex)
+            {
+                CUCoreLibPlugin.Log?.LogError("CUCoreLib failed to inject custom tiles...\n" + ex);
+            }
         }
 
         [HarmonyPatch(typeof(WorldGeneration), "GenerateOres")]
@@ -41,7 +49,15 @@ namespace CUCoreLib.Patches
         {
             if (_generatingTerrain && _generatedTileOres) return;
             _generatedTileOres = true;
-            TileRegistry.GenerateWorldTiles(__instance);
+
+            try
+            {
+                TileRegistry.GenerateWorldTiles(__instance);
+            }
+            catch (Exception ex)
+            {
+                CUCoreLibPlugin.Log?.LogError("CUCoreLib failed to generate custom tile ores...\n" + ex);
+            }
         }
 
         [HarmonyPatch(typeof(WorldGeneration), nameof(WorldGeneration.GetBlockInfo))]

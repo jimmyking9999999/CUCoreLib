@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using CUCoreLib.Registries;
 using HarmonyLib;
@@ -33,14 +34,29 @@ namespace CUCoreLib.Patches
         {
             if (_generatingTerrain && _generatedLiquidTiles) return;
             _generatedLiquidTiles = true;
-            LiquidTileRegistry.GenerateWorldTiles(__instance);
+
+            try
+            {
+                LiquidTileRegistry.GenerateWorldTiles(__instance);
+            }
+            catch (Exception ex)
+            {
+                CUCoreLibPlugin.Log?.LogError("Failed to generate custom liquid tiles!.\n" + ex);
+            }
         }
 
         [HarmonyPatch(typeof(FluidManager), "Start")]
         [HarmonyPostfix]
         private static void ExpandFluidVisuals(FluidManager __instance)
         {
-            LiquidTileRegistry.EnsureVisualCapacity(__instance);
+            try
+            {
+                LiquidTileRegistry.EnsureVisualCapacity(__instance);
+            }
+            catch (Exception ex)
+            {
+                CUCoreLibPlugin.Log?.LogError("Failed to finalize liquid visuals!\n" + ex);
+            }
         }
 
         [HarmonyPatch(typeof(FluidManager), nameof(FluidManager.RenderFluids))]

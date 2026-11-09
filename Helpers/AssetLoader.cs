@@ -5,6 +5,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Text;
 using BepInEx;
 using BepInEx.Bootstrap;
 using BepInEx.Logging;
@@ -619,6 +620,185 @@ namespace CUCoreLib.Helpers
             return animation;
         }
 
+        /// <summary>
+        /// Reads an embedded Aseprite .ase/.aseprite file and registers its frames as a looping animation.
+        /// The file's timeline — its tags, its per-frame durations, its layers — drives the animation,
+        /// so a looping icon is authored in Aseprite rather than as a PNG strip a script assembles.
+        /// </summary>
+        /// <param name="id">The animation id to register under (used by IconAnimationId, SpriteAnimationId, etc.).</param>
+        /// <param name="resourcePath">Embedded resource path (e.g. "images.Items.foo.ase").</param>
+        /// <param name="tag">A named Aseprite tag to play, or null for every frame in the file.</param>
+        /// <param name="pixelsPerUnit">Sprite pixels-per-unit (default 8 for world sprites).</param>
+        /// <param name="sourceAssembly">Assembly containing the embedded resource (null = calling assembly).</param>
+        /// <returns>The registered animation, or null when the file cannot be read.</returns>
+        public static RegisteredSpriteAnimation LoadAsepriteAnimation(string id, string resourcePath,
+            string tag = null, float pixelsPerUnit = PPU_WORLD, Assembly sourceAssembly = null)
+        {
+            if (string.IsNullOrWhiteSpace(id) || string.IsNullOrWhiteSpace(resourcePath)) return null;
+
+            if (sourceAssembly == null)
+                sourceAssembly = ContentReloadSession.GetSourceAssemblyOverride() ?? Assembly.GetCallingAssembly();
+
+            if (sourceAssembly == null) return null;
+
+            if (!TryReadEmbeddedResource(resourcePath, sourceAssembly, out var data))
+            {
+                Logger?.LogError($"LoadAsepriteAnimation: '{resourcePath}' is not embedded in the assembly.");
+                return null;
+            }
+
+            if (!TryDecodeAseprite(data, resourcePath, out var width, out var height, out var layers,
+                out var frames, out var tags)) return null;
+
+            var order = ResolveAsepriteRange(tags, tag, frames.Count, resourcePath);
+            if (order == null || order.Count == 0) return null;
+
+            var sprites = new Sprite[order.Count];
+            for (var i = 0; i < order.Count; i++)
+            {
+                var texture = BakeAsepriteFrame(id + "_" + i, width, height, layers, frames[order[i]]);
+                if (texture == null)
+                {
+                    Logger?.LogError($"LoadAsepriteAnimation: frame {order[i]} of '{resourcePath}' is empty.");
+                    return null;
+                }
+
+                sprites[i] = Sprite.Create(texture, new Rect(0f, 0f, width, height), new Vector2(0.5f, 0.5f),
+                    pixelsPerUnit, 0, SpriteMeshType.FullRect);
+                sprites[i].name = id + "_" + i;
+            }
+
+            var fps = ComputeAsepriteFps(order, frames, resourcePath);
+            var animation = RegisterFrameAnimation(id, sprites, fps, true);
+            if (animation != null)
+            {
+                TrackSpriteAnimationOwnership(animation.Id, sourceAssembly);
+                ReportAsepriteAnimation(animation, id, order.Count, width, height, fps);
+            }
+
+            return animation;
+        }
+
+        /// <summary>
+        /// Reads an embedded Aseprite .ase/.aseprite file and returns a single frame as a Sprite.
+        /// Useful for static images authored in Aseprite.
+        /// </summary>
+        /// <param name="resourcePath">Embedded resource path (e.g. "images.Items.foo.ase").</param>
+        /// <param name="tag">A named Aseprite tag to select a frame from, or null for frame 0.</param>
+        /// <param name="frameIndex">Zero-based frame index within the tag (or file if no tag). Defaults to 0.</param>
+        /// <param name="pixelsPerUnit">Sprite pixels-per-unit (default 8 for world sprites).</param>
+        /// <param name="sourceAssembly">Assembly containing the embedded resource (null = calling assembly).</param>
+        /// <returns>The sprite, or null when the file cannot be read.</returns>
+        public static Sprite LoadAsepriteSprite(string resourcePath, string tag = null, int frameIndex = 0,
+            float pixelsPerUnit = PPU_WORLD, Assembly sourceAssembly = null)
+        {
+            if (string.IsNullOrWhiteSpace(resourcePath)) return null;
+
+            if (sourceAssembly == null)
+                sourceAssembly = ContentReloadSession.GetSourceAssemblyOverride() ?? Assembly.GetCallingAssembly();
+
+            if (sourceAssembly == null) return null;
+
+            if (!TryReadEmbeddedResource(resourcePath, sourceAssembly, out var data))
+            {
+                Logger?.LogError($"LoadAsepriteSprite: '{resourcePath}' is not embedded in the assembly.");
+                return null;
+            }
+
+            if (!TryDecodeAseprite(data, resourcePath, out var width, out var height, out var layers,
+                out var frames, out var tags)) return null;
+
+            var order = ResolveAsepriteRange(tags, tag, frames.Count, resourcePath);
+            if (order == null || order.Count == 0) return null;
+
+            if (frameIndex < 0 || frameIndex >= order.Count)
+            {
+                Logger?.LogError($"LoadAsepriteSprite: frame index {frameIndex} is out of range for " +
+                                 $"'{resourcePath}' (has {order.Count} frame(s) in tag '{tag ?? "all"}').");
+                return null;
+            }
+
+            var texture = BakeAsepriteFrame(resourcePath + "_frame" + frameIndex, width, height, layers,
+                frames[order[frameIndex]]);
+            if (texture == null)
+            {
+                Logger?.LogError($"LoadAsepriteSprite: frame {frameIndex} of '{resourcePath}' is empty.");
+                return null;
+            }
+
+            var sprite = Sprite.Create(texture, new Rect(0f, 0f, width, height), new Vector2(0.5f, 0.5f),
+                pixelsPerUnit, 0, SpriteMeshType.FullRect);
+            sprite.name = resourcePath + "_frame" + frameIndex;
+            return sprite;
+        }
+
+        /// <summary>
+        /// Reads an embedded Aseprite .ase/.aseprite file and returns all frames as a Sprite array (spritesheet).
+        /// </summary>
+        /// <param name="resourcePath">Embedded resource path (e.g. "images.Items.foo.ase").</param>
+        /// <param name="tag">A named Aseprite tag to play, or null for every frame in the file.</param>
+        /// <param name="pixelsPerUnit">Sprite pixels-per-unit (default 8 for world sprites).</param>
+        /// <param name="sourceAssembly">Assembly containing the embedded resource (null = calling assembly).</param>
+        /// <returns>Array of sprites, or null when the file cannot be read.</returns>
+        public static Sprite[] LoadAsepriteSpritesheet(string resourcePath, string tag = null,
+            float pixelsPerUnit = PPU_WORLD, Assembly sourceAssembly = null)
+        {
+            if (string.IsNullOrWhiteSpace(resourcePath)) return null;
+
+            if (sourceAssembly == null)
+                sourceAssembly = ContentReloadSession.GetSourceAssemblyOverride() ?? Assembly.GetCallingAssembly();
+
+            if (sourceAssembly == null) return null;
+
+            if (!TryReadEmbeddedResource(resourcePath, sourceAssembly, out var data))
+            {
+                Logger?.LogError($"LoadAsepriteSpritesheet: '{resourcePath}' is not embedded in the assembly.");
+                return null;
+            }
+
+            if (!TryDecodeAseprite(data, resourcePath, out var width, out var height, out var layers,
+                out var frames, out var tags)) return null;
+
+            var order = ResolveAsepriteRange(tags, tag, frames.Count, resourcePath);
+            if (order == null || order.Count == 0) return null;
+
+            var sprites = new Sprite[order.Count];
+            for (var i = 0; i < order.Count; i++)
+            {
+                var texture = BakeAsepriteFrame(resourcePath + "_" + i, width, height, layers, frames[order[i]]);
+                if (texture == null)
+                {
+                    Logger?.LogError($"LoadAsepriteSpritesheet: frame {order[i]} of '{resourcePath}' is empty.");
+                    return null;
+                }
+
+                sprites[i] = Sprite.Create(texture, new Rect(0f, 0f, width, height), new Vector2(0.5f, 0.5f),
+                    pixelsPerUnit, 0, SpriteMeshType.FullRect);
+                sprites[i].name = resourcePath + "_" + i;
+            }
+
+            return sprites;
+        }
+
+        /// <summary>
+        /// Loads an Aseprite spritesheet with default pixels-per-unit.
+        /// </summary>
+        public static Sprite[] LoadAsepriteSpritesheet(string resourcePath, Assembly sourceAssembly)
+            => LoadAsepriteSpritesheet(resourcePath, null, PPU_WORLD, sourceAssembly);
+
+        /// <summary>
+        /// Loads a single Aseprite sprite with default pixels-per-unit.
+        /// </summary>
+        public static Sprite LoadAsepriteSprite(string resourcePath, Assembly sourceAssembly)
+            => LoadAsepriteSprite(resourcePath, null, 0, PPU_WORLD, sourceAssembly);
+
+        /// <summary>
+        /// Loads an Aseprite animation with default pixels-per-unit.
+        /// </summary>
+        public static RegisteredSpriteAnimation LoadAsepriteAnimation(string id, string resourcePath,
+            Assembly sourceAssembly)
+            => LoadAsepriteAnimation(id, resourcePath, null, PPU_WORLD, sourceAssembly);
+
         public static object LoadAnimationAsVideoClip(string pathOrResource, Assembly sourceAssembly = null)
         {
             var extension = Path.GetExtension(pathOrResource ?? string.Empty);
@@ -795,6 +975,14 @@ namespace CUCoreLib.Helpers
         private static Sprite LoadSpriteInternal(string resourcePath, float ppu, Assembly sourceAssembly)
         {
             if (sourceAssembly == null) return null;
+
+            // Route .ase/.aseprite files to the Aseprite loader
+            var extension = Path.GetExtension(resourcePath ?? string.Empty);
+            if (extension.Equals(".ase", StringComparison.OrdinalIgnoreCase) ||
+                extension.Equals(".aseprite", StringComparison.OrdinalIgnoreCase))
+            {
+                return LoadAsepriteSprite(resourcePath, null, 0, ppu, sourceAssembly);
+            }
 
             var resolvedResourceName = FindEmbeddedResourceName(resourcePath, sourceAssembly);
             if (string.IsNullOrEmpty(resolvedResourceName))
@@ -1527,5 +1715,474 @@ namespace CUCoreLib.Helpers
             public string ResourcePath;
             public Assembly SourceAssembly;
         }
+
+        #region Aseprite Parser
+
+        private const int AsepriteHeaderSize = 128;
+        private const ushort AsepriteFileMagic = 0xA5E0;
+        private const ushort AsepriteFrameMagic = 0xF1FA;
+        private const ushort AsepriteChunkPalette = 0x0004;
+        private const ushort AsepriteChunkLayer = 0x2004;
+        private const ushort AsepriteChunkCel = 0x2005;
+        private const ushort AsepriteChunkTag = 0x2018;
+
+        private sealed class AsepriteLayer
+        {
+            internal bool Visible;
+            internal byte Opacity;
+        }
+
+        private sealed class AsepriteCel
+        {
+            internal int Layer;
+            internal int X;
+            internal int Y;
+            internal byte Opacity;
+            internal int LinkFrame = -1;
+            internal int Width;
+            internal int Height;
+            internal Color32[] Pixels;
+        }
+
+        private sealed class AsepriteFrame
+        {
+            internal int DurationMs;
+            internal readonly List<AsepriteCel> Cels = new List<AsepriteCel>();
+        }
+
+        private sealed class AsepriteTag
+        {
+            internal string Name;
+            internal int From;
+            internal int To;
+        }
+
+        private static bool TryReadEmbeddedResource(string resourcePath, Assembly sourceAssembly, out byte[] data)
+        {
+            data = null;
+            if (sourceAssembly == null || string.IsNullOrWhiteSpace(resourcePath)) return false;
+
+            var resolvedName = FindEmbeddedResourceName(resourcePath, sourceAssembly);
+            if (string.IsNullOrEmpty(resolvedName)) return false;
+
+            using (var stream = sourceAssembly.GetManifestResourceStream(resolvedName))
+            {
+                if (stream == null) return false;
+                using (var buffer = new MemoryStream())
+                {
+                    stream.CopyTo(buffer);
+                    data = buffer.ToArray();
+                }
+            }
+
+            return data != null && data.Length > AsepriteHeaderSize;
+        }
+
+        private static bool TryDecodeAseprite(byte[] data, string resource, out int width, out int height,
+            out List<AsepriteLayer> layers, out List<AsepriteFrame> frames, out List<AsepriteTag> tags)
+        {
+            width = height = 0;
+            layers = new List<AsepriteLayer>();
+            frames = new List<AsepriteFrame>();
+            tags = new List<AsepriteTag>();
+
+            var reader = new BinaryReader(new MemoryStream(data));
+            try
+            {
+                reader.ReadUInt32();
+                if (reader.ReadUInt16() != AsepriteFileMagic)
+                {
+                    Logger?.LogError(data.Length > 3 && data[0] == 0x50 && data[1] == 0x4B
+                        ? $"LoadAsepriteAnimation: '{resource}' is a compressed Aseprite file. Save it with " +
+                          "File > Save As with 'Compress' off."
+                        : $"LoadAsepriteAnimation: '{resource}' is not an Aseprite file.");
+                    return false;
+                }
+
+                var frameCount = reader.ReadUInt16();
+                width = reader.ReadUInt16();
+                height = reader.ReadUInt16();
+                var depth = reader.ReadUInt16();
+                if (depth != 32 || width <= 0 || height <= 0 || frameCount == 0)
+                {
+                    Logger?.LogError($"LoadAsepriteAnimation: '{resource}' is {depth}-bit. Only RGB (32-bit) " +
+                                     "files carry per-pixel colour and alpha; use Sprite > Convert to > RGB Color.");
+                    return false;
+                }
+
+                var cursor = (long)AsepriteHeaderSize;
+                for (var f = 0; f < frameCount; f++)
+                {
+                    reader.BaseStream.Position = cursor;
+                    var blockSize = reader.ReadUInt32();
+                    if (reader.ReadUInt16() != AsepriteFrameMagic)
+                    {
+                        Logger?.LogError($"LoadAsepriteAnimation: frame {f} of '{resource}' has no frame header.");
+                        return false;
+                    }
+
+                    var chunkCount = reader.ReadUInt16();
+                    var frame = new AsepriteFrame { DurationMs = reader.ReadUInt16() };
+                    reader.ReadUInt16();
+                    var newCount = reader.ReadUInt32();
+                    if (chunkCount == 0xFFFF) chunkCount = (ushort)newCount;
+                    frames.Add(frame);
+
+                    var end = cursor + blockSize;
+                    cursor += 16;
+                    for (var c = 0; c < chunkCount; c++)
+                    {
+                        var chunkSize = reader.ReadUInt32();
+                        var type = reader.ReadUInt16();
+                        if (chunkSize < 6 || reader.BaseStream.Position + chunkSize - 6 > end)
+                        {
+                            // I trust aseprite to not run into this
+                            return false;
+                        }
+
+                        var body = reader.ReadBytes((int)chunkSize - 6);
+                        switch (type)
+                        {
+                            case AsepriteChunkLayer:
+                                ReadAsepriteLayer(body, layers);
+                                break;
+                            case AsepriteChunkCel:
+                                ReadAsepriteCel(body, f, resource, frame);
+                                break;
+                            case AsepriteChunkTag:
+                                ReadAsepriteTags(body, tags);
+                                break;
+                            case AsepriteChunkPalette:
+                                break;
+                            default:
+                                break;
+                        }
+
+                        cursor += chunkSize;
+                    }
+
+                    if (cursor != end)
+                    {
+                        //Logger?.LogError($"LoadAsepriteAnimation: frame {f} of '{resource}' holds " +
+                        //                 $"{chunkCount} chunk(s) that do not fill its {blockSize} bytes.");
+                        return false;
+                    }
+                }
+
+                if (cursor != data.Length)
+                {
+                    //Logger?.LogError($"LoadAsepriteAnimation: '{resource}' has {data.Length - cursor} byte(s) " +
+                    //                 "after its last frame.");
+                    return false;
+                }
+
+                ResolveAsepriteLinks(frames, resource);
+                return true;
+            }
+            catch (Exception e)
+            {
+                Logger?.LogError($"LoadAsepriteAnimation: '{resource}' could not be read: {e.Message}");
+                return false;
+            }
+            finally
+            {
+                reader.Dispose();
+            }
+        }
+
+        private static void ReadAsepriteLayer(byte[] body, List<AsepriteLayer> layers)
+        {
+            layers.Add(new AsepriteLayer
+            {
+                Visible = (body[0] & 1) != 0,
+                Opacity = body.Length > 12 ? body[12] : (byte)255
+            });
+        }
+
+        private static void ReadAsepriteTags(byte[] body, List<AsepriteTag> tags)
+        {
+            var count = body[0] | body[1] << 8;
+            var offset = 10;
+            for (var t = 0; t < count && offset + 19 <= body.Length; t++)
+            {
+                var length = body[offset + 17] | body[offset + 18] << 8;
+                if (offset + 19 + length > body.Length) break;
+                tags.Add(new AsepriteTag
+                {
+                    From = body[offset] | body[offset + 1] << 8,
+                    To = body[offset + 2] | body[offset + 3] << 8,
+                    Name = Encoding.UTF8.GetString(body, offset + 19, length)
+                });
+                offset += 19 + length;
+            }
+        }
+
+        private static void ReadAsepriteCel(byte[] body, int frameIndex, string resource, AsepriteFrame frame)
+        {
+            if (body.Length < 9) return;
+            var cel = new AsepriteCel
+            {
+                Layer = body[0] | body[1] << 8,
+                X = (short)(body[2] | body[3] << 8),
+                Y = (short)(body[4] | body[5] << 8),
+                Opacity = body[6]
+            };
+            frame.Cels.Add(cel);
+
+            var type = body[7] | body[8] << 8;
+            if (type == 1)
+            {
+                if (body.Length >= 18) cel.LinkFrame = body[16] | body[17] << 8;
+                return;
+            }
+
+            if (type != 0 && type != 2)
+            {
+                Logger?.LogError($"LoadAsepriteAnimation: cel {frameIndex} of '{resource}' is tilemap-" +
+                                 "compressed, which this loader cannot read! Sorry!");
+                return;
+            }
+
+            if (body.Length < 20) return;
+            cel.Width = body[16] | body[17] << 8;
+            cel.Height = body[18] | body[19] << 8;
+            if (cel.Width <= 0 || cel.Height <= 0 || cel.Width > 4096 || cel.Height > 4096) return;
+
+            var stream = type == 2 ? InflateAseprite(body, 22, body.Length - 22, resource, frameIndex)
+                : SliceAseprite(body, 20, body.Length - 20);
+            cel.Pixels = ReadAsepritePixels(stream, cel.Width, cel.Height);
+            if (cel.Pixels == null)
+            {
+                Logger?.LogError($"Please change your aseprite file '{resource}' to use an RGBA color mode! Thanks.");
+            }
+        }
+
+        private static Color32[] ReadAsepritePixels(byte[] stream, int width, int height)
+        {
+            if (stream == null) return null;
+            var cells = width * height;
+            if (stream.Length == cells * 4) return ToAsepritePixels(stream, cells);
+
+            var pixels = new byte[cells * 4];
+            var written = 0;
+            var offset = 0;
+            for (var row = 0; row < height; row++)
+            {
+                var filled = 0;
+                while (filled < width)
+                {
+                    if (offset + 2 > stream.Length) return null;
+                    var run = stream[offset] | stream[offset + 1] << 8;
+                    offset += 2;
+                    if (run > width - filled || offset + run * 4 > stream.Length) return null;
+                    Array.Copy(stream, offset, pixels, written, run * 4);
+                    offset += run * 4;
+                    written += run * 4;
+                    filled += run;
+                }
+            }
+
+            return offset == stream.Length ? ToAsepritePixels(pixels, cells) : null;
+        }
+
+        private static void ResolveAsepriteLinks(List<AsepriteFrame> frames, string resource)
+        {
+            foreach (var frame in frames)
+            for (var i = 0; i < frame.Cels.Count; i++)
+            {
+                var cel = frame.Cels[i];
+                if (cel.Pixels != null || cel.LinkFrame < 0) continue;
+                for (var source = cel.LinkFrame; source >= 0 && source < frames.Count;)
+                {
+                    var match = frames[source].Cels.FirstOrDefault(c => c.Layer == cel.Layer);
+                    if (match == null) break;
+                    if (match.Pixels == null)
+                    {
+                        source = match.LinkFrame;
+                        continue;
+                    }
+
+                    cel.Width = match.Width;
+                    cel.Height = match.Height;
+                    cel.Pixels = match.Pixels;
+                    break;
+                }
+
+                if (cel.Pixels == null)
+                {
+                    Logger?.LogError($"LoadAsepriteAnimation: a cel of '{resource}' links to frame " +
+                                     $"{cel.LinkFrame}, which holds no pixels for that layer.");
+                }
+            }
+        }
+
+        private static Color32[] ToAsepritePixels(byte[] stream, int count)
+        {
+            var pixels = new Color32[count];
+            for (var i = 0; i < count; i++)
+                pixels[i] = new Color32(stream[i * 4], stream[i * 4 + 1], stream[i * 4 + 2], stream[i * 4 + 3]);
+            return pixels;
+        }
+
+        private static byte[] SliceAseprite(byte[] body, int from, int length)
+        {
+            if (length <= 0 || from < 0 || from + length > body.Length) return null;
+            var slice = new byte[length];
+            Array.Copy(body, from, slice, 0, length);
+            return slice;
+        }
+
+        private static byte[] InflateAseprite(byte[] body, int from, int length, string resource, int frameIndex)
+        {
+            var slice = SliceAseprite(body, from, length);
+            if (slice == null)
+            {
+                // Logger?.LogError($"LoadAsepriteAnimation: cel {frameIndex} of '{resource}' is not long " +
+                //                  "enough to hold a zlib stream.");
+                return null;
+            }
+
+            try
+            {
+                using (var compressed = new MemoryStream(slice, false))
+                using (var deflate = new System.IO.Compression.DeflateStream(compressed,
+                    System.IO.Compression.CompressionMode.Decompress))
+                using (var decoded = new MemoryStream())
+                {
+                    deflate.CopyTo(decoded);
+                    return decoded.ToArray();
+                }
+            }
+            catch (Exception e)
+            {
+                Logger?.LogError($"LoadAsepriteAnimation: cel {frameIndex} of '{resource}' did not " +
+                                 $"inflate: {e.Message}");
+                return null;
+            }
+        }
+
+        private static Texture2D BakeAsepriteFrame(string name, int width, int height,
+            IList<AsepriteLayer> layers, AsepriteFrame frame)
+        {
+            var top = new Color32[width * height];
+            foreach (var cel in frame.Cels)
+            {
+                if (cel.Layer < 0 || cel.Layer >= layers.Count) continue;
+                var layer = layers[cel.Layer];
+                if (!layer.Visible || cel.Pixels == null) continue;
+                var stacking = (cel.Opacity / 255f) * (layer.Opacity / 255f);
+                if (stacking <= 0f) continue;
+
+                for (var y = 0; y < cel.Height; y++)
+                {
+                    var row = cel.Y + y;
+                    if (row < 0 || row >= height) continue;
+                    for (var x = 0; x < cel.Width; x++)
+                    {
+                        var column = cel.X + x;
+                        if (column < 0 || column >= width) continue;
+                        BlendAsepriteOver(ref top[row * width + column], cel.Pixels[y * cel.Width + x], stacking);
+                    }
+                }
+            }
+
+            var any = false;
+            for (var i = 0; i < top.Length; i++)
+                if (top[i].a != 0)
+                {
+                    any = true;
+                    break;
+                }
+
+            if (!any) return null;
+
+            var pixels = new Color32[width * height];
+            for (var row = 0; row < height; row++)
+                Array.Copy(top, (height - 1 - row) * width, pixels, row * width, width);
+
+            var texture = new Texture2D(width, height, TextureFormat.RGBA32, false)
+            {
+                filterMode = FilterMode.Point,
+                name = name + " (aseprite)"
+            };
+            texture.SetPixels32(pixels);
+            texture.Apply(false);
+            return texture;
+        }
+
+        private static void BlendAsepriteOver(ref Color32 destination, Color32 source, float stacking)
+        {
+            var sourceAlpha = (source.a / 255f) * stacking;
+            if (sourceAlpha <= 0f) return;
+            var destinationAlpha = destination.a / 255f;
+            var outgoing = 1f - sourceAlpha;
+            var result = sourceAlpha + destinationAlpha * outgoing;
+            if (result <= 0f)
+            {
+                destination = new Color32(0, 0, 0, 0);
+                return;
+            }
+
+            destination = new Color32(
+                (byte)Mathf.Clamp((source.r * sourceAlpha + destination.r * destinationAlpha * outgoing) / result,
+                    0f, 255f),
+                (byte)Mathf.Clamp((source.g * sourceAlpha + destination.g * destinationAlpha * outgoing) / result,
+                    0f, 255f),
+                (byte)Mathf.Clamp((source.b * sourceAlpha + destination.b * destinationAlpha * outgoing) / result,
+                    0f, 255f),
+                (byte)Mathf.Clamp(result * 255f, 0f, 255f));
+        }
+
+        private static List<int> ResolveAsepriteRange(IList<AsepriteTag> tags, string tag, int frameCount,
+            string resource)
+        {
+            if (string.IsNullOrWhiteSpace(tag)) return Enumerable.Range(0, frameCount).ToList();
+
+            var match = tags.FirstOrDefault(t => string.Equals(t.Name, tag, StringComparison.OrdinalIgnoreCase));
+            if (match == null)
+            {
+                Logger?.LogError($"LoadAsepriteAnimation: '{resource}' has no tag '{tag}'.");
+                return null;
+            }
+
+            if (match.From < 0 || match.To < match.From || match.To >= frameCount)
+            {
+                Logger?.LogError($"LoadAsepriteAnimation: tag '{tag}' of '{resource}' covers frames " +
+                                 $"{match.From}-{match.To} of {frameCount}.");
+                return null;
+            }
+
+            return Enumerable.Range(match.From, match.To - match.From + 1).ToList();
+        }
+
+        private static float ComputeAsepriteFps(IList<int> order, IList<AsepriteFrame> frames, string resource)
+        {
+            var total = 0;
+            foreach (var index in order) total += Math.Max(1, frames[index].DurationMs);
+            if (order.Select(index => frames[index].DurationMs).Distinct().Count() > 1)
+            {
+                // 
+            }
+
+            return 1000f / (total / (float)order.Count);
+        }
+
+        private static void ReportAsepriteAnimation(RegisteredSpriteAnimation animation, string id,
+            int frameCount, int width, int height, float framesPerSecond)
+        {
+            var held = GetCachedSpriteAnimation(id);
+            var playable = held != null && held.Frames != null && held.Frames.Length > 0 &&
+                           held.Frames[0] != null;
+            Logger?.LogInfo($"LoadAsepriteAnimation: '{id}' baked {frameCount} frame(s) of {width}x{height} at " +
+                            $"{framesPerSecond:0.#} fps, cache reads back " +
+                            $"{(playable ? $"{held.Frames.Length} frame(s)" : "NOTHING")}.");
+            if (animation == null || !playable)
+            {
+                // Logger?.LogError($"LoadAsepriteAnimation: '{id}' did not reach the animation cache, " +
+                //                  "so nothing will play it.");
+            }
+        }
+
+        #endregion
     }
 }

@@ -10,11 +10,18 @@ I figured that this would be nice to have, as to easily take a look at everythin
 # v1.1 (Fullgame! Yay!)
 - Note: v1.1 is the last release that promises Demo support, so new changes or APIs added after this update (v1.2 or higher) can break on a Demo install
 ### New Stuff!
+- Added `.ase`/`.aseprite` file extension support
 ### Changes
 ### Fixes
+- Strengthened `SaveSystem.TryLoadGame` 
+- Custom tile and liquid tile injection/generation failures no longer abort world generation in select cases
+- Saved item ids that cannot be resolved (missing or outdated owning mod) are now warned about in the BepInEx log, not only by the vanilla in-game alert
+- Updated `floodfill` / `settile` autofill
+- Finally updated reference to fullgame ver.
+- Other things I may have missed for the fullgame, note v1.0.7.2/v1.0.6 still works (CCL was developed with the fullgame in mind since v1.0.5 after all -w-)
 
 
-# v1.0.7.2 (Stable)
+# v1.0.7.2
 ### New Stuff!
 - Added `CustomLiquidTileInfo.Texture` and `Opacity` for room-lit custom liquid surfaces from images
 - Added client-authoritative attribute field for statuses (Thanks, ovoid_ovvie!)
