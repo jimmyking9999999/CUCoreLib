@@ -11,6 +11,8 @@ I figured that this would be nice to have, as to easily take a look at everythin
 - Note: v1.1 is the last release that promises Demo support, so new changes or APIs added after this update (v1.2 or higher) can break on a Demo install
 ### New Stuff!
 - Added `.ase`/`.aseprite` file extension support
+- Added an `isCheat` overload for `ConsoleCommandRegistry.Register()`
+
 ### Changes
 ### Fixes
 - Strengthened `SaveSystem.TryLoadGame` 

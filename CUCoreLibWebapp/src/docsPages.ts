@@ -3851,6 +3851,7 @@ function consolePage(): string {
             <tr><td><span class="inline-code">name</span></td><td><span class="inline-code">string</span></td><td>The command text the player types, without spaces. Example: <span class="inline-code">whereami</span>.</td></tr>
             <tr><td><span class="inline-code">description</span></td><td><span class="inline-code">string</span></td><td>Help text shown by the console command list.</td></tr>
             <tr><td><span class="inline-code">action</span></td><td><span class="inline-code">Command.Action</span></td><td>The delegate that runs when the command is executed. It receives <span class="inline-code">string[] args</span>.</td></tr>
+            <tr><td><span class="inline-code">isCheat</span></td><td><span class="inline-code">bool</span></td><td>Optional, defaults to <span class="inline-code">false</span>. Pass <span class="inline-code">true</span> for commands that give the player an unfair advantage. Running the command then trips the game's own cheat guard: achievements are disabled for the rest of the session, the warning alert is shown, and the save is marked as cheated.</td></tr>
             <tr><td><span class="inline-code">argAutofill</span></td><td><span class="inline-code">Dictionary&lt;int, List&lt;string&gt;&gt;</span></td><td>Optional autocomplete suggestions per argument index. Index <span class="inline-code">0</span> means the first argument after the command name.</td></tr>
             <tr><td><span class="inline-code">argDescription</span></td><td><span class="inline-code">params (string, string)[]</span></td><td>Optional argument labels and descriptions. The first string is the short label shown in command usage; the second string explains it.</td></tr>
           </tbody>
@@ -3861,7 +3862,6 @@ function consolePage(): string {
     <section class="lesson-card">
       <h2>When to use a command</h2>
       <p>Use console commands for debugging, development tools, diagnostics, and explicit player/admin actions. Do not hide core gameplay behavior behind a console command if it should happen automatically in normal play.</p>
-      <p>Descriptions and argument metadata matter: the vanilla console shows them while typing, and the first argument is <span class="inline-code">args[1]</span> because <span class="inline-code">args[0]</span> is the command name.</p>
     </section>
     <section class="lesson-card">
       <h2>Built-in bug reports</h2>
