@@ -19,7 +19,8 @@ namespace CUCoreLib.Data
         AllTraders = Trader1 | Trader2 | Trader3,
         DropCapsule = 1 << 7,
         CapsuleContainer = 1 << 8,
+        MetamorphicCrystal = 1 << 9,
 
-        All = Corpse | MedicalCrate | FoodCrate | ContainerCrate | AllTraders | DropCapsule | CapsuleContainer
+        All = Corpse | MedicalCrate | FoodCrate | ContainerCrate | AllTraders | DropCapsule | CapsuleContainer | MetamorphicCrystal
     }
 }

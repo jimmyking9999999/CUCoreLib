@@ -76,6 +76,14 @@ namespace CUCoreLib.Data
         public DropPool? DropPool;
 
         /// <summary>
+        /// Whether a metamorphic crystal can drop this item. Leave null to default to true, except for items
+        /// whose <see cref="ItemInfo.category"/> is "unobtainable", which default to false. Setting
+        /// <see cref="DropPool"/> with <see cref="Data.DropPool.MetamorphicCrystal"/> (or <see cref="Data.DropPool.All"/>)
+        /// forces the item to drop regardless of this value.
+        /// </summary>
+        public bool? MetamorphicDrop;
+
+        /// <summary>
         /// Optional loose worldgen spawns per chunk.
         /// </summary>
         public float? WorldSpawnPerChunk;

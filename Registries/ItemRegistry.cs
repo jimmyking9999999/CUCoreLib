@@ -328,6 +328,9 @@ namespace CUCoreLib.Registries
                         ["dropPool"] = info.DropPool.HasValue
                             ? new JValue((ushort)info.DropPool.Value)
                             : JValue.CreateNull(),
+                        ["metamorphicDrop"] = info.MetamorphicDrop.HasValue
+                            ? new JValue(info.MetamorphicDrop.Value)
+                            : JValue.CreateNull(),
                         ["worldSpawnPerChunk"] = info.WorldSpawnPerChunk.HasValue
                             ? new JValue(info.WorldSpawnPerChunk.Value)
                             : JValue.CreateNull(),
@@ -482,6 +485,9 @@ namespace CUCoreLib.Registries
                     DropPool = obj["dropPool"]?.Type == JTokenType.Null
                         ? (DropPool?)null
                         : (DropPool?)obj.Value<ushort?>("dropPool"),
+                    MetamorphicDrop = obj["metamorphicDrop"]?.Type == JTokenType.Null
+                        ? (bool?)null
+                        : obj.Value<bool?>("metamorphicDrop"),
                     WorldSpawnPerChunk = obj["worldSpawnPerChunk"]?.Type == JTokenType.Null
                         ? (float?)null
                         : obj.Value<float?>("worldSpawnPerChunk"),

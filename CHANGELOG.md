@@ -12,8 +12,10 @@ I figured that this would be nice to have, as to easily take a look at everythin
 ### New Stuff!
 - Added `.ase`/`.aseprite` file extension support
 - Added an `isCheat` overload for `ConsoleCommandRegistry.Register()`
+- Added `CustomItemInfo.MetamorphicDrop` and `DropPool.MetamorphicCrystal` Defaults to the `!unobtainable` flag
 
 ### Changes
+
 ### Fixes
 - Strengthened `SaveSystem.TryLoadGame` 
 - Custom tile and liquid tile injection/generation failures no longer abort world generation in select cases

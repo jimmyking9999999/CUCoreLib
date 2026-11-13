@@ -206,6 +206,17 @@ namespace CUCoreLib.Registries
                    !customInfo.WorldSpawnPerChunk.HasValue;
         }
 
+        internal static bool AllowsMetamorphicDrop(CustomItemInfo info)
+        {
+            if (info == null) return true;
+
+            var allowed = info.MetamorphicDrop ??
+                          !string.Equals(info.category, "unobtainable", StringComparison.OrdinalIgnoreCase);
+            if (allowed) return true;
+
+            return info.DropPool.HasValue && info.DropPool.Value.HasFlag(DropPool.MetamorphicCrystal);
+        }
+
         internal static bool TryGetRandomItemId(DropPool source, string fallbackCategory, out string itemId)
         {
             itemId = null;
