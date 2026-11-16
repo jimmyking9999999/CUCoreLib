@@ -1250,8 +1250,9 @@ private static void RegisterMoodles()
             <tr><td><span class="inline-code">4</span></td><td><span class="moodle-swatch"><img src="/images/mood5.png" alt="Intensity 4 moodle background"></span></td><td>Used by minor positive/sleep moodles.</td></tr>
             <tr><td><span class="inline-code">5</span></td><td><span class="moodle-swatch"><img src="/images/mood6.png" alt="Intensity 5 moodle background"></span></td><td>Higher positive or special tier.</td></tr>
             <tr><td><span class="inline-code">6</span></td><td><span class="moodle-swatch"><img src="/images/mood7.png" alt="Intensity 6 moodle background"></span></td><td>Strong positive or special tier.</td></tr>
-            <tr><td><span class="inline-code">7</span></td><td><span class="moodle-swatch"><img src="/images/mood8.png" alt="Intensity 7 moodle background"></span></td><td>Special positive standard tier. (Life Support)</td></tr>
-            <tr><td><span class="inline-code">8</span></td><td><span class="moodle-swatch"><img src="/images/moodlast.png" alt="Intensity 8 moodle background"></span></td><td>Special last-tier background used by rare moodles. (Last Stand)</td></tr>
+            <tr><td><span class="inline-code">7</span></td><td><span class="moodle-swatch"><img src="/images/mood8.png" alt="Intensity 7 moodle background"></span></td><td>Top positive tier. (Gleeful)</td></tr>
+            <tr><td><span class="inline-code">8</span></td><td><span class="moodle-swatch"><img src="/images/moodlast.png" alt="Intensity 8 moodle background"></span></td><td>Special last-tier background used by rare moodles. (Last Stand, FOCUSED)</td></tr>
+            <tr><td><span class="inline-code">9</span></td><td><span class="moodle-swatch"><img src="/images/moodprosthetic.png" alt="Intensity 9 prosthetic outline moodle background"></span></td><td>Prosthetic outline tier, full game only.</td></tr>
             <tr><td><span class="inline-code">critical: true</span></td><td><span class="moodle-swatch"><img src="/images/moodleglow.png" scale="4" alt="Moodle high intensity glow"></span></td><td>Critical is an overlay behavior, not a separate intensity number</td></tr>
             
           </tbody>
