@@ -247,6 +247,7 @@
         <Compile Include="Networking\SpawnHandshakeRecovery.cs"/>
         <Compile Include="Networking\MultiplayerPayloadFrame.cs"/>
         <Compile Include="Networking\MultiplayerTileChunk.cs"/>
+        <Compile Include="Networking\StructureBackgroundSync.cs"/>
         <Compile Include="Patches\BodyFormulaPatches.cs"/>
         <Compile Include="Patches\BuildingEntityPatches.cs"/>
         <Compile Include="Patches\CorpsePatches.cs"/>

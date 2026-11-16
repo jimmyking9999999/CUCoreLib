@@ -99,6 +99,8 @@ namespace CUCoreLib.Registries
                 return false;
             }
 
+            recipe = CloneRecipe(recipe);
+
             if (recipe.items != null)
                 foreach (var item in recipe.items)
                 {
@@ -112,6 +114,40 @@ namespace CUCoreLib.Registries
             Recipes.recipes.Add(recipe);
             InjectedRecipeKeys.Add(recipeKey);
             return true;
+        }
+
+        // Inject a copy so per-run state (hasMadeBefore, specialKnown) resets each run like vanilla recipes
+        private static Recipe CloneRecipe(Recipe recipe)
+        {
+            var items = new List<RecipeItem>();
+            foreach (var item in recipe.items)
+                items.Add(new RecipeItem(item.minimumCondition)
+                {
+                    specific = item.specific,
+                    specificId = item.specificId,
+                    isLiquid = item.isLiquid,
+                    destroyItem = item.destroyItem,
+                    ignoredId = item.ignoredId,
+                    quality = item.quality == null ? null : new CraftingQuality(item.quality.id, item.quality.amount)
+                });
+
+            return new Recipe
+            {
+                INT = recipe.INT,
+                specialKnown = recipe.specialKnown,
+                hasMadeBefore = recipe.hasMadeBefore,
+                category = recipe.category,
+                isRepair = recipe.isRepair,
+                result = new RecipeResult
+                {
+                    id = recipe.result.id,
+                    isLiquid = recipe.result.isLiquid,
+                    amount = recipe.result.amount,
+                    resultCondition = recipe.result.resultCondition,
+                    dontDrainResultLiquid = recipe.result.dontDrainResultLiquid
+                },
+                items = items
+            };
         }
 
         internal static int InjectRegisteredRecipes()

@@ -15,8 +15,11 @@ I figured that this would be nice to have, as to easily take a look at everythin
 - Added `CustomItemInfo.MetamorphicDrop` and `DropPool.MetamorphicCrystal` Defaults to the `!unobtainable` flag
 
 ### Changes
+-  !! Custom recipes are now injected as fresh copies each run, matching vanilla !! 
+- This means that runtime recipe mutations no longer persist across runs, BUT do not instantly apply its changes
 
 ### Fixes
+- Fixed structure backgrounds desyncing in multiplayer
 - Strengthened `SaveSystem.TryLoadGame` 
 - Custom tile and liquid tile injection/generation failures no longer abort world generation in select cases
 - Saved item ids that cannot be resolved (missing or outdated owning mod) are now warned about in the BepInEx log, not only by the vanilla in-game alert

@@ -383,3 +383,6 @@ CasualtiesUnknown.exe.lnk
 
 # Evil typo
 CasualtiesUnknownFull.exe .lnk 
+
+# UI element webapp (It's ts + vite, and heavy, and no one's going to be editing it ;))
+UIWebapp/

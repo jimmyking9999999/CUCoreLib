@@ -177,6 +177,7 @@ namespace CUCoreLib.Networking
                 payload => CaptureSnapshot(payload?.Value<string>("lang")));
             MultiplayerPlayerStatusSync.RegisterServerHandler();
             MultiplayerLoadingProgress.Register();
+            StructureBackgroundSync.Register();
             MultiplayerBridge.RegisterClientHandler(SnapshotChannel, payload =>
             {
                 if (payload is JObject snapshotObject) ApplySnapshot(snapshotObject);

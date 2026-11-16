@@ -9,6 +9,7 @@ using System.Reflection;
 using BepInEx.Bootstrap;
 using CUCoreLib.ContentReload;
 using CUCoreLib.Helpers;
+using CUCoreLib.Networking;
 using HarmonyLib;
 using Newtonsoft.Json.Linq;
 using UnityEngine;
@@ -189,8 +190,11 @@ namespace CUCoreLib.Registries
                 yield return original.Current;
             }
 
+            StructureBackgroundSync.OnHostWorldGeneration();
+
             if (world == null || RegisteredDefinitions.Count == 0) yield break;
             if (IsTutorialWorld(world)) yield break;
+            if (MultiplayerBridge.IsRunning && MultiplayerBridge.IsClient) yield break;
 
             LogRegisteredStructureSummaryIfNeeded();
             StructureSeededRandom.InitializeForStructures();
@@ -1173,21 +1177,9 @@ namespace CUCoreLib.Registries
                 }
             }
 
+            SpawnBackgroundLayer(structure, world, worldPos);
             if (structure.BackgroundIDs != null)
-            {
-                for (var x = minX; x < maxXExclusive; x++)
-                {
-                    var globalX = startX + x;
-                    for (var y = minY; y < maxYExclusive; y++)
-                    {
-                        var backgroundId = structure.BackgroundIDs[x, y];
-                        if (backgroundId <= 0) continue;
-
-                        var exactPos = world.BlockToWorldPos(new Vector2Int(globalX, startY + y));
-                        SpawnBackgroundTile(backgroundId, exactPos);
-                    }
-                }
-            }
+                StructureBackgroundSync.NotifyHostPlacement(definition.ID, worldPos);
 
             var worldBase = world.BlockToWorldPos(new Vector2Int(startX, startY));
             foreach (var entity in structure.Entities)
@@ -1297,6 +1289,52 @@ namespace CUCoreLib.Registries
                     float.TryParse(rawHealth, NumberStyles.Float, CultureInfo.InvariantCulture, out var health) &&
                     health > 0f)
                     building.SetHealth(health);
+            }
+        }
+
+        // Client-side replay
+        internal static bool TrySpawnBackgrounds(string id, Vector2 worldPos)
+        {
+            if (!TryGetDefinition(id, out var definition))
+            {
+                if (MissingSpawnIdsLogged.Add("bg:" + id))
+                    CUCoreLibPlugin.Log?.LogWarning("Structure background sync could not resolve structure ID '" +
+                                                    id + "'.");
+                return false;
+            }
+
+            var structure = definition.CompiledStructure;
+            var world = WorldGeneration.world;
+            if (world == null || structure?.BackgroundIDs == null) return false;
+
+            TileRegistry.InjectRegisteredTiles(world);
+            SpawnBackgroundLayer(structure, world, worldPos);
+            return true;
+        }
+
+        private static void SpawnBackgroundLayer(CustomStructure structure, WorldGeneration world, Vector2 worldPos)
+        {
+            if (structure.BackgroundIDs == null) return;
+
+            var center = world.WorldToBlockPos(worldPos);
+            var startX = center.x - (structure.Width / 2);
+            var startY = center.y - (structure.Height / 2);
+            var minX = Mathf.Max(0, -startX);
+            var minY = Mathf.Max(0, -startY);
+            var maxXExclusive = Mathf.Min(structure.Width, (int)world.width - startX);
+            var maxYExclusive = Mathf.Min(structure.Height, (int)world.height - startY);
+
+            for (var x = minX; x < maxXExclusive; x++)
+            {
+                var globalX = startX + x;
+                for (var y = minY; y < maxYExclusive; y++)
+                {
+                    var backgroundId = structure.BackgroundIDs[x, y];
+                    if (backgroundId <= 0) continue;
+
+                    var exactPos = world.BlockToWorldPos(new Vector2Int(globalX, startY + y));
+                    SpawnBackgroundTile(backgroundId, exactPos);
+                }
             }
         }
 

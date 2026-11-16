@@ -707,10 +707,17 @@ namespace CUCoreLib.Networking
             {
                 DropPoolRegistry.ResetGeneration();
                 MultiplayerSyncRegistry.MarkNewTransportSession();
-              // I hate doing it this way, but keep on requesting the initial snapshot until we get it
-              // guh.
-                MultiplayerSyncRegistry.RequestInitialSnapshotForNewSession();
+                CUCoreUtils.StartCoroutine(RequestInitialSnapshotNextFrame());
             }
+        }
+
+        private static IEnumerator RequestInitialSnapshotNextFrame()
+        {
+            // Wait one (1) frame to remove benign error
+            yield return null;
+            // I hate doing it this way, but keep on requesting the initial snapshot until we get it
+            // guh.
+            MultiplayerSyncRegistry.RequestInitialSnapshotForNewSession();
         }
 
         private static Delegate CreateReceiverDelegate(MethodInfo registerMethod, MethodInfo helperMethod)
