@@ -19,7 +19,6 @@ namespace CUCoreLib.Helpers
 
         internal static void RunOnce()
         {
-            // Disabled — crashes some end users. Re-enable when stable.
             return;
 
             if (hasRun) return;

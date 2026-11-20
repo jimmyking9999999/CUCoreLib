@@ -34,6 +34,44 @@ namespace CUCoreLib.Registries
         // Recipe key -> host recipe index,
         private static Dictionary<string, int> HostRecipeIndices;
 
+        // Re-applied to every fresh recipe list, since SetUpRecipes rebuilds vanilla and custom recipes each run
+        private static readonly List<KeyValuePair<Func<Recipe, bool>, Action<Recipe>>> RecipeEdits =
+            new List<KeyValuePair<Func<Recipe, bool>, Action<Recipe>>>();
+
+        internal static void QueueRecipeEdit(Func<Recipe, bool> match, Action<Recipe> edit)
+        {
+            if (match == null || edit == null) return;
+
+            RecipeEdits.Add(new KeyValuePair<Func<Recipe, bool>, Action<Recipe>>(match, edit));
+
+            if (Recipes.recipes != null)
+                foreach (var recipe in Recipes.recipes.ToArray())
+                    ApplyRecipeEdit(recipe, match, edit);
+        }
+
+        internal static void ApplyRecipeEdits(IEnumerable<Recipe> recipes)
+        {
+            if (recipes == null || RecipeEdits.Count == 0) return;
+
+            foreach (var recipe in recipes.ToArray())
+            foreach (var entry in RecipeEdits.ToArray())
+                ApplyRecipeEdit(recipe, entry.Key, entry.Value);
+        }
+
+        private static void ApplyRecipeEdit(Recipe recipe, Func<Recipe, bool> match, Action<Recipe> edit)
+        {
+            if (recipe?.result == null) return;
+
+            try
+            {
+                if (match(recipe)) edit(recipe);
+            }
+            catch (Exception ex)
+            {
+                CUCoreLibPlugin.Log?.LogError($"Recipe edit for '{recipe.result.id}' failed: {ex}");
+            }
+        }
+
         public static void Register(Recipe recipe)
         {
             if (recipe?.result == null || string.IsNullOrWhiteSpace(recipe.result.id))
@@ -109,6 +147,8 @@ namespace CUCoreLib.Registries
 
                     item.ignoredId = recipe.isRepair ? string.Empty : recipe.result.id;
                 }
+
+            ApplyRecipeEdits(new[] { recipe });
 
             recipe.index = Recipes.recipes.Count;
             Recipes.recipes.Add(recipe);

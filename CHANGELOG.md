@@ -13,13 +13,16 @@ I figured that this would be nice to have, as to easily take a look at everythin
 - Added `.ase`/`.aseprite` file extension support
 - Added an `isCheat` overload for `ConsoleCommandRegistry.Register()`
 - Added `CustomItemInfo.MetamorphicDrop` and `DropPool.MetamorphicCrystal` Defaults to the `!unobtainable` flag
+- Added `CUCoreUtils.EditRecipe(resultId, edit)` and `CUCoreUtils.EditRecipes(match, edit)` to edit vanilla or custom recipes. Edits are reapplied every time the recipe list is rebuilt
 
 ### Changes
 -  !! Custom recipes are now injected as fresh copies each run, matching vanilla !! 
 - This means that runtime recipe mutations no longer persist across runs, BUT do not instantly apply its changes
+- Editing the `Recipe` you registered or `Recipes.recipes` directly (e.g. `recipe.INT = 0`) no longer sticks. Use `CUCoreUtils.EditRecipe` instead
 
 ### Fixes
 - Fixed structure backgrounds desyncing in multiplayer
+- 'Reset to default' on a mod's settings tab now only resets that tab's options instead of every setting
 - Strengthened `SaveSystem.TryLoadGame` 
 - Custom tile and liquid tile injection/generation failures no longer abort world generation in select cases
 - Saved item ids that cannot be resolved (missing or outdated owning mod) are now warned about in the BepInEx log, not only by the vanilla in-game alert

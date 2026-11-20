@@ -103,6 +103,38 @@ namespace CUCoreLib.Patches
         }
     }
 
+    [HarmonyPatch(typeof(SettingsMenu), nameof(SettingsMenu.ResetToDefault))]
+    internal static class SettingsMenuResetToDefaultPatch
+    {
+        // On a mod tab, reset only that tab's options instead of every setting.
+        [HarmonyPrefix]
+        private static bool Prefix(SettingsMenu __instance)
+        {
+            var helper = __instance ? __instance.GetComponent<SettingsMenuCategoryExtender>() : null;
+            if (!helper || Settings.settings == null) return true;
+
+            var category = helper.ActiveCategory;
+            if (!ModOptionsRegistry.IsOwnedCustomCategory(category)) return true;
+
+            foreach (var setting in Settings.settings.ToList())
+            {
+                if (setting == null || setting.category != category) continue;
+
+                var option = ModOptionsRegistry.RegisteredOptions.Find(candidate =>
+                    candidate != null && candidate.Id == setting.name);
+                if (option == null) continue;
+
+                // CreateSetting has no side effects; DefaultSettings() would re-link config sync to throwaway settings.
+                setting.SetValue(option.CreateSetting().GetValue());
+                setting.Apply();
+            }
+
+            Settings.SaveSettings();
+            __instance.SelectTab(category);
+            return false;
+        }
+    }
+
     [HarmonyPatch(typeof(KeyBinds), nameof(KeyBinds.GetBindName), typeof(string))]
     internal static class KeyBindsGetBindNamePatch
     {

@@ -1,0 +1,9 @@
+{
+  "name": "CUCoreLib",
+  "version_number": "1.1.1",
+  "website_url": "https://cucorelib.web.app",
+  "description": "Core modding library for Casualties: Unknown. Adds content registration, hooks and shared utilities that other mods build on!",
+  "dependencies": [
+    "BepInEx-BepInExPack-5.4.2305"
+  ]
+}

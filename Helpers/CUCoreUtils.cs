@@ -434,6 +434,34 @@ namespace CUCoreLib.Helpers
             EditVanillaItem(itemId, edit);
         }
 
+        /// <summary>
+        /// Edits every recipe (vanilla or custom) whose result ID matches <paramref name="resultId"/>.
+        /// Recipes are rebuilt each run, so the edit is reapplied to every fresh recipe list,
+        /// and applied immediately if one already exists.
+        /// </summary>
+        /// <param name="resultId">Result item or liquid ID, such as <c>flimsyknife</c>.</param>
+        /// <param name="edit">Mutation to apply to the live <see cref="Recipe"/>.</param>
+        public static void EditRecipe(string resultId, Action<Recipe> edit)
+        {
+            if (string.IsNullOrWhiteSpace(resultId)) return;
+
+            var id = resultId.Trim();
+            RecipeRegistry.QueueRecipeEdit(
+                recipe => string.Equals(recipe.result.id, id, StringComparison.OrdinalIgnoreCase), edit);
+        }
+
+        /// <summary>
+        /// Edits every recipe (vanilla or custom) that matches <paramref name="match"/>.
+        /// Recipes are rebuilt each run, so the edit is reapplied to every fresh recipe list,
+        /// and applied immediately if one already exists.
+        /// </summary>
+        /// <param name="match">Selects which recipes to edit. <c>Recipe.result</c> is never null here.</param>
+        /// <param name="edit">Mutation to apply to the live <see cref="Recipe"/>.</param>
+        public static void EditRecipes(Func<Recipe, bool> match, Action<Recipe> edit)
+        {
+            RecipeRegistry.QueueRecipeEdit(match, edit);
+        }
+
         public static bool IsInWorld()
         {
             return IsWorldGenerationReady() && PlayerCamera.main != null && PlayerCamera.main.body != null;

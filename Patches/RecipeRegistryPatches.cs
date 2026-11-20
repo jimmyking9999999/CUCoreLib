@@ -35,6 +35,8 @@ namespace CUCoreLib.Patches
         private static void InjectRecipes()
         {
             LiquidRegistry.InjectRegisteredLiquids(true);
+            // Vanilla recipes are edited here, custom clones are edited as they're injected
+            RecipeRegistry.ApplyRecipeEdits(Recipes.recipes);
             RecipeRegistry.InjectRegisteredRecipes();
         }
 
