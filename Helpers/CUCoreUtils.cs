@@ -462,6 +462,18 @@ namespace CUCoreLib.Helpers
             RecipeRegistry.QueueRecipeEdit(match, edit);
         }
 
+        /// <summary>
+        /// Hides every recipe (vanilla or custom) whose result ID matches <paramref name="resultId"/>
+        /// and blocks crafting it while <paramref name="isUnlocked"/> returns false.
+        /// The vanilla INT visibility rule still applies once unlocked.
+        /// </summary>
+        /// <param name="resultId">Result item or liquid ID, such as <c>mercscarf</c>.</param>
+        /// <param name="isUnlocked">Checked on every crafting list refresh; keep it cheap.</param>
+        public static void LockRecipe(string resultId, Func<bool> isUnlocked)
+        {
+            EditRecipe(resultId, recipe => RecipeRegistry.SetUnlockCondition(recipe, isUnlocked));
+        }
+
         public static bool IsInWorld()
         {
             return IsWorldGenerationReady() && PlayerCamera.main != null && PlayerCamera.main.body != null;

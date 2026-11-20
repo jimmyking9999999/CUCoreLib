@@ -13,7 +13,7 @@ I figured that this would be nice to have, as to easily take a look at everythin
 - Added `.ase`/`.aseprite` file extension support
 - Added an `isCheat` overload for `ConsoleCommandRegistry.Register()`
 - Added `CustomItemInfo.MetamorphicDrop` and `DropPool.MetamorphicCrystal` Defaults to the `!unobtainable` flag
-- Added `CUCoreUtils.EditRecipe(resultId, edit)` and `CUCoreUtils.EditRecipes(match, edit)` to edit vanilla or custom recipes. Edits are reapplied every time the recipe list is rebuilt
+- Added `CUCoreUtils.EditRecipe(resultId, edit)` and `CUCoreUtils.EditRecipes(match, edit)` to edit vanilla or custom recipes, and `RecipeRegistry.Register(recipe, isUnlocked)`, `CUCoreUtils.LockRecipe(resultId, isUnlocked)` and `RecipeRegistry.SetUnlockCondition(recipe, isUnlocked)` for hidden recipes (e.g. MERC scarf)
 
 ### Changes
 -  !! Custom recipes are now injected as fresh copies each run, matching vanilla !! 

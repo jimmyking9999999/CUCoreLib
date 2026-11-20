@@ -3588,6 +3588,18 @@ function recipePage(): string {
       <p>For liquids, the constructor value is mL. For normal items, it is minimum condition.</p>
     </section>
     <section class="lesson-card">
+      <h2>Unlock conditions</h2>
+      <p>A recipe can be locked behind your own condition. While the condition returns <span class="inline-code">false</span>, the recipe is hidden from the crafting menu and cannot be crafted. Once it returns <span class="inline-code">true</span>, the normal INT visibility rule applies again.</p>
+      <p>The condition is checked every time the crafting list refreshes, so keep it cheap (read a bool, don't search the world). Each player evaluates it locally.</p>
+      <p>Blueprints never roll a recipe that is locked when the blueprint spawns.</p>
+      <pre><code>// Custom recipe, pass the condition when registering
+RecipeRegistry.Register(new Recipe { ... }, () =&gt; MyMod.foundAltar);
+
+// Any recipe (vanilla or custom) by result ID
+CUCoreUtils.LockRecipe("mercscarf", () =&gt; WorldGeneration.world != null &amp;&amp; WorldGeneration.world.isMercRun);</code></pre>
+      <p>Inside <span class="inline-code">CUCoreUtils.EditRecipe</span> you can also call <span class="inline-code">RecipeRegistry.SetUnlockCondition(recipe, condition)</span> directly. Pass <span class="inline-code">null</span> to remove a lock.</p>
+    </section>
+    <section class="lesson-card">
       <h2>RecipeItems</h2>
       <p><span class="inline-code">Recipe.items</span> is a <span class="inline-code">List&lt;RecipeItem&gt;</span>. Each <span class="inline-code">RecipeItem</span> describes one ingredient slot, and you can build those slots in three common ways.</p>
 
