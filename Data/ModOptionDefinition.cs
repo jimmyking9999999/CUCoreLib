@@ -14,6 +14,7 @@ namespace CUCoreLib.Data
         public string Id { get; private set; }
         public string Label { get; private set; }
         public string Description { get; private set; }
+        public string CategoryId { get; private set; }
         public Setting.SettingCategory Category { get; private set; }
         public string CustomCategory { get; private set; }
         internal float FloatDefault { get; private set; }
@@ -33,7 +34,8 @@ namespace CUCoreLib.Data
         internal string StringDefault { get; private set; }
         internal string Placeholder { get; private set; }
 
-        internal bool UsesCustomCategory => !string.IsNullOrWhiteSpace(CustomCategory);
+        internal bool UsesCustomCategory => !string.IsNullOrWhiteSpace(CustomCategory) ||
+                                            !string.IsNullOrWhiteSpace(CategoryId);
 
         internal void SetResolvedCategory(Setting.SettingCategory category)
         {
@@ -68,6 +70,23 @@ namespace CUCoreLib.Data
             return CreateFloat(id, label, description, default, category, defaultValue, min, max, apply, formatValue);
         }
 
+        public static ModOptionDefinition Float(
+            string id,
+            string label,
+            string description,
+            string categoryId,
+            string category,
+            float defaultValue,
+            float min,
+            float max,
+            Action<float> apply,
+            Func<float, string> formatValue = null)
+        {
+            var definition = Float(id, label, description, category, defaultValue, min, max, apply, formatValue);
+            definition.CategoryId = categoryId;
+            return definition;
+        }
+
         public static ModOptionDefinition Int(
             string id,
             string label,
@@ -94,6 +113,22 @@ namespace CUCoreLib.Data
             return CreateInt(id, label, description, default, category, defaultValue, min, max, apply);
         }
 
+        public static ModOptionDefinition Int(
+            string id,
+            string label,
+            string description,
+            string categoryId,
+            string category,
+            int defaultValue,
+            int min,
+            int max,
+            Action<int> apply = null)
+        {
+            var definition = Int(id, label, description, category, defaultValue, min, max, apply);
+            definition.CategoryId = categoryId;
+            return definition;
+        }
+
         public static ModOptionDefinition Bool(
             string id,
             string label,
@@ -114,6 +149,20 @@ namespace CUCoreLib.Data
             Action<bool> apply = null)
         {
             return CreateBool(id, label, description, default, category, defaultValue, apply);
+        }
+
+        public static ModOptionDefinition Bool(
+            string id,
+            string label,
+            string description,
+            string categoryId,
+            string category,
+            bool defaultValue,
+            Action<bool> apply = null)
+        {
+            var definition = Bool(id, label, description, category, defaultValue, apply);
+            definition.CategoryId = categoryId;
+            return definition;
         }
 
         public static ModOptionDefinition Dropdown(
@@ -140,6 +189,21 @@ namespace CUCoreLib.Data
             return CreateDropdown(id, label, description, default, category, defaultValue, choices, apply);
         }
 
+        public static ModOptionDefinition Dropdown(
+            string id,
+            string label,
+            string description,
+            string categoryId,
+            string category,
+            int defaultValue,
+            ModDropdownChoice[] choices,
+            Action<int> apply = null)
+        {
+            var definition = Dropdown(id, label, description, category, defaultValue, choices, apply);
+            definition.CategoryId = categoryId;
+            return definition;
+        }
+
         public static ModOptionDefinition Keybind(
             string id,
             string label,
@@ -160,6 +224,20 @@ namespace CUCoreLib.Data
             Action<KeyCode> apply = null)
         {
             return CreateKeybind(id, label, description, default, category, defaultValue, apply);
+        }
+
+        public static ModOptionDefinition Keybind(
+            string id,
+            string label,
+            string description,
+            string categoryId,
+            string category,
+            KeyCode defaultValue,
+            Action<KeyCode> apply = null)
+        {
+            var definition = Keybind(id, label, description, category, defaultValue, apply);
+            definition.CategoryId = categoryId;
+            return definition;
         }
 
         public static ModOptionDefinition Text(
@@ -184,6 +262,21 @@ namespace CUCoreLib.Data
             string placeholder = null)
         {
             return CreateText(id, label, description, default, category, defaultValue, apply, placeholder);
+        }
+
+        public static ModOptionDefinition Text(
+            string id,
+            string label,
+            string description,
+            string categoryId,
+            string category,
+            string defaultValue,
+            Action<string> apply,
+            string placeholder = null)
+        {
+            var definition = Text(id, label, description, category, defaultValue, apply, placeholder);
+            definition.CategoryId = categoryId;
+            return definition;
         }
 
         internal Setting CreateSetting()

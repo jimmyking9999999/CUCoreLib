@@ -1108,6 +1108,7 @@ private void RegisterGlassworksSettings()
         "glassworks.furnace.enabled",
         "Enable kiln sparks",
         "Controls extra kiln ambience and helpers.",
+        "glassworks.settings.category",
         "Glassworks",
         PlayerPrefs.GetInt("Glassworks_KilnSparks", 1) == 1,
         value =>
@@ -1184,6 +1185,7 @@ private void RegisterGlassworksSettings()
         "glassworks.game.playername",
         "Player name",
         "Custom name shown in Glassworks UI.",
+        "glassworks.settings.category",
         "Glassworks",
         PlayerPrefs.GetString("Glassworks_PlayerName", "Player"),
         value =>

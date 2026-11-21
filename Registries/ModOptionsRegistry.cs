@@ -18,8 +18,8 @@ namespace CUCoreLib.Registries
         private static readonly Dictionary<string, ModOptionCategoryEntry> CustomCategoriesByOptionId =
             new Dictionary<string, ModOptionCategoryEntry>(StringComparer.Ordinal);
 
-        private static readonly Dictionary<string, ModOptionCategoryEntry> CustomCategoriesByKey =
-            new Dictionary<string, ModOptionCategoryEntry>(StringComparer.Ordinal);
+        private static readonly Dictionary<(string Id, bool Localized), ModOptionCategoryEntry> CustomCategoriesByKey =
+            new Dictionary<(string Id, bool Localized), ModOptionCategoryEntry>();
 
         public static bool Register(ModOptionDefinition option)
         {
@@ -74,19 +74,6 @@ namespace CUCoreLib.Registries
         {
             entry = CustomCategories.FirstOrDefault(candidate => candidate != null && candidate.Category == category);
             return entry != null;
-        }
-
-        internal static bool TryGetOwnedCustomCategory(string normalizedKey, out ModOptionCategoryEntry entry)
-        {
-            entry = null;
-            if (string.IsNullOrWhiteSpace(normalizedKey)) return false;
-
-            return CustomCategoriesByKey.TryGetValue(normalizedKey, out entry) && entry != null;
-        }
-
-        internal static string NormalizeCustomCategoryKey(string category)
-        {
-            return NormalizeCategoryKey(category);
         }
 
         internal static bool IsOwnedCustomCategory(Setting.SettingCategory category)
@@ -218,9 +205,6 @@ namespace CUCoreLib.Registries
                     $"option '{option.Id}' must use a namespaced ID like 'modid.setting'. Might be annoying, but needed.";
 
             if (string.IsNullOrWhiteSpace(option.Label)) return $"option '{option.Id}' must have a label.";
-
-            if (option.UsesCustomCategory && string.IsNullOrWhiteSpace(option.CustomCategory))
-                return $"option '{option.Id}' custom category was empty.";
 
             if ((option.Kind == ModOptionKind.Float || option.Kind == ModOptionKind.Int) && option.Min > option.Max)
                 return $"option '{option.Id}' has min > max.";
@@ -359,24 +343,23 @@ namespace CUCoreLib.Registries
         {
             if (!option.UsesCustomCategory) return;
 
-            var normalizedKey = NormalizeCategoryKey(option.CustomCategory);
-            if (!CustomCategoriesByKey.TryGetValue(normalizedKey, out var entry))
+            var localizeTitle = !string.IsNullOrWhiteSpace(option.CategoryId);
+            var categoryId = localizeTitle ? option.CategoryId.Trim() : option.CustomCategory;
+            var key = (localizeTitle ? categoryId : categoryId.ToLowerInvariant(), localizeTitle);
+            if (!CustomCategoriesByKey.TryGetValue(key, out var entry))
             {
-                entry = new ModOptionCategoryEntry(option.CustomCategory.Trim(),
+                entry = new ModOptionCategoryEntry(categoryId, localizeTitle,
                     (Setting.SettingCategory)FindNextAvailableCategoryIndex(CollectForeignCustomCategoryIndices(null),
                         new HashSet<int>(CustomCategories.Select(category => (int)category.Category))));
                 CustomCategories.Add(entry);
-                CustomCategoriesByKey.Add(normalizedKey, entry);
+                CustomCategoriesByKey.Add(key, entry);
+                if (localizeTitle) LocaleRegistry.Require(categoryId);
             }
 
+            entry.RegisterDefaultLabel(option.CustomCategory);
             entry.RegisterOption(option.Id);
             CustomCategoriesByOptionId[option.Id] = entry;
             option.SetResolvedCategory(entry.Category);
-        }
-
-        private static string NormalizeCategoryKey(string category)
-        {
-            return (category ?? string.Empty).Trim().ToLowerInvariant();
         }
 
         private static HashSet<int> CollectForeignCustomCategoryIndices(IEnumerable<Setting> settings)
@@ -458,11 +441,30 @@ namespace CUCoreLib.Registries
     internal sealed class ModOptionCategoryEntry
     {
         private readonly HashSet<string> ownedOptionIds = new HashSet<string>(StringComparer.Ordinal);
+        private readonly bool localizeTitle;
+        private string defaultLabel;
 
-        public ModOptionCategoryEntry(string displayName, Setting.SettingCategory category)
+        public ModOptionCategoryEntry(string id, bool localizeTitle, Setting.SettingCategory category)
         {
-            DisplayName = displayName;
+            Id = id;
+            this.localizeTitle = localizeTitle;
             Category = category;
+        }
+
+        internal void RegisterDefaultLabel(string label)
+        {
+            if (!localizeTitle || defaultLabel != null || string.IsNullOrWhiteSpace(label)) return;
+
+            defaultLabel = label;
+            LocaleRegistry.Register(LocaleRegistry.LocaleCategory.Other, Id, label);
+        }
+
+        internal string GetDisplayName()
+        {
+            if (!localizeTitle) return Id;
+
+            if (Locale.currentLang == null) Locale.LoadLanguage();
+            return LocaleLoader.GetLocalizedText("other", Id, defaultLabel);
         }
 
         public void RegisterOption(string optionId)
@@ -476,7 +478,7 @@ namespace CUCoreLib.Registries
             Category = category;
         }
 
-        public string DisplayName { get; }
+        public string Id { get; }
         public Setting.SettingCategory Category { get; private set; }
         public int CategoryIndex => (int)Category;
     }

@@ -27,7 +27,7 @@ namespace CUCoreLib.Helpers
         private readonly Dictionary<Button, int> buttonCategoryIndices = new Dictionary<Button, int>();
         private readonly List<TMP_Dropdown> cachedDropdowns = new List<TMP_Dropdown>();
         private int activeCategoryIndex;
-        private string activeOwnedCategoryKey;
+        private ModOptionCategoryEntry activeOwnedCategory;
         private float railScrollTarget = 1f;
         private float railScrollVelocity;
         private GameObject frame;
@@ -154,10 +154,7 @@ namespace CUCoreLib.Helpers
         internal void OnTabSelected(Setting.SettingCategory category)
         {
             activeCategoryIndex = (int)category;
-            if (ModOptionsRegistry.TryGetOwnedCustomCategory(category, out var entry) && entry != null)
-                activeOwnedCategoryKey = ModOptionsRegistry.NormalizeCustomCategoryKey(entry.DisplayName);
-            else
-                activeOwnedCategoryKey = null;
+            ModOptionsRegistry.TryGetOwnedCustomCategory(category, out activeOwnedCategory);
             SnapContentToTop();
             ApplyButtonSprites();
             ClampScrollPosition();
@@ -168,10 +165,7 @@ namespace CUCoreLib.Helpers
             if (menu == null) return;
 
             RebuildRail();
-            if (!string.IsNullOrWhiteSpace(activeOwnedCategoryKey) &&
-                ModOptionsRegistry.TryGetOwnedCustomCategory(activeOwnedCategoryKey, out var activeEntry) &&
-                activeEntry != null)
-                activeCategoryIndex = activeEntry.CategoryIndex;
+            if (activeOwnedCategory != null) activeCategoryIndex = activeOwnedCategory.CategoryIndex;
             // Prevent snapping
             var scrollY = menu.content != null ? menu.content.anchoredPosition.y : 0f;
             menu.SelectTab(activeCategoryIndex);
@@ -203,7 +197,7 @@ namespace CUCoreLib.Helpers
             {
                 var category = categories[i];
                 var clone = Instantiate(template.gameObject, railContent, false);
-                clone.name = CustomTabNamePrefix + category.DisplayName;
+                clone.name = CustomTabNamePrefix + category.Id;
 
                 var button = clone.GetComponent<Button>();
                 if (!button)
@@ -222,7 +216,7 @@ namespace CUCoreLib.Helpers
                 var label = clone.GetComponentInChildren<TextMeshProUGUI>(true);
                 if (label)
                 {
-                    label.text = category.DisplayName;
+                    label.text = category.GetDisplayName();
                     foreach (var localizer in label.GetComponents<MonoBehaviour>()
                                  .Where(component => component && component.GetType().Name.Contains("Local")))
                     {

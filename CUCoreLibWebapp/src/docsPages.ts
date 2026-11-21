@@ -2906,11 +2906,12 @@ private void Awake()
 
     <section class="lesson-card">
       <h2>Custom categories</h2>
-      <p>Pass a plain string category when you want your mod to get its own tab button on the right side of the settings menu. CUCoreLib will reuse the same custom tab for matching strings, and long custom pages can be scrolled with the mouse wheel.</p>
+      <p>Pass a locale key and a plain string fallback when you want your mod to get its own tab button on the right side of the settings menu. CUCoreLib will reuse the same custom tab for matching strings, and long custom pages can be scrolled with the mouse wheel.</p>
       <pre><code>ModOptionsRegistry.Register(ModOptionDefinition.Bool(
     "glassworks.furnace.enabled",
     "Enable kiln sparks",
     "Controls extra kiln ambience and helpers.",
+    "glassworks.settings.category",
     "Glassworks",
     true,
     value => PlayerPrefs.SetInt("Glassworks_KilnSparks", value ? 1 : 0)
