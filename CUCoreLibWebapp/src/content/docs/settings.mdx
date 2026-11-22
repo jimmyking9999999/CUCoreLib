@@ -1,0 +1,210 @@
+---
+title: "Settings API"
+label: "Settings API"
+crumb: "Misc / API"
+lead: "Register native settings rows in the vanilla options menu with CUCoreLib!"
+---
+## Adding a setting
+
+`ModOptionsRegistry.Register` adds a row to the game's own options menu.
+
+```csharp
+public static bool SparksEnabled;
+
+private void Awake()
+{
+    ModOptionsRegistry.Register(ModOptionDefinition.Bool(
+        "mymod.sparks",                         // unique ID
+        "Kiln sparks",                          // Name
+        "Show spark effects around kilns.",     // Description
+        Setting.SettingCategory.Video,       // Tab (Can use your own tab, e.g. "Glassworks")
+        true,                                   // default value
+        value => PlayerPrefs.SetInt("Glassworks_Enabled", value ? 1 : 0) // runs on load and whenever it changes
+    ));
+}
+```
+
+The last argument is called with the saved value when settings load, and again whenever the player changes it. Store it in a field and read that field from your code.
+
+The value you pass is the **default**, used for new players and by "Reset to default". 
+
+---
+
+## Row types
+
+| Builder | Row | Extra arguments |
+| --- | --- | --- |
+| `ModOptionDefinition.Bool` | Toggle | |
+| `ModOptionDefinition.Float` | Slider | `min`, `max`, and optionally a formatter for the shown value |
+| `ModOptionDefinition.Int` | Number input | `min`, `max` |
+| `ModOptionDefinition.Dropdown` | Dropdown | The choices. The value is the chosen index |
+| `ModOptionDefinition.Keybind` | Key button | The value is a `KeyCode` |
+| `ModOptionDefinition.Text` | Text input | Optionally placeholder text |
+
+```csharp
+ModOptionsRegistry.Register(ModOptionDefinition.Float(
+    "mymod.clinkvolume",
+    "Glass clink volume",
+    "Volume of glass sound effects.",
+    Setting.SettingCategory.Audio,
+    0.8f, 0f, 1f,                              // default, min, max
+    value => ClinkVolume = value,
+    value => Mathf.RoundToInt(value * 100f) + "%" // shows "80%"
+));
+```
+
+<img src="/images/setting-ingame.png" alt="In-game screenshot of the clink volume slider in the options menu." class="screenshot" />
+
+---
+
+## Your own tab
+
+Pass a name instead of a vanilla category to give your mod its own tab on the right of the settings menu. Every setting with the same name shares the tab, and long tabs scroll.
+
+```csharp
+ModOptionsRegistry.Register(ModOptionDefinition.Bool(
+    "mymod.sparks", "Kiln sparks", "Show spark effects around kilns.",
+    "My Mod",   // custom tab
+    true,
+    value => SparksEnabled = value));
+```
+
+"Reset to default" on that tab only resets that tab.
+
+---
+
+## Keybinds without a settings row
+
+For a single key action, `GetFriendlyKeyBind` gives you a key you can choose to ignore while typing, in menus, and so on. `AllowKeybindRebind` then adds a row so players can change it:
+
+```csharp
+private void Awake()
+{
+    var reload = CUCoreUtils.GetFriendlyKeyBind("R"); // default key R
+    reload.disableInInputFields = true;  // don't fire while typing in a text box
+    reload.disableInInventory = true;    // or while the inventory is open
+    CUCoreUtils.AllowKeybindRebind("R", "Reload gun"); // rebindable in Input settings
+}
+
+private void Update()
+{
+    // IsPressed() respects the disable flags set above
+    if (CUCoreUtils.GetFriendlyKeyBind("R").IsPressed())
+    {
+        ReloadGun();
+    }
+}
+```
+
+The flags are all off by default: `disableInInputFields`, `disableInMainMenu`, `disableInHealthPanel`, `disableInInventory`.
+
+`CUCoreUtils.GetFriendlyKeyName("R")` gives the currently bound key's name, for UI elements like "Press R to reload".
+
+---
+
+## Syncing with a BepInEx config entry
+
+If your mod also has a BepInEx `.cfg` entry for the same setting, name the config key after the end of the setting ID. CUCoreLib then copies the in-game value into the config file whenever it changes:
+
+```csharp
+ConfigEntry<bool> sparksConfig = Config.Bind("General", "sparks", true, "Show spark effects around kilns.");
+
+ModOptionsRegistry.Register(ModOptionDefinition.Bool(
+    "mymod.sparks", // ends in "sparks", so it syncs with the config key "sparks"
+    "Kiln sparks", "Show spark effects around kilns.",
+    Setting.SettingCategory.Video,
+    sparksConfig.Value,
+    value => SparksEnabled = value));
+```
+
+Note: The in-game setting takes precedence in the case of a conflict. 
+
+- Works for bool, int, float, dropdown, and keybind rows.
+
+---
+
+## Rules
+
+- IDs must contain a namespace dot (`mymod.something`) and be unique.
+- `min` must not be above `max`.
+- Dropdowns need at least one choice, unique choice keys, and a default index that exists.
+- Pass already-[localized](/docs/locale/) text for labels! It's shown as-is.
+
+{/* Code shown in the side panel */}
+
+```csharp panel title="RegisterSettings.cs"
+using CUCoreLib.Data;
+using CUCoreLib.Helpers;
+using CUCoreLib.Registries;
+using UnityEngine;
+
+// Current values, kept up to date by the settings below
+public static bool SparksEnabled;
+public static float ClinkVolume;
+public static int LootWeight;
+public static int RecipeVisibility;
+public static KeyCode InspectKey;
+public static string NameTag;
+
+private void RegisterSettings()
+{
+    // Toggle, in its own "My Mod" tab
+    ModOptionsRegistry.Register(ModOptionDefinition.Bool(
+        "mymod.sparks", "Kiln sparks", "Show spark effects around kilns.",
+        "My Mod", true,
+        value => SparksEnabled = value));
+
+    // Slider in the vanilla Audio tab, shown as a percentage
+    ModOptionsRegistry.Register(ModOptionDefinition.Float(
+        "mymod.clinkvolume", "Glass clink volume", "Volume of glass sound effects.",
+        Setting.SettingCategory.Audio, 0.8f, 0f, 1f,
+        value => ClinkVolume = value,
+        value => Mathf.RoundToInt(value * 100f) + "%"));
+
+    // Whole number from 0 to 10
+    ModOptionsRegistry.Register(ModOptionDefinition.Int(
+        "mymod.lootweight", "Glass loot weight", "How often glass items show up in loot.",
+        "My Mod", 1, 0, 10,
+        value => LootWeight = value));
+
+    // Dropdown. Value is the chosen index (e.g. 0, 1, 2)
+    ModOptionsRegistry.Register(ModOptionDefinition.Dropdown(
+        "mymod.recipevisibility", "Recipe visibility", "When glass recipes show up.",
+        "My Mod", 0,
+        new[]
+        {
+            new ModDropdownChoice("normal", "Normal"),
+            new ModDropdownChoice("always", "Always visible"),
+            new ModDropdownChoice("hidden", "Hidden")
+        },
+        value => RecipeVisibility = value));
+
+    // Key button in the vanilla Input tab
+    ModOptionsRegistry.Register(ModOptionDefinition.Keybind(
+        "mymod.inspect", "Quick inspect", "Inspect the item under the mouse.",
+        Setting.SettingCategory.Input, KeyCode.G,
+        value => InspectKey = value));
+
+    // Text input with placeholder text
+    ModOptionsRegistry.Register(ModOptionDefinition.Text(
+        "mymod.nametag", "Name tag", "Shown on items you craft.",
+        "My Mod", "",
+        value => NameTag = value,
+        "Enter name..."));
+
+    // A simple rebindable key, no settings ID needed
+    var reload = CUCoreUtils.GetFriendlyKeyBind("R");
+    reload.disableInInputFields = true; // off by default
+    reload.disableInMainMenu = true;
+    CUCoreUtils.AllowKeybindRebind("R", "Reload gun");
+}
+
+private void Update()
+{
+    // Respects the disable flags set above
+    if (CUCoreUtils.GetFriendlyKeyBind("R").IsPressed())
+    {
+        ReloadGun();
+    }
+}
+```

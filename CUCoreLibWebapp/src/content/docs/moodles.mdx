@@ -1,0 +1,123 @@
+---
+title: "Moodles"
+label: "Moodles"
+crumb: "Player"
+lead: "Reference for moodle display, intensity tiers, and the player condition indicators mods commonly surface."
+---
+## Adding a moodle
+
+Moodles are the status icons in the player's HUD. To show one, call `MoodleRegistry.AddMoodle` **every update while the condition is active**. It disappears on its own about half a second after you stop calling it.
+
+- Why are you doing it this way? I dunno, ask the game ;p
+
+```csharp
+// Load the icon once, not every frame
+private static Sprite leadIcon = AssetLoader.LoadEmbeddedSprite("Images.lead-moodle.png");
+
+if (leadPoisoning > 18f)
+{
+    MoodleRegistry.AddMoodle(2, leadIcon, "Lead Poisoning", "You're feeling a bit woozy and fatigued...");
+}
+```
+
+<img src="/images/moodle-ingame.png" alt="Example custom moodle with a custom icon" class="screenshot" />
+
+Only call it for the local player. 
+- In a `Body` patch, check `PlayerCamera.main.body == __instance` first. Names and descriptions are shown as-is, so pass already-[localized](/docs/locale/) text.
+
+---
+
+## Parameters
+
+```csharp
+MoodleRegistry.AddMoodle(intensity, icon, name, description, critical, chippedOnly, important, key, holdSeconds);
+```
+
+| Parameter | Default | What it does |
+| --- | --- | --- |
+| `intensity` | | Background color tier, see the table below. |
+| `icon` | | Your `Sprite`, or the ID of a vanilla icon such as `"hot"`. |
+| `name` / `description` | | Hover title and text. |
+| `critical` | `false` | Adds the vanilla critical glow/movement. |
+| `chippedOnly` | `false` | Only shows if the player has a chip. |
+| `important` | `true` | `false` puts it in the smaller row on the right. |
+| `key` | | Give one if the moodle changes over time (e.g. intensity), so only one copy shows. |
+| `holdSeconds` | `0.5` | How long it stays after your last call. |
+
+For an animated icon, use `AddAnimatedMoodle` with a registered [animation](/docs/assets/#frame-animations) ID in place of the icon.
+
+---
+
+## Intensity
+
+`intensity` picks one of vanilla's moodle backgrounds:
+
+| Intensity | Background | Used for |
+| --- | --- | --- |
+| `0` | <span class="moodle-swatch"><img src="/images/mood1.png" alt="Intensity 0 moodle background" /></span> | Mild negative. |
+| `1` | <span class="moodle-swatch"><img src="/images/mood2.png" alt="Intensity 1 moodle background" /></span> | Low warning. |
+| `2` | <span class="moodle-swatch"><img src="/images/mood3.png" alt="Intensity 2 moodle background" /></span> | Moderate warning. |
+| `3` | <span class="moodle-swatch"><img src="/images/mood4.png" alt="Intensity 3 moodle background" /></span> | Strong warning. |
+| `4` | <span class="moodle-swatch"><img src="/images/mood5.png" alt="Intensity 4 moodle background" /></span> | Mild positive, sleep. |
+| `5` | <span class="moodle-swatch"><img src="/images/mood6.png" alt="Intensity 5 moodle background" /></span> | Positive. |
+| `6` | <span class="moodle-swatch"><img src="/images/mood7.png" alt="Intensity 6 moodle background" /></span> | Strong positive. |
+| `7` | <span class="moodle-swatch"><img src="/images/mood8.png" alt="Intensity 7 moodle background" /></span> | Top positive (Gleeful). |
+| `8` | <span class="moodle-swatch"><img src="/images/moodlast.png" alt="Intensity 8 moodle background" /></span> | Rare special states (Last Stand, Focused). |
+| `9` | <span class="moodle-swatch"><img src="/images/moodprosthetic.png" alt="Intensity 9 prosthetic outline moodle background" /></span> | Prosthetic outline (Full game only) |
+| `critical: true` | <span class="moodle-swatch"><img src="/images/moodleglow.png" scale="4" alt="Moodle high intensity glow" /></span> | A glow on top of any intensity. |
+
+---
+
+{/* Code shown in the side panel */}
+
+```csharp panel title="LeadPoisoningMoodles.cs"
+using CUCoreLib.Data;
+using CUCoreLib.Helpers;
+using CUCoreLib.Registries;
+using HarmonyLib;
+using UnityEngine;
+
+public sealed class LeadPoisoningStatus : BodyStatus
+{
+    public bool TouchingLead;   // Assume that this will be set by your own tile-touching code
+    public float LeadPoisoning; // 0-100
+}
+
+[HarmonyPatch(typeof(Body), "Update")]
+public static class LeadPoisoningPatch
+{
+    // Load the icon once, not every frame!
+    private static readonly Sprite LeadIcon = AssetLoader.LoadEmbeddedSprite("Images.lead-moodle.png");
+
+    [HarmonyPostfix]
+    private static void Postfix(Body __instance)
+    {
+        // Only for the local player
+        if (PlayerCamera.main == null || PlayerCamera.main.body != __instance) return;
+
+        LeadPoisoningStatus status = __instance.GetStatus<LeadPoisoningStatus>();
+
+        // Builds up while touching lead, three times faster with open wounds
+        if (status.TouchingLead)
+        {
+            float rate = __instance.totalBleedSpeed > 0.3f ? 1.05f : 0.35f;
+            status.LeadPoisoning = Mathf.Min(100f, status.LeadPoisoning + rate * Time.deltaTime);
+        }
+
+        // Call every frame while active!
+        if (status.LeadPoisoning > 18f)
+        {
+            bool severe = status.LeadPoisoning > 60f;
+            MoodleRegistry.AddMoodle(
+                severe ? 3 : 2,
+                LeadIcon,
+                "Lead Poisoning",
+                severe ? "Your hands won't stop shaking." : "You're feeling a bit woozy and fatigued...",
+                critical: severe,
+                chippedOnly: true,      // only a chip can detect it
+                key: "mymod.lead"       // one moodle, even as it changes severity
+            );
+        }
+    }
+}
+```

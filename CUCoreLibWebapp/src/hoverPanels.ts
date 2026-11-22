@@ -364,6 +364,10 @@ export const hoverPanels: Record<string, HoverPanel> = {
     title: "DislocationTimerReduction",
     body: "BandageProperties multiplier subtracted from Limb.dislocationTimer."
   },
+  MuscleHealAmount: {
+    title: "MuscleHealAmount",
+    body: "BandageProperties multiplier for the CoUtils.DoTimedOp duration that adds 1 to Limb.muscleHealth per second. Vanilla bruise kit uses 140; 0 disables it."
+  },
   CreateWrapSprite: {
     title: "CreateWrapSprite",
     body: "When true, CUCoreLib creates the temporary vanilla bandage wrap sprite on the target limb."
@@ -587,7 +591,7 @@ export const hoverPanels: Record<string, HoverPanel> = {
   },
   SpawnFrequency: {
     title: "SpawnFrequency",
-    body: "Integer pool-entry weight, retained for older mod DLLs. Zero and negatives disable pooled injection. For fractions, use Register(id, info, icon, spawnFrequency: 0.2f); the public field remains int. WorldSpawnPerChunk is independent."
+    body: "Integer pool-entry weight, retained for older mod DLLs. Zero and negatives disable pooled injection. For fractions, set FractionalSpawnFrequency = 0.2f or use Register(id, info, icon, spawnFrequency: 0.2f); this field remains int. WorldSpawnPerChunk is independent."
   },
   spawnFrequency: {
     title: "spawnFrequency",

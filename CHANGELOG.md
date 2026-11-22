@@ -7,18 +7,38 @@ I figured that this would be nice to have, as to easily take a look at everythin
 
 **Fixes** refers to bugfixes that will not or are very unlikely to break your mod
 
-# v1.1 (Fullgame! Yay!)
-- Note: v1.1 is the last release that promises Demo support, so new changes or APIs added after this update (v1.2 or higher) can break on a Demo install
+# v1.2 (Nightly)
+
 ### New Stuff!
-- Added `.ase`/`.aseprite` file extension support
-- Added an `isCheat` overload for `ConsoleCommandRegistry.Register()`
-- Added `CustomItemInfo.MetamorphicDrop` and `DropPool.MetamorphicCrystal` Defaults to the `!unobtainable` flag
 - Added `CUCoreUtils.EditRecipe(resultId, edit)` and `CUCoreUtils.EditRecipes(match, edit)` to edit vanilla or custom recipes, and `RecipeRegistry.Register(recipe, isUnlocked)`, `CUCoreUtils.LockRecipe(resultId, isUnlocked)` and `RecipeRegistry.SetUnlockCondition(recipe, isUnlocked)` for hidden recipes (e.g. MERC scarf)
+- Added `BandageProperties.MuscleHealAmount` (default 0) for bandages that heal muscle over time, like the bruise kit
+- Added `CUCoreUtils.SetItemLight(item, light)` to change an item's light at runtime. `null` restores the registered `Light`
+- Added `CustomLiquidInfo.nondescriptDangerous`, which keeps a liquid out of non-descript cans. Defaults to `unobtainable`
+- Added `CustomBuildingEntityDefinition.RandomFlipVertical` (default false), the vertical version of `RandomFlip`
+- Added `CustomBuildingEntityDefinition.RigidbodyMass` (default 10) for buildings with `AddRigidbody2D`
+- Massive documentation enhancement/rewrite. yay!
 
 ### Changes
 -  !! Custom recipes are now injected as fresh copies each run, matching vanilla !! 
 - This means that runtime recipe mutations no longer persist across runs, BUT do not instantly apply its changes
 - Editing the `Recipe` you registered or `Recipes.recipes` directly (e.g. `recipe.INT = 0`) no longer sticks. Use `CUCoreUtils.EditRecipe` instead
+
+### Fixes
+- Added `FractionalSpawnFrequency = 0.2f`, as a field (with priority over SpawnFrequency)
+
+
+# v1.1 (Stable. Fullgame! Yay!)
+- Note: v1.1 is the last release that promises Demo support, so new changes or APIs added after this update (v1.2 or higher) can break on a Demo install
+
+### New Stuff!
+- In lieu of adding a bunch of other changelogs, "Full steam release support".
+- Updated Assembly-CSharp.dll reference to fullgame ver ^
+- Added `.ase`/`.aseprite` file extension support
+- Added an `isCheat` overload for `ConsoleCommandRegistry.Register()`
+- Added `CustomItemInfo.MetamorphicDrop` and `DropPool.MetamorphicCrystal` Defaults to the `!unobtainable` flag
+
+### Changes
+- Full, er, steam release support. See https://cucorelib.jimmyking.dev/docs/full-game-transition/ for more information on migrating your mods!
 
 ### Fixes
 - Fixed structure backgrounds desyncing in multiplayer
@@ -27,9 +47,7 @@ I figured that this would be nice to have, as to easily take a look at everythin
 - Custom tile and liquid tile injection/generation failures no longer abort world generation in select cases
 - Saved item ids that cannot be resolved (missing or outdated owning mod) are now warned about in the BepInEx log, not only by the vanilla in-game alert
 - Updated `floodfill` / `settile` autofill
-- Finally updated reference to fullgame ver.
 - Other things I may have missed for the fullgame, note v1.0.7.2/v1.0.6 still works (CCL was developed with the fullgame in mind since v1.0.5 after all -w-)
-
 
 # v1.0.7.2
 ### New Stuff!
@@ -69,14 +87,14 @@ I figured that this would be nice to have, as to easily take a look at everythin
 - Multiplayer liquid sync now uses the host's liquid ordering, if possible
 - Fixed entire mod crashing when referencing invalid mod ID as dependency
 
-## v1.0.5 (MPV4 LTS)
+## v1.0.5 
 
 ### New Stuff!
 - Added `CustomItemInfo.scaleConditionToward` to choose the weight to scale to. E.g. you can now have something that goes up in weight when lower condition
 - Added `CUCoreUtils.GetLastDialogue(...)` for checking the last dialogue ID or selected text.
 - Added `DamagePlayerOnImpact` for `AddRigidbody2D` buildingEntites
 - `setbodyfield` and `setlimbfield` can now change fields on attached CUCoreLib statuses with `StatusType.Field`. (I.e. ToxicStatuses.Toxicity)
-- Added `CUCoreUtils.CheckModVersion("com.example.mymod");` for automated-ish version checking, see [https://cucorelib.web.app/docs/utils/](https://cucorelib.web.app/docs/utils/) for more info
+- Added `CUCoreUtils.CheckModVersion("com.example.mymod");` for automated-ish version checking, see [https://cucorelib.jimmyking.dev/docs/utils/](https://cucorelib.jimmyking.dev/docs/utils/) for more info
 - `SpawnFrequency` now has a float overload! Pass fractions such as `1.5f`, `0.01f`, or `12.42f` through the new overload for a chance to spawn more (or less) entires of your item into the lootpool (Thanks, @Jetfire).
 - `createLocale` now accepts an optional mod GUID, e.g. `createLocale net.Jimmyking.netdescents`
 - Locale files can now be scoped per mod with the `{LangCode}-{modGuid}.json` naming scheme (e.g. `EN-net.Jimmyking.netdescents.json`), both as embedded resources/loose files, to avoid locale conflict. 
@@ -238,7 +256,7 @@ I figured that this would be nice to have, as to easily take a look at everythin
 ## v1.0.1 
 
 ### New stuff!
-- Hot reload! See https://cucorelib.web.app/docs/debug-testing for more details
+- Hot reload! See https://cucorelib.jimmyking.dev/docs/debug-testing for more details
 - ^ You can now develop your mod without needing to close the game at all! (for basic functionality)
 - Automatic sandbox/debug world config
 - Version checker

@@ -1,0 +1,156 @@
+---
+title: "Harmony0"
+label: "Harmony0"
+crumb: "Getting Started"
+lead: "What is this, music theory?"
+---
+## What Harmony does
+
+`Harmony` lets your mod attach code to methods that already exist in the game. When creating a mod, you do not edit `Assembly-CSharp.dll` directly. Instead you tell Harmony: when the game calls this method, also run my method before or after it.
+
+You find the target method in dnSpyEx or the decompiled reference, confirm which fields or values vanilla changes there, then write a small patch class that points at that exact type and method name.
+
+Before patching, use the decompiled game to answer three questions: which method is actually responsible, what its arguments and fields are called, and whether vanilla overwrites your change somewhere else later.
+
+```csharp
+// Patching Body.Eat
+[HarmonyPatch(typeof(Body), nameof(Body.Eat))]
+```
+
+Patch classes are applied by the `harmony.PatchAll()` call in your plugin's `Awake` (see [Setup](/docs/setup/)).
+
+---
+
+## Prefix patches
+
+A `Prefix` runs before the original method. Use it to change arguments, record state before vanilla changes it, or skip the original entirely.
+
+A `void` prefix always lets the original run. A `bool` prefix that returns `false` skips the original.
+
+```csharp
+[HarmonyPrefix]
+private static void Prefix(Body __instance)
+{
+    // Make the player a bit happier every time they eat. 
+    // Body.Eat still runs as normal, as it has a void prefix
+    __instance.happiness += 1f;
+}
+```
+
+---
+
+## Postfix patches
+
+A `Postfix` runs right after the original method returns (same frame, no delay). Use it when vanilla should do its normal work first and you only react to, or adjust, the result.
+
+For example, `Body.HandleBody` adds up every limb's bleeding into `totalBleedSpeed`. A postfix on it can add your own bleed source on top, or set it to `0f` for an anti-bleeding drug:
+
+```csharp
+[HarmonyPatch(typeof(Body), "HandleBody")]
+public static class AntiBleedPatch
+{
+    [HarmonyPostfix]
+    private static void Postfix(Body __instance)
+    {
+        // Vanilla has finished summing limb bleeding. 
+        // Remove all the bleed right afterwards.
+        __instance.totalBleedSpeed = 0f;
+    }
+}
+```
+
+---
+
+## Special parameters
+
+Harmony matches your patch's parameters by name.
+
+| Parameter | What you get |
+| --- | --- |
+| `__instance` | The object the original method runs on. |
+| `hungerAmount` (any original argument name) | That argument's value. Adding `ref` changes what vanilla receives. |
+| `__result` | The return value. Add `ref` in a postfix to change what callers receive. |
+| `__state` | A value your prefix hands to your postfix, e.g. a "before" value to compare. |
+
+Without `ref` you only get a copy, so changing it does nothing.
+
+```csharp
+[HarmonyPrefix]
+private static void Prefix(ref float hungerAmount)
+{
+    // Make all food half as filling, before Body.Eat uses the value
+    hungerAmount *= 0.5f;
+}
+```
+
+---
+
+## Targeting the right method
+
+Using `nameof(...)` is preferred over a string for public methods:
+
+```csharp
+// Public method
+[HarmonyPatch(typeof(Body), nameof(Body.Eat))]
+
+// Private method. `nameof` can't see it, so use the name as a string
+[HarmonyPatch(typeof(Body), "HandleBody")]
+
+// Overloaded method. Note, also pass the parameter types of the one you want
+[HarmonyPatch(typeof(Body), nameof(Body.Eat), new[] { typeof(float), typeof(float) })]
+
+// Property. Patch its getter (or MethodType.Setter)
+[HarmonyPatch(typeof(Item), nameof(Item.fullName), MethodType.Getter)]
+```
+
+
+---
+
+## Closing notes
+
+-   Keep the decompiled game current! Patching a method that changed gives confusing errors.
+-   Prefer postfixes for additive behavior, and prefixes for changing inputs or intentional overrides.
+-   If any mod's prefix returns `false`, the original is skipped for every mod, including ones that expect it to run. Avoid skipping unless you have to.
+-   Avoid patching per-frame methods like `Update` unless the patch is tiny.
+
+{/* Code shown in the side panel */}
+
+```csharp panel title="HarmonyPatches.cs"
+using HarmonyLib;
+
+// Patch Body.Eat(float hungerAmount, float weightGain)
+[HarmonyPatch(typeof(Body), nameof(Body.Eat))]
+public static class BodyEatPatch
+{
+    // Runs before Body.Eat
+    [HarmonyPrefix]
+    private static void Prefix(ref float hungerAmount)
+    {
+        // ref lets us change the argument vanilla receives: food is half as filling
+        hungerAmount *= 0.5f;
+    }
+
+    // Runs after Body.Eat
+    [HarmonyPostfix]
+    private static void Postfix(Body __instance)
+    {
+        // __instance is the Body that just ate
+        Plugin.Logger.LogInfo($"Hunger after eating: {__instance.hunger}");
+    }
+}
+
+// Patch the Item.fullName property getter
+[HarmonyPatch(typeof(Item), nameof(Item.fullName), MethodType.Getter)]
+public static class ItemDisplayNamePatch
+{
+    [HarmonyPostfix]
+    private static void Postfix(Item __instance, ref string __result)
+    {
+        // ref __result lets a postfix replace what callers receive
+        if (__instance.id == "sunpear")
+        {
+            __result += " (modded)";
+        }
+    }
+}
+```

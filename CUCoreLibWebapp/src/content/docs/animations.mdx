@@ -1,0 +1,86 @@
+---
+title: "Animations"
+label: "Animations"
+crumb: "Misc / API"
+lead: "Lights, camera, animation!"
+---
+## Body animations
+
+CUCoreLib can play your own player animations, like a wave or a custom swing. Animations have to be made in the Unity editor, so a slimmed-down Unity project with an Animation Workshop tool is provided to make it painless.
+
+For animated sprites (icons, buildings), you don't need Unity: see [frame animations](/docs/assets/#frame-animations).
+
+---
+
+## Making an animation
+
+1.  Download the Unity package from - - (Will release soon! I promise this time!)
+2.  In the Unity project, open `CU Modded Toolkit > Animation Workshop` from the menu bar.
+3.  Name your animation pack, and add one entry per animation.
+4.  Start from a vanilla motion with `Add From Template`, or use clips you already made with `Load Existing`.
+5.  Give each entry a unique `Animation Id`, and assign it a **body** clip and an **arms** clip (the game animates them separately).
+6.  Animate in Unity's Animation window, previewing on the sample body in `SampleScene`. New to Unity animation? See [this video](https://youtu.be/NHUP7CmYny8?si=ruiOLAoZ0M7PypRZ&t=33).
+7.  Click `Export Animation Pack Bundle`, and copy the file from `CUCoreExports/AnimationPacks/` into your mod's `Bundles/` folder.
+
+<img src="/images/animation-guide.png" alt="Animation Unity window screenshot" class="screenshot" />
+
+
+---
+
+## Playing it
+
+Register the bundle once, then play an animation by its ID:
+
+```csharp
+// In Awake
+AssetLoader.RegisterBundleFromPluginFolder(this, "mymod.animations", "Bundles/mymod-animations");
+
+// Whenever you want to play it
+BodyAnimationPlayer.PlayBundled(body, "mymod.animations", "wave");
+```
+
+Looping and speed come from the pack. To override them:
+
+```csharp
+BodyAnimationPlayer.PlayBundled(body, "mymod.animations", "wave", loop: true, speed: 1.5f);
+```
+
+`PlayBundled` returns `false` if the bundle or animation ID wasn't found.
+
+To stop and hand the body back to vanilla animations:
+
+```csharp
+BodyAnimationPlayer.Stop(body);
+```
+
+{/* Code shown in the side panel */}
+
+```csharp panel title="RegisterAnimationPack.cs"
+using BepInEx;
+using CUCoreLib.Helpers;
+using UnityEngine;
+
+[BepInPlugin("com.example.handwave", "Handwave Example", "1.0.0")]
+[BepInDependency("net.cucorelib")]
+public sealed class Plugin : BaseUnityPlugin
+{
+    private void Awake()
+    {
+        // Exported from CU Modded Toolkit > Animation Workshop,
+        // then copied to BepInEx/plugins/YourMod/Bundles/
+        AssetLoader.RegisterBundleFromPluginFolder(this, "handwave.animations", "Bundles/handwave-animations");
+    }
+
+    // e.g. from an item's useAction
+    public static void Wave(Body body)
+    {
+        BodyAnimationPlayer.PlayBundled(body, "handwave.animations", "wave")
+    }
+
+    public static void StopWaving(Body body)
+    {
+        // Back to normal vanilla animations
+        BodyAnimationPlayer.Stop(body);
+    }
+}
+```

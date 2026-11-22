@@ -416,6 +416,52 @@ namespace CUCoreLib.Patches
             ApplyCustomItemRuntime(item);
         }
 
+        internal static bool TryGetRuntimeLightOverride(Item item, out LightProperties light)
+        {
+            var overrideState = item != null ? item.GetComponent<RuntimeItemLightOverride>() : null;
+            light = overrideState != null ? overrideState.Light : null;
+            return light != null;
+        }
+
+        internal static LightProperties ResolveLightProperties(Item item, CustomItemInfo def)
+        {
+            var overrideState = item != null ? item.GetComponent<RuntimeItemLightOverride>() : null;
+            if (overrideState != null && overrideState.Light != null) return overrideState.Light;
+
+            return def?.Light;
+        }
+
+        internal static void SetRuntimeLightOverride(Item item, CustomItemInfo def, LightProperties properties)
+        {
+            if (item == null) return;
+
+            var overrideState = item.GetComponent<RuntimeItemLightOverride>();
+            if (properties == null)
+            {
+                if (overrideState != null)
+                    Object.DestroyImmediate(overrideState);
+
+                if (def?.Light != null)
+                {
+                    ApplyLight(item, def.Light);
+                    return;
+                }
+
+                // No registered light to fall back to, so we switch the override's light off
+                var lightItem = item.GetComponent<LightItem>();
+                if (lightItem != null) lightItem.shouldEnable = false;
+                var light = item.GetComponentInChildren<Light2D>();
+                if (light != null) light.enabled = false;
+                return;
+            }
+
+            if (overrideState == null)
+                overrideState = item.gameObject.AddComponent<RuntimeItemLightOverride>();
+
+            overrideState.Light = properties;
+            ApplyLight(item, properties);
+        }
+
         private static void ApplyCustomItemComponents(Item item, CustomItemInfo def)
         {
             // Ideally I want to have this be unity-esque but we don't have the luxury of adding components at item definition time :(
@@ -440,7 +486,8 @@ namespace CUCoreLib.Patches
             if (def.Gun != null)
                 ApplyGunProperties(item, def);
 
-            if (def.Light != null) ApplyLight(item, def.Light);
+            var lightProperties = ResolveLightProperties(item, def);
+            if (lightProperties != null) ApplyLight(item, lightProperties);
 
             if (IsLiquidContainer(def))
             {
@@ -930,7 +977,8 @@ namespace CUCoreLib.Patches
         {
             if (__instance == null) return false;
 
-            if (ItemRegistry.TryGetCustomInfo(__instance.GetComponent<Item>(), out var def) && def?.Light != null)
+            var lightOwner = __instance.GetComponent<Item>();
+            if (ItemRegistry.TryGetCustomInfo(lightOwner, out var def) && ResolveLightProperties(lightOwner, def) != null)
             {
                 var battery = __instance.GetComponent<BatteryItem>();
                 if (battery != null) __instance.shouldEnable = battery.hasCharge;
@@ -1031,6 +1079,11 @@ namespace CUCoreLib.Patches
         private sealed class RuntimeItemIconOverride : MonoBehaviour
         {
             public Sprite Sprite;
+        }
+
+        private sealed class RuntimeItemLightOverride : MonoBehaviour
+        {
+            public LightProperties Light;
         }
 
         [HarmonyPatch]

@@ -1,0 +1,128 @@
+---
+title: "Loading audio"
+label: "Audio"
+crumb: "Content APIs"
+lead: "Load embedded and loose audio clips, reuse cached sounds, and wire them into buildings or AudioSource components."
+---
+## Loading clips
+
+CUCoreLib also supports audio! When you need hit sounds, machine loops, voice lines, etc, you can likewise embed or keep them as loose files besides your .dll.
+
+Audio works just like [images](/docs/assets/). Embed the file (Build Action `Embedded Resource`) or keep it as a loose file next to your DLL.
+
+```csharp
+// Embedded
+AudioClip hit = AssetLoader.LoadEmbeddedAudio("Audio.centrifuge-hit.wav");
+
+// Loose, in BepInEx/plugins/MyMod/Audio/centrifuge-loop.wav
+AudioClip loop = AssetLoader.LoadAudioFromPluginFolder(this, "Audio/centrifuge-loop.wav");
+```
+
+Loading the same file twice returns the same clip, so there is no need to keep your own cache. ^^
+
+The current supported formats are: `.wav`, `.ogg`, `.mp3`, `.mp2`, `.mp1`, `.aif`, `.aiff`, and `.cue`.
+
+---
+
+## Playing a sound
+
+`CUCoreUtils.PlaySoundAt` plays a clip in the world through the game's own sound system:
+
+```csharp
+// At a position
+CUCoreUtils.PlaySoundAt(hit, (Vector2)transform.position);
+
+// Quieter and half a second later. Leave out position to play it at the player.
+CUCoreUtils.PlaySoundAt(hit, volume: 0.7f, delay: 0.5f, position: (Vector2)transform.position);
+```
+
+Note: without `pitch`, each play gets the vanilla game's slight random pitch shift. Pass `pitch: 1f` for an exact pitch if this impacts your mod.
+
+Vanilla sounds are played by name instead, with the game's own `Sound.Play("eatCrunch", position)`.
+
+---
+
+## Stopping a sound
+
+Both `PlaySoundAt` and `Sound.Play` return the `AudioSource` that is playing. Keep it and call `Stop()` on it, to stop said sound.
+
+```csharp
+private void StartSound()
+{
+    activeSound = CUCoreUtils.PlaySoundAt(loop, position: (Vector2)transform.position);
+}
+
+private void StopSound()
+{
+    if (activeSound != null) activeSound.Stop();
+}
+```
+
+Note: Having a `delay` for any sound returns `null` when it has not started yet. Ideally, don't delay sounds you need to stop.
+
+---
+
+## Sounds on buildings
+
+Content definitions that make noise take clips directly. For example, a [building entity](/docs/building-entities/) plays its `HitSound` when hit:
+
+```csharp
+BuildingEntityRegistry.Register("centrifuge", new CustomBuildingEntityDefinition
+{
+    Name = "Centrifuge",
+    Sprite = AssetLoader.LoadEmbeddedSprite("Images.centrifuge.png"),
+    HitSound = AssetLoader.LoadEmbeddedAudio("Audio.centrifuge-hit.wav")
+});
+```
+
+This also applies to tile hitsounds, tile step sounds, and certain other content.
+
+---
+
+## Sharing clips by ID
+
+If other code or mods need your clip, cache it under an ID:
+
+```csharp
+AssetLoader.CacheAudioClip("mymod.centrifuge.hit", hit);
+
+// Anywhere else
+AudioClip clip = AssetLoader.GetCachedAudioClip("mymod.centrifuge.hit");
+```
+
+{/* Code shown in the side panel */}
+
+```csharp panel title="LoadAudio.cs"
+using BepInEx;
+using CUCoreLib.Data;
+using CUCoreLib.Helpers;
+using CUCoreLib.Registries;
+using UnityEngine;
+
+private AudioClip centrifugeLoop;
+
+private void LoadModAudio()
+{
+    // Embedded clip, shipped inside the DLL
+    AudioClip hit = AssetLoader.LoadEmbeddedAudio("Audio.centrifuge-hit.wav");
+
+    // Loose clip from BepInEx/plugins/MyMod/Audio/, so players can swap it
+    centrifugeLoop = AssetLoader.LoadAudioFromPluginFolder(this, "Audio/centrifuge-loop.wav");
+
+    // The building plays this clip whenever it is hit
+    BuildingEntityRegistry.Register("centrifuge", new CustomBuildingEntityDefinition
+    {
+        Name = "Centrifuge",
+        Sprite = AssetLoader.LoadEmbeddedSprite("Images.centrifuge.png"),
+        HitSound = hit
+    });
+}
+
+// Looping a sound
+private void StartLoop(AudioSource source)
+{
+    source.clip = centrifugeLoop;
+    source.loop = true;
+    source.Play();
+}
+```

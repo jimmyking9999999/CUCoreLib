@@ -1,0 +1,171 @@
+---
+title: "Traps"
+label: "Traps"
+crumb: "World"
+lead: "Woah, custom layers and biomes?"
+---
+## Traps are buildings with a script
+
+There is no special trap API. 
+Traps are still just `BuildingEntity` objects registered through `CustomBuildingEntityDefinition` and a custom script. Please read the [BuildingEntity](/docs/building-entities/) documentation for more details before this page, as this is only meant for a practical example.
+
+<video src="https://jimmyking9999999.github.io/Metadata-generator/videos/spore-trap-ingame.mp4" data-local-fallback-src="/videos/spore-trap-ingame.mp4" autoplay="" loop="" muted="" playsinline="" controls="" class="screenshot"></video>
+
+The full code is on the right. The parts that make this a trap are listed below.
+
+1. **Registration:** a floor building with a small `SurfaceOffset` allows our trap in question to sits flat.
+2. **Trigger:** each frame, check the player's distance. Once close enough, play a warning sound and start a short delay.
+3. **Effect:** a coroutine hides the mine, spawns gas particles, and applies sickness to every body in range for a few seconds.
+4. **Cleanup:** destroy the mine afterwards.
+
+---
+
+## Tips
+
+- Make the armed state obvious, with a sound, light, or animation. Otherwise a delayed trap just looks broken. Good game design!
+- Use `building.GetHealth()` rather than `building.health`, so the same DLL works on the [Demo and the full game](/docs/full-game-transition/).
+
+{/* Code shown in the side panel */}
+
+```csharp panel title="RegisterTraps.cs"
+using System.Collections;
+using CUCoreLib.Data;
+using CUCoreLib.Helpers;
+using CUCoreLib.Registries;
+using UnityEngine;
+
+private void RegisterTraps()
+{
+    BuildingEntityRegistry.Register("sporemine", new CustomBuildingEntityDefinition
+    {
+        Name = "Spore Mine",
+        Description = "A mine that releases spores when triggered.",
+        Sprite = AssetLoader.LoadEmbeddedSprite("Images.SporeMine.png"),
+        HitSoundReferenceId = "rubber",
+        SurfaceOffset = 0.1f, // sit flat on the floor
+        RandomFlip = false,
+        SpawnMinPerChunk = 0.5f,
+        SpawnMaxPerChunk = 0.6f,
+        Components = new[] { typeof(SporeMineScript) },
+        ItemsDropOnDestroy = new[]
+        {
+            BuildingEntityRegistry.AddDrop("scrappanel", 0.5f),
+            BuildingEntityRegistry.AddDrop("nails", 0.25f),
+            BuildingEntityRegistry.AddDrop("processedcopper", 0.2f)
+        }
+    });
+}
+
+public class SporeMineScript : MonoBehaviour
+{
+    public float triggerDistance = 4f;
+    public float detonateDelay = 0.2f;
+    public float effectRadius = 7f;
+    public float gasDuration = 4f;
+    public int totalParticles = 100;
+
+    private bool triggered;
+    private bool exploding;
+    private float timer;
+    private BuildingEntity building;
+
+    private void Start()
+    {
+        building = GetComponent<BuildingEntity>();
+    }
+
+    private void Update()
+    {
+        if (exploding) return;
+
+        // When destroyed, activate
+        if (building.GetHealth() <= 0f)
+        {
+            StartCoroutine(GasCloudRoutine());
+            return;
+        }
+
+        if (!triggered)
+        {
+            // Arm when the player gets close, with an audible warning
+            if (Vector2.Distance(transform.position, PlayerCamera.main.body.transform.position) < triggerDistance)
+            {
+                triggered = true;
+                Sound.Play("mine", transform.position);
+            }
+        }
+        else
+        {
+            timer += Time.deltaTime;
+            if (timer >= detonateDelay)
+            {
+                StartCoroutine(GasCloudRoutine());
+            }
+        }
+    }
+
+    private IEnumerator GasCloudRoutine()
+    {
+        exploding = true;
+
+        // Hide the mine but keep the object alive while the gas lingers
+        building.enabled = false;
+        GetComponent<SpriteRenderer>().enabled = false;
+        GetComponent<Collider2D>().enabled = false;
+
+        Sound.Play("gasleak", transform.position);
+
+        // Vanilla dust cloud, recolored pink below
+        GameObject gasCloudPrefab = Resources.Load<GameObject>("DustBig");
+        float endTime = Time.time + gasDuration;
+        float particleTimer = 0f;
+        float timeBetweenParticles = gasDuration / totalParticles;
+
+        while (Time.time < endTime)
+        {
+            particleTimer += Time.deltaTime;
+            while (particleTimer >= timeBetweenParticles)
+            {
+                SpawnParticle(gasCloudPrefab);
+                particleTimer -= timeBetweenParticles;
+            }
+
+            ApplyAreaEffect();
+            yield return null;
+        }
+
+        Destroy(gameObject);
+    }
+
+    private void SpawnParticle(GameObject prefab)
+    {
+        Vector3 spawnPos = transform.position + (Vector3)(Random.insideUnitCircle * 12f);
+        GameObject vfx = Instantiate(prefab, spawnPos, Quaternion.identity);
+        Color sporeColor = new Color(1f, 0.2f, 0.8f, 0.2f);
+
+        foreach (ParticleSystem ps in vfx.GetComponentsInChildren<ParticleSystem>())
+        {
+            var main = ps.main;
+            main.startColor = new ParticleSystem.MinMaxGradient(sporeColor);
+            main.startLifetime = 2f;
+            main.startSize = 3f;
+        }
+    }
+
+    private void ApplyAreaEffect()
+    {
+        foreach (Collider2D hit in Physics2D.OverlapCircleAll(transform.position, effectRadius))
+        {
+            if (!hit.TryGetComponent(out Body body)) continue;
+
+            body.sicknessAmount += 8f * Time.deltaTime;
+            body.happiness -= 5f * Time.deltaTime;
+
+            if (Random.value < 0.01f)
+            {
+                body.talker.Talk(Locale.GetCharacter("cantBreathe"));
+            }
+        }
+    }
+}
+```

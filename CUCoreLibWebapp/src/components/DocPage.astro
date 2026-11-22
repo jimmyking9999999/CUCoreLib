@@ -1,0 +1,142 @@
+---
+import { Code } from "astro:components";
+import { render } from "astro:content";
+import "../styles.css";
+import { generatorCode } from "../generators.ts";
+import { getDocs, getNavOrder, navGroups, pagePath, siteName, siteUrl, type DocEntry } from "../docs.ts";
+
+interface Props {
+  entry: DocEntry;
+}
+
+const { entry } = Astro.props;
+const { Content, remarkPluginFrontmatter } = await render(entry);
+const page = entry.data;
+const allDocs = new Map((await getDocs()).map((doc) => [doc.id, doc]));
+const order = await getNavOrder();
+const index = order.findIndex((doc) => doc.id === entry.id);
+const previous = index > 0 ? order[index - 1] : undefined;
+const next = index >= 0 ? order[index + 1] : undefined;
+
+const panelCode: string = page.codeGenerator ? generatorCode(page.codeGenerator) : remarkPluginFrontmatter.panelCode ?? "";
+const panelTitle: string = page.codeTitle ?? remarkPluginFrontmatter.panelTitle ?? "Example.cs";
+const panelLang: string = remarkPluginFrontmatter.panelLang ?? "csharp";
+
+const path = pagePath(entry.id);
+const canonical = `${siteUrl}${path}`;
+const title = entry.id === "welcome" ? `${siteName}: Casualties: Unknown modding library` : `${page.title} | ${siteName}`;
+const description = page.lead.trim();
+const structuredData = JSON.stringify(entry.id === "welcome"
+  ? { "@context": "https://schema.org", "@type": "WebSite", name: siteName, url: `${siteUrl}/`, description }
+  : {
+      "@context": "https://schema.org",
+      "@type": "TechArticle",
+      headline: page.title,
+      description,
+      url: canonical,
+      about: ["CUCoreLib", "Casualties: Unknown", "Casualties Unknown modding", "BepInEx"],
+      isPartOf: { "@type": "WebSite", name: siteName, url: `${siteUrl}/` }
+    }).replace(/</g, "\\u003c");
+---
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="dark" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonical} />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:site_name" content={siteName} />
+    <meta property="og:image" content={`${siteUrl}/logo.png`} />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <link rel="sitemap" href="/sitemap-index.xml" />
+    <script type="application/ld+json" set:html={structuredData} />
+  </head>
+  <body data-page={entry.id}>
+    <div class="app-shell">
+      <header class="topbar">
+        <a class="brand" href="/">
+          <img class="brand-mark" src="/logo.png" alt="" aria-hidden="true" />
+          <div class="brand-title">CUCoreLib</div>
+        </a>
+        <nav class="api-picker" aria-label="API pages">
+          {previous ? <a class="nav-button" id="top-prev" href={pagePath(previous.id)} aria-label="Previous page">&lt;</a> : <button class="nav-button" type="button" disabled aria-label="Previous page">&lt;</button>}
+          <details class="api-menu" id="api-menu">
+            <summary class="api-menu-button">
+              <span id="api-menu-label">{page.label}</span>
+              <span class="api-menu-chevron" aria-hidden="true">v</span>
+            </summary>
+            <div class="api-menu-panel">
+              {navGroups.map((group) => (
+                <details class="api-menu-group" open>
+                  <summary>{group.label}</summary>
+                  <div class="api-menu-links">
+                    {group.pages.map((id) => allDocs.get(id)).filter((doc) => !!doc).map((doc) => doc!.data.draft
+                      ? <span class="api-menu-placeholder" aria-disabled="true">{doc!.data.label}</span>
+                      : <a href={pagePath(doc!.id)} class:list={{ "is-active": doc!.id === entry.id }}>{doc!.data.label}</a>)}
+                  </div>
+                </details>
+              ))}
+            </div>
+          </details>
+          {next ? <a class="nav-button" id="top-next" href={pagePath(next.id)} aria-label="Next page">&gt;</a> : <button class="nav-button" type="button" disabled aria-label="Next page">&gt;</button>}
+          <div class="docs-search">
+            <label class="search-label" for="docs-search-input">Search docs</label>
+            <input class="search-input" id="docs-search-input" type="search" placeholder="Search pages and API..." autocomplete="off" spellcheck="false" />
+            <div class="search-results" id="docs-search-results" hidden></div>
+          </div>
+        </nav>
+        <div class="topbar-links" aria-label="Project links">
+          <a class="topbar-link" href="https://www.nexusmods.com/scavprototype/mods/341" target="_blank" rel="noopener noreferrer">NexusMods</a>
+          <a class="topbar-link" href="https://github.com/jimmyking9999999/CUCoreLib" target="_blank" rel="noopener noreferrer">GitHub</a>
+          <a class="topbar-link" href="https://discord.gg/ehCptz9pwU" target="_blank" rel="noopener noreferrer"><span class="topbar-link-icon" aria-hidden="true">&#xf1ff;</span>Discord</a>
+        </div>
+      </header>
+
+      <div class="workspace">
+        <main class="lesson">
+          <article class="lesson-inner" id="lesson-content">
+            <p class="crumb">{page.crumb}</p>
+            <h1 class="page-title">{page.title}</h1>
+            <p class="lead">{page.lead}</p>
+            <Content />
+            <div class="page-controls">
+              {previous && <a class="pager previous" href={pagePath(previous.id)}><span>previous</span><strong>{previous.data.label}</strong></a>}
+              {next && <a class="pager next" href={pagePath(next.id)}><span>next</span><strong>{next.data.label}</strong></a>}
+            </div>
+          </article>
+        </main>
+
+        <div class="resize-handle" id="resize-handle" title="Drag to resize code panel"></div>
+
+        <aside class="code-panel" aria-label="Example C# code">
+          <div class="code-titlebar">
+            <h2 id="code-title">{panelTitle}</h2>
+          </div>
+          <div id="editor">
+            <Code code={panelCode} lang={panelLang as "csharp"} theme="dark-plus" class="panel-static" />
+          </div>
+          <div class="code-foot">
+            <span></span>
+            <div class="copy-actions">
+              <button class="copy-button" type="button" id="copy-code-clean">Copy without comments</button>
+              <button class="copy-button" type="button" id="copy-code">Copy</button>
+            </div>
+          </div>
+        </aside>
+      </div>
+    </div>
+    <script type="application/json" id="panel-source" data-lang={panelLang} set:html={JSON.stringify(panelCode).replace(/</g, "\\u003c")} />
+    <script>
+      import "../client/app.ts";
+    </script>
+  </body>
+</html>

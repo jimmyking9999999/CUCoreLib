@@ -1,0 +1,190 @@
+---
+title: "CUCoreUtils"
+label: "CUCoreUtils"
+crumb: "Helper APIs"
+lead: "Small helper APIs for timing, readiness checks, PlayerPrefs accessors, world/item helpers, alerts, reflection, console bridging, keys, audio, and compression."
+---
+## What's in CUCoreUtils
+
+`CUCoreUtils` (in `CUCoreLib.Helpers`) is a grab bag of small helpers. This page lists them by topic.
+
+Most methods also have a lowercase alias (`GiveItem` / `giveItem`).
+- For older mods, use the PascalCase name.
+
+---
+
+## Timing and waiting
+
+| Method | What it does |
+| --- | --- |
+| `AwaitWorldGeneration()` | `yield return` it in a coroutine to wait until a run has started. |
+| `AwaitMainMenu()` | Same, for the main menu. |
+| `IsWorldGenerationReady()` / `IsInWorld()` | Whether the world exists / and the player too. |
+| `IsMainMenuReady()` | Whether the main menu is up. |
+| `DelayCall(seconds, action)` | Run something after a delay (real time). |
+| `CallWhen(condition, action)` | Run something once `condition` becomes true. |
+| `StartCoroutine(routine)` | Run a coroutine from anywhere, even static code with no `MonoBehaviour`. |
+
+```csharp
+// Give the player a starter kit once the run has started
+CUCoreUtils.CallWhen(CUCoreUtils.IsInWorld, () => CUCoreUtils.GiveItem("bandage", 2));
+```
+
+---
+
+## Player
+
+| Method | What it does |
+| --- | --- |
+| `TryGetBody(out body)` | The local player's `Body`, if a run is active. |
+| `TryGetHeldItem(out item)` | The item in the player's active hand. |
+| `TryGetHoveredItem(out item)` | The item under the mouse, in the inventory or the world. |
+| `HasEquipped(id)` | Whether the player has an item with this ID in any slot. |
+| `GetMousePosition()` | Where the player is aiming, in world space. Very performant. |
+| `GiveItem(id, count)` | Put items in the player's inventory. Also registers them for multiplayer. |
+| `GiveItemSlot(id, slot, count)` | Same, into a specific slot. |
+| `Talk(text)` | Make the player say something. |
+| `TalkElectronic(text, item)` | Speak through an item (or a watch), in the electronic voice. |
+| `GetLastDialogue(id = true)` | The last line spoken. Locale ID, or raw text if id = false. |
+| `ShowAlert(text)` / `Alert(text, important, delay)` | The game's on-screen alert popup. |
+| `PlaySoundAt(clip, ...)` | Play a clip, see [Audio](/docs/audio/#playing-a-sound). |
+| `DoAmputate(item, limb)` | Run vanilla's amputation, e.g. from a `useLimbAction`. |
+
+---
+
+## Player events
+
+| Event | When it fires |
+| --- | --- |
+| `OnHeal` | After the `heal` console command heals the local player. |
+| `OnHealPlayer` | For every player a heal reaches, with their `Body`. In multiplayer the host sees each player, hence this function. |
+| `OnLastStand` | When a player enters last stand. In multiplayer, once on the host. |
+
+During these events, `EventPlayer` is the affected player, and `GiveItem` gives to them.
+
+```csharp
+CUCoreUtils.OnLastStand += () => CUCoreUtils.GiveItem("sterilizedbandage", 1);
+```
+
+---
+
+## Items
+
+| Method | What it does |
+| --- | --- |
+| `EditVanillaItem(id, edit)` | Change an existing item, see [Item API](/docs/item/#editing-an-existing-item). |
+| `EditRecipe` / `EditRecipes` / `LockRecipe` | Change recipes, see [Recipes](/docs/recipe/#changing-existing-recipes). |
+| `CreateCraftingQuality(id, fallbackName)` | A crafting quality with a display name, for new qualities. |
+| `IsModdedItem(id)` | Whether an item comes from a mod. |
+| `TryGetCustomItemInfo(id, out info)` | A modded item's `CustomItemInfo`. |
+| `ToCustomItemInfo(itemInfo)` | Copy a vanilla `ItemInfo` into a `CustomItemInfo` to add CUCoreLib fields. |
+| `SetItemSprite(item, sprite)` | Change one item's icon. `null` restores it. |
+| `SetItemLight(item, light)` | Change one item's light. `null` restores the registered `Light`. |
+| `SetWornSprite(id, sprite)` | Change a wearable's worn sprite, for every copy. |
+| `SetMultiWornSprite(id, limb, sprite)` | Same, for one of its extra limb pieces. |
+
+---
+
+## Sprites
+
+| Method | What it does |
+| --- | --- |
+| `SplitSpriteSheet(sheet, columns, rows)` | Cut a sprite sheet into separate sprites. |
+| `GetKeySprite(KeyCode)` | The game's key icon for a key. For UI. |
+
+```csharp
+Sprite sheet = AssetLoader.LoadEmbeddedSprite("Images.radio-frames.png");
+Sprite[] frames = CUCoreUtils.SplitSpriteSheet(sheet, columns: 4, rows: 2);
+
+// frames[0] is the top-left cell, then left to right, row by row
+AssetLoader.RegisterFrameAnimation("mymod.radio", frames, framesPerSecond: 8f);
+```
+- The cells must divide the sheet evenly.
+---
+
+## Keybinds
+
+`GetFriendlyKeyBind`, `AllowKeybindRebind`, and the other key helpers are covered on [Settings](/docs/settings/).
+
+---
+
+## Mod version checks
+
+`CheckModVersion` compares a loaded mod's version with the latest one published on Nexus or Thunderstore, and logs a warning to the BepInEx log and in-game console if it's out of date. 
+
+Note: It compares the version in your `[BepInPlugin]`, not the Nexus page's version label.
+
+```csharp
+CUCoreUtils.CheckModVersion("com.example.mymod");
+
+// Or handle it yourself
+CUCoreUtils.CheckModVersion("com.example.mymod", (current, latest) =>
+    Logger.LogWarning($"Please update! You have {current}, the latest is {latest}."));
+
+// Or check your own URL, e.g. a raw GitHub file
+CUCoreUtils.CheckModVersion("com.example.mymod", "https://raw.githubusercontent.com/example/mymod/main/version.txt");
+```
+
+The URL can return JSON (`{"com.example.mymod": "1.0.3"}`) or just the version (`1.0.3` or `v1.0.3`).
+
+---
+
+## Other helpers
+
+| Method | What it does |
+| --- | --- |
+| `GetBool` / `SetBool`, `GetFloat` / `SetFloat`, `GetString` / `SetString` | Read and write Unity `PlayerPrefs` with a default. |
+| `ConsoleLog(ConsoleScript.instance, text)` | Print to the in-game console. |
+| `ConsoleRunCommand(ConsoleScript.instance, command)` | Run a console command. |
+| `GetMethod` / `InvokeMethod` | Find and call a (private) method by name, via reflection. |
+| `LoadEmbeddedStream(path)` | Open an embedded resource as a `Stream`. Dispose it when done. |
+| `CompressGZip` / `DecompressGZip`, `CompressDeflate` / `DecompressDeflate` | Compress byte arrays. |
+| `value.IsFinite()` | Extension for `float` and `Vector2`, i.e. not NaN or infinity. |
+| `IsDemo()` | Whether the game is the Demo, see [Full Game Transition](/docs/full-game-transition/). |
+
+{/* Code shown in the side panel */}
+
+```csharp panel title="UseCUCoreUtils.cs"
+using System.Collections;
+using CUCoreLib.Helpers;
+using UnityEngine;
+
+private void Awake()
+{
+    // Wait for a run to start, without writing a coroutine
+    CUCoreUtils.CallWhen(CUCoreUtils.IsInWorld, OnRunStarted);
+
+    // React to the player entering last stand
+    CUCoreUtils.OnLastStand += () =>
+    {
+        CUCoreUtils.GiveItem("plushie", 1);
+        CUCoreUtils.Talk("Not yet...");
+    };
+
+    // Warn players when a newer version of this mod is out
+    CUCoreUtils.CheckModVersion("com.example.mymod");
+}
+
+private void OnRunStarted()
+{
+    // A small starter kit
+    CUCoreUtils.GiveItem("bandage", 2);
+    CUCoreUtils.ShowAlert("Good luck!");
+
+    // Remember how many runs this player has started
+    int runs = (int)CUCoreUtils.GetFloat("mymod.runs") + 1;
+    CUCoreUtils.SetFloat("mymod.runs", runs);
+
+    // Say something a few seconds in
+    CUCoreUtils.DelayCall(3f, () => CUCoreUtils.Talk($"Run number {runs}. Here we go."));
+}
+
+// Called from an item's useAction, for example
+private void ScanHeldItem()
+{
+    if (!CUCoreUtils.TryGetHeldItem(out Item held)) return;
+
+    string origin = CUCoreUtils.IsModdedItem(held.id) ? "modded" : "vanilla";
+    CUCoreUtils.TalkElectronic($"Scan complete: {origin} item.", held);
+}
+```

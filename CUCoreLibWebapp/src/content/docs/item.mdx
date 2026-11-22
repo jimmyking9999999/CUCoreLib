@@ -1,0 +1,173 @@
+---
+title: "Create an item"
+label: "Item API"
+crumb: "Content APIs"
+lead: "Register an item with vanilla ItemInfo fields and a CUCoreLib sprite lookup."
+codeGenerator: item
+codeTitle: "RegisterItems.cs"
+---
+import ItemGenerator from "../../components/ItemGenerator.astro";
+
+It's finally time to make the first modded thing! What better way to start than by adding a new item to the game? We'll be adding a Sunpear, in honor of the mushpear having its name changed.
+
+---
+
+## ItemRegistry.Register
+
+`ItemRegistry.Register` adds an item to the game. It takes three things: an ID, the item's stats, and its icon.
+
+```csharp
+Sprite sunpearSprite = AssetLoader.LoadEmbeddedSprite("Images.sunpear.png");
+
+ItemRegistry.Register(
+    "sunpear",      // ID, needed for recipes/saving and loading/locale/and the console.  
+    new CustomItemInfo
+    {
+        fullName = "Sunpear",
+        description = "A pale yellow fruit. Probably edible.",
+        category = "food",
+        weight = 0.4f,
+        value = 4,
+        tags = "cangetwet",
+        decayMinutes = 180f
+    },
+    sunpearSprite   // Sprite. Use AssetLoader.LoadEmbeddedSprite() here if needed.
+);
+```
+
+<img src="/images/sunpear-ingame.png" alt="In-game screenshot of the sunpear item" class="screenshot" />
+
+
+Sidenote: `CustomItemInfo` has every vanilla `ItemInfo` field, plus CUCoreLib extras like `DropPool` and `Container`, covered on the [Advanced Item API](/docs/advanced-item/) page, and is preferred over vanilla's `ItemInfo` class.
+
+
+---
+
+## Copying values from the game
+
+The quickest way to make an item is to copy a vanilla one! Open the decompiled `Item.cs` and look inside `SetupItems()`, where the game builds every `ItemInfo`.
+
+You can paste a `new ItemInfo { ... }` block from there into your `ItemRegistry.Register(...)` call as-is, then change what you need.
+
+Want a list of all vanilla items example? <a href="#" data-code-source="item-setup">Show a full item setup file</a> in the code panel.
+
+<img src="/images/decompiled-item-cs.png" alt="Decompiled Item.cs SetupItems method showing vanilla ItemInfo values." class="screenshot" />
+
+---
+
+## Editing an existing item
+
+`CUCoreUtils.EditVanillaItem` changes an item that is already registered, whether it's vanilla or from another mod:
+
+```csharp
+CUCoreUtils.EditVanillaItem("flimsyknife", info =>
+{
+    info.weight = 0.15f;
+    info.tags += ",myTag";
+});
+```
+
+---
+
+## Common fields
+
+These cover most items. Hover a field name in the code panel for more notes.
+
+| Field | Type | What it controls |
+| --- | --- | --- |
+| `fullName` | `string` | Display name. |
+| `description` | `string` | Tooltip text. |
+| `category` | `string` | `food`, `tool`, `weapon`, `medicine`, ... Decides which loot pools and UI groups it joins. |
+| `weight` | `float` | Inventory weight. |
+| `value` | `int` | Trade value. |
+| `tags` | `string` | Comma-separated vanilla tags, e.g. `cangetwet`. |
+| `decayMinutes` | `float` | How long the item takes to rot away. Leave at `0` for items that never decay. |
+| `rec` | `Recognition` | How hard the item is to identify. Defaults to `new Recognition(2)`. |
+| `usable` / `useAction` | `bool` / delegate | Whether the item can be used, and what happens. See below. |
+| `usableOnLimb` / `useLimbAction` | `bool` / delegate | Same, but used on a specific limb. |
+| `qualities` | `List<CraftingQuality>` | Crafting qualities this item provides to [recipes](/docs/recipe/). |
+
+<details>
+<summary>All other vanilla fields</summary>
+
+| Field | Type | What it controls |
+| --- | --- | --- |
+| `slotRotation` | `float` | Rotation of the icon in inventory slots. |
+| `rotSpeed` | `float` | Rot (decay) rate. Set for you from `decayMinutes`. |
+| `destroyAtZeroCondition` | `bool` | Destroy the item when its condition reaches zero. |
+| `scaleWeightWithCondition` | `bool` | Weight shrinks as condition drops (e.g. a draining container). |
+| `onlyHoldInHands` | `bool` | Can only be held in hands. |
+| `autoAttack` | `bool` | Holding the button repeats use/attack. |
+| `usableWithLMB` | `bool` | Left mouse button uses the item. |
+| `wearable` | `bool` | Can be worn. See [Advanced Item API](/docs/advanced-item/) for worn sprites. |
+| `wearableCanBeHeld` | `bool` | A wearable that can also be held. |
+| `desiredWearLimb` | `string` | Limb it is worn on. |
+| `wearSlotId` | `string` | Wear slot it occupies. |
+| `wearableArmor` | `float` | Armor while worn. |
+| `wearableIsolation` | `float` | Insulation while worn. |
+| `wearableHitDurabilityLossMultiplier` | `float` | How fast a worn item loses condition when hit. |
+| `wearableVisualOffset` | `int` | Draw offset of the worn sprite. |
+| `jumpHeightMultChange` | `float` | Change to jump height while worn/held. |
+| `combineable` | `bool` | Can be combined with other items. |
+| `ignoreDepression` | `bool` | Can be used even while depressed. |
+| `untradeable` | `bool` | Traders never stock it (full game). |
+| `decayInfo` | `byte` | `ItemInfo.DecayType` flags. `16` (`BatteryDecay`) drains charge instead of condition. |
+
+</details>
+
+---
+
+## Use actions
+
+`useAction` runs when the player uses the item, and gets their `Body`. `useLimbAction` runs when it is used on a limb (needs `usableOnLimb = true`), and gets that `Limb`.
+
+```csharp
+usable = true, // Required to allow usage of any item.
+useAction = (body, item) =>
+{
+    Sound.Play("eatCrunch", item.transform.position);
+    body.Eat(4f, 0.1f);         
+    body.Drink(5f);              
+    body.temperature += 1.5f;
+    body.talker.Talk("So spicy!");
+    item.condition -= 0.5f;        // Removes 50% condition
+},
+
+
+usableOnLimb = true,
+useLimbAction = (limb, item) =>
+{
+    Sound.Play("cream", item.transform.position);
+    limb.skinHealth += 10f;
+    limb.body.temperature += 1.5f;
+    item.condition -= 0.5f;        
+}
+```
+
+---
+
+## Giving the player an item
+
+Once registered, your item spawns like any vanilla one: through the console (`spawn sunpear`), loot pools, or code.
+
+```csharp
+// Spawns an item and returns the GameObject for future use if needed
+GameObject sunpear = CustomInstantiate.InstantiateReturn("sunpear", position, Quaternion.identity);
+```
+
+
+---
+
+Woah, that's a lot of info. Don't worry about memorizing every field. You can always come back to this page as a reference when you want to try new things with your items.
+
+Let's cool down with some sliders and buttons. Mess around with the toggles below to see how the item's ItemInfo changes based on what you want.
+
+---
+
+<ItemGenerator />
+
+---
+
+## Want to mess around more with creating custom items?
+
+Check out the [dedicated tools page](/tools/).

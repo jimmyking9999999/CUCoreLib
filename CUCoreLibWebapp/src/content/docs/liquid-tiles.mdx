@@ -1,0 +1,204 @@
+---
+title: "Liquid Tile API"
+label: "Liquid Tiles"
+crumb: "World"
+lead: "Register swimmable world liquids with custom visuals, touch effects, drinking behavior, and worldgen."
+---
+## Liquids? Tiles? Why not combine the two?
+
+A [liquid](/docs/liquids/) is what's inside a bottle. A **liquid tile** is that liquid as a pool in the world, something you can swim in, drink from, and fill bottles at.
+
+You'll want to register the liquid first, then a liquid tile that points at it.
+
+```csharp
+LiquidRegistry.Register("acidbrine", new CustomLiquidInfo
+{
+    name = "Acid brine",
+    description = "A shimmering pool of caustic industrial runoff.",
+    color = new Color(0.72f, 0.96f, 0.28f),
+
+    // By default, drinking from a tile liquid drinks 200ml at once.
+    onDrink = (ml, body) =>
+        {
+            float sip = ml * 0.01f; // Convert ml to 100ml for more intuitive values. 100ml is a sip.
+            
+            body.sicknessAmount += 20f * sip;
+            body.weightOffset += sip; 
+            body.limbs[0].pain += sip * 50f;
+            body.happiness -= 2f * sip; 
+            body.talker.EatBad();
+        },
+});
+
+// Now, we create the tile liquid
+LiquidTileRegistry.Register("acidbrinepool", new CustomLiquidTileInfo
+{
+    LiquidId = "acidbrine",     // the liquid this pool is made of
+    SicknessPerSecond = 6f,     // standing in it makes you sick
+    TemperaturePerSecond = 4f,  // and it's warm
+    SpawnAmount = 0.15f         // generates in new worlds
+});
+```
+
+That's all! Swimming, drinking (using the liquid's `onDrink`), filling containers, tooltips, saving, and multiplayer sync all work like vanilla water.
+
+---
+
+## Existing Effects
+
+| Field | Default | What it does |
+| --- | --- | --- |
+| `WetnessPerSecond` | `20` | Gets the body wet. |
+| `TemperaturePerSecond` | `0` | Heats (or with a negative value, cools) the body. |
+| `SicknessPerSecond` | `0` | Builds up sickness. |
+| `DirtynessPerSecond` | `0` | Makes the body dirty. |
+| `DisinfectPerSecond` | `0` | Disinfects limbs. |
+| `SlipPerSecond` | `0` | Makes it slippery. |
+| `RagdollBarDrainPerSecond` | `0` | Drains the ragdoll bar. |
+| `Buoyancy` / `Drag` | `0.6` / `0.915` | How floaty and thick it is to swim in. |
+| `PushBodies` | `true` | Treat bodies in it as swimming. |
+
+For anything else, use the callbacks. `context.DeltaTime` is the frame time. For instance,
+
+```csharp
+LiquidTileRegistry.Register("healingpool", new CustomLiquidTileInfo
+{
+    LiquidId = "disinfectant",
+    DisinfectPerSecond = 20f,
+
+    // Once, when a body steps in
+    OnEnter = (body, context) => body.talker.Talk("Warm..."),
+
+    // Every frame while inside
+    OnTouch = (body, context) =>
+    {
+        foreach (Limb limb in body.limbs)
+            limb.skinHealth = Mathf.Min(100f, limb.skinHealth + 2f * context.DeltaTime);
+    },
+
+    // Once, when it leaves
+    OnExit = (body, context) => body.happiness += 1f
+});
+```
+
+<details>
+<summary>Drinking and filling</summary>
+
+| Field | Default | What it does |
+| --- | --- | --- |
+| `ConsumeOnDrink` | `true` | Drinking from the pool removes liquid from the world. |
+| `ConsumeOnFill` | `true` | Filling a container removes liquid from the world. |
+| `FillLiquidId` | `LiquidId` | Fill containers with a different liquid than the pool shows. (Evil...) |
+| `OnDrinkOverride` | | Drink effect for the pool only, instead of the liquid's `onDrink`. |
+
+</details>
+
+---
+
+## Visuals
+
+By default, the pool looks like water tinted with the liquid's color. Change the tint with `Tint`, or give it a texture of its own:
+
+```csharp
+LiquidTileRegistry.Register("acidbrinepool", new CustomLiquidTileInfo
+{
+    LiquidId = "acidbrine",
+    Texture = "Images.acidbrine-surface.png", // embedded resource, or a file path. Tiling. 
+    Opacity = 0.5f                             // default 0.7f
+});
+```
+
+- **The texture must tile seamlessly**: it repeats once per world cell, and CUCoreLib does not hide seams for you.
+- Textures are not sent over multiplayer (yet), so every player needs the mod installed. 
+
+<details>
+<summary>Other visual options</summary>
+
+| Field | What it does |
+| --- | --- |
+| `Tint` | Color multiplier on the liquid's color. |
+| `ExistingVisualLiquidByte` | Which vanilla liquid to copy the look of. `1` (water) by default. |
+| `VisualMode` | Without a `Texture`: `ExistingLiquidPlusTint` (default), `Material`, `Sprite`, or `HighResImageGenerated`. |
+| `VisualMaterial` / `VisualSprite` / `HighResImage` | The material, sprite, or texture for those modes. |
+
+- If a wrapper library registers on behalf of another mod, pass the owning assembly with `Register(id, info, assembly)` so `Texture` is found in the right place.
+
+</details>
+
+---
+
+## Placing it in the world
+
+Set `SpawnAmount` above `0` and the liquid generates in new worlds, like vanilla pools.
+
+| Field | Default | What it does |
+| --- | --- | --- |
+| `SpawnAmount` | `0` | How much generates/layer. `0` means never. |
+| `SpawnLayers` | all | Which layers it can generate on, as a mask. |
+| `MaxFloodFill` | `128` | Largest pool size, in cells. |
+
+Build the `SpawnLayers` mask with the helpers (layer numbers start at 1):
+
+```csharp
+SpawnLayers = LiquidTileRegistry.LayersToMask(2, 3),  // only layers 2 and 3
+SpawnLayers = LiquidTileRegistry.AllLayersExcept(1),  // everywhere but layer 1
+```
+
+To place it from code once a world is loaded, e.g. in a console command:
+
+```csharp
+LiquidTileRegistry.Place("acidbrinepool", new Vector2Int(128, 42));     // one cell
+LiquidTileRegistry.FloodFill("acidbrinepool", new Vector2Int(132, 42)); // a pool, spreading like vanilla.
+// Note that a floodfill that covers too many tiles returns early and nothing occurs.
+```
+
+
+{/* Code shown in the side panel */}
+
+```csharp panel title="RegisterLiquidTiles.cs"
+using CUCoreLib.Data;
+using CUCoreLib.Registries;
+using UnityEngine;
+
+private void RegisterLiquidTiles()
+{
+    // 1. The liquid itself: what drinking it does
+    LiquidRegistry.Register("acidbrine", new CustomLiquidInfo
+    {
+        name = "Acid brine",
+        description = "A shimmering pool of caustic industrial runoff.",
+        color = new Color(0.72f, 0.96f, 0.28f),
+        valuePerLiter = 8f,
+        onDrink = (ml, body) =>
+        {
+            float dose = ml * 0.01f; // per 100 mL
+            body.Drink(dose * 2f);   // barely quenches thirst
+            body.sicknessAmount += dose * 9f;
+            body.happiness -= dose * 3f;
+        }
+    });
+
+    // 2. The pool in the world
+    LiquidTileRegistry.Register("acidbrinepool", new CustomLiquidTileInfo
+    {
+        LiquidId = "acidbrine",
+        Drag = 0.94f,              // thicker than water
+        WetnessPerSecond = 30f,
+        TemperaturePerSecond = 4f,
+        SicknessPerSecond = 6f,
+        SlipPerSecond = 0.35f,
+        Texture = "Images.acidbrine-surface.png", // must tile seamlessly
+        SpawnAmount = 0.15f,
+        MaxFloodFill = 96,
+
+        OnEnter = (body, context) => body.talker.Talk("Ow."),
+
+        // Burns the skin of every limb while inside
+        OnTouch = (body, context) =>
+        {
+            foreach (Limb limb in body.limbs)
+                limb.skinHealth -= 4f * context.DeltaTime;
+        }
+    });
+}
+```

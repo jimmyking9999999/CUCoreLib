@@ -1,0 +1,205 @@
+---
+title: "A quick TL;DR on Unity, C#, Decompilation, and BepInEx"
+label: "Modding TL;DR"
+crumb: "Getting Started"
+lead: "To create a BepInEx plugin, we must first create the universe..."
+---
+## The Unity mental model
+
+Casualties: Unknown is a Unity game. The running game is a set of loaded `Scene` objects, each holding `GameObject` objects. A GameObject is just a container until you attach `Component` objects to it.
+
+Every GameObject has a `Transform` (position, rotation, scale, and parent/child hierarchy). Most things you see in the game are GameObjects with components such as renderers, colliders, or gameplay scripts.
+
+```csharp
+// The player's body is a GameObject, like any other!
+GameObject player = PlayerCamera.main.body.gameObject;
+
+// Said gameObject's transform holds its position
+Vector3 position = PlayerCamera.main.body.transform.position;
+```
+
+---
+
+## Scripts are components
+
+A Unity gameplay script inherits from `MonoBehaviour`. MonoBehaviours are components, so they live on GameObjects and receive Unity lifecycle methods like `Awake`, `Start`, and `Update`.
+
+For modding, instead of creating a Unity project and pressing Play, you instead compile C# into a DLL, then have BepInEx load that DLL into the running game, with your code working with the objects the game created.
+
+[What is a MonoBehaviour?](https://www.youtube.com/watch?v=GSDJQVQnbSA&t=91s)
+```csharp
+public sealed class SimpleUnityExample : MonoBehaviour
+{
+    private void Awake() { }
+    private void Start() { }
+    private void Update() { }
+}
+```
+---
+
+## Lifecycle basics
+
+- `Awake` runs once, when Unity creates the object.
+- `Start` runs once, right before the object's first `Update`. (After `Awake`)
+- `Update` runs every rendered frame.
+- `FixedUpdate` runs on a fixed timestep, mostly for physics.
+
+Not every game object instantly exists when your plugin loads. Your plugin classes' `Awake` functions are the place to register content, config, and patches. 
+
+---
+
+## Update()
+
+`Update` runs every frame, so slow searches, reflection, file reads, or allocations work every frame, and can cause frame drops.
+I would know, I had 17 bug reports for QoL due to this...
+
+For working with time, (e.g. increasing blood amount per second, etc..) you'll want to use `Time.deltaTime`.
+`Time.deltaTime` is the time in seconds since the previous frame. Multiply by it when you mean "per second" instead of "per frame", or use it to run work on a timer:
+
+```csharp
+private float timer;
+
+private void Update()
+{
+    timer += Time.deltaTime;
+
+    // Only do the expensive work once per second
+    if (timer > 1f)
+    {
+        timer = 0f;
+        // ...
+    }
+}
+```
+For more info, see the Unity [documentation.](https://docs.unity3d.com/6000.2/Documentation/ScriptReference/Time-deltaTime.html)
+
+
+---
+
+## Prefabs and assets
+
+A `Prefab` is a reusable GameObject template. In modding, a common strategy is to clone or reference prefabs the game already uses. Making a new prefab from scratch is very hard without the Unity editor.
+
+```csharp
+// Load the "glowplantfruit" prefab, then clone (spawn) it into the world at this object's position
+Object prefab = Resources.Load("glowplantfruit");
+// Clones prefab into the world as a GameObject which then can be interacted with
+Instantiate(prefab, transform.position, transform.rotation);
+```
+
+The clone is a normal GameObject you can then move, edit, or destroy.
+
+For instance, if you'd then want said glowplantfruit to shine twice as much, you'd get the prefab's `Light2D` component and edit that. The original prefab will remain unchanged, whilst you now have a new modded item.
+
+---
+
+## Decompiling for values
+This is required for the vast majority of modders.
+
+Use [dnSpyEx](https://github.com/dnSpyEx/dnSpy/releases) to read the game's own code for reference. For instance, field names, method names, item IDs, and how an existing mechanic works. You are only reading it as reference. Do not edit the game DLL.
+
+To decompile the game, open this file in dnSpyEx or [ILSpy](https://github.com/icsharpcode/ilspy). All of the game's scripts live in it:
+
+```text
+C:\Program Files (x86)\Steam\steamapps\common\Casualties Unknown\CasualtiesUnknown_Data\Managed\Assembly-CSharp.dll
+```
+
+Keep it open in another window whilst modding, for reference! You'll need to look things up in it constantly.
+
+<img src="/images/dnspy-ex.png" alt="dnSpyEx showing decompiled code for CoilScript.cs" class="screenshot" />
+
+The decompiled code showing `CoilScript.cs`'s `Shock()` method. Ouch!
+
+---
+
+<details>
+<summary>Quick dnSpyEx shortcuts</summary>
+
+`Ctrl + Shift + K` opens the search window. Search "All of the Above" for function/class names, or "Number/String" when you know a literal value shown in-game. For example, searching `loot amount` can lead you toward `PreRunScript`.
+
+`Ctrl + Shift + R` analyzes references. If you are reading `Body.cs` and find a field like thirst, reference analysis helps find everything that reads or changes it.
+
+</details>
+
+---
+
+<details>
+<summary>Important scripts</summary>
+
+-   `Item.cs`: item list and item properties. 
+-   `Body.cs`: movement, actions, and most body/player variables.
+-   `PlayerCamera.cs`: most visual effects and other 'misc' effects.
+-   `Liquids.cs`: liquids and their effects.
+
+</details>
+
+---
+
+## Extracting images, sounds, and assets
+
+Use [AssetRipper](https://github.com/AssetRipper/AssetRipper) when you need the game's textures, sounds, or sprites as reference material.
+
+Open the AssetRipper GUI, select your Casualties: Unknown install folder, and export `all content` (not as a Unity project). Images end up under `Texture2D`, and sounds under `Sounds`.
+
+---
+
+## So, BepInEx?
+
+A BepInEx mod is a compiled C# DLL placed in `BepInEx/plugins`. BepInEx loads that DLL into the game process, and is the method of which our mod can interact with the game.
+
+CUCoreLib is just another plugin that yours may depend on, for convenience. It adds registration APIs and helpers, but ultimately does not change how you write your plugin.
+
+---
+
+## Recommended references
+
+-   [Unity 2022.3 MonoBehaviour scripting API](https://docs.unity3d.com/2022.3/Documentation/ScriptReference/MonoBehaviour.html) (note, the game runs Unity 2022.3)
+-   [Unity Manual: Prefabs](https://docs.unity3d.com/2022.3/Documentation/Manual/Prefabs.html)
+-   [BepInEx: Writing a basic plugin](https://docs.bepinex.dev/articles/dev_guide/plugin_tutorial/index.html)
+
+{/* Code shown in the side panel */}
+
+```csharp panel title="GlassRain.cs"
+// Not sure what any of this is? Not to worry. Skip past this page for now
+// and come back to it after you read the rest of the docs.
+
+using UnityEngine;
+
+namespace MyFirstCasualtiesMod
+{
+    // A component that rains glass shards on the player once per second
+    public class GlassRain : MonoBehaviour
+    {
+        private Object glassShard;
+        private float elapsed;
+
+        private void Awake()
+        {
+            // Runs first: cache anything you will use often
+            glassShard = Resources.Load("glassshard");
+        }
+
+        private void Start()
+        {
+            // Runs once, right before the first Update
+            Debug.Log("Bring an umbrella!");
+        }
+
+        private void Update()
+        {
+            // Runs every frame, so count time with Time.deltaTime
+            elapsed += Time.deltaTime;
+            if (elapsed < 1f)
+            {
+                return;
+            }
+
+            elapsed = 0f;
+
+            // It's raining glass shards! Ahhhh!
+            Vector3 abovePlayer = PlayerCamera.main.body.transform.position + Vector3.up * 3f;
+            Instantiate(glassShard, abovePlayer, Quaternion.identity);
+        }
+    }
+}
+```

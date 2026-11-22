@@ -1145,6 +1145,9 @@ namespace CUCoreLib.Registries
                         limb.pain -= useAmount * bandage.PainReduction;
                         limb.boneHealTimer -= useAmount * bandage.BoneHealTimerReduction;
                         limb.dislocationTimer -= useAmount * bandage.DislocationTimerReduction;
+                        if (bandage.MuscleHealAmount > 0f)
+                            CoUtils.instance.DoTimedOp("cucorelib_bandagemuscle" + limb.name,
+                                () => limb.muscleHealth += 1f, useAmount * bandage.MuscleHealAmount);
                     }, bandage.MinigameColor, limb), item);
 
                     if (bandage.CreateWrapSprite && !string.IsNullOrWhiteSpace(bandage.WrapSpritePath))

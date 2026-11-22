@@ -1,0 +1,162 @@
+---
+title: "Creating recipes"
+label: "Recipe API"
+crumb: "Content APIs"
+lead: "Creating custom recipes for all sorts of items!"
+codeGenerator: recipe
+codeTitle: "RegisterRecipes.cs"
+---
+import RecipeGenerator from "../../components/RecipeGenerator.astro";
+
+## RecipeRegistry.Register
+
+Recipes are plain vanilla `Recipe` objects, so crafting, ingredient matching, and result spawning all work exactly like the base game.
+
+```csharp
+RecipeRegistry.Register(new Recipe
+{
+    INT = 6,
+    category = Recipes.RecipeCategory.Utilities,
+    result = new RecipeResult { id = "cinderstalkbag" },
+    items = new List<RecipeItem>
+    {
+        // Each entry is one ingredient 
+        new RecipeItem(0.9f) { specificId = "cinderstalk" },
+        new RecipeItem(0.9f) { specificId = "cinderstalk" },
+        new RecipeItem(0.9f) { specificId = "cinderstalk" },
+        new RecipeItem(0f) { specificId = "rope" }, // any condition
+        new RecipeItem(0.9f) { specificId = "charredfern" },
+        new RecipeItem(0.9f) { specificId = "plasticchunk" }
+    }
+});
+```
+
+<img src="/images/cinderstalk-bag-craft-ingame.png" alt="Cinderstalk bag craft, with custom materials" class="screenshot" scale="0.6" />
+
+Note: Vanilla only shows a recipe once the player's INT is at least `INT - 3`. You'll want to temporarily set test recipes low (or set `specialKnown = true` to always show it!)
+
+---
+
+## Ingredients
+
+Each `RecipeItem` is one ingredient slot. There are three kinds:
+
+```csharp
+// A specific item, at 90% condition or better (vanilla's default)
+new RecipeItem { specificId = "stick" },
+
+// A specific item at any condition above 70%
+// For good game design, almost certainly you'll want it to be at 0% (0f)
+new RecipeItem(0.7f) { specificId = "ironore" },
+
+// A specific liquid, mL needed
+new RecipeItem(10f) { specificId = "biochem", isLiquid = true },
+
+// Any item with the "cutting" quality, at any condition.
+// destroyItem = false keeps the tool instead of using it up.
+new RecipeItem(0f) { quality = "cutting", destroyItem = false },
+
+// Higher hammering quality needed
+new RecipeItem(0f) { quality = new CraftingQuality("hammering", 4f), destroyItem = false },
+```
+
+The constructor number is the minimum condition (`0`–`1`) for items, or the amount in mL for liquids.
+
+Common vanilla qualities include `cutting`, `hammering`, and `heatsource`. Your own items can provide qualities through their `qualities` field, including new ones.
+
+- You'll need `CUCoreUtils.CreateCraftingQuality(id, fallbackName)` to give a new quality a display name.
+
+---
+
+## Changing existing recipes
+
+Recipes are rebuilt fresh every run, like vanilla. So changing a `Recipe` object after registering it, or editing `Recipes.recipes` directly, does **not** stick. Use `EditRecipe`, which re-applies your change every run:
+
+```csharp
+// Every recipe that makes a flimsyknife
+CUCoreUtils.EditRecipe("flimsyknife", recipe =>
+{
+    recipe.INT = 0;
+});
+
+// Every recipe matching a condition, e.g. all Food recipes
+CUCoreUtils.EditRecipes(
+    recipe => recipe.category == Recipes.RecipeCategory.Food,
+    recipe => recipe.result.amount *= 2);
+```
+
+This works on vanilla recipes and on recipes from any mod.
+- If it's for a mod, you'll want to add a BepInEx soft dependancy so it loads afterwards.
+
+---
+
+## Unlock conditions
+
+A recipe can be locked behind your own condition. While it returns `false`, the recipe is hidden and can't be crafted. Once it returns `true`, the normal INT rule applies again.
+
+```csharp
+// Your own recipe, pass the condition when registering
+RecipeRegistry.Register(new Recipe { ... }, () => MyMod.foundAltar);
+
+// Any recipe, by result ID
+CUCoreUtils.LockRecipe("mercscarf", () => MyMod.PreventMercRunSetting);
+```
+
+The condition runs every time the crafting list refreshes!, so keep it cheap (read a bool, don't search the world). 
+
+- Inside `EditRecipe` you can also call `RecipeRegistry.SetUnlockCondition(recipe, condition)`. Pass `null` to remove a lock.
+- Blueprints never roll a recipe that is explicitly locked when they are used.
+
+---
+
+## Fields
+
+<details open>
+<summary>Recipe</summary>
+
+| Field | What it controls |
+| --- | --- |
+| `INT` | Intelligence needed. Crafting below it can give a worse result/fail. |
+| `specialKnown` | Always show the recipe, ignoring the INT visibility rule. |
+| `category` | Crafting menu tab: `Materials`, `Tools`, `Medicine`, `Utilities`, or `Food`. (Update: Soon!) |
+| `items` | The ingredient slots. |
+| `result` | What it makes. |
+| `isRepair` | Marks a repair recipe, where the result item can also be an ingredient. |
+
+</details>
+
+<details>
+<summary>RecipeResult</summary>
+
+| Field | Default | What it controls |
+| --- | --- | --- |
+| `id` | | Item or liquid ID produced. Required. |
+| `amount` | `1` | How many to make. |
+| `resultCondition` | `1` | Starting condition, or mL for a liquid result. |
+| `isLiquid` | `false` | `id` is a liquid. It is put into a container. |
+| `dontDrainResultLiquid` | `false` | Keep the liquid a crafted container spawns with, instead of emptying it. |
+
+</details>
+
+<details>
+<summary>RecipeItem</summary>
+
+| Field | Default | What it controls |
+| --- | --- | --- |
+| `specificId` | | Exact item or liquid ID to require. |
+| `quality` | | Crafting quality to require instead. |
+| `minimumCondition` | `0.9f` | Minimum condition, or mL for liquids. Also the constructor argument. |
+| `isLiquid` | `false` | Take a liquid out of a container instead of an item. |
+| `destroyItem` | `true` | Use the item up. Set `false` for tools. |
+
+- `specific` is set for you whenever `specificId` is filled.
+
+</details>
+
+---
+
+## Try it
+
+Change the result and ingredients below to see the matching code on the right.
+
+<RecipeGenerator />

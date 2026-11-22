@@ -1,0 +1,208 @@
+---
+title: "BuildingEntity API"
+label: "Building Entities"
+crumb: "World"
+lead: "Register sprite-backed world objects with placement rules, custom scripts, drops, and optional world generation."
+---
+## Registering a building
+
+Building entities are the objects placed in the world.
+
+For instance, plants, veins, crates, machines, etc... `BuildingEntityRegistry.Register` creates one from a sprite and a few stats:
+
+```csharp
+BuildingEntityRegistry.Register("centrifuge", new CustomBuildingEntityDefinition
+{
+    Name = "Centrifuge",
+    Description = "A mechanical device capable of separating selected liquids from containers.",
+    Sprite = AssetLoader.LoadEmbeddedSprite("Images.centrifuge.png"),
+    Health = 500f,
+    Metallic = true,           // plasma cutters do extra damage
+    HitSoundReferenceId = "metal",
+
+    // Placement rules
+    Placement = BuildingPlacementType.Floor,
+    SpawnMinPerChunk = 0.07f,
+    SpawnMaxPerChunk = 0.07f,
+    SpawnLayers = BuildingEntityRegistry.LayersToMask(3, 4, 5),
+    SurfaceOffset = 0.5f,
+
+    // Custom script
+    Components = new[] { typeof(CentrifugeScript) }, 
+
+    // Item drops
+    ItemsDropOnDestroy = new[]
+    {
+        BuildingEntityRegistry.AddDrop("scrapmetal"),       // always drops
+        BuildingEntityRegistry.AddDrop("conicalFlask", 0.5f) // 50% chance
+    }
+});
+```
+
+<img src="/images/centrifuge-ingame.png" alt="In-game screenshot of the centrifuge building entity, showing its sprite and health bar." class="screenshot" />
+
+Once registered, spawn it with the console (`spawn centrifuge`), from code, or let world generation place it (below). It is saved and synced like vanilla buildings.
+
+---
+
+## Drops
+
+`AddDrop(id, chance, conditionMin, conditionMax)` adds one drop.
+
+```csharp
+BuildingEntityRegistry.AddDrop("glass");                // 100%, full condition
+BuildingEntityRegistry.AddDrop("glass", 0.5f);          // 50% chance
+BuildingEntityRegistry.AddDrop("glass", 1f, 0.4f, 1f);  // always, 40-100% condition
+```
+
+| Field | What it does |
+| --- | --- |
+| `ItemsDropOnDestroy` | Drops rolled when the building breaks. |
+| `AlwaysDrop` | Drops that always spawn. This chance is never rolled. |
+| `DropChanceMultiplier` | Multiplies every chance in `ItemsDropOnDestroy`. Default `1`. Can be dynamically set. |
+| `ItemCategoriesToAdd` / `GuaranteedDropAmount` | Also drop this many random items from these loot categories, like a crate. |
+
+---
+
+## Generating in the world
+
+Set a spawn density and the building will generate on layers.
+
+```csharp
+BuildingEntityRegistry.Register("glassvein", new CustomBuildingEntityDefinition
+{
+    Name = "Glass vein",
+    Description = "A brittle mineral seam in the wall.",
+    Sprite = AssetLoader.LoadEmbeddedSprite("Images.glassvein.png"),
+
+    Placement = BuildingPlacementType.Wall,      // grows out of walls
+    SpawnMinPerChunk = 0.02f,                    // 2 -   
+    SpawnMaxPerChunk = 0.03f,                    //   - 3 per 100 chunks
+    SpawnLayers = BuildingEntityRegistry.AllLayersExcept(1, 2),
+    SurfaceOffset = 0.35f,                       // sit closer to the wall
+
+    ItemsDropOnDestroy = new[] { BuildingEntityRegistry.AddDrop("glass", 1f, 0.4f, 1f) }
+});
+```
+
+| Field | Default | What it does |
+| --- | --- | --- |
+| `SpawnMinPerChunk` / `SpawnMaxPerChunk` | `0` | How many generate per chunk (a random amount between the two). `0` means none. |
+| `Placement` | `Floor` | Which surface it attaches to, e.g. `Floor`, `Wall`, `Ceiling`. |
+| `SpawnLayers` | all | Layers it can generate on. Build it with `LayersToMask(3, 4)` or `AllLayersExcept(1)`. (Layers are 1-indexed!) |
+| `SurfaceOffset` | `0.5` | Distance from the surface. Goes upwards from the floor, left/right from the wall, or downwards from the ceiling. |
+| `SpawnInGround` | `false` | Allow spawning inside terrain. |
+| `RandomFlip` | `true` | Randomly mirror it horizontally. |
+| `RandomFlipVertical` | `false` | Randomly mirror it vertically. Woah... |
+| `GenerationStyle` | `Standard` | `DropPod` drops it in like a supply pod. `None` disables generation even with a density. |
+
+---
+
+## Making it do something
+
+Attach your own `MonoBehaviour` with `Components`. 
+
+To make the player able to use the building, add vanilla's `UsableObject` - it calls `OnUse()` on your script when the player interacts in that case.
+
+```csharp
+Components = new[] { typeof(CentrifugeScript) },
+```
+
+```csharp
+public sealed class CentrifugeScript : MonoBehaviour
+{
+    private void Start()
+    {
+        // Shows the "use" prompt and makes the building clickable
+        UsableObject usable = gameObject.AddComponent<UsableObject>();
+        usable.didLangString = true;
+        usable.toggleString = "Separate held liquid";
+    }
+
+    // Called by vanilla when the player uses the building
+    public void OnUse()
+    {
+        PlayerCamera.main.DoAlert("Whirr...");
+        // Other behavior goes here
+    }
+}
+```
+
+The [Advanced BuildingEntity API](/docs/advanced-building-entities/) covers physics, animation, colliders, and more.
+
+---
+
+## Other common fields
+
+| Field | Default | What it does |
+| --- | --- | --- |
+| `Health` | `250` | How much damage it takes to break. |
+| `Metallic` | `false` | Plasma cutters do extra damage, like vanilla metal. |
+| `CantHit` | `false` | Can't be hit at all, e.g. decorations. |
+| `RequireGround` | `true` | Breaks when the ground under it is destroyed. |
+| `HitSound` / `HitSoundReferenceId` | | A clip, or the name of a vanilla hit sound like `"metal"`. |
+| `HeatRadius` / `HeatPerSecond` | `0` | Warms or cools players within this radius, like a campfire. |
+| `MaxHeatBodyTemperature` | `0` | Stop warming/cooling above this body temperature. `0` = no limit. |
+| `SortingOrder` | `5` | Draw order. Higher is in front. |
+| `Scale` | `(1, 1, 1)` | Size. |
+
+{/* Code shown in the side panel */}
+
+```csharp panel title="RegisterBuildings.cs"
+using CUCoreLib.Data;
+using CUCoreLib.Helpers;
+using CUCoreLib.Registries;
+using UnityEngine;
+
+private void RegisterBuildings()
+{
+    BuildingEntityRegistry.Register("centrifuge", new CustomBuildingEntityDefinition
+    {
+        Name = "Centrifuge",
+        Description = "A mechanical device capable of separating selected liquids from containers.",
+        Sprite = AssetLoader.LoadEmbeddedSprite("Images.centrifuge.png"),
+        Health = 500f,
+        Metallic = true,
+        HitSoundReferenceId = "metal",
+
+        // Generates on the floor of layers 3-5, about 7 per 100 chunks
+        SpawnMinPerChunk = 0.07f,
+        SpawnMaxPerChunk = 0.07f,
+        SpawnLayers = BuildingEntityRegistry.LayersToMask(3, 4, 5),
+
+        // Our script, which makes it usable
+        Components = new[] { typeof(CentrifugeScript) },
+
+        ItemsDropOnDestroy = new[]
+        {
+            BuildingEntityRegistry.AddDrop("scrapmetal", 1f, 0.8f, 1f), // always, 80-100% condition
+            BuildingEntityRegistry.AddDrop("conicalFlask", 0.8f)         // 80% chance
+        }
+    });
+}
+
+public sealed class CentrifugeScript : MonoBehaviour
+{
+    private void Start()
+    {
+        // Vanilla component: shows a use prompt and calls OnUse() below
+        UsableObject usable = gameObject.AddComponent<UsableObject>();
+        usable.didLangString = true;
+        usable.toggleString = "Separate held liquid";
+    }
+
+    public void OnUse()
+    {
+        Body body = PlayerCamera.main.body;
+        Item heldItem = body.GetItem(body.handSlot);
+
+        if (heldItem == null || !heldItem.TryGetComponent(out WaterContainerItem container))
+        {
+            PlayerCamera.main.DoAlert("Hold a liquid container first.");
+            return;
+        }
+
+        // Drain a liquid from `container` and add its separated result here
+    }
+}
+```

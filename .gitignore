@@ -288,6 +288,7 @@ FakesAssemblies/
 .ntvs_analysis.dat
 node_modules/
 CUCoreLibWebapp/dist/
+CUCoreLibWebapp/.astro/
 
 # Visual Studio 6 build log
 *.plg

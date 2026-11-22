@@ -852,6 +852,28 @@ namespace CUCoreLib.Helpers
             return SetItemSprite(item, iconSprite);
         }
 
+        /// <summary>
+        /// Overrides the light of one live item instance without touching the shared item registration.
+        /// The override is applied immediately and survives CUCoreLib's later re-applies (pickup, sprite swaps, reloads).
+        /// Pass <c>null</c> to clear it and fall back to the registered <see cref="CustomItemInfo.Light"/>, or switch the light off if none is registered.
+        /// The override is saved with the item and restored on load.
+        /// </summary>
+        /// <param name="item">Live item instance to update.</param>
+        /// <param name="light">Light settings for this instance. Edits to this object take effect on the next call or re-apply.</param>
+        public static bool SetItemLight(Item item, LightProperties light)
+        {
+            if (item == null) return false;
+            if (!ItemRegistry.TryGetCustomInfo(item, out var def)) return false;
+
+            ItemRegistryPatches.SetRuntimeLightOverride(item, def, light);
+            return true;
+        }
+
+        public static bool setItemLight(Item item, LightProperties light)
+        {
+            return SetItemLight(item, light);
+        }
+
         public static void DoAmputate(Item item, Limb limb)
         {
             if (item == null || limb == null) return;

@@ -1,0 +1,89 @@
+---
+title: "Multi-block structures"
+label: "Multi-Block Structures"
+crumb: "World"
+lead: "Creating structures in your mods."
+---
+## What this API is for
+
+Structures are pre-built rooms or ruins, with a layout of tiles, buildings, and items that generates as one piece. For a single object, use a [building entity](/docs/building-entities/) instead.
+
+---
+
+## Building a structure
+
+Design it in the [CU Custom Structures editor](https://cu-custom-structures.jimmyking.dev/index.html), export the JSON, then register that exported payload through `StructureRegistry`.
+
+Reminder to go into the settings and enable the `I'm a modder!` setting.
+
+<img src="/images/custom-structure-editor.png" alt="CU Custom Structures editor showing a multi-block structure authoring layout." class="screenshot" />
+
+---
+
+## Registering it
+
+Embed the exported JSON in your mod and register it under an ID:
+
+```csharp
+StructureRegistry.RegisterFromEmbeddedJson("fieldlab", "Structures.field_lab.json");
+```
+
+Or from other sources:
+
+```csharp
+// A loose file
+StructureRegistry.RegisterFromFile("crashsite", Path.Combine(Paths.PluginPath, "MyMod", "Structures", "crashsite.json"));
+
+// JSON text you already have
+StructureRegistry.RegisterFromJson("campheaterroom", json);
+```
+
+Once registered, it generates in new worlds automatically.
+
+---
+
+## Spawn counts and overrides
+
+The exported JSON includes `spawnCounts`, or how many copies generate on each layer, starting at layer 1. Change them from code without editing the file:
+
+```csharp
+// None on layer 1, one on layer 2, two on layers 3 and 4, three on layer 5. Continue for the rest of the layers as needed!
+StructureRegistry.TrySetSpawnCounts("fieldlab", 0, 1, 2, 2, 3);
+```
+
+
+---
+
+## Placing one from code
+
+```csharp
+// Build a fieldlab at this position in the current world
+StructureRegistry.Place("fieldlab", position);
+```
+
+{/* Code shown in the side panel */}
+
+```csharp panel title="RegisterStructures.cs"
+using System.IO;
+using BepInEx;
+using CUCoreLib.Registries;
+
+[BepInPlugin("com.example.structuremod", "Structure Mod", "1.0.0")]
+[BepInDependency("net.cucorelib")]
+public class Plugin : BaseUnityPlugin
+{
+    private void Awake()
+    {
+        // Exported from the structure editor, embedded in the DLL
+        StructureRegistry.RegisterFromEmbeddedJson("fieldlab", "Structures.field_lab.json");
+
+        // A loose file next to the mod, so players can edit it
+        StructureRegistry.RegisterFromFile(
+            "crashsite",
+            Path.Combine(Paths.PluginPath, "MyMod", "Structures", "crashsite.json"));
+
+        // Spawn counts per layer (layer 1 first), overriding the file's own
+        StructureRegistry.TrySetSpawnCounts("fieldlab", 0, 1, 2, 2, 3);
+    }
+}
+```

@@ -1,0 +1,14 @@
+---
+import DocPage from "../../../components/DocPage.astro";
+import { getPublishedDocs } from "../../../docs.ts";
+
+export async function getStaticPaths() {
+  // welcome lives at / and tools at /tools/
+  return (await getPublishedDocs())
+    .filter((entry) => entry.id !== "welcome" && entry.id !== "tools")
+    .map((entry) => ({ params: { id: entry.id }, props: { entry } }));
+}
+
+const { entry } = Astro.props;
+---
+<DocPage entry={entry} />

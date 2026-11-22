@@ -1,0 +1,196 @@
+---
+title: "Multiplayer sync"
+label: "Multiplayer Sync"
+crumb: "Misc / API"
+lead: "Multplayer Sync!"
+---
+## Wait, what?
+
+CUCoreLib has a soft compatibility layer for `Casualties: Together`.
+
+This is split into two main sections:
+
+- `Content` - custom items, buildings, tiles and liquids you registered through CUCoreLib resolve over C:T's own object sync, so a peer can spawn your content, with all item data that exists inside CUCoreLib's registries.
+
+- `State` - CUCoreLib runs its own host-authoritative snapshot on top of KrokMP's transport, plus a request and message API for your traffic.
+
+
+<img src="/images/mp-integration-ingame.png" alt="In-game screenshot of registered content working in multiplayer. Look, ma! No mp code." class="screenshot" />
+
+When a player joins, the host automatically sends them every mod's registered content, so it matches.
+
+| Module key | What crosses the wire |
+| --- | --- |
+| `items` | Custom item definitions (e.g. names, descriptions, category, sprites, wearable flags, weight and condition behaviour) |
+| `liquids` | Custom liquid definitions (e.g. colour, value per litre, injection and usability flags, crafting qualities) |
+| `lootpools` | Loot pool contents and weights (world loot matches the host) |
+| `tiles` | Custom block definitions. |
+| `liquidtiles` | Liquid tile definitions. |
+| `buildings` | Custom building entity definitions. |
+| `moodles` | Custom moodle definitions. |
+| `settings` | Registered mod options and their values. |
+| `locale` | Custom locale strings (item, liquid, building, moodle, and option names/descriptions) are resolved into each client's own language. |
+| `statuses` | Custom statuses are synced per-player in multiplayer, with clients and the host able to read/write into them. |
+| `CustomData` | Custom data types attached to items sync and likewise can be read. |
+
+
+A player without your mod still sees your items and buildings. They only need it for your **code** to run on their side.
+
+This includes scripts, patches, and use actions primarily, and cannot be sent fully for safety reasons.
+
+That is, your own scripts' state, data you keep outside CUCoreLib, and anything that changes after a player joined will not automatically sync. For those, send messages with the multiplayer API!
+
+---
+
+## Changing a player's health values
+
+
+Go through the host with `MultiplayerApi.Apply` / `ApplyAbsolute` route to change body state as a client.
+
+```csharp
+MultiplayerApi.Apply(body, "brainHealth", -10f);        // add 10 brain damage
+MultiplayerApi.ApplyAbsolute(body, "brainHealth", 100f); // set it exactly
+MultiplayerApi.Apply(limb, "bleedAmount", 2f);           // works on limbs too
+MultiplayerApi.ApplyAbsolute(limb, "broken", true);       // and bool fields
+```
+
+On the host, or in singleplayer, the change happens immediately. On a client it's sent to the host, and applied to the client. 
+
+- This Works with public `float` and `bool` fields of `Body` and `Limb`.
+
+---
+
+## Sending messages
+
+`MultiplayerApi` (in `CUCoreLib.Networking`) lets your mod send its own messages. A message has a **channel** name (namespace it, e.g. `mymod.shout`) and a payload: a string, number, or `JObject`.
+
+For instance, as an example:
+
+```csharp
+// Once, in Awake.
+// What to do when the message arrives (handler)
+MultiplayerApi.RegisterHandler("mymod.shout", payload => CUCoreUtils.ShowAlert((string)payload));
+
+// Anywhere
+// Send it to every player, including yourself (broadcasts)
+MultiplayerApi.BroadcastEverywhere("mymod.shout", "meow!");
+```
+
+- In singleplayer, `BroadcastEverywhere` just runs your own handler, so the same code works there too.
+
+- The other sends return `false` instead of throwing when not in multiplayer.
+
+| Send with | Arrives on |
+| --- | --- |
+| `BroadcastEverywhere` | Every player, including the sender. Usually what you want. |
+| `BroadcastToPeer(channel, clientId, ...)` | One specific player, from anyone. |
+| `SendToServer` / `RequestServer` | The host (`RequestServer` also gets an answer back). |
+| `SendToClient(clientId, ...)` / `Broadcast` | One / every client, sent from the host. |
+
+| Receive with | Runs on |
+| --- | --- |
+| `RegisterHandler` | Everyone. |
+| `RegisterServerHandler` | The host. Return a `JToken` to answer a `RequestServer`, or `null`. |
+| `RegisterClientHandler` | Clients. |
+
+Register handlers once, in `Awake`.
+
+---
+
+## Asking the host a question
+
+`RequestServer` allows you to send a question and gets the answer back.
+
+```csharp
+// Host side, in Awake
+MultiplayerApi.RegisterServerHandler("mymod.is-unlocked", request =>
+{
+    string feature = (string)request["feature"];
+    return new JObject { ["unlocked"] = MyMod.IsUnlocked(feature) };
+});
+
+// Client side
+MultiplayerApi.RequestServer("mymod.is-unlocked", new JObject { ["feature"] = "challenge-mode" }, response =>
+{
+    bool unlocked = (bool?)response?["unlocked"] ?? false;
+});
+```
+
+For something more complicated like a buildingEntity state, the client would need to request a change, have the host checks and apply it, then broadcasts the result to everyone.
+
+---
+
+## Syncing your own state on join
+
+For mod data that a joining player needs, like discovered markers or world unlocks, register a sync module. It's sent along with CUCoreLib's own data when a player joins.
+
+```csharp
+MultiplayerApi.RegisterSyncModule(
+    "mymod.markers",
+    () => MarkerManager.ToJson(),               // host: capture
+    snapshot => MarkerManager.FromJson(snapshot) // client: apply
+);
+```
+
+It works like a [save provider](/docs/saving/), but over the network. If the data changes later, call `MultiplayerApi.BroadcastSnapshot()` on the host to resend, or `RequestInitialSnapshot()` on a client to fetch it again.
+
+---
+
+## Reading another player's statuses
+
+Each player's statuses already sync to their own client. To read **another** player's statuses, ask by their client ID (that's the multiplayer ID, not their name).
+
+```csharp
+// From a client
+MultiplayerApi.RequestCustomPlayerData(clientId, response =>
+{
+    JArray statuses = response?["body"] as JArray; // their BodyStatuses
+});
+
+// On the host, directly
+JObject data = MultiplayerApi.GetCustomPlayerData(clientId);
+```
+
+- `RequestCustomPlayerLimbData` / `GetCustomPlayerLimbData` do the same for limb statuses (under `"limbs"`).
+
+---
+
+## Other helpers
+
+| Member | What it is |
+| --- | --- |
+| `IsRunning` | In a multiplayer session. |
+| `IsHost`, `IsServer`, `IsClient` | This instance's role. |
+| `IsAvailable` | Together is installed and CUCoreLib connected to it. |
+| `TryGetLocalBody(out body)` | This player's own `Body`. |
+| `KrokMpVersion` | The installed Together version, or `null`. |
+
+{/* Code shown in the side panel */}
+
+```csharp panel title="MultiplayerSync.cs"
+using CUCoreLib.Helpers;
+using CUCoreLib.Networking;
+
+// Example of an shout that pops up as an alert for every player in the lobby
+public static class ShoutAlert
+{
+    // Register for when a shout arrives
+    public static void Register()
+    {
+        MultiplayerApi.RegisterHandler("mymod.shout", payload =>
+            CUCoreUtils.ShowAlert((string)payload));
+    }
+
+    // Broadcast to everyone
+    public static void Shout(string text)
+    {
+        MultiplayerApi.BroadcastEverywhere("mymod.shout", text);
+    }
+
+    // Or only to one player
+    public static void ShoutTo(uint clientId, string text)
+    {
+        MultiplayerApi.BroadcastToPeer("mymod.shout", clientId, text);
+    }
+}
+```

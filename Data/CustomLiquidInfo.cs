@@ -44,6 +44,12 @@ namespace CUCoreLib.Data
         public bool unobtainable;
 
         /// <summary>
+        /// Whether this liquid is on the game's dangerous liquids list, so non-descript cans never roll it.
+        /// Defaults to <see cref="unobtainable"/> when left null.
+        /// </summary>
+        public bool? nondescriptDangerous;
+
+        /// <summary>
         /// Display name for the liquid.
         /// </summary>
         public string name;

@@ -1,0 +1,149 @@
+---
+title: "Advanced BuildingEntity API"
+label: "Advanced Buildings"
+crumb: "World"
+lead: "Advanced building prefab hooks, worldgen details, loot crate patterns, and minigame-driven buildings."
+---
+## When to use this page
+
+...When a building needs physics, animation, a custom collider, or extra setup code!
+
+ For props and basic entites, the [BuildingEntity API](/docs/building-entities/) page is enough.
+
+---
+
+## Scripts and setup code
+
+| Field | When it runs | Use it for |
+| --- | --- | --- |
+| `Components` | Added once to the template every copy is made from. | Your own `MonoBehaviour`s. The usual choice. |
+| `ConfigurePrefab` | Once, while the template is built. | Changing vanilla components on the template. |
+| `ConfigureInstance` | On every spawned copy. | Per-copy setup, like randomizing something. |
+| `SpawnComponents` | On every spawned copy, by type name. | Only for types you can't reference directly. Prefer `Components`. |
+
+```csharp
+BuildingEntityRegistry.Register("campheater", new CustomBuildingEntityDefinition
+{
+    Name = "Camp heater",
+    Sprite = heaterSprite,
+    Components = new[] { typeof(CampHeaterScript) },
+    ConfigureInstance = building =>
+    {
+        // Each heater gets a slightly different size
+        building.transform.localScale *= Random.Range(0.9f, 1.1f);
+    }
+});
+```
+
+---
+
+## Falling buildings
+
+`AddRigidbody2D = true` makes the building fall and collide like a vanilla crate. Add `DamagePlayerOnImpact` to make it hurt like a falling stalactite:
+
+```csharp
+BuildingEntityRegistry.Register("fallingrock", new CustomBuildingEntityDefinition
+{
+    Name = "Loose rock",
+    Sprite = rockSprite,
+    AddRigidbody2D = true,
+    DamagePlayerOnImpact = true // hurts limbs on fast impacts
+});
+```
+
+| Field | Default | What it does |
+| --- | --- | --- |
+| `RigidbodyBodyType` | `Dynamic` | Unity body type, e.g. `Kinematic` to move it only from code. |
+| `RigidbodyGravityScale` | `1` | How strongly it falls. |
+| `RigidbodyMass` | `10` | How hard it pushes, and is pushed by, other physics objects (including you!). Doesn't change fall speed or impact damage. |
+
+---
+
+## Collider, look, and layer
+
+| Field | What it does |
+| --- | --- |
+| `ColliderSize` / `ColliderOffset` | Override the collider generated from the sprite. |
+| `ColliderIsTrigger` | Make the collider a trigger, so things pass through it. |
+| `SpriteAnimationId` | Play a registered [animation](/docs/assets/#frame-animations) instead of a still sprite. |
+| `CopyGlowPlantLayer` | Draw above blocks but below the player and enemies, like plants. |
+| `LayerEnum` / `Layer` | Unity physics layer. Falling buildings default to the crate layer. |
+| `IgnoreBodyOptimize` | Keep the building active even when the player is far away. |
+| `PlaceCheck` | Your own check for whether a world-generation spot is valid. |
+
+---
+
+## Keypads and lockpicks
+
+To mimic a vanilla locked crate or droppod, you can use the `Openable` component. 
+
+Using it starts a keypad minigame (`isKeypad = true`) or a lockpick minigame, and solving it breaks the building open, dropping its contents:
+
+```csharp
+public sealed class SafeScript : MonoBehaviour
+{
+    private void Awake()
+    {
+        Openable openable = gameObject.AddComponent<Openable>();
+        openable.isKeypad = false;               // true = keypad minigame. See the decompied game's openable script for info.
+        openable.lockpickAnglePrecision = 1.25f; // lockpick difficulty
+    }
+}
+```
+
+`instantOpen = true` skips the minigame and opens it straight away. For a minigame of your own, see [Minigames](/docs/minigames/).
+
+{/* Code shown in the side panel */}
+
+```csharp panel title="RegisterAdvancedBuildings.cs"
+using System.Linq;
+using CUCoreLib.Data;
+using CUCoreLib.Helpers;
+using CUCoreLib.Registries;
+using UnityEngine;
+
+private void RegisterAdvancedBuildings()
+{
+    BuildingEntityRegistry.Register("moddedlootcrate", new CustomBuildingEntityDefinition
+    {
+        Name = "Modded Loot Crate",
+        Description = "What'll it be this time?",
+        Sprite = AssetLoader.LoadEmbeddedSprite("Images.modded-loot-crate.png"),
+        Metallic = true,
+        HitSoundReferenceId = "metal",
+
+        // Lands like a supply drop pod, clearing terrain around it
+        GenerationStyle = BuildingGenerationStyle.DropPod,
+        SpawnMinPerChunk = 0.01f,
+        SpawnMaxPerChunk = 0.015f,
+        SpawnLayers = BuildingEntityRegistry.AllLayersExcept(1, 2),
+
+        Components = new[] { typeof(ModdedLootCrateScript) }
+    });
+}
+
+// Opening the crate gives one random item from any mod
+public sealed class ModdedLootCrateScript : MonoBehaviour
+{
+    private void Awake()
+    {
+        // Vanilla component: shows a use prompt and calls OnUse()
+        UsableObject usable = gameObject.AddComponent<UsableObject>();
+        usable.didLangString = true;
+        usable.toggleString = "Open crate";
+    }
+
+    public void OnUse()
+    {
+        // Every item registered through CUCoreLib, from any mod
+        string[] moddedItems = ItemRegistry.GetRegisteredItemIds().ToArray();
+        if (moddedItems.Length == 0) return;
+
+        string rewardId = moddedItems[Random.Range(0, moddedItems.Length)];
+        CustomInstantiate.InstantiateReturn(rewardId, transform.position + Vector3.up * 0.25f, Quaternion.identity);
+
+        // Break the crate the way vanilla does, so drops and multiplayer sync still happen
+        GetComponent<BuildingEntity>().SetHealth(0f);
+    }
+}
+```

@@ -315,6 +315,7 @@ namespace CUCoreLib.Networking
                     ["injectionSickness"] = info.injectionSickness,
                     ["localeFromItem"] = info.localeFromItem
                     , ["unobtainable"] = info.unobtainable
+                    , ["nondescriptDangerous"] = info.nondescriptDangerous
                     , ["qualities"] = NetworkSnapshotSerialization.WriteCraftingQualities(info.qualities)
                 };
 

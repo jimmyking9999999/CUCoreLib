@@ -1,0 +1,337 @@
+---
+title: "Player"
+label: "Player"
+crumb: "Player"
+lead: "Reference for the vanilla Body player fields you will usually read or modify from mods, plus a few CUCoreLib helpers for accessing them safely."
+---
+## The player object
+
+The player is the vanilla `Body` component. Get the local player with:
+
+```csharp
+Body body = PlayerCamera.main.body;
+// For multiplayer, use 
+// Body body = CUCoreUtils.TryGetBody();
+float hunger = body.hunger;
+```
+---
+
+## Changing values vanilla recalculates
+
+Some `Body` fields, like `heartRate` or `maxEncumberance`, are recalculated by vanilla every frame or second, so writing to them directly is overwritten right away.
+
+`CCLBody` adds your own offset into vanilla's formula instead:
+
+```csharp
+CCLBody.MaxEncumberance = 10f; // the player can carry 10u more
+CCLBody.HeartRate = 15f;       // heart beats 15f faster
+```
+
+- Each value is **an offset that stays until you change it**, not a one-off nudge. So set it (`=`), and set it back to `0` when your effect ends, wearable gets removed, etc.... 
+- This means, Using `+=` every frame would keep stacking. Don't do this!
+
+
+| Offset | Adds to |
+| --- | --- |
+| `BloodPressure` | Target blood pressure (vanilla clamps it to 0–250). |
+| `HeartRate` | Target heart rate. |
+| `RespiratoryRate` | Target breathing rate (clamped to 0–100). |
+| `MaxEncumberance` | How much weight the player can carry. |
+| `TotalEncumberance` | How much weight the player is carrying. |
+| `Immunity` | Immune strength. |
+| `MaxSpeed` | Movement speed. |
+| `JumpSpeed` | Jump height. Use this instead of `body.jumpSpeed`, which is permanent and stacks across loads. |
+| `AveragePain` | Overall pain, without showing on any limb. |
+
+The real result still lives on the vanilla field, so you keep reading `body.heartRate`, `body.maxEncumberance`, and so on.
+
+---
+
+## Common Body fields
+
+Fields you can safely read, and change directly unless noted.
+
+| Field | What it is |
+| --- | --- |
+| `hunger`, `thirst` | Food and water meters. Prefer `Eat(hunger, weight)` and `Drink(amount)` to raise them. |
+| `stamina`, `energy` | Short-term stamina and tiredness. |
+| `consciousness` | `100` is fully awake. |
+| `happiness` | Mood. Vanilla slowly pulls it back toward `0`. |
+| `temperature` | Core temperature in °C (normal is around 37). |
+| `bloodVolume`, `bloodOxygen` | Blood amount and oxygen. |
+| `heartRate`, `bloodPressure` | Recalculated, use `CCLBody` to change. |
+| `brainHealth` | `0` means death. |
+| `shock` | Pain shock. High values incapacitate. |
+| `sicknessAmount`, `radiationSickness` | Sickness and radiation sickness. |
+| `wetness`, `dirtyness` | How wet and dirty the player is. |
+| `weightOffset` | Body weight gained or lost (food, liquids). |
+| `totalEncumberance`, `maxEncumberance` | Carried weight and limit. Recalculated, use `CCLBody` to change. |
+| `sleeping`, `crouching`, `grounded`, `inWater` | State flags. |
+
+| Reference | What it is |
+| --- | --- |
+| `limbs` | Every `Limb` (see below). Same order as the `setlimbfield` console command. |
+| `talker` | Speech bubbles: `body.talker.Talk("Hello!")`. |
+| `skills` | Skill levels, e.g. `body.skills.INT`. |
+| `slots` | Inventory and hand slots. |
+| `rb` | The `Rigidbody2D`, for physics and velocity. |
+
+<details>
+<summary>Want everything?</summary>
+
+**Circulation and breathing**
+
+| Field | What it is |
+| --- | --- |
+| `respiratoryRate` | Breathing rate. Recalculated, use `CCLBody.RespiratoryRate`. |
+| `breathing` | Whether the player is breathing at all. |
+| `bloodVesselSize` | Vessel constriction/dilation, drifts with temperature. Feeds blood pressure. |
+| `bloodViscosity` | Blood thickness. Raised by some medicines and liquids. |
+| `bloodPressureReadout` | The `"120/80"` text the health panel shows. |
+| `heartRatePressureOffset` | Extra heart rate from low blood pressure. |
+| `bloodPressureChangeFromMedicine` | Blood pressure change from medicine. |
+| `fibrillationProgress`, `fibrillationForced`, `randomFibrillationVariation` | Heart fibrillation buildup, forced fibrillation, and its random variation. |
+| `heartProg` | Progress through the current heartbeat (sound and pulse timing). |
+| `defibShockedFrames` | Frames since a defibrillator shock. |
+| `internalBleeding`, `hemothorax` | Internal bleeding and blood in the chest cavity. |
+| `hasPulmonaryEmbolism` | Pulmonary embolism. |
+| `strokeAmount` | Stroke severity. Above `50` it weakens stroke-affected limbs. |
+| `totalBleedSpeed` | Combined bleeding from every limb. Recalculated. |
+| `septicShock` | Septic shock from infection. |
+| `bloodScale` | Visual size of blood drips. |
+
+**Mood and mind**
+
+| Field | What it is |
+| --- | --- |
+| `adrenaline`, `curAdrenaline` | Adrenaline added, and the amount currently in effect. |
+| `opiateHappiness`, `antidepressantHappiness` | Mood from opiates and antidepressants. |
+| `layerModifierHappiness` | Mood from the current layer's beautiful/unsightly modifier. |
+| `lastHappiness` | Recent mood history (10 entries). |
+| `traumaAmount` | Psychological trauma. Lowers mood. |
+| `corpsesSeen`, `desensitizedMult` | Corpses seen and how much each new one still affects mood. |
+| `horrifiedLevel`, `focusedLevel` | Horror and focus levels. Decay toward `0`. |
+| `painShock` | `0`–`1` buildup of shock from pain. |
+| `averagePain` | Average pain over all limbs. Recalculated, use `CCLBody.AveragePain`. |
+| `mindWipe` | Active mindwipe effect, or `null`. |
+| `brainGrowSickness` | Sickness from braingrow, counts down. |
+| `usedNeuralBooster` | Whether a neural booster was used. |
+| `specialCrying` | Forces the crying face. |
+| `harmer` | The `SelfHarmer` component. |
+| `triedRollingLastStand`, `succesfullyRolledLastStand`, `lastStandTime`, `lastLastChanceHappiness` | Last stand roll state, timer and mood curve. |
+
+**Sleep, energy and stimulants**
+
+| Field | What it is |
+| --- | --- |
+| `curSleep`, `forcedSleepQuality` | Current sleep quality, and an override for it. |
+| `badSleepAmount`, `goodSleepTime` | Accumulated bad sleep, and when the player last slept well. |
+| `sleepCycleSpeed` | How fast energy drains. |
+| `usingSleepingBag` | Sleeping in a sleeping bag. |
+| `caffeinated` | Caffeine time left. |
+| `stimulantMultiplier`, `onHardStimulants` | Stimulant speed boost, and whether hard stimulants are active. |
+| `staminaGainMultiplier` | Stamina regeneration multiplier. |
+| `overdoseIndex` | Overdose state used by sleeping pills, antidepressants and moodles. |
+
+**Sickness, immunity and venom**
+
+| Field | What it is |
+| --- | --- |
+| `immunity` | Immune strength. Recalculated, use `CCLBody.Immunity`. |
+| `curImmunityMult` | Current infection speed from immunity. |
+| `antibioticImmunityTime` | Antibiotic protection time left. |
+| `infectionChanceMultiplier` | Chance for wounds to get infected. |
+| `venomTotal`, `venomCurrent`, `venomFake` | Venom injected, venom in effect, and fake venom (scares). |
+| `hearingLoss` | Hearing loss. |
+| `barotrauma` | Pressure damage from diving. |
+
+**Temperature and environment**
+
+| Field | What it is |
+| --- | --- |
+| `clothingTemperature` | Warmth from worn clothing. |
+| `tempDiffFromNormal` | How far core temperature is from normal. |
+| `snowAmount` | Snow on the player. |
+| `bodyAffect` | Liquid the player is standing in or touching. |
+| `hasScubaGear` | Wearing scuba gear (breathing underwater). |
+| `liquidDrinkTime` | Cooldown for drinking from liquid pools. |
+| `radGlow` | The radiation glow light. |
+
+**Movement**
+
+| Field | What it is |
+| --- | --- |
+| `maxSpeed`, `jumpSpeed` | Base speed and jump. Use `CCLBody.MaxSpeed`/`JumpSpeed`; `jumpSpeed` is saved and stacks. |
+| `moveForce`, `moveDir` | Movement force and current input direction. |
+| `temporarySlowdown`, `slowdownAmount` | Temporary slowdown (decays) and ground friction. |
+| `overEncumberance` | How far over the carry limit the player is. Recalculated. |
+| `forceWalk`, `forceNoMovement`, `reversedControls` | Force walking, block movement, flip controls. |
+| `standing`, `isRight`, `crouchAmount` | Standing upright, facing right, and crouch amount `0`–`1`. |
+| `liquidSlipTime`, `liquidRagdollBar` | Slipping on liquids. |
+| `wallSlideSlowdown`, `timeSlidfor`, `wallSlideParticle` | Wall sliding. |
+| `currentClimbable`, `climbableProgress`, `climbVelocity` | Ladder/rope climbing. |
+| `lastTimeStepVelocity` | Velocity on the previous physics step (fall damage). |
+| `fallShakeCooldown` | Cooldown for the fall camera shake. |
+| `idleTime` | Seconds standing still, for the idle animation. |
+| `endedJump` | Whether the jump button was released. |
+
+**Combat and items**
+
+| Field | What it is |
+| --- | --- |
+| `handSlot` | Index of the active hand slot. |
+| `attackCooldown`, `eatTime` | Attack and eating cooldowns. |
+| `clawHealth`, `clawRegrowTime`, `clawDamageCurve` | Claw condition, regrow time, and how it scales damage. |
+| `hasCargo`, `cargo` | Carrying a cargo pod. |
+
+**Character and appearance**
+
+| Field | What it is |
+| --- | --- |
+| `charType` | Character index (sprites and skills). |
+| `hasFur`, `hasGills`, `canSweat`, `hasLegs` | Character traits. |
+| `furColors` | Fur color gradient. |
+| `voicePitch` | Voice pitch. |
+| `heightMultiplier` | Character height. |
+| `disfigured`, `eyeGone`, `bothEyesGone` | Face damage. |
+| `tail` | Tail transform. |
+| `visualBodyOffset`, `weightVisualOffset`, `armOffset` | Visual offsets. |
+| `bodyAnimationSpeedAdd`, `limpAnimatorSpeed`, `standLerpTime` | Animation speed tweaks. |
+| `eyeCloseTime`, `eyeScareTime`, `eyePanicTime` | Facial expression timers. |
+| `dogShakeIntensity`, `brainShakeIntensity`, `miscShakeIntensity` | Body shaking. |
+| `bonusRot`, `accelRot`, `attackRot` | Body tilt from movement and attacks. |
+| `targetLookPos`, `overrideLookPos`, `overrideLookTime` | Where the player looks, and a temporary override. |
+| `bonusLimbProtection` | Extra protection for every limb. |
+
+**Components and setup**
+
+| Field | What it is |
+| --- | --- |
+| `legLimbs`, `baseLimb` | Leg limbs and the root limb. |
+| `col` | Body collider. |
+| `bodyAnimator`, `armsAnimator`, `idleClip` | Animators and idle clip. |
+| `vomiter` | Vomit component. |
+| `screwsSource` | Audio source for prosthetic screws. |
+| `impactSmall`, `impactMedium`, `impactLarge` | Impact sounds. |
+| `staminaStrength`, `weightMovementCurve`, `temperatureMovementCurve`, `foodMovementCurve`, `hungerLimbHeal`, `immunityInfectionSpeed`, `depressionChanceCurve`, `heartCurveNormal`, `heartCurveArrythmia`, `thirstBloodPressureCurve` | Tuning curves. |
+| `minuteCheckTime`, `halfMinuteCheckTime`, `tempCheckTime`, `limbBloodUpdateTimer`, `soundCooldown`, `dirtReduceTime` | Internal timers. |
+
+**Read-only (calculated)**
+
+| Property | What it is |
+| --- | --- |
+| `alive` | `brainHealth > 0`. |
+| `conscious`, `brainDying`, `isDying`, `isCriticallyDying`, `inCardiacArrest` | Health states. |
+| `totalHappiness` | Mood after pain, hunger, sickness, etc. This is what the mood moodle shows. |
+| `aboveMedicalCutoff` | `totalHappiness > -75`. |
+| `bloodVolumePercentage`, `bloodRegenSpeed` | Blood as a fraction, and regen speed. |
+| `actualMaxSpeed`, `actualJumpSpeed`, `actualMoveForce`, `legSpeedMult` | Movement after all modifiers. |
+| `actualStaminaStrength`, `actualWallSlideSlowdown` | Stamina-scaled values. |
+| `fibrillationRising` | Fibrillation getting worse. |
+| `allowUseItem`, `bothHandsUnusable`, `canPlaceBlock`, `canRead`, `canTakeNap`, `peekingBehind` | What the player can do right now. |
+| `shouldCheckHealthPanel` | Same as `isDying`. |
+| `BaseHungerRate`, `baseTemperatureLerpRate`, `clawGrowthRate` | Per-frame rates. |
+
+</details>
+
+
+---
+
+## Limb fields
+
+Wounds and treatment happen per `Limb`. Loop over `body.limbs` for body-wide effects, e.g:
+
+```csharp
+foreach (Limb limb in body.limbs)
+    limb.pain = Mathf.Max(0f, limb.pain - 10f);
+```
+
+| Field | What it is |
+| --- | --- |
+| `fullName`, `shortName` | Display names. |
+| `skinHealth`, `muscleHealth` | `0`–`100`. |
+| `pain` | Pain in this limb. |
+| `bleedAmount` | How much it bleeds. |
+| `broken`, `dislocated`, `splinted` | Bone state. |
+| `infected`, `infectionAmount` | Infection. `infectionAmount` only grows while `infected` is true. |
+| `dismembered` | Whether the limb is gone. |
+| `isHead`, `isArm`, `isLegLimb`, `isVital` | What kind of limb it is. |
+| `body` | The `Body` it belongs to. |
+
+<details>
+<summary>Want everything?</summary>
+
+| Field | What it is |
+| --- | --- |
+| `isAbdomen` | Whether this is the abdomen. |
+| `connectedLimbs` | Limbs attached to this one. |
+| `distanceToHeart` | Steps from the heart. Tourniquets block every limb further out. |
+| `blockedBleeding` | Bleeding blocked, e.g. by a tourniquet. |
+| `bleedSpeedMult` | Read-only. The body's bleeding speed multiplier. |
+| `totalBleedAmount` | Read-only. `bleedAmount`, or `0` while bleeding is blocked. |
+| `furBloodAmount` | Blood soaked into the fur. |
+| `bandageSlowAmount`, `skinHealAmount` | Bleeding slowdown and skin healing still to come from bandages. |
+| `disinfectionTime` | Disinfection time left. |
+| `infectionSpeedMult` | How fast infection grows. |
+| `shrapnel`, `hasShrapnel` | Shrapnel pieces in the limb. Shrapnel stops healing. |
+| `dislocationTimer` | Relocation progress shown in the dislocation minigame. |
+| `boneHealTimer` | Time until a broken bone heals. Splints lower it. |
+| `brokenPainMultiplier` | Pain from a broken bone. |
+| `starvationHealthLossMult` | Health lost while starving. |
+| `strokeAffected` | Weakened by a stroke. |
+| `prostheticInfo` | Prosthetic attached to this limb. |
+| `forceMult` | Strength multiplier. |
+| `totalForce` | Read-only. Strength after damage, pain, oxygen and prosthetics. |
+| `bandageMinigameSpeedMult` | Bandaging minigame speed. |
+| `injuryHealTime` | Read-only. Estimated time to heal. |
+| `MuscleHealRate`, `SkinHealRate` | Read-only. Healing per frame. |
+| `generateHeat` | Unused by vanilla. o7, heating chip. |
+| `baseMass` | Rigidbody mass before modifiers. |
+| `rb`, `joint`, `animLimb` | Rigidbody, joint and animation bone. |
+| `bonusRot` | Extra rotation, used for head tilt. |
+| `horizontalTemporaryScale`, `weightVisualScaleMult` | Visual width scaling. |
+| `bonusRendererToAffect` | Extra sprite tinted with this limb. |
+
+</details>
+
+---
+
+## Player events
+
+`CUCoreUtils` raises several events you can subscribe to, such as `OnHealPlayer` and `OnLastStand`!
+-  See [CUCoreUtils](/docs/utils/) for the list.
+
+{/* Code shown in the side panel */}
+
+```csharp panel title="PlayerHelpers.cs"
+using System.Collections;
+using CUCoreLib.Helpers;
+using UnityEngine;
+
+// Inside your Plugin class: StartCoroutine(LogPlayerWhenReady());
+private IEnumerator LogPlayerWhenReady()
+{
+    Body body = PlayerCamera.main.body;
+    Logger.LogInfo($"Hunger={body.hunger}, Thirst={body.thirst}, Temp={body.temperature}");
+}
+
+// A heavy backpack effect. We call with true when equipped, false when removed
+public static void SetBackpackEffect(Body body, bool active)
+{
+    // Target this exact player, so it works in multiplayer too
+    using (CCLBody.Use(body))
+    {
+        CCLBody.MaxEncumberance = active ? 15f : 0f; // carry 15 more
+        CCLBody.MaxSpeed = active ? -1f : 0f;        // but move a bit slower
+    }
+}
+
+// Ease every limb's pain a little
+public static void SoothePain(Body body)
+{
+    foreach (Limb limb in body.limbs)
+    {
+        limb.pain = Mathf.Max(0f, limb.pain - 10f);
+    }
+}
+```

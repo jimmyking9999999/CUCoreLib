@@ -1,0 +1,200 @@
+---
+title: "Setting up a mod project"
+label: "Setup"
+crumb: "Getting Started"
+lead: "Getting ready for modding!"
+---
+## Starting via a template
+
+[CCLScavTemplate](https://github.com/jimmyking9999999/CCLScavTemplate) is a ready-made BepInEx project with the references, build settings, and a deploy step already set up.
+
+1.  Create a new repository from the template above, or clone it:
+
+```
+git clone https://github.com/jimmyking9999999/CCLScavTemplate
+```
+
+2.  Open the folder in your C# editor. Visual Studio or Rider are recommended, but any text editor will work. 
+You can also build from the terminal with `dotnet build`.
+
+Reminder to install the .NET SDK and C# tooling, if no highlighting is present!
+
+---
+
+## Installing CUCoreLib
+
+1.  Download the latest or nightly `CUCoreLib.dll` from the [releases page](https://github.com/jimmyking9999999/CUCoreLib/releases/).
+2.  Put it in the game's plugins folder:
+
+```text
+C:\Program Files (x86)\Steam\steamapps\common\Casualties Unknown\BepInEx\plugins
+```
+
+The template already references CUCoreLib from there. If you are **not** using the template, add the reference to your `.csproj` yourself, pointing `HintPath` at wherever the DLL is:
+
+```xml
+<ItemGroup>
+  <Reference Include="CUCoreLib">
+    <HintPath>..\..\BepInEx\plugins\CUCoreLib.dll</HintPath>
+  </Reference>
+</ItemGroup>
+```
+
+Prefer the UI? In Visual Studio, right-click the project, choose `Add > Reference`, and browse to `CUCoreLib.dll`. Rider has the same option under the project's assembly references.
+
+<img src="/images/assembly-location.png" alt="Add Reference screenshot" class="screenshot" />
+
+---
+
+## Adding CUCoreLib to an existing mod
+
+Add this attribute next to your `[BepInPlugin]`, so BepInEx loads CUCoreLib before your mod:
+
+```csharp
+[BepInDependency("net.cucorelib")]
+```
+
+The code panel on the right shows a complete plugin class with it in place.
+
+<video src="https://jimmyking9999999.github.io/Metadata-generator/videos/setup.mp4" data-local-fallback-src="/videos/setup.mp4" autoplay="" loop="" muted="" playsinline="" controls="" class="screenshot docs-video"></video>
+
+(This video uses the [old non-ccl template](https://github.com/OzzySpaghettiTeam/ScavTemplate). With the new template, you only need to put CUCoreLib in `BepInEx/plugins/` before building.)
+
+---
+
+## Building and testing your mod
+
+The template copies your DLL into the game when it builds.
+
+1.  Build with `Build > Build Solution` (Ctrl + Shift + B) in Visual Studio, or from a terminal in the project folder:
+
+```
+dotnet build
+```
+
+2.  Start the game. BepInEx loads your mod from `BepInEx/plugins/<ProjectName>/<ProjectName>.dll`. 
+
+- Note, if you do not rename the template, it will display as `Template.dll`.
+
+The build output also stays in your project at `bin/Debug/net48/<ProjectName>.dll`.
+
+Once this works, [Debugging / Testing](/docs/debug-testing/) covers hot reload and faster iteration.
+
+---
+
+## Viewing BepInEx logs
+
+Logs are how you confirm the mod loaded and read your own `Logger.LogInfo()` messages. They are always written to `BepInEx/LogOutput.log`.
+
+To also get a live console window, open `BepInEx/config/BepInEx.cfg` and edit the [Logging.Console] setting:
+
+```ini
+[Logging.Console]
+
+## Enables showing a console for log output.
+# Setting type: Boolean
+# Default value: false
+Enabled = true
+```
+
+Launch the game and look for your plugin's startup line, such as `Modname Loaded!`.
+
+---
+
+## Keep the decompiled game open
+
+Before writing real mod code, open the game's `Assembly-CSharp.dll` in dnSpyEx (see [the TL;DR](/docs/unity-csharp/#decompiling-for-values)). It answers questions like "how do I give the player an item?" (`Utils.Create`), "what number does vanilla use here?", and "which method do I patch so my change sticks?" without guessing.
+
+CUCoreLib's registration calls take the same shapes as vanilla code, so item, recipe, and liquid definitions can be copied from the decompiled game and tweaked.
+
+---
+
+## Using CUCoreLib's namespaces
+
+CUCoreLib is a library, which allows you to selectively choose what to use. As a byproduct, you will need to explicitly import parts that will be used:
+
+```csharp
+using CUCoreLib.Helpers;    // AssetLoader, CUCoreUtils, CustomInstantiate
+using CUCoreLib.Registries; // ItemRegistry, RecipeRegistry, LocaleRegistry, ConsoleCommandRegistry, ...
+using CUCoreLib.Data;       // CustomItemInfo and other definition types
+using CUCoreLib.Saving;     // ICustomSaveProvider, for saving your own data
+```
+
+For instance, most item and recipe mods only need `Helpers` and `Registries`.
+
+This site documents the supported API, which actively has a focus and will work in future versions. Other public types in the DLL are implementation details and may potentially change without notice. (Though I try not to do this!)
+
+---
+
+## Troubleshooting
+
+<details>
+<summary>"Are you missing a using directive or an assembly reference?"</summary>
+
+The template is pointing at the wrong game folder. Edit `vars.targets` in the template folder so it points to your Casualties: Unknown install, then restart Visual Studio so it picks up the new path.
+
+</details>
+
+<details>
+<summary>"Skipping ... due to missing net.cucorelib"</summary>
+
+BepInEx could not find CUCoreLib. Check that `CUCoreLib.dll` is in the same game's `BepInEx/plugins` folder that you are launching.
+
+</details>
+
+<details>
+<summary>'ConsoleScript' does not contain a definition for 'Start'</summary>
+
+This comes from BepInEx's publicizer not properly working. Deleting the template's `Patches.cs` file fixes it, and won't have any adverse effect.
+
+</details>
+
+<details>
+<summary>Renaming the project</summary>
+
+New projects are called `Template`. Rename the project in Visual Studio's Solution Explorer (right-click > Rename), then change the DLL name in the `vars.targets` file in order to rename your mod and .dll name.
+
+</details>
+
+{/* Code shown in the side panel */}
+
+```csharp panel title="Plugin.cs"
+using BepInEx;
+using BepInEx.Logging;
+using HarmonyLib;
+// CUCoreLib namespaces. Remove the ones you don't use :)
+using CUCoreLib.Helpers;
+using CUCoreLib.Registries;
+
+namespace ModNamespace
+{
+    [BepInPlugin(ModGUID, ModName, ModVersion)]
+    // Load after CUCoreLib, and don't load at all without it
+    [BepInDependency("net.cucorelib")]
+    public class Plugin : BaseUnityPlugin
+    {
+        // Make these unique to your mod. GUIDs use reverse domain format (com.yourName.modName).
+        public const string ModGUID = "com.yourName.modName";
+        public const string ModName = "My First Casualties: Unknown Mod";
+        public const string ModVersion = "1.0.0";
+
+        // Static logger, so your other classes can write to the BepInEx log too
+        internal static new ManualLogSource Logger;
+        public static Plugin Instance { get; private set; }
+
+        private readonly Harmony harmony = new Harmony(ModGUID);
+
+        private void Awake()
+        {
+            Logger = base.Logger;
+            Instance = this;
+
+            // Applies every [HarmonyPatch] class in this DLL
+            harmony.PatchAll();
+
+            // Register your items, recipes, commands, etc. here
+            Logger.LogInfo($"{ModName} is loaded!");
+        }
+    }
+}
+```

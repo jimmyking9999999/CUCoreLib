@@ -1,0 +1,60 @@
+---
+title: "Welcome to CUCoreLib"
+label: "Welcome"
+crumb: "CUCoreLib"
+lead: "Welcome! This is the documentation website for the CUCoreLib modding library."
+---
+## What is CUCoreLib?
+
+CUCoreLib is a BepInEx + Harmony library mod for Casualties: Unknown. Other mods depend on it to register content and reuse small runtime helpers, instead of each mod patching the game on its own.
+
+Adding a single custom item by hand means writing patches for the item list, sprites, loot pools, traders, saving, and recipes. With CUCoreLib that is one `ItemRegistry.Register` call, so your mod can focus on the fun part: designing new items, recipes, and assets.
+
+---
+
+## What it covers
+
+- **Content:** [items](/docs/item/), [recipes](/docs/recipe/), [liquids](/docs/liquids/), [building entities](/docs/building-entities/), [tiles](/docs/tiles/), [structures](/docs/multi-block-structures/)
+- **Player:** [statuses](/docs/statuses/), [moodles](/docs/moodles/), [player helpers](/docs/player/)
+- **Everything around it:** [settings](/docs/settings/), [locale](/docs/locale/), [saving](/docs/saving/), [console commands](/docs/console/), [multiplayer sync](/docs/multi-mod-compatibility/), [hot reload](/docs/debug-testing/)
+
+---
+
+## How to read these docs
+
+Use the dropdown above to move between pages. The left side explains the API; the right side shows a full example you can copy into your mod. Underlined names have hover notes for field behavior and common traps.
+
+```csharp
+Logger.LogInfo("Hey! I'm an in-line code block.");
+Logger.LogInfo("I'll show one piece of the example on the right,");
+Logger.LogInfo("and anything special to look out for when using it in your mod.");
+```
+
+As always, this documentation is a work in progress. If you have suggestions, PRs are welcome on [GitHub](https://github.com/jimmyking9999999/CUCoreLib).
+
+Questions? Ask in the [Discord](https://discord.gg/FuuEDPkQT) [thread](https://discord.com/channels/1360913627288178788/1506616266713202828).
+
+---
+
+## Next steps
+
+Read the [Modding TL;DR](/docs/unity-csharp/) next for a quick mental model of Unity, decompiling, and BepInEx plugins.
+
+Already familiar with BepInEx and Unity? Jump straight to [Setup](/docs/setup/).
+
+Completely new to C#? This guide assumes you can read basic C#. Consider watching [this tutorial](https://www.youtube.com/watch?v=Zrt0iEBBkRM) first.
+
+{/* Code shown in the side panel */}
+
+```csharp panel title="Plugin.cs"
+// Hey! This side panel shows the full example for the current page.
+
+// Underlined names have hover notes. Try it on Logger below!
+private void Awake()
+{
+    Logger.LogInfo("Hello, world!");
+}
+
+// Some pages have inputs that update this code as you type.
+// Copy it into your mod project and adapt it from there.
+```

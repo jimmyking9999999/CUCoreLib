@@ -1,0 +1,198 @@
+---
+title: "Transitioning to the full game"
+label: "Full Game Transition"
+crumb: "Getting Started"
+lead: "Updating your Demo-era mod to the full game."
+---
+## Which builds are supported?
+
+CUCoreLib `v1.1` and later target the **full game**. The Demo is in long-term support, meaning it only gets compatibility and safety fixes, on a best-effort basis.
+
+Note:
+- `v1.1` is the last release that has Demo support. Newer APIs may not work on a Demo install.
+- Mods built against the full game are not expected to work on the Demo.
+- Need a version that still targets the Demo? Grab it from the [releases page](https://github.com/jimmyking9999999/CUCoreLib/releases).
+
+This page lists the Demo -> full game breaks found so far and how to fix each one. Most come in two kinds:
+
+-   **Signature changes.** A method gains, loses, or reorders parameters. A `[HarmonyPatch]` aimed at the old signature throws `ArgumentException: Undefined target method`, or `AmbiguousMatchException` if an overload was added.
+-   **Member-shape changes.** A field becomes a property, or a member is renamed or removed. Code compiled against the Demo will thus throw `MissingFieldException` or `MissingMethodException`.
+
+---
+
+## Handled for you by CUCoreLib \<3
+
+Your existing registration and placement calls keep working. Watch out for these only if you hardcode numeric IDs:
+
+-   **Terrain IDs.** The full game uses tile indices 36–42 for vanilla terrain. Numeric registrations in that range are moved above 43. Look up a moved tile by its string ID, or get its current index with `TryGetIndex`.
+-   **Tile queries.** Numeric lookups like `TryGetDefinition(world.GetBlock(position), out ...)` return the vanilla tile first.
+-   **Liquid IDs.** Liquid tile byte 7 is red sludge in the full game, so custom liquids start at 8 (7 on the Demo).
+-   **Generation.** Custom terrain, liquids, buildings, and scattered items generate on every new layer by default.
+-   **Trader stock.** Items with the `unobtainable` flag also get the full game's `untradeable` flag.
+
+---
+
+## Detecting which build is running
+
+| Member | Meaning |
+| --- | --- |
+| `GameBuildInfo.IsFullGame` | `true` on the full game. |
+| `CUCoreUtils.IsDemo()` | `true` on the Demo. |
+| `GameBuildInfo.Matches(GameBuild.Full)` | `true` when the running build is in the given flags. |
+
+To skip one of your Harmony patch classes on a build, give it a `Prepare` method. Harmony calls it before patching and skips the class when it returns `false`:
+
+```csharp
+using CUCoreLib.Helpers;
+using HarmonyLib;
+
+[HarmonyPatch(typeof(SomeFullGameOnlyType), "SomeMethod")]
+public static class FullGameOnlyPatch
+{
+    // Skip this whole patch class on the Demo
+    static bool Prepare() => GameBuildInfo.IsFullGame;
+
+    [HarmonyPostfix]
+    static void Postfix() { /* ... */ }
+}
+```
+
+---
+
+## Known breaks and fixes
+
+<details open>
+<summary>Name-only Harmony patches on methods that gained overloads</summary>
+
+`Body.Eat` now has `(float, float)` and `(float, float, int foodType)`. `WorldGeneration.SetBlock` has `(Vector2Int, ushort)`, `(int, int, ushort)`, and `(Vector2, ushort)`.
+
+A `[HarmonyPatch(typeof(Body), "Eat")]` that worked on the Demo now throws `AmbiguousMatchException` in `PatchAll`, which stops your whole mod from loading. Name the overload by its parameter types:
+
+```csharp
+// Patch the full game's 3-argument Eat
+[HarmonyPatch(typeof(Body), nameof(Body.Eat), new[] { typeof(float), typeof(float), typeof(int) })]
+public static class EatPatch
+{
+    [HarmonyPostfix]
+    static void Postfix(Body __instance) { /* ... */ }
+}
+```
+
+Calling `body.Eat(hunger, weight)` from your own code still works on both builds: the 2-argument overload was kept.
+
+</details>
+
+<details>
+<summary>BuildingEntity.health is now a property</summary>
+
+On the full game, `health` is a property, and setting it also runs `CheckDamage()`. Code compiled against the Demo field throws `MissingFieldException`. Use CUCoreLib's extension methods, which work on both:
+
+```csharp
+using CUCoreLib.Helpers;
+
+// Before: building.health -= damage;
+building.SetHealth(building.GetHealth() - damage);
+```
+
+</details>
+
+<details>
+<summary>GlobalDark.betaBuild was removed</summary>
+
+The full game sets the beta-build text in `Awake()` instead. Find the text object by its contents:
+
+```csharp
+using System;
+using System.Linq;
+using TMPro;
+
+// Before: TMP_Text betaBuildText = globalDark.betaBuild;
+TMP_Text betaBuildText = globalDark.GetComponentsInChildren<TextMeshProUGUI>(true)
+    .FirstOrDefault(text => text.text.StartsWith("This is a beta build (", StringComparison.Ordinal)
+        || text.text.StartsWith("This is a modded beta build (", StringComparison.Ordinal));
+```
+
+</details>
+
+<details>
+<summary>Locale.GetPauseQuote() now takes a parameter</summary>
+
+The Demo's `GetPauseQuote()` is `GetPauseQuote(string type)` on the full game. If you build against the full game, call it directly. If one DLL must run on both, pick the overload by reflection:
+
+```csharp
+using System;
+using CUCoreLib.Helpers;
+
+string quote = GameBuildInfo.IsFullGame
+    ? (string)typeof(Locale).GetMethod("GetPauseQuote", new[] { typeof(string) }).Invoke(null, new object[] { "" })
+    : (string)typeof(Locale).GetMethod("GetPauseQuote", Type.EmptyTypes).Invoke(null, null);
+```
+
+</details>
+
+<details>
+<summary>PlayerCamera.CharacterIndexToLocaleName was removed</summary>
+
+It was removed :(. Only call it on the Demo, and fall back to your own name otherwise!
+
+```csharp
+string name = GameBuildInfo.IsFullGame ? "Unknown" : PlayerCamera.CharacterIndexToLocaleName(index);
+```
+
+</details>
+
+---
+
+## Building against the full game
+
+Older project templates ship a `vars.targets` that auto-detects the **Demo** install. Point it at the full game's folder (`Casualties Unknown`, not `Casualties Unknown Demo`) and restart your editor.
+
+For a one-off build, you can also pass the paths on the command line instead:
+
+```bat
+msbuild YourMod.csproj -restore -t:Build ^
+  -p:BaseGamePath="C:\Program Files (x86)\Steam\steamapps\common\Casualties Unknown" ^
+  -p:GameAssembliesDir="C:\Program Files (x86)\Steam\steamapps\common\Casualties Unknown\CasualtiesUnknown_Data\Managed" ^
+  -p:GameManagedDir="C:\Program Files (x86)\Steam\steamapps\common\Casualties Unknown\CasualtiesUnknown_Data\Managed" ^
+  -p:AssemblyCSharpPath="C:\Program Files (x86)\Steam\steamapps\common\Casualties Unknown\CasualtiesUnknown_Data\Managed\Assembly-CSharp.dll" ^
+  -p:CUCoreLibDllPath="C:\Program Files (x86)\Steam\steamapps\common\Casualties Unknown\BepInEx\plugins\CUCoreLib.dll"
+```
+
+{/* Code shown in the side panel */}
+
+```csharp panel title="FullGameCompat.cs"
+using CUCoreLib.Helpers;
+using HarmonyLib;
+
+// 1. Patching a method that has gained overloads (name the exact parameter types)
+[HarmonyPatch(typeof(Body), nameof(Body.Eat), new[] { typeof(float), typeof(float), typeof(int) })]
+public static class EatPatch
+{
+    [HarmonyPostfix]
+    static void Postfix(Body __instance, int foodType)
+    {
+        // foodType only exists on the full game's overload
+        Plugin.Logger.LogInfo($"Ate food of type {foodType}");
+    }
+}
+
+// 2. Skipping a patch class entirely on the Demo
+[HarmonyPatch(typeof(SomeFullGameOnlyType), "SomeMethod")]
+public static class FullGameOnlyPatch
+{
+    // Harmony skips this class when Prepare returns false
+    static bool Prepare() => GameBuildInfo.IsFullGame;
+
+    [HarmonyPostfix]
+    static void Postfix() { /* ... */ }
+}
+
+public static class BuildingDamage
+{
+    // 3. BuildingEntity.health is now a property!
+    public static void Damage(BuildingEntity building, float damage)
+    {
+        building.SetHealth(building.GetHealth() - damage);
+    }
+}
+```
