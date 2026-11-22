@@ -12,7 +12,7 @@ A definitive modding library for Casualties: Unknown.
 [![Total Github Downloads](https://img.shields.io/github/downloads/jimmyking9999999/CUCoreLib/total?color=blue&logo=github)](https://github.com/jimmyking9999999/CUCoreLib/releases)
 [![Nexus Downloads](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fjimmyking9999999%2FMetadata-generator%2Fmain%2Fbadges%2Fcucorelib.json)](https://www.nexusmods.com/scavprototype/mods/341)
 ![Game Version](https://img.shields.io/badge/Game_Version-v7.1.0-green)
-[![Documentation](https://img.shields.io/badge/Documentation-blue)](https://cucorelib.jimmyking.dev/docs/welcome/)
+[![Documentation (Click me!)](https://img.shields.io/badge/Documentation-blue)](https://cucorelib.jimmyking.dev/docs/welcome/)
 </div>
 
 
@@ -25,7 +25,7 @@ Download the latest (or nightly build!) in [https://github.com/jimmyking9999999/
 <img width="516" height="400" alt="Webapp" src="https://github.com/user-attachments/assets/c836ede6-7aa3-4676-8051-37560beaa419" />
 </div>
 
-For developers looking to use this mod, please refer to the [Setup](https://cucorelib.jimmyking.dev/docs/setup/) page in the online documentation.
+For mod developers looking to use this mod, please refer to the [Setup](https://cucorelib.jimmyking.dev/docs/setup/) page in the online documentation.
 
 - API documentation is in `CUCoreLibWebapp/`.
 - The live website exists at https://cucorelib.jimmyking.dev
@@ -68,7 +68,7 @@ dotnet build "CUCoreLib.sln" -c Debug
 
 You can also open the solution in Visual Studio and build via Ctrl + Shift + B.
 
-### Local Build Without Deploying To The Game Folder
+#### Local Build Without Deploying To The Game Folder
 
 By default, the project copies the built DLL into `BepInEx\plugins` when `BepInExDir` is available, for ease of use. If you want a build that stays inside the repo, use:
 
@@ -76,12 +76,12 @@ By default, the project copies the built DLL into `BepInEx\plugins` when `BepInE
 dotnet build "CUCoreLib.sln" -c Debug -p:BepInExDir="C:\EDIT_THIS_PATH\TO\CUCoreLib\_builddeploy\BepInEx"
 ```
 
-## Webapp Build
+## Documentation Build
 
 Due to the nature of this repo housing both the mod as well as the documentation, building the webapp is a bit different:
 1. Open your terminal, and navigate to the `/CUCoreLibWebapp/` directory
 2. Run `npm install` (once)
-3. To have live updates whilst you change the files, run `npm run build` and edit the docs. You should be editing the `docsPages.ts`, `codeSnippets.ts`, and `hoverPanels.ts` files.
+3. To have live updates whilst you change the files, run `npm run build` and edit the docs inside `CUCoreLibWebapp\src\content\docs`
 4. Upon finishing, run `npm run build` to autogenerate the machine docs/pages.
 
 ## Contributing
@@ -92,27 +92,4 @@ Due to the nature of this repo housing both the mod as well as the documentation
 
 Contributions are welcome! We especially like fixes and improvements that make CUCoreLib a more stable shared modding foundation.
 
-Before opening a change:
-
-- Start from behavior in the current CUCoreLib C# source.
-- Check `CUCoreLibWebapp/` before changing public-facing API guidance or examples.
-- Prefer extending existing registries, helpers, and patch families instead of adding parallel systems. (i.e. embedding a new video format into the assetloader rather then a new method)
-- Keep runtime behavior deterministic and backward-friendly for dependent mods unless starting from a new major version (X.0.0)
-
-When working on code:
-
-- Preserve the existing C# style and patterns, ideally!
-- Keep side effects in mind and an open mind. This doesn't mean test it with every mod, but be mindful of potential failure points.
-- Add null and runtime-state guards where a patch might run before game state is ready, or other mods may also call the method. Defensive coding is always appreciated ^^
-- Avoid committing generated outputs that aren't needed. 
-
-When changing public behavior:
-
-- Update docs or examples in `CUCoreLibWebapp/` if the supported API has been changed.
-- Validate the impact quickly with existing mods if possible
-- Mention any required migration notes clearly in your PR or commit message, or edit CHANGELOG.md
-
-## Repo Format
-
-- `Patches/`, `Registries/`, `Helpers/`, `Data/`, and `Saving/` contain the main runtime source.
-- `CUCoreLibWebapp/` is the contributor-facing API and usage reference.
+Please read the contribution tab for details!
