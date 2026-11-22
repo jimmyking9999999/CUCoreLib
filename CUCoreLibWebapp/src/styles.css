@@ -63,6 +63,12 @@ a:focus-visible {
   text-decoration-color: currentColor;
 }
 
+a.search-result,
+a.nav-button,
+a.pager {
+  text-decoration: none;
+}
+
 a[href^="www.youtube"]::after,
 a[href^="https://www.youtube"]::after,
 a[href^="github.com"]::after,

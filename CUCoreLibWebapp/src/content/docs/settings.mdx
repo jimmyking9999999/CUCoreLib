@@ -123,6 +123,60 @@ Note: The in-game setting takes precedence in the case of a conflict.
 
 ---
 
+## World settings (per run)
+
+`WorldSettingsRegistry` works the same way, but adds rows to the **run settings** panel shown before a new run. The values are run-specific, meaning they save and load with it, (and are also included in the Copy/Paste preset code!)
+
+```csharp
+public static float KilnHeat;
+
+WorldSettingsRegistry.Register(WorldSettingDefinition.Float(
+    "mymod.kilnheat",                  // unique ID
+    "Kiln heat",                       // name
+    "How hot kilns burn this run.",    // Ddscription
+    "Glassworks",                      // heading category. You can make your own section, or choose an existing a vanilla one
+    1f, 0.5f, 2f,                      // default, min, max (extra args)
+    value => KilnHeat = value,         // runs on new run, load, and whenever it changes
+    value => value.ToString("0.#") + "x"));
+```
+
+Pass a `WorldSettingCategory` (`RunWide`, `Layer`, `Player`, `Trader`, `Other`, `Challenges`) to append the row to a vanilla section instead. Custom categories go at the top of the panel, unless you place them next to a vanilla one:
+
+```csharp
+WorldSettingsRegistry.PlaceCategory("Glassworks", WorldSettingCategory.Layer, below: true);
+```
+
+| Builder | Row | Extra arguments |
+| --- | --- | --- |
+| `WorldSettingDefinition.Bool` | Toggle | |
+| `WorldSettingDefinition.Float` | Slider | `min`, `max`, and optionally a formatter for the shown value |
+| `WorldSettingDefinition.Int` | Number input | `min`, `max`, optionally placeholder text |
+| `WorldSettingDefinition.Dropdown` | Dropdown | The choices. The value is the chosen index |
+| `WorldSettingDefinition.Text` | Text input | Optionally placeholder text |
+| `WorldSettingDefinition.Button` | Button | An `onClick` action and optional button text. Not saved |
+
+You can also read a value directly with `WorldSettingsRegistry.Get<float>("mymod.kilnheat")`.
+-  Clearing an input resets it to its default.
+
+### Per-preset defaults
+
+Vanilla presets (Relaxed, Paradise, Desolate...) can change the run settings. 
+
+- `WithPresetDefault` does the same for your setting!
+
+```csharp
+WorldSettingsRegistry.Register(WorldSettingDefinition.Float(
+    "mymod.kilnheat", "Kiln heat", "How hot kilns burn this run.",
+    "Glassworks", 1f, 0.5f, 2f,
+    value => KilnHeat = value)
+    .WithPresetDefault(WorldSettingPreset.Paradise, 0.5f)
+    .WithPresetDefault(WorldSettingPreset.Desolate, 2f));
+```
+
+
+
+---
+
 ## Rules
 
 - IDs must contain a namespace dot (`mymod.something`) and be unique.
@@ -138,13 +192,19 @@ using CUCoreLib.Helpers;
 using CUCoreLib.Registries;
 using UnityEngine;
 
-// Current values, kept up to date by the settings below
+// Variables
 public static bool SparksEnabled;
 public static float ClinkVolume;
 public static int LootWeight;
 public static int RecipeVisibility;
 public static KeyCode InspectKey;
 public static string NameTag;
+
+public static bool ShardLoot;
+public static float KilnHeat;
+public static int ExtraFurnaces;
+public static int Rarity;
+public static string KilnName;
 
 private void RegisterSettings()
 {
@@ -197,6 +257,67 @@ private void RegisterSettings()
     reload.disableInInputFields = true; // off by default
     reload.disableInMainMenu = true;
     CUCoreUtils.AllowKeybindRebind("R", "Reload gun");
+}
+
+// Per-run settings on the run settings panel 
+private void RegisterWorldSettings()
+{
+    // Toggle, appended to the vanilla "Layer" section
+    WorldSettingsRegistry.Register(WorldSettingDefinition.Bool(
+        "mymod.shardloot", "Glass shard loot", "Glass shards show up in loot this run.",
+        WorldSettingCategory.Layer, true,
+        value => ShardLoot = value));
+
+    // Slider in its own "Glassworks" section, shown as a multiplier
+    WorldSettingsRegistry.Register(WorldSettingDefinition.Float(
+        "mymod.kilnheat", "Kiln heat", "How hot kilns burn this run.",
+        "Glassworks", 1f, 0.5f, 2f,
+        value => KilnHeat = value,
+        value => value.ToString("0.#") + "x")
+        .WithPresetDefault(WorldSettingPreset.Desolate, 2f)); // hotter on Desolate
+
+    // Number input from 0 to 5, with placeholder text
+    WorldSettingsRegistry.Register(WorldSettingDefinition.Int(
+        "mymod.extrafurnaces", "Extra furnaces", "Furnaces added to each layer.",
+        "Glassworks", 0, 0, 5,
+        value => ExtraFurnaces = value,
+        "0-5"));
+
+    // Dropdown. Value is the chosen index (e.g. 0, 1, 2)
+    WorldSettingsRegistry.Register(WorldSettingDefinition.Dropdown(
+        "mymod.rarity", "Rarity", "How common modded items are from traders.",
+        "Glassworks", 1,
+        new[]
+        {
+            new ModDropdownChoice("rare", "Rare"),
+            new ModDropdownChoice("normal", "Normal"),
+            new ModDropdownChoice("common", "Common")
+        },
+        value => Rarity = value));
+
+    // Text input with placeholder text
+    WorldSettingsRegistry.Register(WorldSettingDefinition.Text(
+        "mymod.kilnname", "Kiln name", "Shown on kilns this run.",
+        "Glassworks", "",
+        value => KilnName = value,
+        "Enter name..."));
+
+    // Button. Not saved, runs when clicked
+    WorldSettingsRegistry.Register(WorldSettingDefinition.Button(
+        "mymod.resetglass", "Glassworks", "Reset every Glassworks setting.",
+        "Glassworks",
+        () =>
+        {
+            WorldSettingsRegistry.Set("mymod.kilnheat", null); // null = back to default
+            WorldSettingsRegistry.Set("mymod.extrafurnaces", null);
+            WorldSettingsRegistry.Set("mymod.glassrarity", null);
+            WorldSettingsRegistry.Set("mymod.kilnname", null);
+            WorldSettingsRegistry.RefreshDisplays();
+        },
+        "Reset"));
+
+    // Put the Glassworks section just below the vanilla "Layer" section
+    WorldSettingsRegistry.PlaceCategory("Glassworks", WorldSettingCategory.Layer, below: true);
 }
 
 private void Update()

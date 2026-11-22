@@ -200,6 +200,7 @@
         <Compile Include="Data\BodyAnimationPackManifest.cs"/>
         <Compile Include="Data\BodyFormulaData.cs"/>
         <Compile Include="Data\ModOptionDefinition.cs"/>
+        <Compile Include="Data\WorldSettingDefinition.cs"/>
         <Compile Include="Data\SettingString.cs"/>
         <Compile Include="Data\RegisteredSpriteAnimation.cs"/>
         <Compile Include="Data\StatusBase.cs"/>
@@ -269,6 +270,7 @@
         <Compile Include="Patches\ItemLootPoolPatch.cs"/>
         <Compile Include="Patches\RecipeRegistryPatches.cs"/>
         <Compile Include="Patches\SaveSystemPatches.cs"/>
+        <Compile Include="Patches\WorldSettingsPatches.cs"/>
         <Compile Include="Patches\SoundPatches.cs"/>
         <Compile Include="Patches\TraderCustomItemPatches.cs"/>
         <Compile Include="Patches\TileRegistryPatches.cs"/>
@@ -288,6 +290,7 @@
         <Compile Include="Registries\Infrastructure\RegistrationOwnershipIndex.cs"/>
         <Compile Include="Registries\Infrastructure\SpawnLayerMask.cs"/>
         <Compile Include="Registries\SaveRegistry.cs"/>
+        <Compile Include="Registries\WorldSettingsRegistry.cs"/>
         <Compile Include="Registries\StatusRegistry.cs"/>
         <Compile Include="Registries\StructureRegistry.cs"/>
         <Compile Include="Registries\TileRegistry.cs"/>

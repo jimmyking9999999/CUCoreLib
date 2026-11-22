@@ -17,6 +17,7 @@ I figured that this would be nice to have, as to easily take a look at everythin
 - Added `CustomBuildingEntityDefinition.RandomFlipVertical` (default false), the vertical version of `RandomFlip`
 - Added `CustomBuildingEntityDefinition.RigidbodyMass` (default 10) for buildings with `AddRigidbody2D`
 - Massive documentation enhancement/rewrite. yay!
+- New registry! New `WorldSettingsRegistry` for per-run world settings on the run-settings panel, woah.
 
 ### Changes
 -  !! Custom recipes are now injected as fresh copies each run, matching vanilla !! 

@@ -79,6 +79,8 @@ namespace CUCoreLib.Saving
                 var json = SaveSystem.Unzip(File.ReadAllBytes(path));
                 var saveRoot = JObject.Parse(json);
                 var payload = saveRoot[RootKey] as JObject;
+                if (scope != KrokMpSaveScope.Player)
+                    WorldSettingsRegistry.ReadValues(payload?["worldSettings"] as JObject);
                 if (payload == null) return null;
 
                 var playerCamera = PlayerCamera.main;
@@ -169,6 +171,8 @@ namespace CUCoreLib.Saving
             {
                 root["global"] = CaptureGlobalProviders() ?? new JObject();
                 root["world"] = CaptureWorldProviders(body, playerCamera, world) ?? new JObject();
+                var worldSettings = WorldSettingsRegistry.WriteValues();
+                if (worldSettings.Count > 0) root["worldSettings"] = worldSettings;
             }
 
             if (scope != KrokMpSaveScope.Shared)
