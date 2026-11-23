@@ -73,6 +73,24 @@ ModOptionsRegistry.Register(ModOptionDefinition.Bool(
 
 ---
 
+## Local-only settings (multiplayer)
+
+In multiplayer, the host's settings are sent to every client and applied on top of theirs. That's fine for gameplay rules, but not as great for things like graphics, audio or keybinds. 
+
+- Add `.LocalOnly()` to keep a setting on each player's own machine:
+
+```csharp
+ModOptionsRegistry.Register(ModOptionDefinition.Bool(
+    "mymod.sparks", "Kiln sparks", "Show spark effects around kilns.",
+    Setting.SettingCategory.Video, true,
+    value => SparksEnabled = value)
+    .LocalOnly()); // the host never overrides this one
+```
+
+Note: Keybind settings are always local.
+
+---
+
 ## Keybinds without a settings row
 
 For a single key action, `GetFriendlyKeyBind` gives you a key you can choose to ignore while typing, in menus, and so on. `AllowKeybindRebind` then adds a row so players can change it:

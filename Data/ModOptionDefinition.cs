@@ -32,8 +32,15 @@ namespace CUCoreLib.Data
         internal Action<string> TextApply { get; private set; }
         internal string StringDefault { get; private set; }
         internal string Placeholder { get; private set; }
+        public bool IsLocal { get; private set; }
 
         internal bool UsesCustomCategory => !string.IsNullOrWhiteSpace(CustomCategory);
+
+        public ModOptionDefinition LocalOnly()
+        {
+            IsLocal = true;
+            return this;
+        }
 
         internal void SetResolvedCategory(Setting.SettingCategory category)
         {
@@ -379,6 +386,7 @@ namespace CUCoreLib.Data
             definition.Kind = ModOptionKind.Keybind;
             definition.KeyDefault = defaultValue;
             definition.KeybindApply = apply;
+            definition.IsLocal = true; 
             return definition;
         }
 

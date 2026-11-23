@@ -174,7 +174,7 @@ namespace CUCoreLib.Registries
             var root = new JObject();
             foreach (var option in RegisteredOptions)
             {
-                if (option == null) continue;
+                if (option == null || option.IsLocal) continue;
 
                 var value = CaptureOptionValue(option);
                 if (value == null) continue;
@@ -199,7 +199,7 @@ namespace CUCoreLib.Registries
             {
                 var option = RegisteredOptions.FirstOrDefault(entry =>
                     entry != null && string.Equals(entry.Id, property.Name, StringComparison.Ordinal));
-                if (option == null) continue;
+                if (option == null || option.IsLocal) continue;
 
                 ApplyOptionValue(option, property.Value as JObject);
             }

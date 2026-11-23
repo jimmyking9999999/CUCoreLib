@@ -18,11 +18,13 @@ I figured that this would be nice to have, as to easily take a look at everythin
 - Added `CustomBuildingEntityDefinition.RigidbodyMass` (default 10) for buildings with `AddRigidbody2D`
 - Massive documentation enhancement/rewrite. yay!
 - New registry! New `WorldSettingsRegistry` for per-run world settings on the run-settings panel, woah.
+- You can now prevent setting sync via ModOptionDefinition's `.LocalOnly()` 
 
 ### Changes
 -  !! Custom recipes are now injected as fresh copies each run, matching vanilla !! 
 - This means that runtime recipe mutations no longer persist across runs, BUT do not instantly apply its changes
 - Editing the `Recipe` you registered or `Recipes.recipes` directly (e.g. `recipe.INT = 0`) no longer sticks. Use `CUCoreUtils.EditRecipe` instead
+- `ModOptionDefinition.Keybind` settings are now local-only by default. Whoops...
 
 ### Fixes
 - Added `FractionalSpawnFrequency = 0.2f`, as a field (with priority over SpawnFrequency)
