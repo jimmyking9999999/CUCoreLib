@@ -83,7 +83,8 @@ namespace CUCoreLib.Patches
                 {
                     var option = ModOptionsRegistry.RegisteredOptions.Find(candidate =>
                         candidate != null && candidate.Id == setting.name && candidate.Kind == ModOptionKind.Keybind);
-                    if (option != null && !string.IsNullOrWhiteSpace(option.Description))
+                    if (option != null && ModOptionsRegistry.TryGetLocalizedText("gameset" + setting.name + "dsc", out var description) &&
+                        !string.IsNullOrWhiteSpace(description))
                     {
                         var row = spawnedSettings[displayedSettingIndex];
                         if (!row || row.transform.childCount == 0)
@@ -94,7 +95,7 @@ namespace CUCoreLib.Patches
                         var tooltipTarget = row.transform.GetChild(0);
                         var tooltip = tooltipTarget.GetComponent<UITooltip>();
                         if (tooltip != null)
-                            tooltip.tipDesc = Locale.GetOther("gameset" + setting.name + "dsc");
+                            tooltip.tipDesc = description;
                     }
                 }
 

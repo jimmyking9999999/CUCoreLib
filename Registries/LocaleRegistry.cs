@@ -172,20 +172,13 @@ namespace CUCoreLib.Registries
                     root[category] = categoryObject;
                 }
 
-                if (ownerEntries != null)
-                {
-                    if (ownerEntries.TryGetValue(type, out var owned))
-                        foreach (var entry in owned)
+                var entries = ownerEntries ?? CustomLocales;
+                if (entries.TryGetValue(type, out var generated))
+                    foreach (var entry in generated)
+                        if (!string.IsNullOrWhiteSpace(entry.Value) || categoryObject[entry.Key] == null)
                             categoryObject[entry.Key] = entry.Value ?? string.Empty;
 
-                    continue;
-                }
-
-                if (CustomLocales.TryGetValue(type, out var generated))
-                    foreach (var entry in generated)
-                        categoryObject[entry.Key] = entry.Value ?? string.Empty;
-
-                if (!RequiredLocales.TryGetValue(type, out var requiredKeys)) continue;
+                if (ownerEntries != null || !RequiredLocales.TryGetValue(type, out var requiredKeys)) continue;
                 foreach (var key in requiredKeys.Where(key => categoryObject[key] == null))
                     categoryObject[key] = string.Empty;
             }
