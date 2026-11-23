@@ -1,0 +1,8 @@
+---
+import { getEntry } from "astro:content";
+import DocPage from "../../components/DocPage.astro";
+
+const entry = await getEntry("docs", "tools");
+if (!entry) throw new Error("Missing tools page");
+---
+<DocPage entry={entry} />

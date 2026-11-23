@@ -1,0 +1,590 @@
+---
+title: "Advanced Item API"
+label: "Advanced Item API"
+crumb: "Items / Liquids"
+lead: "Using CustomItemInfo"
+---
+## When to use this page
+
+Vanilla sets things like containers, batteries, and lights up in Unity prefabs, so they never appear in the game's item code. CUCoreLib exposes them as plain fields instead.
+
+```csharp
+// Replace vanilla items' new ItemInfo { ... } with
+new CustomItemInfo { ... }
+```
+---
+
+## CustomItemInfo fields!
+
+| Field | What it adds |
+| --- | --- |
+| `Container` | Inventory storage, like a bag. [Jump](#containers) |
+| `Battery` | Takes a battery and drains charge. [Jump](#battery-powered-items) |
+| `Light` | Emits light. [Jump](#battery-powered-items) |
+| `Bandage` | Vanilla bandage minigame and healing. [Jump](#bandages) |
+| `Syringe` | Vanilla syringe minigame and injection. [Jump](#syringes) |
+| `Tool` | Melee swing, damage, and block breaking. [Jump](#melee-tools-and-weapons) |
+| `Gun` | Firearm behavior. (Soon.) |
+| `WornSprite`, `MultiWornSprites`, ... | How a wearable looks when worn. [Jump](#wearables) |
+| `DropPool`, `WorldSpawnPerChunk`, `MetamorphicDrop` | Where the item spawns. [Jump](#targeting-specific-loot-sources) |
+| `capacity`, `defaultContents`, `autoFill`, `LiquidMask` | Holds liquids. See [Liquids](/docs/liquids/). |
+| `CustomData` | Your own per-item values. [Jump](#custom-data) |
+| `AddSpawnComponent<T>()` | Your own script on the item. See [Custom Item Scripts](/docs/custom-item-scripts/). |
+
+<details>
+<summary>Visual fields</summary>
+
+| Field | Type | What it does |
+| --- | --- | --- |
+| `SpriteScaleDimensions` | `SpriteScaleDimensions` | Scale the sprite to a target pixel size, e.g. `(14f, 14f)`. Add `true` as a third value to stop as soon as either side reaches it. |
+| `InventoryIconScale` | `float` | Extra size multiplier for the inventory icon only. Default `1f`. |
+| `VisualOffset` | `Vector2` | Moves the sprite while held in a hand. |
+| `IconAnimationId` | `string` | Plays a registered [animation](/docs/assets/#frame-animations) as the icon. |
+| `SpriteScale` | `float` | Legacy. Use `SpriteScaleDimensions` instead. |
+
+</details>
+
+---
+
+## Containers
+
+Turns the item into storage, using the vanilla `Container` component.
+
+```csharp
+ItemRegistry.Register(
+    "cinderstalkbag",
+    new CustomItemInfo
+    {
+        fullName = "Cinderstalk Bag",
+        description = "A compact all-natural bag. Who says plants can't be stylish?",
+        category = "tool",
+        weight = 1.2f,
+        value = 18,
+        tags = "cangetwet",
+        Container = new ContainerProperties
+        {
+            Capacity = 5f,               // total weight it can hold
+            MaxWeightPerItem = 2f,       // heaviest single item it accepts
+            EncumbranceReduction = 0.65f // contents are 35% lighter
+        }
+    },
+    AssetLoader.LoadEmbeddedSprite("Images.cinderstalk-bag.png")
+);
+```
+
+<img src="/images/cinderstalk-bag-ingame.png" alt="In-game screenshot of the Cinderstalk Bag's container UI" class="screenshot" />
+
+<details>
+<summary>ContainerProperties fields</summary>
+
+| Field | Default | What it does |
+| --- | --- | --- |
+| `Capacity` | `10` | Total weight it can hold. |
+| `MaxWeightPerItem` | `5` | Heaviest single item it accepts. |
+| `EncumbranceReduction` | `1` | How much of the contents' weight counts. `0.5f` = half as heavy. |
+| `ItemsVisible` | `false` | Draw the contained items' sprites on the container. |
+| `TagRestriction` | empty | Only accept items with one of these tags. |
+
+</details>
+
+---
+
+## Battery-powered items
+
+`Battery` gives the item a vanilla battery slot. Pair it with `Light` for a lamp. Battery items drain charge instead of rotting, at the speed set by `decayMinutes`.
+
+```csharp
+ItemRegistry.Register(
+    "portablelamp",
+    new CustomItemInfo
+    {
+        fullName = "Portable lamp",
+        description = "A battery-fed lamp for the fuzzy cave explorer.",
+        category = "utility",
+        tags = "belttool",
+        usable = true,
+        value = 22,
+        weight = 0.8f,
+        decayMinutes = 180f, // a full battery lasts 3 hours
+        Battery = new BatteryProperties
+        {
+            StartCharge = 0.35f // spawns 35% charged
+        },
+        Light = new LightProperties() // the defaults are a lantern-style point light
+    },
+    AssetLoader.LoadEmbeddedSprite("Images.portablelamp.png")
+);
+```
+
+<img src="/images/portable-lamp-ingame.png" alt="In-game screenshot of the portable lamp's light effect" class="screenshot" />
+
+<details>
+<summary>BatteryProperties fields</summary>
+
+| Field | Default | What it does |
+| --- | --- | --- |
+| `Preset` | `Medium` | Battery size. `Small`, `Medium`, or `Large`. |
+| `SpawnWithBattery` | `true` | Spawn with a battery already inside. |
+| `StartCharge` | full | `0`–`1` for a precentage of a full battery, or above `1` is an exact charge amount. |
+
+Note: `MaxCharge` and `BatteryType` are legacy fields and should not be used.
+
+</details>
+
+<details>
+<summary>LightProperties fields</summary>
+
+| Field | Default | What it does |
+| --- | --- | --- |
+| `Intensity` | `0.75` | Brightness. |
+| `Color` | white | Light color. |
+| `PointLightOuterRadius` | `7.5` | How far the light reaches. |
+| `PointLightInnerRadius` | `0` | Radius at full brightness. |
+| `FalloffIntensity` | `0.5` | Edge softness, `0` sharp to `1` soft. |
+| `PointLightOuterAngle` / `PointLightInnerAngle` | `360` | Narrow these for a cone, like a flashlight. Inner below outer softens the cone edge. |
+| `Rotation` | `0` | Aims a cone, in degrees. |
+| `Offset` | zero | Light position relative to the item. |
+| `VolumeIntensity` | none | Visible light beam. Flashlights use `0.03f`. |
+| `Enabled` | `true` | Starts switched on. |
+| `AddLightItem` | `true` | Use vanilla `LightItem`, so it turns off in containers and can be toggled. |
+
+</details>
+
+`Light` is shared by every copy of the item, so don't edit it at runtime. To change one item's light, e.g. dimming as it drains, pass it new settings:
+
+```csharp
+CUCoreUtils.SetItemLight(item, new LightProperties { Intensity = 0.3f, Color = Color.red });
+CUCoreUtils.SetItemLight(item, null); // back to the registered Light
+```
+
+The override is saved with the item, so it's still there after a load.
+
+---
+
+## Bandages
+
+`Bandage` gives the item the vanilla bandage minigame. A better swipe uses more of the item and heals more.
+
+```csharp
+ItemRegistry.Register(
+    "clothpatch",
+    new CustomItemInfo
+    {
+        fullName = "Cloth patch",
+        description = "A small patch of clean cloth.",
+        category = "medicine",
+        tags = "medicine,dressing,cangetwet",
+        weight = 0.05f,
+        value = 3,
+        Bandage = new BandageProperties
+        {
+            Effectiveness = 8f,
+            SkinHealAmount = 8f,
+            BandageSlowAmount = 18f,
+            PainReduction = 40f,
+            BoneHealTimerReduction = 5f,
+            DislocationTimerReduction = 5f,
+            MinigameColor = new Color(0.9f, 0.9f, 0.9f)
+        }
+    },
+    AssetLoader.LoadEmbeddedSprite("Images.clothpatch.png")
+);
+```
+
+<img src="/images/cloth-patch-ingame.png" alt="In-game screenshot of the cloth patch's bandage minigame" class="screenshot" />
+
+<details>
+<summary>BandageProperties fields</summary>
+
+| Field | Default | What it does |
+| --- | --- | --- |
+| `Effectiveness` | `8` | Higher = each use consumes less of the item. |
+| `SkinHealAmount` | `8` | Skin health healed. |
+| `BandageSlowAmount` | `18` | Total bleeding removed. |
+| `PainReduction` | `40` | Pain removed. |
+| `BoneHealTimerReduction` | `5` | Broken bone recovery sped up. Minutes. |
+| `DislocationTimerReduction` | `5` | Dislocation recovery sped up. Minutes. |
+| `MuscleHealAmount` | `0` | Muscle health healed over time, 1 per second. The bruise kit uses `140`. |
+| `MinigameColor` | | Color of the minigame. |
+| `CreateWrapSprite` | `true` | Show a bandage wrap on the player's limb visually. |
+| `WrapSpritePath` / `WrapSpriteColor` | vanilla wrap, white | Wrap sprite and tint. |
+
+</details>
+
+---
+
+## Syringes
+
+`Syringe` gives the item the vanilla syringe minigame. It holds a liquid and injects it into a limb. What the injection does is decided by the [liquid](/docs/liquids/).
+
+```csharp
+ItemRegistry.Register(
+    "reliefinjector",
+    new CustomItemInfo
+    {
+        fullName = "Relief injector",
+        description = "A small injector prefilled with relief cream.",
+        category = "medicine",
+        tags = "medicine",
+        slotRotation = -45f,
+        weight = 0.25f,
+        value = 8,
+        Syringe = new SyringeProperties
+        {
+            Capacity = 100f,
+            AmountPerFullUse = 100f,
+            AutoFill = false,
+            // Not sure what this is? Read the next page for liquid documentation.
+            DefaultContents =
+            {
+                new LiquidStack("reliefcream", 100f)
+            }
+        }
+    },
+    AssetLoader.LoadEmbeddedSprite("Images.reliefinjector.png")
+);
+```
+
+<img src="/images/relief-injector-ingame.png" alt="In-game screenshot of the relief injector's syringe minigame" class="screenshot" />
+
+<details>
+<summary>SyringeProperties fields</summary>
+
+| Field | Default | What it does |
+| --- | --- | --- |
+| `Capacity` | `100` | mL it holds. |
+| `AmountPerFullUse` | `100` | mL injected by a perfect minigame. |
+| `DefaultContents` | empty | Liquids it spawns with. |
+| `AutoFill` | `false` | Refills itself from liquid it lies in. |
+| `UseAverageColor` | `true` | Minigame takes the color of the liquid inside. |
+| `MinigameColor` | white | Minigame color when `UseAverageColor` is off. |
+
+For a bottle or canteen without the minigame, use the [liquid container fields](/docs/liquids/) instead.
+
+</details>
+
+---
+
+## Melee tools and weapons
+
+`Tool` makes the item swing like vanilla tools, mimicking the same raycast, hit sounds, cooldown, damage numbers, and block damage systems.
+
+```csharp
+ItemRegistry.Register("glassshiv", new CustomItemInfo
+{
+    fullName = "Glass shiv",
+    description = "A sharpened piece of glass wrapped in cloth.",
+    category = "weapon",
+    tags = "tool,cangetwet,cutting",
+    weight = 0.25f,
+    value = 4,
+    Tool = new ToolProperties
+    {
+        Damage = 22f,
+        StructuralDamage = 8f,
+        AttackCooldownMultiplier = 0.7f,
+        Distance = 4.6f,
+        KnockBack = 120f,
+        Cooldown = 0.28f,
+        StaminaUse = 0.35f,
+        Piercing = true,
+        ConditionLossOnHit = 0.08f
+    }
+}, AssetLoader.LoadEmbeddedSprite("Images.glassshiv.png"));
+```
+
+<img src="/images/glass-shiv-ingame.png" alt="long long knife" class="screenshot" />
+
+To change an attack as it happens, use `BeforeAttack` / `AfterAttack` instead of a Harmony patch. Returning `false` from `BeforeAttack` will cancel the swing.
+
+```csharp
+Tool = new ToolProperties
+{
+    BeforeAttack = (ref object state, AttackInfo attack, Body body, Item item) =>
+    {
+        // Wet glass is slippery :(
+        if (item.isWet) attack.damage *= 0.5f;
+        return true;
+    }
+}
+```
+
+<details>
+<summary>ToolProperties fields</summary>
+
+| Field | Default | What it does |
+| --- | --- | --- |
+| `Damage` | `25` | Damage to creatures. |
+| `StructuralDamage` | `25` | Damage to blocks and buildings. |
+| `Distance` | `2.5` | Reach. |
+| `Cooldown` | `0.35` | Seconds between swings. |
+| `AttackCooldownMultiplier` | `0.66` | Cooldown multiplier after hitting a creature. |
+| `KnockBack` | `270` | Knockback force. |
+| `StaminaUse` | `0.5` | Stamina per swing. |
+| `ConditionLossOnHit` | `0.02` | Condition lost per hit. |
+| `Piercing` | `false` | Hits pass through to targets behind. |
+| `MetalMoreDamage` | `false` | Bonus damage against metal targets. |
+| `SwingSounds` / `Volume` | vanilla swings, `0.5` | Sounds picked at random per swing. |
+| `PhysicalSwing` | `true` | Arm strength and exertion affect the swing. |
+| `DoAttackAnimation` / `AttackAnimation` | `true`, `"SwingAnim"` | Arm swing animation. |
+| `RotateAmount` | `15.5` | How far the sprite rotates on a swing. |
+| `BeforeAttack` / `AfterAttack` | none | Callbacks around each swing. `state` passes a value from before to after. |
+
+</details>
+
+---
+
+## Wearables
+
+Wearables are normal items with the vanilla wearable fields set (`wearable`, `desiredWearLimb`, `wearSlotId`, ...). CUCoreLib adds how they look when worn:
+
+```csharp
+Sprite bedroll = AssetLoader.LoadEmbeddedSprite("Images.fieldpack-bedroll.png");
+
+ItemRegistry.Register(
+    "fieldpack",
+    new CustomItemInfo
+    {
+        fullName = "Field Pack",
+        description = "A versatile pack for carrying supplies.",
+        category = "tool",
+        weight = 1.1f,
+        value = 14,
+        tags = "cangetwet",
+
+        // Vanilla wearable fields
+        wearable = true,
+        wearableCanBeHeld = true,
+        desiredWearLimb = "UpTorso",
+        wearSlotId = "back",
+        wearableIsolation = 0.08f, // No, it is not misspelled. 
+        wearableHitDurabilityLossMultiplier = 0.7f,
+        wearableArmor = 0.18f,
+
+        // Main worn sprite, drawn on desiredWearLimb
+        WornSprite = AssetLoader.LoadEmbeddedSprite("Images.fieldpack-worn.png"),
+        WornSpriteOffset = new Vector2(0f, -0.04f),
+        WearableSortingOrder = 206,
+
+        // Extra pieces drawn on other limbs while worn
+        MultiWornSprites = new Dictionary<string, Sprite>
+        {
+            ["DownTorso"] = bedroll,
+            ["HandB"] = AssetLoader.LoadEmbeddedSprite("Images.fieldpack-strap.png")
+        },
+
+        // It's also a bag!
+        Container = new ContainerProperties { 
+            Capacity = 8f, 
+            MaxWeightPerItem = 3f, 
+            EncumbranceReduction = 0.5f 
+        }
+    }
+    // Nudge individual extra pieces, by limb name
+    .SetMultiWornSpriteOffset("HandB", new Vector2(-0.01f, 0.01f)),
+    
+    AssetLoader.LoadEmbeddedSprite("Images.fieldpack.png")
+);
+```
+
+<img src="/images/fieldpack-ingame.png" alt="Field Pack item sprite" class="screenshot" />
+
+<details>
+<summary>Worn sprite fields</summary>
+
+| Field | What it does |
+| --- | --- |
+| `WornSprite` | Sprite drawn on `desiredWearLimb` while worn. The normal icon comes back when it's taken off. |
+| `WornSpriteOffset` | Moves the worn sprite. |
+| `WornSpriteAnimationId` | Plays a registered [animation](/docs/assets/#frame-animations) as the worn sprite. |
+| `MultiWornSprites` | Extra sprites on other limbs, keyed by vanilla limb name. |
+| `MultiWornSpriteOffsets` | Offsets for those, by limb name. `SetMultiWornSpriteOffset(limb, offset)` fills it inline, or `SetMultiWornSpriteOffset(offset, sprite)` finds the limb from a sprite in `MultiWornSprites` (does not work for a shared sprite that is on more than one limb). |
+| `WearableSortingOrder` | Draw order of all worn pieces. Higher draws on top of other equipment. |
+
+</details>
+
+---
+
+## Targeting specific loot sources
+
+By default, an item joins the loot pools of its `category`, like vanilla. Set `DropPool` to pick the sources yourself:
+
+```csharp
+DropPool = DropPool.Corpse | DropPool.MedicalCrate | DropPool.AllTraders,
+```
+
+Available: `Corpse`, `MedicalCrate`, `FoodCrate`, `ContainerCrate`, `Trader1`–`Trader3` (or `AllTraders`), `DropCapsule`, `CapsuleContainer`, `MetamorphicCrystal`, and `All`.
+
+Due to the pool system, one entry weighs the same as one vanilla entry, so it's relative.
+
+For instance, next to nine other entries, one entry is a 10% pick, two entries about 18%.
+
+| Field | What it does |
+| --- | --- |
+| `WorldSpawnPerChunk` | Also scatter the item loose in the world, this many per chunk on average (e.g. `0.02f`). Separate from loot pools. |
+
+
+---
+
+## Decay flags
+
+`decayInfo` holds `ItemInfo.DecayType` flags that pause decay in some situations. Combine them with `|`:
+
+```csharp
+decayMinutes = 240f,
+decayInfo = (byte)(ItemInfo.DecayType.NoDecayWhenNotWorn | ItemInfo.DecayType.NoDecayWhenStill),
+```
+
+| Flag | Value | Decay pauses... |
+| --- | --- | --- |
+| `NoDecayWithoutContainerItem` | `1` | ...while this item's own container is empty. |
+| `NoDecayWhenNotWorn` | `2` | ...while it's on the ground or inside a container, i.e. not held or worn. |
+| `NoDecayWhenStill` | `4` | ...while it's on the ground, or the player is (nearly) standing still. |
+| `BatteryDecay` | `16` | Drains battery charge instead. Set automatically for `Battery` items. |
+
+---
+
+## Custom data
+
+`CustomData` stores your own values on each spawned item, like upgrade tiers or tuning numbers. Every spawned item starts with a copy of the values you register, and can then change on its own. Values are saved with the item and synced in multiplayer.
+
+```csharp
+ItemRegistry.Register(
+    "laserdrill",
+    new CustomItemInfo
+    {
+        fullName = "Laser drill",
+        category = "tool",
+        CustomData =
+        {
+            ["beamRange"] = 8f,
+            ["tier"] = 1
+        }
+    },
+    AssetLoader.LoadEmbeddedSprite("Images.laserdrill.png")
+);
+```
+
+Then read and write it on a spawned `Item`:
+
+```csharp
+// Read, with a fallback if the key is missing
+float range = ItemRegistry.GetCustomData(item, "beamRange", 4f);
+
+// Upgrade just this one drill
+ItemRegistry.SetCustomData(item, "tier", 2);
+```
+
+| Call | What it does |
+| --- | --- |
+| `GetCustomData<T>(item, key, fallback)` | Value, or `fallback` if missing. |
+| `TryGetCustomData<T>(item, key, out value)` | Same, as a `Try` pattern. |
+| `SetCustomData(item, key, value)` | Set this item's value. |
+| `HasCustomData(item, key)` | Whether the key exists on this item. |
+| `RemoveCustomData(item, key)` | Remove the key from this item. |
+| `GetAllCustomData(item)` | Every key and value on this item. |
+
+Note: Don't edit the registered `CustomItemInfo.CustomData` at runtime, as that only changes the starting values for items spawned later.
+
+{/* Code shown in the side panel */}
+
+```csharp panel title="RegisterAdvancedItems.cs"
+using System.Collections.Generic;
+using CUCoreLib.Data;
+using CUCoreLib.Helpers;
+using CUCoreLib.Registries;
+using UnityEngine;
+
+private void RegisterAdvancedItems()
+{
+    // A bag: Container turns the item into storage
+    ItemRegistry.Register(
+        "cinderstalkbag",
+        new CustomItemInfo
+        {
+            fullName = "Cinderstalk Bag",
+            description = "A compact all-natural bag.",
+            category = "tool",
+            weight = 1.2f,
+            value = 18,
+            tags = "cangetwet",
+            Container = new ContainerProperties
+            {
+                Capacity = 5f,
+                MaxWeightPerItem = 2f,
+                EncumbranceReduction = 0.65f
+            },
+            // Per-item values you can read/change later with ItemRegistry.GetCustomData
+            CustomData =
+            {
+                ["tier"] = 1
+            }
+        },
+        AssetLoader.LoadEmbeddedSprite("Images.cinderstalk-bag.png")
+    );
+
+    // A lamp: takes a battery and gives off light
+    ItemRegistry.Register(
+        "portablelamp",
+        new CustomItemInfo
+        {
+            fullName = "Portable lamp",
+            description = "A battery-fed lamp for careful cave work.",
+            category = "utility",
+            tags = "belttool",
+            usable = true,
+            weight = 0.8f,
+            value = 22,
+            decayMinutes = 180f, // how long a full battery lasts
+            Battery = new BatteryProperties { StartCharge = 0.35f },
+            Light = new LightProperties()
+        },
+        AssetLoader.LoadEmbeddedSprite("Images.portablelamp.png")
+    );
+
+    // A weapon: Tool gives it the vanilla melee swing
+    ItemRegistry.Register(
+        "glassshiv",
+        new CustomItemInfo
+        {
+            fullName = "Glass shiv",
+            description = "A sharpened piece of glass wrapped in cloth.",
+            category = "weapon",
+            tags = "tool,cangetwet,cutting",
+            weight = 0.25f,
+            value = 4,
+            Tool = new ToolProperties
+            {
+                Damage = 22f,
+                StructuralDamage = 8f,
+                Cooldown = 0.28f,
+                Piercing = true
+            },
+            // Only spawn on corpses and at traders
+            DropPool = DropPool.Corpse | DropPool.AllTraders
+        },
+        AssetLoader.LoadEmbeddedSprite("Images.glassshiv.png")
+    );
+
+    // A wearable apron that only wears out while carried and the player is moving
+    ItemRegistry.Register(
+        "rubberapron",
+        new CustomItemInfo
+        {
+            fullName = "Rubber apron",
+            description = "Heavy protective wear for messy work.",
+            category = "tool",
+            weight = 1.1f,
+            value = 14,
+            wearable = true,
+            desiredWearLimb = "UpTorso",
+            wearSlotId = "outertorso",
+            wearableArmor = 0.18f,
+            decayMinutes = 240f,
+            decayInfo = (byte)(ItemInfo.DecayType.NoDecayWhenNotWorn | ItemInfo.DecayType.NoDecayWhenStill),
+            WornSprite = AssetLoader.LoadEmbeddedSprite("Images.rubberapron_worn.png")
+        },
+        AssetLoader.LoadEmbeddedSprite("Images.rubberapron.png")
+    );
+}
+```

@@ -1,0 +1,146 @@
+---
+title: "The Console and You"
+label: "Console and You"
+crumb: "Debug APIs"
+lead: "The many commands for the few. Register development commands that can be ran via the game's console."
+---
+## Adding a command
+
+`ConsoleCommandRegistry.Register` adds a command to the game's console:
+
+```csharp
+ConsoleCommandRegistry.Register("whereami", "Prints the player's position.", args =>
+{
+    CUCoreUtils.ConsoleLog(ConsoleScript.instance, $"You are at {PlayerCamera.main.body.transform.position}");
+});
+```
+
+`args[0]` is the command name itself. The player input starts at `args[1]`.
+
+- To report a mistake, throw an exception. The console shows its message in red, like vanilla commands do:
+
+```csharp
+if (args.Length < 2) throw new Exception("Usage: teleportmarker [marker]");
+```
+
+
+---
+
+## Arguments and autocomplete
+
+```csharp
+ConsoleCommandRegistry.Register(
+    "teleportmarker",
+    "Teleports the player to a saved marker.",
+    args =>
+    {
+        string marker = args[1];
+        bool snapToGround = args.Length > 2 && bool.Parse(args[2]);
+        // ...
+    },
+
+    // Suggestions for arg[0], or the first after the command name. 
+    new Dictionary<int, List<string>>
+    {
+        [0] = new List<string> { "home", "camp", "exit" }
+    },
+    
+    // A label and help text for each argument
+    ("marker", "Saved marker name"),
+    ("bool snapToGround", "Whether to place the player on the ground")
+);
+```
+
+<img src="/images/teleportmarker-command-ingame.png" alt="In-game screenshot of console autofill suggestions" class="screenshot" />
+
+- Labels starting with `bool` automatically suggest `true`/`false`, and labels starting with `position` suggest `cursor`, `player`, `random`, and coordinates.
+
+
+- Pass `isCheat: true` for commands that give an unfair advantage, if needed.
+
+```csharp
+ConsoleCommandRegistry.Register("givesunpears", "I heard you liked Sunpears...", GiveSunpears, isCheat: true);
+```
+
+Using it disables achievements  for the session.
+
+---
+
+## Built-in commands
+
+CUCoreLib adds a few commands to the console:
+
+| Command | What it does |
+| --- | --- |
+| `cuspawn [id]` | Spawn a vanilla prefab, or a modded item or building. |
+| `spawncategory [pool=modded]` | Spawn every item in a mod, floating.|
+| `settile [tile]` | Place a vanilla or modded [tile](/docs/tiles/). |
+| `modlist` | List every loaded mod and its version. |
+| `bug-report` | Send a bug report, forwarded to the mod authors (below). (Please give a good description!) |
+| `reloadcontent`, `autohotreload` | [Hot reload](/docs/debug-testing/) a rebuilt mod. |
+| `createLocale` | Automaticall write your registered locale text to a [locale](/docs/locale/) file. |
+
+CUCoreLib also extends vanilla commands `floodfill` to suggest modded liquids and tiles, and `setbodyfield` / `setlimbfield` can set [status](/docs/statuses/) fields.
+
+---
+
+## Bug reports
+
+Players can report a bug in any mod straight from the console:
+
+```text
+bug-report
+bug-report "Inventory crashes when opened"
+bug-report "Inventory crashes when opened" true high
+```
+
+The format is `bug-report ["description"] [screenshot true/false] [severity]`; everything is optional. Severity is `low`, `medium`, `high`, or `critical`.
+
+Each report includes the mod list, the last 1 MiB of `BepInEx/LogOutput.log`, and the console history. A screenshot is only taken if asked for. Reports are posted to Discord and forwarded to the mod's author.
+
+Thanks for reporting any bugs you encounter!
+
+{/* Code shown in the side panel */}
+
+```csharp panel title="RegisterConsole.cs"
+using System;
+using System.Collections.Generic;
+using CUCoreLib.Helpers;
+using CUCoreLib.Registries;
+using UnityEngine;
+
+private void RegisterConsoleCommands()
+{
+    ConsoleCommandRegistry.Register("whereami", "Prints the player's current world position.", args =>
+    {
+        // Ends the command with an error if no run is active
+        CUCoreUtils.ConsoleCheckForWorld(ConsoleScript.instance);
+
+        Vector3 position = PlayerCamera.main.body.transform.position;
+        CUCoreUtils.ConsoleLog(ConsoleScript.instance, $"Player position: {position}");
+    });
+
+    ConsoleCommandRegistry.Register(
+        "givesunpears",
+        "I heard you liked Sunpears...",
+        args =>
+        {
+            CUCoreUtils.ConsoleCheckForWorld(ConsoleScript.instance);
+
+            // args[0] is "givesunpears"
+            // args[1] is the amount, if given by the user
+            int amount = 100;
+            if (args.Length > 1 && !int.TryParse(args[1], out amount))
+            {
+                throw new Exception("Amount must be a whole number.");
+            }
+
+            CUCoreUtils.GiveItem("sunpear", amount);
+            CUCoreUtils.ConsoleLog(ConsoleScript.instance, "..so I put a sunpear in your sunpear    , so that you can, uh.. sunpear while you sunpear?");
+        },
+        isCheat: true,
+        argAutofill: new Dictionary<int, List<string>> { [0] = new List<string> { "10", "100", "1000" } },
+        ("amount", "How many sunpears. Default 100.")
+    );
+}
+```

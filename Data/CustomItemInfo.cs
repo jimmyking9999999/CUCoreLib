@@ -110,11 +110,14 @@ namespace CUCoreLib.Data
         public List<string> SpawnComponents = new List<string>();
 
         /// <summary>
-        /// Integer pool-entry weight. Use ItemRegistry.Register's float overload for fractional entries per generation.
+        /// Integer pool-entry weight. Use <see cref="FractionalSpawnFrequency"/> for fractional entries per generation.
         /// </summary>
         public int SpawnFrequency = 1;
 
-        internal float? FractionalSpawnFrequency;
+        /// <summary>
+        /// Fractional pool-entry weight (e.g. 0.2f), rounded once per pool each world generation. Overrides <see cref="SpawnFrequency"/> when set.
+        /// </summary>
+        public float? FractionalSpawnFrequency;
 
         /// <summary>
         /// Legacy sprite scale multiplier applied to the held/inventory visuals. Don't use this, use <see cref="SpriteScaleDimensions"/> instead.
@@ -887,6 +890,11 @@ namespace CUCoreLib.Data
         /// Dislocation timer reduction applied by the bandage. Flat.
         /// </summary>
         public float DislocationTimerReduction = 5f;
+
+        /// <summary>
+        /// Muscle healing applied by the bandage, at 1 muscle health per second (like the vanilla bruise kit, which uses 140). Flat. 0 = no muscle healing.
+        /// </summary>
+        public float MuscleHealAmount = 0f;
 
         /// <summary>
         /// Minigame color used by the bandaging UI's bandage.

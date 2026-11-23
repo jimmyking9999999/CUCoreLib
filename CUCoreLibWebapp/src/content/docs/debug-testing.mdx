@@ -1,0 +1,149 @@
+---
+title: "Debugging, testing, and hot reload"
+label: "Hot Reload / Testing"
+crumb: "Debug APIs"
+lead: "Are you tired of restarting the game to test your mod?"
+---
+## Hot reload
+
+Hot reload swaps in your rebuilt DLL while the game is running, so changing an item's stats or a recipe doesn't need a restart.
+
+Add one call to your plugin's `Awake()`. Everything **before** it runs once at startup; everything **after** it is replayed on every reload:
+
+```csharp
+private void Awake()
+{
+    // Startup only, e.g. patches, commands, settings
+    harmony.PatchAll();
+
+    ContentReloadManager.EnableHotReload(ModGUID); // needs `using CUCoreLib.ContentReload;`
+
+    // Reloadable elements! items, recipes, liquids, locale, etc...
+    RegisterItems();
+    RegisterRecipes();
+}
+```
+
+Pass your plugin's GUID constant, the same one used in `[BepInPlugin]`. CUCoreLib follows the methods you call after it to find your registrations.
+
+<video src="https://jimmyking9999999.github.io/Metadata-generator/videos/hot-reload.mp4" data-local-fallback-src="/videos/hot-reload.mp4" autoplay="" loop="" muted="" playsinline="" controls="" class="screenshot docs-video"></video>
+
+---
+
+## Reloading
+
+Rebuild your mod, then in the game console:
+
+```text
+reloadcontent com.yourname.modname
+```
+
+Or let it reload by itself whenever the DLL changes:
+
+```text
+autohotreload com.yourname.modname true
+autohotreload com.yourname.modname false
+```
+
+If Windows won't let your build overwrite the DLL while the game is running, point CUCoreLib at your build output instead. In `BepInEx/config/CUCoreLib.cfg`, under `[Hot Reload]`, set `com.yourname.modname.overridePath` to e.g. your project's `bin\Debug\net48\MyMod.dll`.
+
+---
+
+## What can be reloaded
+
+| Reloads | Doesn't reload (restart the game) |
+| --- | --- |
+| Items, recipes, liquids | Harmony patches |
+| Basic building entities | Console commands |
+| Locale and loaded assets | Settings, save providers, multiplayer hooks |
+| | Tiles, liquid tiles, structures |
+
+Hot reload is singleplayer only.
+
+---
+
+## Loading straight into a world
+
+`BepInEx/config/CUCoreLib.cfg` has options to skip the menu and load straight into the debug world or the tutorial on launch.
+
+<img src="/images/cucorelib-config.png" alt="CUCoreLib .cfg config" class="screenshot" />
+
+---
+
+## Testing multiplayer on one PC
+
+The game only allows one copy of itself to run. To run two:
+
+1. In `Casualties Unknown\CasualtiesUnknown_Data\boot.config`, delete the `forceSingleInstance: 1` line.
+2. Launch `CasualtiesUnknown.exe` twice, directly (not through Steam).
+3. In the multiplayer mod, switch both from Steam to IP hosting, and give each a different player name.
+4. Host on one, connect with the other.
+
+{/* Code shown in the side panel */}
+
+```csharp panel title="DebugHarness.cs"
+using System.Collections.Generic;
+using BepInEx;
+using CUCoreLib.ContentReload;
+using CUCoreLib.Helpers;
+using CUCoreLib.Registries;
+using HarmonyLib;
+using UnityEngine;
+
+namespace AcidShroomTutorial
+{
+    [BepInPlugin(ModGuid, ModName, ModVersion)]
+    [BepInDependency("net.cucorelib")]
+    public sealed class Plugin : BaseUnityPlugin
+    {
+        private const string ModGuid = "com.example.acidshroomtutorial";
+        private const string ModName = "Acid Shroom Tutorial";
+        private const string ModVersion = "1.0.0";
+
+        private Sprite acidShroomSprite;
+
+        private void Awake()
+        {
+            // Startup only
+            acidShroomSprite = AssetLoader.LoadEmbeddedSprite("Images.acidshroom.png");
+            new Harmony(ModGuid).PatchAll();
+
+            // Everything below this line is replayed by reloadcontent!
+            ContentReloadManager.EnableHotReload(ModGuid);
+            RegisterItems();
+            RegisterRecipes();
+        }
+
+        private void RegisterItems()
+        {
+            // Change these numbers, rebuild, run "reloadcontent com.example.acidshroomtutorial"!
+            ItemRegistry.Register("acidshroom", new ItemInfo
+            {
+                fullName = "Acid shroom",
+                description = "A caustic mushroom that tingles to the touch.",
+                category = "food",
+                usable = true,
+                useAction = (body, item) =>
+                {
+                    body.Eat(6f, 0.4f);
+                    item.condition -= 1f;
+                    Sound.Play("eatCrunch", body.transform.position);
+                }
+            }, acidShroomSprite);
+        }
+
+        private void RegisterRecipes()
+        {
+            RecipeRegistry.Register(new Recipe
+            {
+                category = Recipes.RecipeCategory.Materials,
+                result = new RecipeResult { id = "biochem", isLiquid = true, resultCondition = 40f },
+                items = new List<RecipeItem>
+                {
+                    new RecipeItem { specificId = "acidshroom" }
+                }
+            });
+        }
+    }
+}
+```

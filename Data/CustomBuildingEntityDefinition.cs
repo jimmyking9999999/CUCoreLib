@@ -260,6 +260,11 @@ namespace CUCoreLib.Data
         public bool RandomFlip = true;
 
         /// <summary>
+        /// Allows random vertical sprite flipping on spawn. (Scale Y *= -1). Default false.
+        /// </summary>
+        public bool RandomFlipVertical;
+
+        /// <summary>
         /// Reference building id used to copy a vanilla renderer/prefab baseline. Not recommended to edit.
         /// </summary>
         public string RenderReferenceId = "stoneplant";
@@ -278,6 +283,11 @@ namespace CUCoreLib.Data
         /// Gravity scale assigned to an added <c>Rigidbody2D</c>. Defaults to 1.
         /// </summary>
         public float RigidbodyGravityScale = 1f;
+
+        /// <summary>
+        /// Mass assigned to an added <c>Rigidbody2D</c>. Defaults to 10. Affects pushing and collisions, not fall speed or impact damage.
+        /// </summary>
+        public float RigidbodyMass = 10f;
 
         /// <summary>
         /// Local scale applied to the generated object.

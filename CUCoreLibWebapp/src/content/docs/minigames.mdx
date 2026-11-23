@@ -1,0 +1,131 @@
+---
+title: "Minigame API"
+label: "Minigames"
+crumb: "Misc / API"
+lead: "Shared helpers for creating custom minigames on top of the game's vanilla Minigame base."
+---
+## What this wraps
+
+THIS PAGE IS IN DEVELOPMENT!
+
+Custom minigames are planned to be implemented with a dedicated Unity tool, whilst the current api acts as a (pretty limited) wrapper around the vanilla system.
+
+It is advised to either create your own minigame with raw code, or wait until the dedicated tool is released. Thanks!
+
+Information below is retained for reference, but will soon be mostly outdated and unsupported.
+
+Some important vanilla hooks are `Start()`, `Update()`, `PhysicsUpdate()`, `HandType()`, `GuideLocaleString()`, `NeedsItem()`, and `CanExit()`.
+
+For quick visual wiring, the session layer exposes the live hand sprite, hand state, spawned minigame root, session-scoped state storage, and the shared screen factory so custom minigames can swap art or grab child GameObjects without repeating reflection code everywhere.
+
+---
+
+## CUCoreLib helper surface
+
+| Helper | What it does |
+| --- | --- |
+| `CUCoreMinigames` | Static runner facade that starts or ends minigames and exposes the current live session. |
+| `CUCoreMinigameSession` | Live wrapper around the shared runner with access to body, current item, hand state, spawned UI, session-scoped state, and screen/hand helpers. |
+| `CUCoreMinigameConfig` | Cached policy object returned from `Configure(...)` for hand type, guide key, item requirement, rotation offset, and exit behavior. |
+| `CUCoreMinigameDefinition` | Composable definition layer for new minigames. Override `Configure`, `Start`, `Update`, and optional `End` hooks. |
+| `CUCoreMinigames.TryStart(...)` / `TryStartDefinition(...)` | Starts either a vanilla `Minigame` or a definition-based CUCoreLib minigame only when the shared runner is idle. |
+| `session.TryCreateScreen(...)` | Loads a minigame screen prefab through the game's existing UI system. |
+| `session.TryCreateBundledScreen(bundleId, assetName)` | Instantiates a bundled screen prefab under the live minigame canvas using the same parenting and `spawnedMiniGame` bookkeeping as the vanilla screen factory. |
+| `cclbundle://bundleId/assetName` | Reserved screen-resource prefix that lets existing `TryCreateScreen(...)` style code route through a bundled prefab without inventing a second user-facing identifier format. |
+| `session.Complete()` / `Fail()` / `Cancel()` | Ends the active minigame through the shared runner and reports an explicit end reason into the definition lifecycle. |
+| `session.TrySetHandSprite(...)` | Swaps the current hand sprite immediately, either from a sprite asset or one of the game's existing hand slots. |
+| `session.GetOrCreateState<T>(...)` | Stores modular per-run state without inventing extra globals or singleton managers. |
+| `session.TryGetSpawnedMiniGameObject(...)` | Gets a child GameObject from the spawned minigame root by index or by name. |
+| `CUCoreMinigameTimer` / `CUCoreMinigameProgress` | Optional small helper objects for countdowns and progress-based minigame state. |
+| `CUCoreMinigame` | Legacy-compatible abstract wrapper for mods that still prefer direct inheritance from a `Minigame`\-style base. |
+
+---
+
+## Bundled screen prefabs
+
+If your minigame UI lives in an AssetBundle instead of the game's normal `Resources` path, register the bundle once during plugin setup and then use either the typed bundled helper or the reserved `cclbundle://` screen ID.
+
+```csharp
+private void Awake()
+{
+    AssetLoader.RegisterBundleFromPluginFolder(this, "mymod.minigames", "Bundles/mymod-minigames");
+}
+```
+
+```csharp
+public override void Start(CUCoreMinigameSession session)
+{
+    session.TryCreateScreen("cclbundle://mymod.minigames/WireSpliceScreen");
+}
+```
+
+Both paths instantiate the prefab under `minigameScreen`, move it to sibling index `0`, and update `spawnedMiniGame` so the rest of CUCoreLib's lookup helpers behave exactly the same as a vanilla screen.
+
+---
+
+## Starting a minigame
+
+Use the runner guard so you do not accidentally stack minigames. If the runner is busy, the start request fails cleanly.
+
+```csharp
+if (CUCoreMinigames.TryStartDefinition(() => new WireSpliceMinigame()))
+{
+    // Started successfully!
+}
+```
+
+{/* Code shown in the side panel */}
+
+```csharp panel title="CustomMinigame.cs"
+using System.Collections.Generic;
+using CUCoreLib.Helpers;
+using UnityEngine;
+using UnityEngine.EventSystems;
+
+public sealed class WireSpliceMinigame : CUCoreMinigameDefinition
+{
+    // Show tweezers instead of the default grabbing hand
+    public override Minigame.HandSpriteType HandType(CUCoreMinigameSession session)
+    {
+        return Minigame.HandSpriteType.Tweezers;
+    }
+
+    // Playable without holding an item (default: an item is required)
+    public override bool NeedsItem(CUCoreMinigameSession session)
+    {
+        return false;
+    }
+
+    // Locale key of the hint text shown during the minigame
+    public override string GuideLocaleKey(CUCoreMinigameSession session)
+    {
+        return "wireSpliceGuide";
+    }
+
+    public override void Start(CUCoreMinigameSession session)
+    {
+        // Screen prefab from a registered AssetBundle (see Loading Assets)
+        session.TryCreateBundledScreen("mymod.minigames", "WireSpliceScreen");
+    }
+
+    public override void Update(CUCoreMinigameSession session, List<RaycastResult> uiCasts)
+    {
+        // Finish when the player clicks; replace with your own win condition
+        if (session.HandStartedClicking)
+        {
+            session.Complete();
+        }
+    }
+}
+
+// Call from an item's useAction, a building's OnUse, etc.
+public static class WireSpliceStarter
+{
+    public static bool Start()
+    {
+        // Returns false if another minigame is already running
+        return CUCoreMinigames.TryStartDefinition(() => new WireSpliceMinigame());
+    }
+}
+```
+

@@ -1,0 +1,4 @@
+---
+import { defaultIngredients, defaultRecipeState, recipeFormHtml } from "../generators.ts";
+---
+<div class="generator" data-generator="recipe" set:html={recipeFormHtml(defaultRecipeState, defaultIngredients)} />

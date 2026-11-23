@@ -1,0 +1,222 @@
+---
+title: "Liquid API"
+label: "Liquid API"
+crumb: "Items / Liquids"
+lead: "Register liquid definitions, fill liquid containers, and understand WaterContainerItem behavior."
+---
+## What counts as a liquid?
+
+...not an item, that's for sure!
+
+A liquid is a liquid type (like `water` or `morphine`) that lives inside a container item. A container holds a list of `LiquidStack`s, each one a liquid ID plus an amount in mL.
+
+So a "juice bottle" is two registrations: the **liquid** (`LiquidRegistry.Register`) and the **container item** that holds it (`ItemRegistry.Register` with liquid fields).
+
+```csharp
+LiquidRegistry.Register("pineapplejuice", new CustomLiquidInfo
+{
+    name = "Pineapple Juice",
+    description = "You've never seen this before. A light yellow drink that smells fruity.",
+    color = new Color(0.94f, 0.88f, 0.66f),
+    valuePerLiter = 22f
+});
+```
+
+<img src="/images/pineapple-juice-ingame.png" alt="In-game screenshot of pineapple juice in a minibarrel. Ignore the water quality, my bad!" class="screenshot" />
+
+CUCoreLib turns this into a vanilla liquid and registers its name and description for you.
+
+---
+
+## What a liquid does
+
+A liquid does something through its callbacks. Each one receives the amount used, in mL:
+
+| Callback | Runs when | Needs |
+| --- | --- | --- |
+| `onDrink(ml, body)` | Someone drinks it. | |
+| `onApplyToLimb(ml, limb)` | It's rubbed on a limb, like a cream. | `healthUsable = true` |
+| `onInject(ml, limb)` | It's injected with a syringe. | `injectable = true` |
+
+```csharp
+LiquidRegistry.Register("lidocainecream", new CustomLiquidInfo
+{
+    name = "Lidocaine cream",
+    description = "A numbing cream meant for bare skin.",
+    color = new Color(0.92f, 0.91f, 0.84f),
+    valuePerLiter = 90f,
+    healthUsable = true,
+    onApplyToLimb = (ml, limb) =>
+    {
+        // It does nothing because the expie is covered in fur
+        if (limb.skinHealth > 20f) return;
+
+        // 6 pain removed per 100 mL
+        limb.pain -= ml * 0.06f;
+    }
+});
+```
+
+Vanilla scales effects by amount, usually as 100ml to match sips (`ml * 0.01f`). For example, vanilla apple juice gives `9` thirst per 100ml.
+
+<details>
+<summary>All CustomLiquidInfo fields</summary>
+
+| Field | Default | What it does |
+| --- | --- | --- |
+| `name` / `description` | | Display name and description. |
+| `color` | white | Color in containers and the UI. |
+| `valuePerLiter` | `0` | Trade value per 1000 mL. |
+| `onDrink`, `onApplyToLimb`, `onInject` | | Effects, see above. |
+| `healthUsable` | `false` | Can be applied to limbs. |
+| `injectable` | `false` | Can be injected. |
+| `injectionSickness` | `1` | How much injecting it makes the player sick. |
+| `qualities` | empty | Crafting qualities for [recipes](/docs/recipe/), scaled by the mL present. Water is `new CraftingQuality("water", 1f)`. |
+| `unobtainable` | `false` | Never appears in random minibarrels. |
+| `nondescriptDangerous` | same as `unobtainable` | Blacklists liquid from appearing in non-descript cans. |
+| `localeFromItem` | `false` | Take the name and description from the item with the same ID. |
+| `onHealthUse` | | Legacy. Used for both applying and injecting when the specific callback isn't set. Don't use this if you can. |
+
+</details>
+
+---
+
+## Liquid containers
+
+Any `CustomItemInfo` can hold liquids. Set `capacity`, and optionally what it spawns with:
+
+```csharp
+ItemRegistry.Register(
+    "pineapplejuicebottle",
+    new CustomItemInfo
+    {
+        fullName = "Pineapple juice box",
+        category = "water",
+        weight = 1.25f,
+        scaleWeightWithCondition = true, // lighter as it empties
+        capacity = 500f,                 // bottle size (mL)
+
+        // When spawning or bought from a trader, default to 500ml of pineapple juice
+        defaultContents = new List<LiquidStack> { new LiquidStack("pineapplejuice", 500f) }, 
+        
+        usable = true,
+        useAction = (body, item) => item.GetComponent<WaterContainerItem>().Drink(body)
+    },
+    AssetLoader.LoadEmbeddedSprite("Images.pineapplejuicebottle.png")
+);
+```
+
+| Field | Default | What it does |
+| --- | --- | --- |
+| `capacity` | `0` | mL it holds. |
+| `defaultContents` | empty | Liquids it spawns with. |
+| `autoFill` | `true` | Fills itself from liquid it lies in. |
+| `LiquidMask` | none | Sprite marking where the liquid shows on the item. Use white or grey, as it's tinted to the liquid's color. |
+| `LiquidMaskAnimationId` | none | An [animation](/docs/assets/#frame-animations) to use as the mask instead. For swishing water, or whatnot. |
+
+For a syringe with the vanilla minigame, use [`Syringe`](/docs/advanced-item/#syringes) instead.
+
+---
+
+## Working with a container in code
+
+The container's runtime component is the vanilla `WaterContainerItem`:
+
+```csharp
+WaterContainerItem bottle = item.GetComponent<WaterContainerItem>();
+
+bottle.AddLiquid("pineapplejuice", 100f); // Adds 100ml of a liquid, then returns how much successfully fit
+float mlInside = bottle.CurrentTotal;                       // mL inside
+float spaceLeft = bottle.SpaceLeft;                          // mL still free
+
+bottle.Drink(body);          // drinks 100 mL, running onDrink
+bottle.ApplyToLimb(limb);    // applies 100 mL, running onApplyToLimb
+bottle.Inject(limb, 20f);    // injects 20 mL, running onInject
+```
+
+Note: A mixed container drains every liquid at once, in proportion
+E.g., drinking from 50 mL water + 100 mL juice takes one part water to two parts juice, totaled to 100ml.
+
+{/* Code shown in the side panel */}
+
+```csharp panel title="RegisterLiquids.cs"
+using System.Collections.Generic;
+using CUCoreLib.Data;
+using CUCoreLib.Helpers;
+using CUCoreLib.Registries;
+using UnityEngine;
+
+private void RegisterPineappleJuice()
+{
+    // 1. The liquid
+    LiquidRegistry.Register("pineapplejuice", new CustomLiquidInfo
+    {
+        name = "Pineapple Juice",
+        description = "You've never seen this liquid before. A light yellow drink that smells fruity.",
+        color = new Color(0.94f, 0.88f, 0.66f),
+        valuePerLiter = 22f,
+        injectionSickness = 0.4f, // juices are only mildly bad to inject
+        healthUsable = true,
+        injectable = true,
+
+        onDrink = (ml, body) =>
+        {
+            // Same scale as vanilla apple juice: effects per liter
+            float liters = ml * 0.001f;
+            body.Drink(liters * 90f);         // thirst
+            body.weightOffset += liters;      // weight gain
+            body.temperature -= liters * 3f;  // it's cold
+            body.happiness += liters * 10f;
+            body.talker.EatGood();
+        },
+
+        onApplyToLimb = (ml, limb) =>
+        {
+            // Sticky, but soothing
+            float dose = ml * 0.01f; // per 100 mL
+            limb.pain -= dose * 2f;
+            limb.skinHealth += dose * 3f;
+        },
+
+        onInject = (ml, limb) =>
+        {
+            // Please don't
+            float dose = ml * 0.01f; // per 100 mL, one full syringe
+            limb.body.happiness -= dose * 8f;
+            limb.body.sicknessAmount += dose * 7f;
+            limb.infected = true;
+            limb.infectionAmount += dose * 10f;
+        },
+
+        // Counts as half-strength water in recipes
+        qualities = new List<CraftingQuality>
+        {
+            new CraftingQuality("water", 0.5f)
+        }
+    });
+
+    // 2. A container that spawns full of it
+    ItemRegistry.Register(
+        "pineapplejuicebottle",
+        new CustomItemInfo
+        {
+            fullName = "Pineapple juice bottle",
+            description = "A bottle of pale yellow fruit juice.",
+            category = "water",
+            slotRotation = -45f,
+            tags = "cangetwet",
+            weight = 1.25f,
+            value = 2,
+            combineable = true,
+            scaleWeightWithCondition = true,
+            capacity = 500f,
+            defaultContents = new List<LiquidStack> { new LiquidStack("pineapplejuice", 500f) },
+            // Shows the juice level on the sprite, animated
+            LiquidMaskAnimationId = "mymod.bottle-fill",
+            usable = true,
+            useAction = (body, item) => item.GetComponent<WaterContainerItem>().Drink(body)
+        },
+        AssetLoader.LoadEmbeddedSprite("Images.pineapplejuicebottle.png")
+    );
+}
+```

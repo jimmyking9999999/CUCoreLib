@@ -1,0 +1,189 @@
+---
+title: "Tile API"
+label: "Tiles"
+crumb: "World"
+lead: "Register terrain tiles."
+---
+## Registering a tile
+
+Tiles are the terrain blocks the world is made of. 
+
+You can use `TileRegistry.Register` to add a new one:
+
+```csharp
+TileRegistry.Register("galena", new CustomTileDefinition
+{
+    Name = "Galena",
+    Sprite = AssetLoader.LoadEmbeddedSprite("Images.galena.png"),
+    Health = 300f,
+    StepSound = "Gravel",
+    SpawnAmount = 0.5f, // generates at half the rate of copper
+    SpawnLayers = TileRegistry.AllLayersExcept(1, 3, 6, 11),
+    GenerationStyle = TileGenerationStyle.Vein | TileGenerationStyle.Outskirt
+});
+```
+
+<img src="/images/galena-tile-ingame.png" alt="In-game screenshot of the galena tile, with its sprite and health bar." class="screenshot" scale="0.5" />
+
+Note, CUCoreLib does this a bit differently then the base game. CUCoreLib assigns its internal block index automatically, rather then using the normal int ID system the game has. 
+
+The ID must be **letters and digits only** (no spaces, dashes, or underscores). Refer to your tile by this ID everywhere: CUCoreLib picks its numeric block index for you, so it never collides with vanilla or other mods. That index can change (for example when another mod adds tiles), so don't hardcode it.
+
+- You may want to still choose to use the numeric system, but collisions with other mods are more likely :) 
+---
+
+## Fields
+
+| Field | Default | What it does |
+| --- | --- | --- |
+| `Name` | | Display name. |
+| `Sprite` | | The tile's artwork. |
+| `Health` | `100` | Damage needed to break it. |
+| `Drops` | none | Items dropped when broken, made with `BuildingEntityRegistry.AddDrop(...)` like [building drops](/docs/building-entities/#drops). |
+| `HitSound` / `HitSoundClip` | `"rock"` | A vanilla hit sound name, or your own clip. |
+| `StepSound` | `"Rock"` | Vanilla footstep sound. |
+| `SleepQuality` | `Bad` | Sleep quality when lying on it: `Bad`, `Mediocre`, `Okay`, `Good`. |
+| `Metallic` | `false` | Plasma cutters do extra damage. |
+| `Slippery` | `false` | Slippery, like ice. |
+| `Toxicity` | `0` | Irradiates the player, like vanilla toxic blocks. |
+| `Color` | white | Tint. |
+| `NoVariation` | `false` | Turn off vanilla's random flipping of tiles. |
+| `ColliderType` | `Grid` | Unity tile collider shape. Not recommended to change. |
+| `CustomData` | empty | Your own values, read with `TileRegistry.TryGetCustomData`! |
+
+---
+
+## Generating in the world
+
+Set `SpawnAmount` above 0f and CUCoreLib will distribute the tile during `WorldGeneration.GenerateOres()`.
+
+The value is a multiplier on copper's own spawn count, and the current run's oreamount setting still scales the density
+
+`GenerationStyle` is a byte flag enum with these presets: `Vein`, `HeavyVeins`, `Singular`, `Stripe`, `Inner`, and `Outskirt`. If you combine more than one, CUCoreLib splits the spawn budget across the selected presets.
+```csharp
+TileRegistry.Register("auric", new CustomTileDefinition
+{
+    Name = "Auric",
+    Sprite = AssetLoader.LoadEmbeddedSprite("Images.auric.png"),
+    Health = 777f,
+    SpawnAmount = 2f,
+    SpawnLayers = TileRegistry.LayersToMask(4, 5, 6, 7, 8, 9, 10), // deeper layers only
+    GenerationStyle = TileGenerationStyle.HeavyVeins | TileGenerationStyle.Inner
+});
+```
+
+| Field | Default | What it does |
+| --- | --- | --- |
+| `SpawnAmount` | `0` | How common it is, relative to copper. `0` means it never generates. |
+| `SpawnLayers` | all | Layers it generates on. Build with `LayersToMask(...)` or `AllLayersExcept(...)`; layer 1 is the first layer. |
+| `GenerationStyle` | `Vein` | Shape: `Vein`, `HeavyVeins`, `Singular`, `Stripe`, `Inner`, `Outskirt`. Combine with `\|` to split the amount between shapes. |
+
+---
+
+## Placing tiles from code
+
+```csharp
+// Turn the block at a world position into galena
+Vector2Int blockPos = WorldGeneration.world.WorldToBlockPos(transform.position);
+TileRegistry.SetBlock(WorldGeneration.world, blockPos, "galena");
+```
+
+Or from the console: `settile galena`.
+
+Note: When placing many blocks at once (e.g. during generation), `SetBlockNoUpdate` skips the per-block refresh. As such, you'll need to refresh the affected area yourself afterwards.
+
+To use your tile in a Unity `Tilemap` (for example, a [structure](/docs/multi-block-structures/) or tilemap built in the Unity editor), get its `TileBase`:
+
+```csharp
+if (TileRegistry.TryGetTile("galena", out TileBase galenaTile))
+{
+    structureTilemap.SetTile(new Vector3Int(4, -2, 0), galenaTile);
+}
+```
+
+---
+
+## Reading tiles
+
+```csharp
+ushort block = WorldGeneration.world.GetBlock(position);
+
+// Is this one of ours? Which one?
+if (TileRegistry.TryGetDefinition(block, out CustomTileDefinition tile) && tile.ID == "galena")
+{
+    // ...
+}
+```
+
+{/* Code shown in the side panel */}
+
+```csharp panel title="RegisterTiles.cs"
+using System.Collections.Generic;
+using CUCoreLib.Data;
+using CUCoreLib.Helpers;
+using CUCoreLib.Registries;
+using HarmonyLib;
+using UnityEngine;
+
+private void RegisterTiles()
+{
+    // Exampe item that drops from the tile
+    ItemRegistry.Register("auricfragment", new ItemInfo
+    {
+        fullName = "Auric Fragment",
+        description = "A fragment broken from a rare Auric ore vein. <size=8>It shocks you to the touch.</size>",
+        category = "nospawn",
+        weight = 0.4f,
+        value = 45
+    }, AssetLoader.LoadEmbeddedSprite("Images.auricfragment.png"));
+
+    // o7 Calamity
+    TileRegistry.Register("auric", new CustomTileDefinition
+    {
+        Name = "Auric",
+        Sprite = AssetLoader.LoadEmbeddedSprite("Images.auric.png"),
+        Health = 777f,
+        HitSound = "crystal",
+        Metallic = true,
+        SpawnAmount = 2f,
+        SpawnLayers = TileRegistry.LayersToMask(4, 5, 6, 7, 8, 9, 10),
+        GenerationStyle = TileGenerationStyle.HeavyVeins | TileGenerationStyle.Inner,
+        Drops = new[]
+        {
+            BuildingEntityRegistry.AddDrop("auricfragment", 1f, 0.5f, 1f) // always, 50-100% condition
+        }
+    });
+
+    // A common ore that makes you sick to stand on
+    TileRegistry.Register("galena", new CustomTileDefinition
+    {
+        Name = "Galena",
+        Sprite = AssetLoader.LoadEmbeddedSprite("Images.galena.png"),
+        Health = 300f,
+        StepSound = "Gravel",
+        SleepQuality = Body.SleepQuality.Mediocre,
+        SpawnAmount = 0.5f,
+        SpawnLayers = TileRegistry.AllLayersExcept(1, 3),
+        GenerationStyle = TileGenerationStyle.Vein | TileGenerationStyle.Outskirt,
+        // Our own value, read by the patch below
+        CustomData = { ["leadToxicity"] = 10f }
+    });
+}
+
+[HarmonyPatch(typeof(Body), "Update")]
+public static class GalenaLeadToxicityPatch
+{
+    [HarmonyPostfix]
+    private static void Postfix(Body __instance)
+    {
+        // The block just below the body, i.e. what it's standing on
+        Vector2 below = (Vector2)__instance.transform.position + Vector2.down;
+        ushort block = WorldGeneration.world.GetBlock(below);
+
+        if (TileRegistry.TryGetCustomData(block, "leadToxicity", out float toxicity))
+        {
+            __instance.sicknessAmount += toxicity * 0.1f * Time.deltaTime;
+        }
+    }
+}
+```

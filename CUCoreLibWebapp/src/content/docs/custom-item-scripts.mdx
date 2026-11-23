@@ -1,0 +1,188 @@
+---
+title: "Creating Custom Item Scripts"
+label: "Creating Custom Item Scripts"
+crumb: "Items / Liquids"
+lead: "Attach MonoBehaviours to custom items, read custom item metadata, and structure wearable runtime logic."
+---
+## When to use a custom item script
+
+Reach for a script when `useAction`, the [built-in modules](/docs/advanced-item/), and wearable stats are not enough.
+
+For instance, if the item needs its own state, does something every frame, or behaves differently on the ground, in hand, or worn, or likewise as complicated..
+
+A script is a normal Unity `MonoBehaviour`. CUCoreLib will internally then add it to every spawned copy of your item, via loot, dropped items, save-loaded items, and worn ones.
+
+---
+
+## Attaching a script
+
+Chain `AddSpawnComponent<YourScript>()` onto the `CustomItemInfo`:
+
+```csharp
+ItemRegistry.Register(
+    "stormmantle",
+    new CustomItemInfo
+    {
+        fullName = "Storm Mantle",
+        category = "tool",
+        wearable = true,
+        desiredWearLimb = "UpTorso",
+        wearSlotId = "outertorso"
+    }
+    .AddSpawnComponent<StormMantleScript>(), // Right after the CustomItemInfo!
+    icon
+);
+```
+
+The script then gets the usual Unity callbacks (`Awake`, `Start`, `Update`, ...) on the item's GameObject.
+
+---
+
+## Reading the item
+
+Grab the `Item` component once in the custom script's (StormMantleScript.cs) `Awake`. Per-item values from [`CustomData`](/docs/advanced-item/#custom-data) are already there when `Awake` runs, if needed as well.
+
+```csharp
+private Item item;
+private float warmth;
+
+private void Awake()
+{
+    item = GetComponent<Item>();
+    warmth = ItemRegistry.GetCustomData(item, "warmth", 0.02f);
+}
+```
+Note: Use CustomData when you want inline defaults that each item instance can later read or mutate independently
+
+- `item.condition` belongs to this one item. `item.Stats` is the registered `ItemInfo`, **shared by every copy** of the item, so changing `item.Stats.wearableArmor` changes it for all of them.
+
+---
+
+## Equipment example
+This example registers a wearable mantle and adds a script that only applies its effect while the item is actually worn. 
+
+This wearable will then slowly warms the player, but only while worn.
+```csharp
+ItemRegistry.Register(
+    "stormmantle",
+    new CustomItemInfo
+    {
+        fullName = "Storm Mantle",
+        description = "A lined mantle that steadies the body in cold weather. It reminds you of electric sheep for some reason...",
+        category = "tool",
+        wearable = true,
+        wearableCanBeHeld = true,
+        desiredWearLimb = "UpTorso",
+        wearSlotId = "outertorso",
+        wearableIsolation = 0.16f,
+        wearableArmor = 0.08f,
+        weight = 1.3f,
+        value = 24,
+        tags = "cangetwet",
+        rec = new Recognition(5),
+        CustomData =
+        {
+            ["warmthBonus"] = 0.35f
+        }
+    }
+    .AddSpawnComponent<StormMantleScript>(),
+    AssetLoader.LoadEmbeddedSprite("Images.stormmantle.png")
+);
+```
+
+And its accompanying custom script:
+```csharp
+public sealed class StormMantleScript : MonoBehaviour
+{
+    private Item item;
+    private float warmth;
+
+    private void Awake()
+    {
+        item = GetComponent<Item>();
+        warmth = ItemRegistry.GetCustomData(item, "warmth", 0.02f);
+    }
+
+    private void Update()
+    {
+        Limb limb = transform.parent != null ? transform.parent.GetComponent<Limb>() : null;
+        if (limb == null) return; // Amputation check
+
+        // Degrees per second
+        limb.body.temperature += warmth * Time.deltaTime;
+    }
+}
+```
+
+
+---
+
+## Tips
+
+-   Cache components in `Awake` instead of calling `GetComponent` every frame.
+-   Script fields are not saved. Store anything that must survive a reload in [`CustomData`](/docs/advanced-item/#custom-data).
+-   Prefer `useAction` or a built-in module when one already does the job.
+-   For a type you only have at runtime, use `AddSpawnComponent(type)` or `AddSpawnComponents(typeA, typeB)`.
+
+{/* Code shown in the side panel */}
+
+```csharp panel title="StormMantleScript.cs"
+using BepInEx;
+using CUCoreLib.Data;
+using CUCoreLib.Helpers;
+using CUCoreLib.Registries;
+using UnityEngine;
+
+[BepInPlugin("com.example.stormmantle", "Storm Mantle Example", "1.0.0")]
+[BepInDependency("net.cucorelib")]
+public sealed class Plugin : BaseUnityPlugin
+{
+    private void Awake()
+    {
+        ItemRegistry.Register(
+            "stormmantle",
+            new CustomItemInfo
+            {
+                fullName = "Storm Mantle",
+                description = "A heated mantle. It reminds you of electric sheep for some reason...",
+                category = "tool",
+                weight = 1.3f,
+                value = 24,
+                tags = "cangetwet",
+                wearable = true,
+                desiredWearLimb = "UpTorso",
+                wearSlotId = "outertorso",
+                wearableIsolation = 0.16f,
+                CustomData =
+                {
+                    ["warmth"] = 0.02f
+                }
+            }
+            // CUCoreLib adds this script to every spawned mantle
+            .AddSpawnComponent<StormMantleScript>(),
+            AssetLoader.LoadEmbeddedSprite("Images.stormmantle.png")
+        );
+    }
+}
+
+public sealed class StormMantleScript : MonoBehaviour
+{
+    private Item item;
+    private float warmth;
+
+    private void Awake()
+    {
+        item = GetComponent<Item>(); // Get the mantle's item
+        warmth = ItemRegistry.GetCustomData(item, "warmth", 0.02f);
+    }
+
+    private void Update()
+    {
+        Limb limb = transform.parent != null ? transform.parent.GetComponent<Limb>() : null;
+        if (limb == null) return;
+
+        // Warm the wearer a little every second
+        limb.body.temperature += warmth * Time.deltaTime;
+    }
+}
+```

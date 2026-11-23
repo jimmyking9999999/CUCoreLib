@@ -288,6 +288,7 @@ FakesAssemblies/
 .ntvs_analysis.dat
 node_modules/
 CUCoreLibWebapp/dist/
+CUCoreLibWebapp/.astro/
 
 # Visual Studio 6 build log
 *.plg
@@ -383,3 +384,9 @@ CasualtiesUnknown.exe.lnk
 
 # Evil typo
 CasualtiesUnknownFull.exe .lnk 
+
+# UI element webapp (It's ts + vite, and heavy, and no one's going to be editing it ;))
+UIWebapp/
+
+# RSA-SHA256 (PKCS#1 v1.5) signature, for future use
+UpdateSignature.cs

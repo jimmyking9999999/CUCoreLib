@@ -1,6 +1,7 @@
 {
   "hosting": {
     "public": "dist",
+    "trailingSlash": true,
     "ignore": [
       "firebase.json",
       "**/.*",
@@ -16,27 +17,21 @@
         "source": "/docs/:page/index.html",
         "destination": "/docs/:page/",
         "type": 301
-      }
-    ],
-    "headers": [
-      {
-        "source": "/api/**",
-        "headers": [
-          {
-            "key": "X-Robots-Tag",
-            "value": "noindex"
-          }
-        ]
-      }
-    ],
-    "rewrites": [
-      {
-        "source": "/tools/**",
-        "destination": "/index.html"
       },
       {
-        "source": "!/@(robots.txt|sitemap.xml|api/**|docs/**)",
-        "destination": "/index.html"
+        "source": "/docs/welcome{,/**}",
+        "destination": "/",
+        "type": 301
+      },
+      {
+        "source": "/api{,/**}",
+        "destination": "/llms-full.txt",
+        "type": 301
+      },
+      {
+        "source": "/sitemap.xml",
+        "destination": "/sitemap-index.xml",
+        "type": 301
       }
     ]
   }

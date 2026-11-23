@@ -35,7 +35,58 @@ namespace CUCoreLib.Patches
         private static void InjectRecipes()
         {
             LiquidRegistry.InjectRegisteredLiquids(true);
+            // Vanilla recipes are edited here, custom clones are edited as they're injected
+            RecipeRegistry.ApplyRecipeEdits(Recipes.recipes);
             RecipeRegistry.InjectRegisteredRecipes();
+        }
+
+        [HarmonyPatch(typeof(Recipe), nameof(Recipe.visible), MethodType.Getter)]
+        [HarmonyPostfix]
+        private static void HideLockedRecipe(Recipe __instance, ref bool __result)
+        {
+            if (__result && RecipeRegistry.IsLocked(__instance)) __result = false;
+        }
+
+        // MP fix, otherwise recipes unlocked via alternative method won't be craftable
+        [HarmonyPatch(typeof(PlayerCamera), nameof(PlayerCamera.TryCraft))]
+        [HarmonyPrefix]
+        [HarmonyPriority(Priority.First)]
+        private static bool BlockLockedCraft(PlayerCamera __instance)
+        {
+            var index = __instance.selectedRecipe;
+            if (Recipes.recipes == null || index < 0 || index >= Recipes.recipes.Count ||
+                !RecipeRegistry.IsLocked(Recipes.recipes[index])) return true;
+
+            __instance.PlayUISound(PlayerCamera.UISoundType.Deny);
+            return false;
+        }
+
+        [HarmonyPatch(typeof(Recipe), nameof(Recipe.TryMake))]
+        [HarmonyPrefix]
+        private static bool BlockLockedRecipe(Recipe __instance)
+        {
+            if (!RecipeRegistry.IsLocked(__instance)) return true;
+
+            if (PlayerCamera.main != null) PlayerCamera.main.PlayUISound(PlayerCamera.UISoundType.Deny);
+            return false;
+        }
+
+        // Should be more intuitive that blueprints do not unlock deliberately locked recipes
+        // Will add a field if there's enough demand for it, but I doubt it.
+        [HarmonyPatch(typeof(BlueprintScript), "Awake")]
+        [HarmonyPostfix]
+        private static void RerollLockedBlueprint(BlueprintScript __instance)
+        {
+            var recipes = Recipes.recipes;
+            var index = __instance.recipeIndex;
+            if (recipes == null || index < 0 || index >= recipes.Count || !RecipeRegistry.IsLocked(recipes[index]))
+                return;
+
+            var unlocked = new List<int>();
+            for (var i = 0; i < recipes.Count; i++)
+                if (!RecipeRegistry.IsLocked(recipes[i])) unlocked.Add(i);
+
+            if (unlocked.Count > 0) __instance.recipeIndex = unlocked[Random.Range(0, unlocked.Count)];
         }
 
         // TODO. There's an issue with invalid sprites causing scrolling to not fully function

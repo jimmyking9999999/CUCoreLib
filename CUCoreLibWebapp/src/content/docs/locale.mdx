@@ -1,0 +1,144 @@
+---
+title: "Locale"
+label: "Locale"
+crumb: "Misc / API"
+lead: "Generate item, liquid, and manual locale keys for your mod."
+---
+## Translation support? For free?!
+
+CUCoreLib can collect locale text from the names, descriptions, and labels you write in code and write them into a single `EN.json` starter file.
+
+Write your mod in English. Every name and description you pass to CUCoreLib becomes a locale key automatically.
+That is, translators will be able translate your mod without touching code.
+
+| Registered with | Key | Text |
+| --- | --- | --- |
+| `ItemRegistry.Register("clothpatch", ...)` | `item.clothpatch` / `item.clothpatchdsc` | `fullName` / `description` |
+| `BuildingEntityRegistry.Register("centrifuge", ...)` | `building.centrifuge` / `building.centrifugedsc` | `Name` / `Description` |
+| `LiquidRegistry.Register("pineapplejuice", ...)` | `other.pineapplejuice` / `other.pineapplejuicedsc` | `name` / `description` |
+| `CUCoreUtils.CreateCraftingQuality("brewingkit", "Brewing Kit")` | `other.cqbrewingkit` | the display name |
+| A [setting](/docs/settings/) with ID `mymod.sparks` | `other.gamesetmymod.sparks` / `...dsc` | label / description |
+
+---
+
+## Your own text (ad hoc lookups)
+... ad hoc means "as needed"...
+
+For any other text (UI, alerts, dialogue), use `LocaleRegistry.Get` with a key and the English text:
+
+```csharp
+string tooltip = LocaleRegistry.Get("mymod.tooltip.heat", "Hot enough to warp a glove.");
+```
+
+This returns the translation for the player's language if there is one, and the English text otherwise. The English text is also what `createLocale` writes to the starter file.
+
+To use a category other than `other`, pass all three arguments: `LocaleRegistry.Get("moodle", "mymod.lead", "Lead Poisoning")`. 
+
+---
+
+## Making a translation with `createLocale`
+
+1. Start the game with your mod installed, then run in the console:
+
+```text
+createLocale com.yourname.modname
+```
+
+This writes every English string your mod registered to `BepInEx/config/CUCoreLib/Locales/EN-com.yourname.modname.json`. Add a folder or file path as a second argument to write it elsewhere. Without a GUID, it writes every mod's text to `EN.json`.
+
+2. Copy it, rename it after the target language (e.g. `zh-CN-com.yourname.modname.json`), and translate the values. Keep the keys.
+
+- For a list of target language codes, see [the official translation repo](https://github.com/Orsoniks/scavgame-locale/tree/main/demo)
+
+The file looks like this:
+
+```json
+{
+  "item": {
+    "clothpatch": "Ruined yarn ball",
+    "clothpatchdsc": "Why'd they have to ruin the yarn and make this?"
+  },
+  "building": {
+    "centrifuge": "Centrifuge",
+    "centrifugedsc": "I don't like the noise it makes..."
+  },
+  "other": {
+    "mymod.tooltip.heat": "Hot enough to warp a glove."
+  },
+  "moodle": {}
+}
+```
+
+Running `createLocale` again keeps your hand-written values and refreshes the generated ones from your current code.
+
+---
+
+## Shipping a translation
+
+The file name must match the game's language name exactly, e.g. `zh-CN`, `fr-FR`. Adding your GUID (`zh-CN-com.yourname.modname.json`) keeps it separate from other mods' files, and are good if you are using loose file loading.
+
+Ship it either way:
+
+| How | Where |
+| --- | --- |
+| Inside the DLL | Add it to your project as an `Embedded Resource`. Found automatically. |
+| Next to the DLL | `BepInEx/plugins/MyMod/zh-CN-com.yourname.modname.json`. Players can swap it without rebuilding. |
+```
+BepInEx/
+plugins/
+  MyMod/
+    MyMod.dll
+    zh-CN.json
+```
+or,
+```xml
+<ItemGroup>
+  <EmbeddedResource Include="Locales\zh-CN-com.yourname.modname.json" />
+</ItemGroup>
+```
+
+
+<img src="/images/lolcat-translation-ingame.png" alt="In-game kitby translation." class="screenshot" />
+
+{/* Code shown in the side panel */}
+
+```json panel title="CAT.json"
+{
+  "item": {
+    "glass": "Glass",
+    "glassdsc": "A werkable peece ob glass.",
+    "conicalFlask": "Conical flask",
+    "conicalFlaskdsc": "A simple glass flask fer careful mixin'.",
+    "cinderstalk": "Cinderstalk",
+    "cinderstalkdsc": "A tough, fibrous stalk blackened by heat. Not tasty like cheezburger.",
+    "charredfern": "Charred Fern",
+    "charredferndsc": "Brittle leaves dat crumble eazily. Smells like ash.",
+    "clothpatch": "Ruined yarn ball",
+    "clothpatchdsc": "Why'd they have to ruin the yarn and make this?",
+    "reliefinjector": "Relief injector",
+    "reliefinjectordsc": "A smol injector prefilled wif relief cream.",
+    "cinderstalkbag": "Cinderstalk Bag",
+    "cinderstalkbagdsc": "A compact all-natural bag. Who says plants can't be stylish?",
+    "portablelamp": "Portable lamp",
+    "portablelampdsc": "A battery-fed lamp fer da fuzzy cave explorer.",
+    "glassshiv": "Glass shiv",
+    "glassshivdsc": "This cuts my fur too easily...",
+    "fieldpack": "Field Pack",
+    "fieldpackdsc": "A versatile pack fer carryin' all the inner workings of a cat!."
+  },
+  "building": {
+    "glasskiln": "Glass kiln",
+    "glasskilndsc": "A smol kiln fer careful glasswork.",
+    "centrifuge": "Centrifuge",
+    "centrifugedsc": "I don't like the noise it makes..."
+  },
+  "moodle": {},
+  "other": {
+    "pineapplejuice": "Pineapple Juice",
+    "pineapplejuicedsc": "Yoo've never seen this liquid before. A light yellow drink dat smells fruity. Yum yum!",
+    "gamesetmymod.clinkvolume": "Glass clink volume",
+    "gamesetmymod.clinkvolumedsc": "Protects your furry ears from clitter-clatter noises.",
+    "galena": "Galena"
+  }
+}
+```

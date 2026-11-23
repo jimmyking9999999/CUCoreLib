@@ -1,0 +1,49 @@
+---
+title: "Modding tools"
+label: "Tools"
+crumb: "Tools"
+lead: "Calculators for the small questions that come up while modding."
+---
+import ToolCalculators from "../../components/ToolCalculators.astro";
+
+Looking for code generators? The item and recipe generators live on their own pages: [Item generator](/docs/item/) and [Recipe generator](/docs/recipe/#try-it).
+
+---
+
+## Calculators
+
+Click **Copy** next to any result.
+
+---
+
+<ToolCalculators />
+
+---
+
+## Got an idea for a tool?
+
+Suggest it in the [Discord](https://discord.gg/FuuEDPkQT) or open an issue on [GitHub](https://github.com/jimmyking9999999/CUCoreLib).
+
+{/* Code shown in the side panel */}
+
+```csharp panel title="UsingTheResults.cs"
+// Colors from the color picker go anywhere a Unity Color is expected
+LiquidRegistry.Register("glowjuice", new CustomLiquidInfo
+{
+    name = "Glow juice",
+    color = new Color(0.5f, 0.88f, 0.63f)
+});
+
+// Layer masks go into SpawnLayers
+BuildingEntityRegistry.Register("glowcap", new CustomBuildingEntityDefinition
+{
+    Name = "Glowcap cluster",
+    Sprite = AssetLoader.LoadEmbeddedSprite("Images.glowcap.png"),
+    SpawnMinPerChunk = 0.05f,
+    SpawnMaxPerChunk = 0.08f,
+    SpawnLayers = BuildingEntityRegistry.LayersToMask(3, 4)
+});
+
+// The loot weight is the 4th argument of ItemRegistry.Register
+ItemRegistry.Register("glowcapspore", info, sporeSprite, 2);
+```

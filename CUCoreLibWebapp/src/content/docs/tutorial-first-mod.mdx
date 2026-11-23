@@ -1,0 +1,309 @@
+---
+title: "Making a first mod"
+label: "Making A First Mod"
+crumb: "Tutorial"
+lead: "Is this a subnautica reference?"
+---
+## What we're building
+
+A small mod that adds acid mushrooms to the world:
+
+- an **acid mushroom colony** that grows in caves,
+- which drops **acid shrooms**, an item you can eat (at your own risk),
+- a new liquid, **hydrochloric acid**,
+- and two recipes that use the shrooms.
+
+The full code is on the right. Follow along step by step rather than copy-pasting it all at once: each step below adds one piece, and you can build and test after each.
+
+Before starting, set up a project with [Setup](/docs/setup/).
+
+---
+
+## Step 1: Assets
+
+Add three files to your project, and set each one's **Build Action** to `Embedded Resource`:
+
+- `Images/acidshroom.png`: the item icon
+- `Images/acidmushroom.png`: the mushroom colony
+- `Audio/acid-pop.wav`: a sound for hitting the colony
+
+Then load them at the start of `Awake`:
+
+```csharp
+Sprite acidShroomSprite = AssetLoader.LoadEmbeddedSprite("Images.acidshroom.png");
+Sprite acidMushroomSprite = AssetLoader.LoadEmbeddedSprite("Images.acidmushroom.png");
+AudioClip acidPop = AssetLoader.LoadEmbeddedAudio("Audio.acid-pop.wav");
+```
+
+Note the dots: embedded files are named by folder **and** file, joined with `.`. Need art? Try [opengameart.org](https://opengameart.org). More on loading in [Loading Assets](/docs/assets/).
+
+---
+
+## Step 2: The item
+
+The acid shroom is food with a downside: it fills you up a little, and hurts.
+
+```csharp
+ItemRegistry.Register("acidshroom", new ItemInfo
+{
+    fullName = "Acid shroom",
+    description = "A caustic mushroom that tingles in all the wrong ways.",
+    category = "food",
+    weight = 0.2f,
+    value = 5,
+    tags = "cangetwet",
+    usable = true,
+    useAction = (body, item) =>
+    {
+        body.Eat(10f, 0.4f);        // a little food
+        body.limbs[0].pain += 20f;  // ...and a burning mouth
+        item.condition -= 1f;       // eaten in one bite
+        Sound.Play("eatCrunch", body.transform.position);
+    }
+}, acidShroomSprite);
+```
+
+**Test it:** build, start a run, and type `cuspawn acidshroom` in the console. Eat it.
+
+More fields in [Item API](/docs/item/).
+
+---
+
+## Step 3: The liquid
+
+Hydrochloric acid is a [liquid](/docs/liquids/): drinking it is a very bad idea, but rubbing it on a wound disinfects it (painfully).
+
+```csharp
+LiquidRegistry.Register("hydrochloricacid", new CustomLiquidInfo
+{
+    name = "Hydrochloric acid",
+    description = "A very highly corrosive liquid. Don't drink it!",
+    color = new Color(0.8f, 0.8f, 0.8f),
+    valuePerLiter = 22f,
+    healthUsable = true, // can be applied to limbs
+    onDrink = (ml, body) =>
+    {
+        float liters = ml * 0.001f;
+        body.brainHealth -= liters * 320f; // a 100 mL sip costs 32 brain health
+        body.limbs[0].pain += 100f;
+        body.talker.EatBad();
+    },
+    onApplyToLimb = (ml, limb) =>
+    {
+        float dose = ml * 0.01f; // per 100 mL
+        limb.pain += dose * 100f;
+        limb.skinHealth -= dose * 50f;
+        limb.disinfectionTime += dose * 1000f; // but it's clean now
+    }
+});
+```
+
+---
+
+## Step 4: The mushroom colony
+
+A [building entity](/docs/building-entities/) that grows on cave floors and drops acid shrooms when broken:
+
+```csharp
+BuildingEntityRegistry.Register("acidmushroom", new CustomBuildingEntityDefinition
+{
+    Name = "Acid mushroom colony",
+    Description = "A dangerous mushroom cluster that leaks acidic fumes.",
+    Sprite = acidMushroomSprite,
+    HitSound = acidPop,
+    SpawnMinPerChunk = 0.3f, // about one in every three chunks
+    SpawnMaxPerChunk = 0.4f,
+    ItemsDropOnDestroy = new[]
+    {
+        BuildingEntityRegistry.AddDrop("acidshroom"),       // always one
+        BuildingEntityRegistry.AddDrop("acidshroom", 0.5f)  // 50% chance of a second
+    }
+});
+```
+
+**Test it:** start a new run and look around, or `cuspawn acidmushroom` and hit it.
+
+---
+
+## Step 5: Recipes
+
+Two [recipes](/docs/recipe/): one acid shroom into 40 mL of vanilla biochem, and two shrooms plus copper into a battery.
+
+```csharp
+RecipeRegistry.Register(new Recipe
+{
+    INT = 6,
+    category = Recipes.RecipeCategory.Materials,
+    result = new RecipeResult { id = "biochem", isLiquid = true, resultCondition = 40f }, // 40 mL
+    items = new List<RecipeItem>
+    {
+        new RecipeItem { specificId = "acidshroom" }
+    }
+});
+
+RecipeRegistry.Register(new Recipe
+{
+    INT = 9,
+    category = Recipes.RecipeCategory.Tools,
+    result = new RecipeResult { id = "mediumbattery" },
+    items = new List<RecipeItem>
+    {
+        new RecipeItem { specificId = "acidshroom" },
+        new RecipeItem { specificId = "acidshroom" },
+        new RecipeItem(0.5f) { specificId = "processedcopper" } // copper at 50% condition or better
+    }
+});
+```
+
+Recipes only show up once the player's INT is at least the recipe's `INT - 3`.
+
+---
+
+## Where to go next
+
+- Translate your text with [Locale](/docs/locale/).
+- Add test commands with the [Console](/docs/console/).
+- Iterate faster with [hot reload](/docs/debug-testing/).
+- As the mod grows, split it into files like `RegisterItems.cs` and `RegisterRecipes.cs`.
+
+{/* Code shown in the side panel */}
+
+```csharp panel title="AcidShroomTutorial.cs"
+using System.Collections.Generic;
+using BepInEx;
+using BepInEx.Logging;
+using CUCoreLib.Data;
+using CUCoreLib.Helpers;
+using CUCoreLib.Registries;
+using UnityEngine;
+
+namespace AcidShroomTutorial
+{
+    [BepInPlugin(ModGuid, ModName, ModVersion)]
+    [BepInDependency("net.cucorelib")]
+    public class Plugin : BaseUnityPlugin
+    {
+        // Change these to something unique to your mod!
+        private const string ModGuid = "com.example.acidshroomtutorial";
+        private const string ModName = "Acid Shroom Tutorial";
+        private const string ModVersion = "1.0.0";
+
+        internal static new ManualLogSource Logger;
+
+        private void Awake()
+        {
+            Logger = base.Logger;
+
+            // Step 1: assets (embedded resources, named Folder.file)
+            Sprite acidShroomSprite = AssetLoader.LoadEmbeddedSprite("Images.acidshroom.png");
+            Sprite acidMushroomSprite = AssetLoader.LoadEmbeddedSprite("Images.acidmushroom.png");
+            AudioClip acidPop = AssetLoader.LoadEmbeddedAudio("Audio.acid-pop.wav");
+
+            RegisterItems(acidShroomSprite);
+            RegisterLiquids();
+            RegisterBuildings(acidMushroomSprite, acidPop);
+            RegisterRecipes();
+
+            Logger.LogInfo("Acid Shroom mod loaded!");
+        }
+
+        // Step 2: an edible but painful item
+        private void RegisterItems(Sprite acidShroomSprite)
+        {
+            ItemRegistry.Register("acidshroom", new ItemInfo
+            {
+                fullName = "Acid shroom",
+                description = "A caustic mushroom that tingles in all the wrong ways.",
+                category = "food",
+                weight = 0.2f,
+                value = 5,
+                tags = "cangetwet",
+                usable = true,
+                useAction = (body, item) =>
+                {
+                    body.Eat(10f, 0.4f);        // a little food
+                    body.limbs[0].pain += 20f;  // ...and a burning mouth
+                    item.condition -= 1f;       // eaten in one bite
+                    Sound.Play("eatCrunch", body.transform.position);
+                }
+            }, acidShroomSprite);
+        }
+
+        // Step 3: a liquid that's terrible to drink, but disinfects wounds
+        private void RegisterLiquids()
+        {
+            LiquidRegistry.Register("hydrochloricacid", new CustomLiquidInfo
+            {
+                name = "Hydrochloric acid",
+                description = "A very highly corrosive liquid. Don't drink it!",
+                color = new Color(0.8f, 0.8f, 0.8f),
+                valuePerLiter = 22f,
+                healthUsable = true,
+                onDrink = (ml, body) =>
+                {
+                    float liters = ml * 0.001f;
+                    body.brainHealth -= liters * 320f; // a 100 mL sip costs 32 brain health
+                    body.limbs[0].pain += 100f;
+                    body.talker.EatBad();
+                },
+                onApplyToLimb = (ml, limb) =>
+                {
+                    float dose = ml * 0.01f; // per 100 mL
+                    limb.pain += dose * 100f;
+                    limb.skinHealth -= dose * 50f;
+                    limb.disinfectionTime += dose * 1000f;
+                }
+            });
+        }
+
+        // Step 4: a world object that drops acid shrooms
+        private void RegisterBuildings(Sprite acidMushroomSprite, AudioClip acidPop)
+        {
+            BuildingEntityRegistry.Register("acidmushroom", new CustomBuildingEntityDefinition
+            {
+                Name = "Acid mushroom colony",
+                Description = "A dangerous mushroom cluster that leaks acidic fumes.",
+                Sprite = acidMushroomSprite,
+                HitSound = acidPop,
+                SpawnMinPerChunk = 0.3f,
+                SpawnMaxPerChunk = 0.4f,
+                ItemsDropOnDestroy = new[]
+                {
+                    BuildingEntityRegistry.AddDrop("acidshroom"),       // always one
+                    BuildingEntityRegistry.AddDrop("acidshroom", 0.5f)  // 50% chance of a second
+                }
+            });
+        }
+
+        // Step 5: two recipes using the shroom
+        private void RegisterRecipes()
+        {
+            // 1 acid shroom -> 40 mL biochem
+            RecipeRegistry.Register(new Recipe
+            {
+                INT = 6,
+                category = Recipes.RecipeCategory.Materials,
+                result = new RecipeResult { id = "biochem", isLiquid = true, resultCondition = 40f },
+                items = new List<RecipeItem>
+                {
+                    new RecipeItem { specificId = "acidshroom" }
+                }
+            });
+
+            // 2 acid shrooms + processed copper -> medium battery
+            RecipeRegistry.Register(new Recipe
+            {
+                INT = 9,
+                category = Recipes.RecipeCategory.Tools,
+                result = new RecipeResult { id = "mediumbattery" },
+                items = new List<RecipeItem>
+                {
+                    new RecipeItem { specificId = "acidshroom" },
+                    new RecipeItem { specificId = "acidshroom" },
+                    new RecipeItem(0.5f) { specificId = "processedcopper" }
+                }
+            });
+        }
+    }
+}
+```

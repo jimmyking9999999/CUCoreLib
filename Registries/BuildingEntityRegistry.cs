@@ -255,6 +255,7 @@ namespace CUCoreLib.Registries
                     ["damagePlayerOnImpact"] = definition.DamagePlayerOnImpact,
                     ["rigidbodyBodyType"] = (int)definition.RigidbodyBodyType,
                     ["rigidbodyGravityScale"] = definition.RigidbodyGravityScale,
+                    ["rigidbodyMass"] = definition.RigidbodyMass,
                     ["health"] = definition.Health,
                     ["requireGround"] = definition.RequireGround,
                     ["metallic"] = definition.Metallic,
@@ -269,6 +270,7 @@ namespace CUCoreLib.Registries
                     ["spawnLayers"] = definition.SpawnLayers,
                     ["surfaceOffset"] = definition.SurfaceOffset,
                     ["randomFlip"] = definition.RandomFlip,
+                    ["randomFlipVertical"] = definition.RandomFlipVertical,
                     ["spawnInGround"] = definition.SpawnInGround,
                     ["hitSoundReferenceId"] = definition.HitSoundReferenceId ?? string.Empty,
                     ["spriteAnimationId"] = definition.SpriteAnimationId ?? string.Empty,
@@ -340,6 +342,7 @@ namespace CUCoreLib.Registries
                     RigidbodyBodyType = (RigidbodyType2D)(obj.Value<int?>("rigidbodyBodyType") ??
                                                           (int)RigidbodyType2D.Dynamic),
                     RigidbodyGravityScale = obj.Value<float?>("rigidbodyGravityScale") ?? 1f,
+                    RigidbodyMass = obj.Value<float?>("rigidbodyMass") ?? 10f,
                     Health = obj.Value<float?>("health") ?? 250f,
                     RequireGround = obj.Value<bool?>("requireGround") ?? true,
                     Metallic = obj.Value<bool?>("metallic") ?? false,
@@ -354,6 +357,7 @@ namespace CUCoreLib.Registries
                     SpawnLayers = obj.Value<int?>("spawnLayers") ?? AllSpawnLayersMask,
                     SurfaceOffset = obj.Value<float?>("surfaceOffset") ?? 0.5f,
                     RandomFlip = obj.Value<bool?>("randomFlip") ?? true,
+                    RandomFlipVertical = obj.Value<bool?>("randomFlipVertical") ?? false,
                     SpawnInGround = obj.Value<bool?>("spawnInGround") ?? false,
                     HitSoundReferenceId = obj.Value<string>("hitSoundReferenceId"),
                     SpriteAnimationId = obj.Value<string>("spriteAnimationId") ?? localDefinition?.SpriteAnimationId,
@@ -669,7 +673,7 @@ namespace CUCoreLib.Registries
 
             var rb = instance.GetComponent<Rigidbody2D>() ?? instance.AddComponent<Rigidbody2D>();
             rb.bodyType = definition.RigidbodyBodyType;
-            rb.mass = 10f;
+            rb.mass = definition.RigidbodyMass;
             rb.gravityScale = definition.RigidbodyGravityScale;
 
             var damagingCrate = instance.GetComponent<DamagingCrate>() ?? instance.AddComponent<DamagingCrate>();
@@ -884,6 +888,12 @@ namespace CUCoreLib.Registries
             {
                 instance.transform.localScale = new Vector3(-instance.transform.localScale.x,
                     instance.transform.localScale.y, instance.transform.localScale.z);
+            }
+
+            if (definition.RandomFlipVertical && Random.value > 0.5f)
+            {
+                instance.transform.localScale = new Vector3(instance.transform.localScale.x,
+                    -instance.transform.localScale.y, instance.transform.localScale.z);
             }
         }
 

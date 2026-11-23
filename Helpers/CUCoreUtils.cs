@@ -434,6 +434,46 @@ namespace CUCoreLib.Helpers
             EditVanillaItem(itemId, edit);
         }
 
+        /// <summary>
+        /// Edits every recipe (vanilla or custom) whose result ID matches <paramref name="resultId"/>.
+        /// Recipes are rebuilt each run, so the edit is reapplied to every fresh recipe list,
+        /// and applied immediately if one already exists.
+        /// </summary>
+        /// <param name="resultId">Result item or liquid ID, such as <c>flimsyknife</c>.</param>
+        /// <param name="edit">Mutation to apply to the live <see cref="Recipe"/>.</param>
+        public static void EditRecipe(string resultId, Action<Recipe> edit)
+        {
+            if (string.IsNullOrWhiteSpace(resultId)) return;
+
+            var id = resultId.Trim();
+            RecipeRegistry.QueueRecipeEdit(
+                recipe => string.Equals(recipe.result.id, id, StringComparison.OrdinalIgnoreCase), edit);
+        }
+
+        /// <summary>
+        /// Edits every recipe (vanilla or custom) that matches <paramref name="match"/>.
+        /// Recipes are rebuilt each run, so the edit is reapplied to every fresh recipe list,
+        /// and applied immediately if one already exists.
+        /// </summary>
+        /// <param name="match">Selects which recipes to edit. <c>Recipe.result</c> is never null here.</param>
+        /// <param name="edit">Mutation to apply to the live <see cref="Recipe"/>.</param>
+        public static void EditRecipes(Func<Recipe, bool> match, Action<Recipe> edit)
+        {
+            RecipeRegistry.QueueRecipeEdit(match, edit);
+        }
+
+        /// <summary>
+        /// Hides every recipe (vanilla or custom) whose result ID matches <paramref name="resultId"/>
+        /// and blocks crafting it while <paramref name="isUnlocked"/> returns false.
+        /// The vanilla INT visibility rule still applies once unlocked.
+        /// </summary>
+        /// <param name="resultId">Result item or liquid ID, such as <c>mercscarf</c>.</param>
+        /// <param name="isUnlocked">Checked on every crafting list refresh; keep it cheap.</param>
+        public static void LockRecipe(string resultId, Func<bool> isUnlocked)
+        {
+            EditRecipe(resultId, recipe => RecipeRegistry.SetUnlockCondition(recipe, isUnlocked));
+        }
+
         public static bool IsInWorld()
         {
             return IsWorldGenerationReady() && PlayerCamera.main != null && PlayerCamera.main.body != null;
@@ -810,6 +850,28 @@ namespace CUCoreLib.Helpers
         public static bool setItemSprite(Item item, Sprite iconSprite)
         {
             return SetItemSprite(item, iconSprite);
+        }
+
+        /// <summary>
+        /// Overrides the light of one live item instance without touching the shared item registration.
+        /// The override is applied immediately and survives CUCoreLib's later re-applies (pickup, sprite swaps, reloads).
+        /// Pass <c>null</c> to clear it and fall back to the registered <see cref="CustomItemInfo.Light"/>, or switch the light off if none is registered.
+        /// The override is saved with the item and restored on load.
+        /// </summary>
+        /// <param name="item">Live item instance to update.</param>
+        /// <param name="light">Light settings for this instance. Edits to this object take effect on the next call or re-apply.</param>
+        public static bool SetItemLight(Item item, LightProperties light)
+        {
+            if (item == null) return false;
+            if (!ItemRegistry.TryGetCustomInfo(item, out var def)) return false;
+
+            ItemRegistryPatches.SetRuntimeLightOverride(item, def, light);
+            return true;
+        }
+
+        public static bool setItemLight(Item item, LightProperties light)
+        {
+            return SetItemLight(item, light);
         }
 
         public static void DoAmputate(Item item, Limb limb)

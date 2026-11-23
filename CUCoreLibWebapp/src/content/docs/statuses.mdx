@@ -1,0 +1,197 @@
+---
+title: "Statuses"
+label: "Statuses"
+crumb: "Player"
+lead: "Reference for status effects, common status state, and the gameplay hooks mods usually read or modify."
+---
+## What statuses are for
+
+A status is your own set of fields attached to a `Body` or `Limb`, as if you'd added new variables to the game's classes. CUCoreLib saves them with the run and syncs them in multiplayer.
+
+```csharp
+SunstrokeStatus status = body.GetStatus<SunstrokeStatus>();
+status.ExposureSeconds += Time.deltaTime;
+```
+
+- `GetStatus` creates the status the first time you ask for it, so it never returns `null`.
+
+---
+
+## Defining a status
+
+Inherit from `BodyStatus` and add public fields:
+
+```csharp
+public sealed class SunstrokeStatus : BodyStatus
+{
+    public float ExposureSeconds;
+    public bool WarnedPlayer;
+}
+```
+
+That's it! Public fields are saved automatically.
+
+To change how it's saved or synced, add `[StatusOptions]`:
+
+```csharp
+[StatusOptions(Key = "com.yourname.sunstroke", SaveEnabled = "true", ClientAuthoritative = "true")]
+public sealed class SunstrokeStatus : BodyStatus { ... }
+```
+
+| Option | Default | What it does |
+| --- | --- | --- |
+| `Key` | the class's full name | Save ID. Set one if you might rename or move the class, otherwise old saves lose the data. |
+| `SaveEnabled` | `true` | `false` for temporary data that should reset on load. |
+| `ClientAuthoritative` | `false` | In multiplayer, each player keeps their own copy instead of being overwritten by the host's. Use it for local-only effects, like a buff from something the player consumed. |
+
+---
+
+## Making a status do something
+
+A status is just data. It doesn't run code on its own. 
+
+For it to have any affect, you must update it from a Harmony postfix on `Body.Update`, which runs every frame for every body:
+
+```csharp
+[HarmonyPatch(typeof(Body), "Update")]
+public static class SunstrokePatch
+{
+    [HarmonyPostfix]
+    private static void Postfix(Body __instance)
+    {
+        // Get the status
+        SunstrokeStatus status = __instance.GetStatus<SunstrokeStatus>();
+
+        // Read vanilla values to update your own state
+        if (__instance.temperature > 39.2f)
+            status.ExposureSeconds += Time.deltaTime;
+
+        // Then apply the effect back onto vanilla values
+        if (status.ExposureSeconds > 30f)
+            __instance.thirst = Mathf.Max(0f, __instance.thirst - Time.deltaTime * 1.5f);
+    }
+}
+```
+
+
+---
+
+## Limb statuses
+
+Same idea, per limb. Use it for data that belongs to one limb, like a custom wound or a treatment timer:
+
+```csharp
+public sealed class FrostbiteStatus : LimbStatus
+{
+    public float ExposureSeconds;
+    public bool HasNerveDamage;
+}
+
+foreach (Limb limb in body.limbs)
+{
+    FrostbiteStatus frostbite = limb.GetStatus<FrostbiteStatus>();
+}
+```
+
+---
+
+## Testing with the console
+
+The vanilla `setbodyfield` and `setlimbfield` commands can set status fields once the status exists. Use `Status.Field`:
+
+```text
+setbodyfield SunstrokeStatus.ExposureSeconds 60
+setlimbfield foreleg FrostbiteStatus.ExposureSeconds 60
+```
+
+---
+
+## Showing it to the player
+
+To show a status in the moodle bar, call `MoodleRegistry.AddMoodle(...)` while it's active.
+
+See [Moodles](/docs/moodles/) for more information!
+
+---
+
+## Where should my data go?
+
+| You want to store... | Use |
+| --- | --- |
+| New values on a body | `BodyStatus` |
+| New values on one limb | `LimbStatus` |
+| A change to a value vanilla recalculates (heart rate, max weight) | [`CCLBody`](/docs/player/#changing-values-vanilla-recalculates) |
+| Values on one item | [`CustomData`](/docs/advanced-item/#custom-data) |
+| Mod-wide data that isn't tied to a body | Your own class + a [save provider](/docs/saving/) |
+
+{/* Code shown in the side panel */}
+
+```csharp panel title="SunstrokeStatus.cs"
+using CUCoreLib.Data;
+using CUCoreLib.Helpers;
+using CUCoreLib.Registries;
+using HarmonyLib;
+using UnityEngine;
+
+// Extra fields on every Body. Saved with the run and synced in multiplayer.
+[StatusOptions(Key = "com.yourname.sunstroke")]
+public sealed class SunstrokeStatus : BodyStatus
+{
+    public float ExposureSeconds;
+    public float CoolingGraceSeconds;
+    public bool WarnedPlayer;
+}
+
+[HarmonyPatch(typeof(Body), "Update")]
+public static class SunstrokePatch
+{
+    [HarmonyPostfix]
+    private static void Postfix(Body __instance)
+    {
+        SunstrokeStatus status = __instance.GetStatus<SunstrokeStatus>();
+
+        // Build up exposure while overheated, cool down after a short grace period
+        if (__instance.temperature > 39.2f)
+        {
+            status.ExposureSeconds += Time.deltaTime;
+            status.CoolingGraceSeconds = 6f;
+        }
+        else if (status.CoolingGraceSeconds > 0f)
+        {
+            status.CoolingGraceSeconds -= Time.deltaTime;
+        }
+        else
+        {
+            status.ExposureSeconds = Mathf.Max(0f, status.ExposureSeconds - Time.deltaTime * 4f);
+        }
+
+        // 30s: thirsty and tired
+        if (status.ExposureSeconds > 30f)
+        {
+            __instance.thirst = Mathf.Max(0f, __instance.thirst - Time.deltaTime * 1.5f);
+            __instance.stamina = Mathf.Max(0f, __instance.stamina - Time.deltaTime * 2f);
+        }
+
+        // 45s: warn once (WarnedPlayer is saved, so it won't repeat after a reload)
+        if (!status.WarnedPlayer && status.ExposureSeconds > 45f)
+        {
+            status.WarnedPlayer = true;
+            __instance.talker.Talk("I need shade.");
+        }
+
+        // 50s: getting sick
+        if (status.ExposureSeconds > 50f)
+        {
+            __instance.sicknessAmount = Mathf.Min(100f, __instance.sicknessAmount + Time.deltaTime * 3f);
+        }
+
+        // Show it in the moodle bar while it matters, for the local player only
+        // ("hot" is vanilla's own overheating icon, but ideally you want to use your own!)
+        bool isLocalPlayer = PlayerCamera.main != null && PlayerCamera.main.body == __instance;
+        if (isLocalPlayer && status.ExposureSeconds > 30f)
+        {
+            MoodleRegistry.AddMoodle(1, "hot", "Sunstroke", "You've been in the heat too long.");
+        }
+    }
+}
+```

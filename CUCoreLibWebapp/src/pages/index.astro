@@ -1,0 +1,8 @@
+---
+import { getEntry } from "astro:content";
+import DocPage from "../components/DocPage.astro";
+
+const entry = await getEntry("docs", "welcome");
+if (!entry) throw new Error("Missing welcome page");
+---
+<DocPage entry={entry} />

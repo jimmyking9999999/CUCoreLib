@@ -1,0 +1,178 @@
+---
+title: "Loading assets"
+label: "Loading Assets"
+crumb: "Content APIs"
+lead: "Load embedded and loose sprites, audio clips, UI sprites, and text resources through CUCoreLib."
+---
+Great! We have a mod.
+
+Hm. Looks like it doesn't do much, though. A single line of debug dialogue is hardly enough for a mod, after all.
+
+Let's add some images that we'll be able to use now.
+
+---
+
+## Embedded assets
+
+Embedded assets are packed inside your DLL, so they always ship with the mod. Use them for item icons, sounds, and default data files.
+
+To embed a file in Visual Studio, add it to the project, open its properties, and set **Build Action** to `Embedded Resource`. 
+
+If you have [CCLScavTemplate](/docs/setup/), it does this automatically for everything in its `images` and `assets` folders.
+
+<video src="https://jimmyking9999999.github.io/Metadata-generator/videos/embedding-images.mp4" data-local-fallback-src="/videos/embedding-images.mp4" autoplay="" loop="" muted="" playsinline="" controls="" class="screenshot docs-video"></video>
+
+```csharp
+// Item/world sprite (8 pixels per unit, like vanilla)
+Sprite icon = AssetLoader.LoadEmbeddedSprite("Images.sunpear.png");
+
+// UI sprite (100 pixels per unit, for menus and HUD)
+Sprite button = AssetLoader.LoadUISprite("Images.my-button.png");
+
+// Text, e.g. a JSON file
+string json = AssetLoader.LoadEmbeddedText("Data.default-loot.json");
+```
+
+AssetLoader.LoadEmbeddedSprite and LoadEmbeddedText search the calling assembly by suffix, so you can usually pass only the unique tail of the manifest resource name.
+
+For instance, `sunpear.png`, `my-button.png`, or `default-loot.json` works just as well.
+
+---
+
+## Resource names
+
+.NET names an embedded file after your project's default namespace plus its folder path: `Images/sunpear.png` becomes `MyMod.Images.sunpear.png`.
+
+
+```csharp
+// Usually enough
+Sprite icon = AssetLoader.LoadEmbeddedSprite("sunpear.png");
+
+// Better semantics
+Sprite icon = AssetLoader.LoadEmbeddedSprite("Images.sunpear.png");
+
+// The full name, if another resource also ends in "Images.sunpear.png" for some reason..?
+Sprite icon = AssetLoader.LoadEmbeddedSprite("MyMod.Images.sunpear.png");
+```
+
+---
+
+## Loose files
+
+Loose files sit next to your DLL instead of inside it. Use them for assets players should be able to swap without recompiling. Paths are relative to your plugin's folder:
+
+```csharp
+// Loads BepInEx/plugins/MyMod/Images/sunpear.png
+Sprite icon = AssetLoader.LoadSpriteFromPluginFolder(this, "Images/sunpear.png");
+```
+
+`LoadSpriteFromFile(path)` takes a full path instead.
+
+---
+
+## Aseprite files
+
+`.ase` / `.aseprite` files can be embedded and loaded directly with CUCoreLib, without needing PNG export. 
+
+```csharp
+// One frame as a sprite (frame 0, or pick a tag/frame)
+Sprite icon = AssetLoader.LoadAsepriteSprite("Images.sunpear.ase");
+
+// Every frame of the "idle" tag as an animation, registered under an ID
+AssetLoader.LoadAsepriteAnimation("mymod.sunpear-glow", "Images.sunpear.ase", tag: "idle");
+
+// Every frame as separate sprites, e.g. for variants
+Sprite[] frames = AssetLoader.LoadAsepriteSpritesheet("Images.sunpear-variants.ase");
+```
+
+---
+
+## Frame animations
+
+Animations in CUCoreLib are registered under an ID, then referenced by that ID. Frames play in the order you pass them, at 12 FPS by default:
+
+```csharp
+AssetLoader.LoadFrameAnimationFromEmbeddedResources(
+    "mymod.bottle-fill",
+    new[] { "Images.bottle-fill-0.png", "Images.bottle-fill-1.png", "Images.bottle-fill-2.png" },
+    framesPerSecond: 12f);
+```
+
+For loose files, use `LoadFrameAnimationFromPluginFolder` or `LoadFrameAnimationFromFiles`. 
+
+If you already have the sprites, simply use `RegisterFrameAnimation(id, sprites)` directly.
+
+Then use the ID:
+
+| Where | Field / call |
+| --- | --- |
+| Animated item icon | `CustomItemInfo.IconAnimationId` |
+| Animated worn sprite | `CustomItemInfo.WornSpriteAnimationId` |
+| Animated building | `CustomBuildingEntityDefinition.SpriteAnimationId` |
+| Any `SpriteRenderer` or UI `Image` | `AssetLoader.TryApplyAnimation(renderer, "mymod.bottle-fill")` |
+
+---
+
+## AssetBundles
+
+AssetBundles hold assets built in the Unity editor, such as prefabs for [minigames](/docs/minigames/) or [animations](/docs/animations/). Register a bundle under an ID, then load assets from it by name:
+
+```csharp
+// Loose bundle next to your plugin DLL
+AssetLoader.RegisterBundleFromPluginFolder(this, "mymod.minigames", "Bundles/mymod-minigames");
+
+// Or a bundle embedded in the DLL
+AssetLoader.RegisterEmbeddedBundle("mymod.minigames", "Bundles.mymod-minigames");
+
+if (AssetLoader.TryLoadBundleAsset("mymod.minigames", "WireSpliceScreen", out GameObject screenPrefab))
+{
+    Logger.LogInfo("Loaded " + screenPrefab.name);
+}
+```
+
+---
+
+## Sharing sprites by ID
+
+If other code (or another mod) needs to look up a sprite you loaded, cache it under an ID:
+
+```csharp
+AssetLoader.CacheSprite("sunpear", icon);
+
+// Anywhere else
+Sprite icon = AssetLoader.GetCachedSprite("sunpear");
+```
+
+For loading audio, see [Loading audio](/docs/audio/).
+
+{/* Code shown in the side panel */}
+
+```csharp panel title="LoadAssets.cs"
+using BepInEx;
+using CUCoreLib.Helpers;
+using UnityEngine;
+
+private void LoadModAssets()
+{
+    // Embedded sprite
+    Sprite icon = AssetLoader.LoadEmbeddedSprite("Images.sunpear.png");
+
+    // Loose sprite from BepInEx/plugins/MyMod/Images/sunpear-alt.png
+    Sprite altIcon = AssetLoader.LoadSpriteFromPluginFolder(this, "Images/sunpear-alt.png");
+
+    // Sprite straight from an Aseprite file
+    Sprite crate = AssetLoader.LoadAsepriteSprite("Images.crate.ase");
+
+    // Frame animation, used later through its ID (e.g. CustomItemInfo.IconAnimationId)
+    AssetLoader.LoadFrameAnimationFromEmbeddedResources(
+        "mymod.bottle-fill",
+        new[] { "Images.bottle-fill-0.png", "Images.bottle-fill-1.png", "Images.bottle-fill-2.png" },
+        framesPerSecond: 6f);
+
+    // Cache sprite
+    AssetLoader.CacheSprite("sunpear", icon);
+
+    // AssetBundle built via the Unity editor
+    AssetLoader.RegisterBundleFromPluginFolder(this, "mymod.minigames", "Bundles/mymod-minigames");
+}
+```

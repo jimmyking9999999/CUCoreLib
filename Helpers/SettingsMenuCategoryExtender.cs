@@ -38,6 +38,14 @@ namespace CUCoreLib.Helpers
         private ScrollRect railScroll;
         private SettingsMenu menu;
 
+        private const string ModTabResetTipName = "Reset to default";
+        private const string ModTabResetTipDesc = "Resets this tab's settings to default.";
+        private UITooltip resetTooltip;
+        private string vanillaResetTipName;
+        private string vanillaResetTipDesc;
+
+        internal Setting.SettingCategory ActiveCategory => (Setting.SettingCategory)activeCategoryIndex;
+
         private void Update()
         {
             if (!menu || !menu.content) return;
@@ -158,6 +166,35 @@ namespace CUCoreLib.Helpers
             SnapContentToTop();
             ApplyButtonSprites();
             ClampScrollPosition();
+            UpdateResetTooltip(ModOptionsRegistry.IsOwnedCustomCategory(category));
+        }
+
+        private void UpdateResetTooltip(bool modTab)
+        {
+            if (!resetTooltip)
+            {
+                // ResetToDefault prefab
+                var resetButton = menu ? menu.GetComponentsInChildren<Button>(true).FirstOrDefault(button =>
+                    Enumerable.Range(0, button.onClick.GetPersistentEventCount())
+                        .Any(i => button.onClick.GetPersistentMethodName(i) == nameof(SettingsMenu.ResetToDefault))) : null;
+                if (!resetButton) return;
+
+                resetTooltip = resetButton.GetComponent<UITooltip>();
+                if (resetTooltip)
+                {
+                    vanillaResetTipName = resetTooltip.skipLocale ? resetTooltip.tipName : Locale.GetOther(resetTooltip.localeName);
+                    vanillaResetTipDesc = resetTooltip.skipLocale ? resetTooltip.tipDesc : Locale.GetOther(resetTooltip.localeDesc);
+                }
+                else
+                {
+                    resetTooltip = resetButton.gameObject.AddComponent<UITooltip>();
+                }
+
+                resetTooltip.skipLocale = true;
+            }
+
+            resetTooltip.tipName = modTab ? ModTabResetTipName : vanillaResetTipName;
+            resetTooltip.tipDesc = modTab ? ModTabResetTipDesc : vanillaResetTipDesc;
         }
 
         internal void RefreshVisibleTab()

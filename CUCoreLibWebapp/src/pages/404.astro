@@ -1,0 +1,27 @@
+---
+import "../styles.css";
+import { getNavOrder, pagePath } from "../docs.ts";
+
+const pages = await getNavOrder();
+---
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex" />
+    <title>Page not found | CUCoreLib Docs</title>
+    <link rel="icon" type="image/png" href="/favicon.png" />
+  </head>
+  <body>
+    <main class="lesson">
+      <article class="lesson-inner">
+        <h1 class="page-title">Page not found</h1>
+        <p class="lead">That page doesn't exist (anymore)... Pick one below, or go to <a href="/">start</a>.</p>
+        <section class="lesson-card">
+          <ul>{pages.map((doc) => <li><a href={pagePath(doc.id)}>{doc.data.label}</a></li>)}</ul>
+        </section>
+      </article>
+    </main>
+  </body>
+</html>

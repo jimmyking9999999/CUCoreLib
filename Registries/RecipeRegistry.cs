@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Text;
 using CUCoreLib.ContentReload;
 using CUCoreLib.Helpers;
@@ -31,8 +32,55 @@ namespace CUCoreLib.Registries
 
         private static int PendingHotReloadInjectedRecipeCount;
 
+        // per instance
+        private static readonly ConditionalWeakTable<Recipe, Func<bool>> UnlockConditions =
+            new ConditionalWeakTable<Recipe, Func<bool>>();
+
+        private static readonly HashSet<string> WarnedUnlockConditionKeys =
+            new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        private static bool HasUnlockConditions;
+
         // Recipe key -> host recipe index,
         private static Dictionary<string, int> HostRecipeIndices;
+
+        // Re-applied to every fresh recipe list, since SetUpRecipes rebuilds vanilla and custom recipes each run
+        private static readonly List<KeyValuePair<Func<Recipe, bool>, Action<Recipe>>> RecipeEdits =
+            new List<KeyValuePair<Func<Recipe, bool>, Action<Recipe>>>();
+
+        internal static void QueueRecipeEdit(Func<Recipe, bool> match, Action<Recipe> edit)
+        {
+            if (match == null || edit == null) return;
+
+            RecipeEdits.Add(new KeyValuePair<Func<Recipe, bool>, Action<Recipe>>(match, edit));
+
+            if (Recipes.recipes != null)
+                foreach (var recipe in Recipes.recipes.ToArray())
+                    ApplyRecipeEdit(recipe, match, edit);
+        }
+
+        internal static void ApplyRecipeEdits(IEnumerable<Recipe> recipes)
+        {
+            if (recipes == null || RecipeEdits.Count == 0) return;
+
+            foreach (var recipe in recipes.ToArray())
+            foreach (var entry in RecipeEdits.ToArray())
+                ApplyRecipeEdit(recipe, entry.Key, entry.Value);
+        }
+
+        private static void ApplyRecipeEdit(Recipe recipe, Func<Recipe, bool> match, Action<Recipe> edit)
+        {
+            if (recipe?.result == null) return;
+
+            try
+            {
+                if (match(recipe)) edit(recipe);
+            }
+            catch (Exception ex)
+            {
+                CUCoreLibPlugin.Log?.LogError($"Recipe edit for '{recipe.result.id}' failed: {ex}");
+            }
+        }
 
         public static void Register(Recipe recipe)
         {
@@ -57,6 +105,48 @@ namespace CUCoreLib.Registries
             RecipeOwners.Assign(key, ContentReloadSession.ResolveAmbientOwnerId());
 
             if (Recipes.recipes != null) InjectRegisteredRecipes();
+        }
+
+        /// <summary>
+        /// Registers a recipe that stays hidden and uncraftable while <paramref name="isUnlocked"/> returns false.
+        /// The condition is checked on every crafting list refresh, on top of the vanilla INT visibility rule.
+        /// </summary>
+        public static void Register(Recipe recipe, Func<bool> isUnlocked)
+        {
+            SetUnlockCondition(recipe, isUnlocked);
+            Register(recipe);
+        }
+
+        /// <summary>
+        /// Attaches an unlock condition to a recipe instance (a template passed to <see cref="Register(Recipe)"/>,
+        /// or a live recipe inside <c>CUCoreUtils.EditRecipe</c>). Or, pass null to remove it.
+        /// </summary>
+        public static void SetUnlockCondition(Recipe recipe, Func<bool> isUnlocked)
+        {
+            if (recipe == null) return;
+
+            UnlockConditions.Remove(recipe);
+            if (isUnlocked == null) return;
+
+            UnlockConditions.Add(recipe, isUnlocked);
+            HasUnlockConditions = true;
+        }
+
+        internal static bool IsLocked(Recipe recipe)
+        {
+            if (!HasUnlockConditions || recipe == null ||
+                !UnlockConditions.TryGetValue(recipe, out var isUnlocked)) return false;
+
+            try
+            {
+                return !isUnlocked();
+            }
+            catch (Exception ex)
+            {
+                if (WarnedUnlockConditionKeys.Add(recipe.result?.id ?? string.Empty))
+                    CUCoreLibPlugin.Log?.LogError($"Unlock condition for recipe '{recipe.result?.id}' failed: {ex}");
+                return true;
+            }
         }
 
         public static IDisposable BeginOwnerRegistration(string ownerId)
@@ -99,6 +189,11 @@ namespace CUCoreLib.Registries
                 return false;
             }
 
+            var template = recipe;
+            recipe = CloneRecipe(recipe);
+            if (HasUnlockConditions && UnlockConditions.TryGetValue(template, out var isUnlocked))
+                UnlockConditions.Add(recipe, isUnlocked);
+
             if (recipe.items != null)
                 foreach (var item in recipe.items)
                 {
@@ -108,10 +203,46 @@ namespace CUCoreLib.Registries
                     item.ignoredId = recipe.isRepair ? string.Empty : recipe.result.id;
                 }
 
+            ApplyRecipeEdits(new[] { recipe });
+
             recipe.index = Recipes.recipes.Count;
             Recipes.recipes.Add(recipe);
             InjectedRecipeKeys.Add(recipeKey);
             return true;
+        }
+
+        // Inject a copy so per-run state (hasMadeBefore, specialKnown) resets each run like vanilla recipes
+        private static Recipe CloneRecipe(Recipe recipe)
+        {
+            var items = new List<RecipeItem>();
+            foreach (var item in recipe.items)
+                items.Add(new RecipeItem(item.minimumCondition)
+                {
+                    specific = item.specific,
+                    specificId = item.specificId,
+                    isLiquid = item.isLiquid,
+                    destroyItem = item.destroyItem,
+                    ignoredId = item.ignoredId,
+                    quality = item.quality == null ? null : new CraftingQuality(item.quality.id, item.quality.amount)
+                });
+
+            return new Recipe
+            {
+                INT = recipe.INT,
+                specialKnown = recipe.specialKnown,
+                hasMadeBefore = recipe.hasMadeBefore,
+                category = recipe.category,
+                isRepair = recipe.isRepair,
+                result = new RecipeResult
+                {
+                    id = recipe.result.id,
+                    isLiquid = recipe.result.isLiquid,
+                    amount = recipe.result.amount,
+                    resultCondition = recipe.result.resultCondition,
+                    dontDrainResultLiquid = recipe.result.dontDrainResultLiquid
+                },
+                items = items
+            };
         }
 
         internal static int InjectRegisteredRecipes()

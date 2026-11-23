@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://cucorelib.jimmyking.dev/sitemap.xml
+Sitemap: https://cucorelib.jimmyking.dev/sitemap-index.xml

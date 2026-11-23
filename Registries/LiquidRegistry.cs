@@ -174,6 +174,8 @@ namespace CUCoreLib.Registries
                 qualities = info.qualities ?? new List<CraftingQuality>()
             };
 
+            ApplyNondescriptDanger(id, info);
+
             if (!string.IsNullOrEmpty(info.name))
                 try
                 {
@@ -193,6 +195,23 @@ namespace CUCoreLib.Registries
                 }
 
             return !wasPresent;
+        }
+
+        private static readonly HashSet<string> VanillaDangerList = new HashSet<string>(Liquids.DangerList ?? new List<string>());
+
+        private static void ApplyNondescriptDanger(string id, CustomLiquidInfo info)
+        {
+            var dangerList = Liquids.DangerList;
+            if (dangerList == null) return;
+
+            if (info.nondescriptDangerous ?? info.unobtainable)
+            {
+                if (!dangerList.Contains(id)) dangerList.Add(id);
+            }
+            else if (!VanillaDangerList.Contains(id))
+            {
+                dangerList.Remove(id);
+            }
         }
 
         internal static HealthUseMode PushHealthUseMode(HealthUseMode mode)
@@ -299,6 +318,7 @@ namespace CUCoreLib.Registries
                         ["injectionSickness"] = info.injectionSickness,
                         ["localeFromItem"] = info.localeFromItem,
                         ["unobtainable"] = info.unobtainable,
+                        ["nondescriptDangerous"] = info.nondescriptDangerous,
                         ["qualities"] = NetworkSnapshotSerialization.WriteCraftingQualities(info.qualities)
                     };
                 }
@@ -332,6 +352,7 @@ namespace CUCoreLib.Registries
                         injectionSickness = obj.Value<float?>("injectionSickness") ?? 1f,
                         localeFromItem = obj.Value<bool?>("localeFromItem") ?? false,
                         unobtainable = obj.Value<bool?>("unobtainable") ?? false,
+                        nondescriptDangerous = obj.Value<bool?>("nondescriptDangerous"),
                         qualities = NetworkSnapshotSerialization.ReadCraftingQualities(obj["qualities"]),
                         onDrink = localInfo?.onDrink,
                         onHealthUse = localInfo?.onHealthUse,

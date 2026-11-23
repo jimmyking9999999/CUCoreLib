@@ -1,0 +1,161 @@
+---
+title: "Saving"
+label: "Saving"
+crumb: "Misc / API"
+lead: "Extend the vanilla save.sv flow with versioned CUCoreLib save providers."
+---
+## Do you need this page?
+
+Most data is already saved for you:
+
+| Data | Saved automatically |
+| --- | --- |
+| Your items, liquids, buildings, tiles in the world | Yes |
+| Values on one item | Yes, with [`CustomData`](/docs/advanced-item/#custom-data) |
+| Values on the player or a limb | Yes, with a [status](/docs/statuses/) |
+| Settings | Yes, by the game, see [Settings](/docs/settings/) |
+| Anything else: mod-wide data, your own world systems | **No**: write a save provider |
+
+---
+
+## Save providers
+
+A save provider turns your data into JSON when the game saves (`Capture`), and back when it loads (`Restore`). CUCoreLib calls both for you; you only register the provider once in `Awake()`:
+
+```csharp
+SaveRegistry.RegisterGlobalProvider("mymod.markers", new MarkerSaveProvider());
+```
+
+```csharp
+public sealed class MarkerSaveProvider : ICustomSaveProvider
+{
+    public int GetVersion() => 1;
+
+    // On save, return your data as JSON
+    public JToken Capture()
+    {
+        return new JObject { ["activeMarker"] = MarkerManager.ActiveMarkerId };
+    }
+
+    // On load, read it back. `version` is what GetVersion() returned when it was saved.
+    public void Restore(JToken payload, int version, SaveRestoreContext context)
+    {
+        MarkerManager.ActiveMarkerId = (string)payload["activeMarker"];
+    }
+}
+```
+
+The data is stored inside the game's own `save.sv`, so it's deleted along with the run and works with other mods, e.g. Casualties: Together or QoL.
+
+Note: `Restore` only runs when the save contains your data. It is **not** called for a new run or for a save made before your mod was installed, so reset your data yourself when a run starts.
+
+---
+
+## Provider types
+
+Pick the one that matches what the data belongs to:
+
+| Register with | Interface | `Capture` / `Restore` get | For |
+| --- | --- | --- | --- |
+| `RegisterGlobalProvider` | `ICustomSaveProvider` | nothing extra | Mod-wide data. |
+| `RegisterWorldProvider` | `IWorldSaveProvider` | the world, player, and camera | Your own world systems. |
+| `RegisterBodyProvider` | `IBodySaveProvider` | the `Body` | Per-player data (prefer a [status](/docs/statuses/)). |
+| `RegisterLimbProvider` | `ILimbSaveProvider` | the `Limb` and its index | Per-limb data (prefer a limb status). |
+| `RegisterItemProvider` | `IItemSaveProvider` | the `Item` | Per-item data (prefer [`CustomData`](/docs/advanced-item/#custom-data)). |
+
+
+---
+
+## Restoring things that don't exist yet
+
+Some of the world may not be ready when `Restore` runs. Wrap anything that depends on it in `context.Defer`, which runs one frame after loading finishes:
+
+```csharp
+public void Restore(JToken payload, int version, SaveRestoreContext context)
+{
+    Vector2 position = new Vector2((float)payload["x"], (float)payload["y"]);
+
+    context.Defer(() =>
+    {
+        // The world is fully loaded here
+        BuildingEntityRegistry.Spawn("beacon", position);
+    });
+}
+```
+
+---
+
+## Reading JSON
+
+Payloads use Newtonsoft's `JToken` / `JObject` / `JArray` (it ships with the game). 
+
+```csharp
+JObject obj = new JObject { ["name"] = "camp", ["x"] = 1.5f };   // write
+string name = (string)obj["name"];                               // read
+float x = (float?)obj["x"] ?? 0f;                                // read, with a default if missing
+```
+
+{/* Code shown in the side panel */}
+
+```csharp panel title="MarkerSaveProvider.cs"
+using System.Collections.Generic;
+using CUCoreLib.Registries;
+using CUCoreLib.Saving;
+using Newtonsoft.Json.Linq;
+using UnityEngine;
+
+// The data we want to keep between sessions
+public static class MarkerManager
+{
+    public static readonly Dictionary<string, Vector2> Markers = new Dictionary<string, Vector2>();
+    public static string ActiveMarkerId;
+}
+
+public sealed class MarkerSaveProvider : ICustomSaveProvider
+{
+    // Bump when the JSON layout changes
+    public int GetVersion() => 1;
+
+    // Called by CUCoreLib when the game saves
+    public JToken Capture()
+    {
+        JArray markers = new JArray();
+        foreach (KeyValuePair<string, Vector2> entry in MarkerManager.Markers)
+        {
+            markers.Add(new JObject
+            {
+                ["id"] = entry.Key,
+                ["x"] = entry.Value.x,
+                ["y"] = entry.Value.y
+            });
+        }
+
+        return new JObject
+        {
+            ["activeMarkerId"] = MarkerManager.ActiveMarkerId,
+            ["markers"] = markers
+        };
+    }
+
+    // Called by CUCoreLib when a save containing our data loads
+    public void Restore(JToken payload, int version, SaveRestoreContext context)
+    {
+        MarkerManager.Markers.Clear();
+        MarkerManager.ActiveMarkerId = (string)payload["activeMarkerId"];
+
+
+        foreach (JToken token in markers)
+        {
+            string id = (string)token["id"];
+            if (string.IsNullOrEmpty(id)) continue;
+
+            float x = (float?)token["x"] ?? 0f;
+            float y = (float?)token["y"] ?? 0f;
+            MarkerManager.Markers[id] = new Vector2(x, y);
+        }
+    }
+}
+
+// In your plugin's Awake(), once:
+// SaveRegistry.RegisterGlobalProvider("mymod.markers", new MarkerSaveProvider());
+```
