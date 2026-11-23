@@ -594,6 +594,11 @@ namespace CUCoreLib.Registries
 
                 // Recreate registry entries from the net request
                     Register(id, info);
+
+                    // Prevent streamed items from causing NREs if the mod is not installed.
+                    // TODO: Update item useaction/uselimbaction streaming for basic functionality
+                    if (info.useAction == null) info.usable = false;
+                    if (info.useLimbAction == null) info.usableOnLimb = false;
                 }
                 catch
                 {

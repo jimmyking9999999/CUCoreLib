@@ -387,3 +387,6 @@ CasualtiesUnknownFull.exe .lnk
 
 # UI element webapp (It's ts + vite, and heavy, and no one's going to be editing it ;))
 UIWebapp/
+
+# RSA-SHA256 (PKCS#1 v1.5) signature, for future use
+UpdateSignature.cs
