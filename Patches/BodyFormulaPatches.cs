@@ -200,28 +200,23 @@ namespace CUCoreLib.Patches
         [HarmonyPatch(typeof(Body), "get_" + nameof(Body.actualJumpSpeed))]
         [HarmonyTranspiler]
         public static IEnumerable<CodeInstruction> JumpSpeedAdd(IEnumerable<CodeInstruction> instructions) {
-            var methodidx = -1;
             List<CodeInstruction> codes = new List<CodeInstruction>(instructions);
+
             FieldInfo BodyjumpSpeed = AccessTools.Field(typeof(Body), nameof(Body.jumpSpeed));
+            List<CodeInstruction> callfunct = new List<CodeInstruction>() {
+                new CodeInstruction(Ldarg_0),
+                Call(typeof(StatusExtensions), nameof(StatusExtensions.GetBodyFormulaData)),
+                LoadField(typeof(BodyFormulaData), nameof(BodyFormulaData.JumpSpeed)),
+                Call(typeof(BodyFormulaData), nameof(BodyFormulaData.Sum)),
+                new CodeInstruction(Add)
+            };
             for (var i = 0; i < codes.Count; i++) {
                 if (codes[i].LoadsField(BodyjumpSpeed)) {
-                    methodidx = i;
-                    break;
+                    codes.InsertRange(i + 1, callfunct);
                 }
             }
 
-            if (methodidx != -1) {
-                List<CodeInstruction> callfunct = new List<CodeInstruction>() {
-                    new CodeInstruction(Ldarg_0),
-                    Call(typeof(StatusExtensions), nameof(StatusExtensions.GetBodyFormulaData)),
-                    LoadField(typeof(BodyFormulaData), nameof(BodyFormulaData.JumpSpeed)),
-                    Call(typeof(BodyFormulaData), nameof(BodyFormulaData.Sum)),
-                    new CodeInstruction(Add)
-                };
-                codes.InsertRange(methodidx + 1, callfunct);
-            }
-
-            return (IEnumerable<CodeInstruction>)codes;
+            return codes;
         }
 
         private static bool TryFindStoredBodyField(IReadOnlyList<CodeInstruction> instructions, int startIndex,
