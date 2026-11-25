@@ -13,18 +13,13 @@ public static bool SparksEnabled;
 
 private void Awake()
 {
-    ModOptionsRegistry.Register(ModOptionDefinition.Bool(
-        "mymod.sparks",                         // unique ID
-        "Kiln sparks",                          // Name
-        "Show spark effects around kilns.",     // Description
-        Setting.SettingCategory.Video,       // Tab (Can use your own tab, e.g. "Glassworks")
-        true,                                   // default value
-        value => PlayerPrefs.SetInt("Glassworks_Enabled", value ? 1 : 0) // runs on load and whenever it changes
-    ));
+    ModOptionsRegistry.Register(ModOptionDefinition.Bool("mymod.sparks", true)
+        .WithCategory(Setting.SettingCategory.Video)
+        .OnApply(value => SparksEnabled = value));
 }
 ```
 
-The last argument is called with the saved value when settings load, and again whenever the player changes it. Store it in a field and read that field from your code.
+The `.OnApply(...)` callback is called with the saved value when settings load, and again whenever the player changes it. Store it in a field and read that field from your code.
 
 The value you pass is the **default**, used for new players and by "Reset to default". 
 
@@ -43,14 +38,10 @@ The value you pass is the **default**, used for new players and by "Reset to def
 
 ```csharp
 ModOptionsRegistry.Register(ModOptionDefinition.Float(
-    "mymod.clinkvolume",
-    "Glass clink volume",
-    "Volume of glass sound effects.",
-    Setting.SettingCategory.Audio,
-    0.8f, 0f, 1f,                              // default, min, max
-    value => ClinkVolume = value,
-    value => Mathf.RoundToInt(value * 100f) + "%" // shows "80%"
-));
+    "mymod.clinkvolume", 0.8f, 0f, 1f,
+    formatValue: value => Mathf.RoundToInt(value * 100f) + "%")
+    .WithCategory(Setting.SettingCategory.Audio)
+    .OnApply(value => ClinkVolume = value));
 ```
 
 <img src="/images/setting-ingame.png" alt="In-game screenshot of the clink volume slider in the options menu." class="screenshot" />
@@ -59,14 +50,13 @@ ModOptionsRegistry.Register(ModOptionDefinition.Float(
 
 ## Your own tab
 
-Pass a name instead of a vanilla category to give your mod its own tab on the right of the settings menu. Every setting with the same name shares the tab, and long tabs scroll.
+Create a custom category by `ModOptionCategory.Localized(translationKey)` instead of a vanilla category to give your mod its own tab on the right of the settings menu. Every setting with the same translation key shares the tab, and long tabs scroll.
 
 ```csharp
-ModOptionsRegistry.Register(ModOptionDefinition.Bool(
-    "mymod.sparks", "Kiln sparks", "Show spark effects around kilns.",
-    "My Mod",   // custom tab
-    true,
-    value => SparksEnabled = value));
+var tab = ModOptionCategory.Localized("mymod.settings.category");
+ModOptionsRegistry.Register(ModOptionDefinition.Bool("mymod.sparks", true)
+    .WithCategory(tab)
+    .OnApply(value => SparksEnabled = value));
 ```
 
 "Reset to default" on that tab only resets that tab.
@@ -80,11 +70,10 @@ In multiplayer, the host's settings are sent to every client and applied on top 
 - Add `.LocalOnly()` to keep a setting on each player's own machine:
 
 ```csharp
-ModOptionsRegistry.Register(ModOptionDefinition.Bool(
-    "mymod.sparks", "Kiln sparks", "Show spark effects around kilns.",
-    Setting.SettingCategory.Video, true,
-    value => SparksEnabled = value)
-    .LocalOnly()); // the host never overrides this one
+ModOptionsRegistry.Register(ModOptionDefinition.Bool("mymod.sparks", true)
+    .WithCategory(Setting.SettingCategory.Video)
+    .LocalOnly() // the host never overrides this one
+    .OnApply(value => SparksEnabled = value));
 ```
 
 Note: Keybind settings are always local.
@@ -127,23 +116,20 @@ If your mod also has a BepInEx `.cfg` entry for the same setting, name the confi
 ```csharp
 ConfigEntry<bool> sparksConfig = Config.Bind("General", "sparks", true, "Show spark effects around kilns.");
 
-ModOptionsRegistry.Register(ModOptionDefinition.Bool(
-    "mymod.sparks", // ends in "sparks", so it syncs with the config key "sparks"
-    "Kiln sparks", "Show spark effects around kilns.",
-    Setting.SettingCategory.Video,
-    sparksConfig.Value,
-    value => SparksEnabled = value));
+ModOptionsRegistry.Register(ModOptionDefinition.Bool("mymod.sparks", sparksConfig.Value)
+    .WithCategory(Setting.SettingCategory.Video)
+    .OnApply(value => SparksEnabled = value));
 ```
 
 Note: The in-game setting takes precedence in the case of a conflict. 
 
-- Works for bool, int, float, dropdown, and keybind rows.
+- Works for bool, int, float, dropdown, keybind rows and text.
 
 ---
 
 ## World settings (per run)
 
-`WorldSettingsRegistry` works the same way, but adds rows to the **run settings** panel shown before a new run. The values are run-specific, meaning they save and load with it, (and are also included in the Copy/Paste preset code!)
+`WorldSettingsRegistry` uses its own factories to add rows to the **run settings** panel shown before a new run. The values are run-specific, meaning they save and load with it, (and are also included in the Copy/Paste preset code!)
 
 ```csharp
 public static float KilnHeat;
@@ -200,7 +186,7 @@ WorldSettingsRegistry.Register(WorldSettingDefinition.Float(
 - IDs must contain a namespace dot (`mymod.something`) and be unique.
 - `min` must not be above `max`.
 - Dropdowns need at least one choice, unique choice keys, and a default index that exists.
-- Pass already-[localized](/docs/locale/) text for labels! It's shown as-is.
+- Put mod option labels and descriptions in the [language file](/docs/locale/). Older overloads that take literal text are deprecated and still supported.
 
 {/* Code shown in the side panel */}
 
@@ -226,49 +212,44 @@ public static string KilnName;
 
 private void RegisterSettings()
 {
+    var tab = ModOptionCategory.Localized("mymod.settings.category"); // "mymod.settings.category": "My Mod"
+
     // Toggle, in its own "My Mod" tab
-    ModOptionsRegistry.Register(ModOptionDefinition.Bool(
-        "mymod.sparks", "Kiln sparks", "Show spark effects around kilns.",
-        "My Mod", true,
-        value => SparksEnabled = value));
+    ModOptionsRegistry.Register(ModOptionDefinition.Bool("mymod.sparks", true)
+        .WithCategory(tab)
+        .OnApply(value => SparksEnabled = value));
 
     // Slider in the vanilla Audio tab, shown as a percentage
-    ModOptionsRegistry.Register(ModOptionDefinition.Float(
-        "mymod.clinkvolume", "Glass clink volume", "Volume of glass sound effects.",
-        Setting.SettingCategory.Audio, 0.8f, 0f, 1f,
-        value => ClinkVolume = value,
-        value => Mathf.RoundToInt(value * 100f) + "%"));
+    ModOptionsRegistry.Register(ModOptionDefinition.Float("mymod.clinkvolume", 0.8f, 0f, 1f,
+        formatValue: value => Mathf.RoundToInt(value * 100f) + "%")
+        .WithCategory(Setting.SettingCategory.Audio)
+        .OnApply(value => ClinkVolume = value));
 
     // Whole number from 0 to 10
-    ModOptionsRegistry.Register(ModOptionDefinition.Int(
-        "mymod.lootweight", "Glass loot weight", "How often glass items show up in loot.",
-        "My Mod", 1, 0, 10,
-        value => LootWeight = value));
+    ModOptionsRegistry.Register(ModOptionDefinition.Int("mymod.lootweight", 1, 0, 10)
+        .WithCategory(tab)
+        .OnApply(value => LootWeight = value));
 
     // Dropdown. Value is the chosen index (e.g. 0, 1, 2)
     ModOptionsRegistry.Register(ModOptionDefinition.Dropdown(
-        "mymod.recipevisibility", "Recipe visibility", "When glass recipes show up.",
-        "My Mod", 0,
+        "mymod.recipevisibility", 0,
         new[]
         {
             new ModDropdownChoice("normal", "Normal"),
             new ModDropdownChoice("always", "Always visible"),
             new ModDropdownChoice("hidden", "Hidden")
-        },
-        value => RecipeVisibility = value));
+        })
+        .WithCategory(tab)
+        .OnApply(value => RecipeVisibility = value));
 
     // Key button in the vanilla Input tab
-    ModOptionsRegistry.Register(ModOptionDefinition.Keybind(
-        "mymod.inspect", "Quick inspect", "Inspect the item under the mouse.",
-        Setting.SettingCategory.Input, KeyCode.G,
-        value => InspectKey = value));
+    ModOptionsRegistry.Register(ModOptionDefinition.Keybind("mymod.inspect", KeyCode.G)
+        .OnApply(value => InspectKey = value));
 
     // Text input with placeholder text
-    ModOptionsRegistry.Register(ModOptionDefinition.Text(
-        "mymod.nametag", "Name tag", "Shown on items you craft.",
-        "My Mod", "",
-        value => NameTag = value,
-        "Enter name..."));
+    ModOptionsRegistry.Register(ModOptionDefinition.Text("mymod.nametag", "", placeholder: "Enter name...")
+        .WithCategory(tab)
+        .OnApply(value => NameTag = value));
 
     // A simple rebindable key, no settings ID needed
     var reload = CUCoreUtils.GetFriendlyKeyBind("R");

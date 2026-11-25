@@ -14,12 +14,14 @@ namespace CUCoreLib.Registries
         private const int CustomCategoryBaseIndex = 100;
         internal static readonly List<ModOptionDefinition> RegisteredOptions = new List<ModOptionDefinition>();
         private static readonly HashSet<string> RegisteredIds = new HashSet<string>(StringComparer.Ordinal);
+        private static readonly Dictionary<string, (string Key, string Fallback)> TextKeyOverrides =
+            new Dictionary<string, (string Key, string Fallback)>(StringComparer.Ordinal);
         private static readonly List<ModOptionCategoryEntry> CustomCategories = new List<ModOptionCategoryEntry>();
         private static readonly Dictionary<string, ModOptionCategoryEntry> CustomCategoriesByOptionId =
             new Dictionary<string, ModOptionCategoryEntry>(StringComparer.Ordinal);
 
-        private static readonly Dictionary<string, ModOptionCategoryEntry> CustomCategoriesByKey =
-            new Dictionary<string, ModOptionCategoryEntry>(StringComparer.Ordinal);
+        private static readonly Dictionary<(string Id, bool Localized), ModOptionCategoryEntry> CustomCategoriesByKey =
+            new Dictionary<(string Id, bool Localized), ModOptionCategoryEntry>();
 
         public static bool Register(ModOptionDefinition option)
         {
@@ -40,6 +42,7 @@ namespace CUCoreLib.Registries
             }
 
             ResolveCategory(option);
+            option.IsRegistered = true;
             RegisteredOptions.Add(option);
             ModSettingsConfigSyncRegistry.RegisterOption(option);
             RegisterLocale(option);
@@ -74,19 +77,6 @@ namespace CUCoreLib.Registries
         {
             entry = CustomCategories.FirstOrDefault(candidate => candidate != null && candidate.Category == category);
             return entry != null;
-        }
-
-        internal static bool TryGetOwnedCustomCategory(string normalizedKey, out ModOptionCategoryEntry entry)
-        {
-            entry = null;
-            if (string.IsNullOrWhiteSpace(normalizedKey)) return false;
-
-            return CustomCategoriesByKey.TryGetValue(normalizedKey, out entry) && entry != null;
-        }
-
-        internal static string NormalizeCustomCategoryKey(string category)
-        {
-            return NormalizeCategoryKey(category);
         }
 
         internal static bool IsOwnedCustomCategory(Setting.SettingCategory category)
@@ -130,6 +120,17 @@ namespace CUCoreLib.Registries
             if (string.IsNullOrWhiteSpace(localeKey) ||
                 !localeKey.StartsWith("gameset", StringComparison.Ordinal)) return false;
 
+            if (Locale.currentLang == null) Locale.LoadLanguage();
+            if (TextKeyOverrides.TryGetValue(localeKey, out var entry))
+            {
+                if (TryGetLoadedLocaleText(entry.Key, out text) ||
+                    TryGetRegisteredLocaleText(LocaleRegistry.LocaleCategory.Other, entry.Key, out text) ||
+                    TryGetRegisteredLocaleText(LocaleRegistry.LocaleCategory.Option, entry.Key, out text)) return true;
+
+                text = entry.Fallback;
+                return true;
+            }
+
             if (TryGetLoadedLocaleText(localeKey, out text)) return true;
 
             var cleanKey = localeKey.Substring("gameset".Length);
@@ -138,7 +139,22 @@ namespace CUCoreLib.Registries
             if (TryGetRegisteredLocaleText(LocaleRegistry.LocaleCategory.Other, localeKey, out text)) return true;
             if (TryGetRegisteredLocaleText(LocaleRegistry.LocaleCategory.Other, cleanKey, out text)) return true;
 
-            return TryGetRegisteredLocaleText(LocaleRegistry.LocaleCategory.Option, cleanKey, out text);
+            if (TryGetRegisteredLocaleText(LocaleRegistry.LocaleCategory.Option, cleanKey, out text)) return true;
+
+            if (RegisteredIds.Contains(cleanKey))
+            {
+                text = cleanKey;
+                return true;
+            }
+
+            if (cleanKey.EndsWith("dsc", StringComparison.Ordinal) &&
+                RegisteredIds.Contains(cleanKey.Substring(0, cleanKey.Length - 3)))
+            {
+                text = string.Empty;
+                return true;
+            }
+
+            return false;
         }
 
         private static void MergeIntoLoadedSettings(ModOptionDefinition option)
@@ -155,18 +171,30 @@ namespace CUCoreLib.Registries
 
         private static void RegisterLocale(ModOptionDefinition option)
         {
-            LocaleRegistry.Register(LocaleRegistry.LocaleCategory.Other, "gameset" + option.Id, option.Label);
-            if (!string.IsNullOrWhiteSpace(option.Description))
-            {
-                LocaleRegistry.Register(LocaleRegistry.LocaleCategory.Other, "gameset" + option.Id + "dsc",
-                    option.Description);
-            }
+            RegisterTextKey(option.Id, option.LabelKeyOverride, option.UsesLegacyText, option.Label, option.Id);
+            if (!option.UsesLegacyText || option.DescriptionKeyOverride != null || !string.IsNullOrWhiteSpace(option.Description))
+                RegisterTextKey(option.Id + "dsc", option.DescriptionKeyOverride, option.UsesLegacyText,
+                    option.Description, string.Empty);
 
             if (option.Kind != ModOptionKind.Dropdown || option.Choices == null) return;
 
             foreach (var choice in option.Choices)
                 LocaleRegistry.Register(LocaleRegistry.LocaleCategory.Other, "gameset" + option.Id + choice.Key,
                     choice.Label);
+        }
+
+        private static void RegisterTextKey(string conventionalKey, string overrideKey, bool useLegacyKey,
+            string literal, string missingText)
+        {
+            var menuKey = "gameset" + conventionalKey;
+            if (overrideKey == null)
+            {
+                LocaleRegistry.Register(LocaleRegistry.LocaleCategory.Other, useLegacyKey ? menuKey : conventionalKey, literal);
+                return;
+            }
+
+            TextKeyOverrides[menuKey] = (overrideKey, literal ?? missingText);
+            LocaleRegistry.Register(LocaleRegistry.LocaleCategory.Other, overrideKey, null);
         }
 
         internal static JObject CaptureNetworkSnapshot()
@@ -217,10 +245,7 @@ namespace CUCoreLib.Registries
                 return
                     $"option '{option.Id}' must use a namespaced ID like 'modid.setting'. Might be annoying, but needed.";
 
-            if (string.IsNullOrWhiteSpace(option.Label)) return $"option '{option.Id}' must have a label.";
-
-            if (option.UsesCustomCategory && string.IsNullOrWhiteSpace(option.CustomCategory))
-                return $"option '{option.Id}' custom category was empty.";
+            if (option.UsesLegacyText && string.IsNullOrWhiteSpace(option.Label)) return $"option '{option.Id}' must have a label.";
 
             if ((option.Kind == ModOptionKind.Float || option.Kind == ModOptionKind.Int) && option.Min > option.Max)
                 return $"option '{option.Id}' has min > max.";
@@ -357,26 +382,25 @@ namespace CUCoreLib.Registries
 
         private static void ResolveCategory(ModOptionDefinition option)
         {
-            if (!option.UsesCustomCategory) return;
+            var tab = option.CustomTab;
+            if (tab == null) return;
 
-            var normalizedKey = NormalizeCategoryKey(option.CustomCategory);
-            if (!CustomCategoriesByKey.TryGetValue(normalizedKey, out var entry))
+            var localizeTitle = tab.Key != null;
+            var categoryId = tab.Key ?? tab.Fallback;
+            var key = (localizeTitle ? categoryId : categoryId.ToLowerInvariant(), localizeTitle);
+            if (!CustomCategoriesByKey.TryGetValue(key, out var entry))
             {
-                entry = new ModOptionCategoryEntry(option.CustomCategory.Trim(),
+                entry = new ModOptionCategoryEntry(categoryId, localizeTitle,
                     (Setting.SettingCategory)FindNextAvailableCategoryIndex(CollectForeignCustomCategoryIndices(null),
                         new HashSet<int>(CustomCategories.Select(category => (int)category.Category))));
                 CustomCategories.Add(entry);
-                CustomCategoriesByKey.Add(normalizedKey, entry);
+                CustomCategoriesByKey.Add(key, entry);
+                if (localizeTitle) LocaleRegistry.Register(LocaleRegistry.LocaleCategory.Other, categoryId, null);
             }
 
-            entry.RegisterOption(option.Id);
+            entry.RegisterDefaultLabel(tab.Fallback);
             CustomCategoriesByOptionId[option.Id] = entry;
             option.SetResolvedCategory(entry.Category);
-        }
-
-        private static string NormalizeCategoryKey(string category)
-        {
-            return (category ?? string.Empty).Trim().ToLowerInvariant();
         }
 
         private static HashSet<int> CollectForeignCustomCategoryIndices(IEnumerable<Setting> settings)
@@ -457,18 +481,30 @@ namespace CUCoreLib.Registries
 
     internal sealed class ModOptionCategoryEntry
     {
-        private readonly HashSet<string> ownedOptionIds = new HashSet<string>(StringComparer.Ordinal);
+        private readonly bool localizeTitle;
+        private string defaultLabel;
 
-        public ModOptionCategoryEntry(string displayName, Setting.SettingCategory category)
+        public ModOptionCategoryEntry(string id, bool localizeTitle, Setting.SettingCategory category)
         {
-            DisplayName = displayName;
+            Id = id;
+            this.localizeTitle = localizeTitle;
             Category = category;
         }
 
-        public void RegisterOption(string optionId)
+        internal void RegisterDefaultLabel(string label)
         {
-            if (!string.IsNullOrWhiteSpace(optionId))
-                ownedOptionIds.Add(optionId);
+            if (!localizeTitle || defaultLabel != null || string.IsNullOrWhiteSpace(label)) return;
+
+            defaultLabel = label;
+            LocaleRegistry.Register(LocaleRegistry.LocaleCategory.Other, Id, label);
+        }
+
+        internal string GetDisplayName()
+        {
+            if (!localizeTitle) return Id;
+
+            if (Locale.currentLang == null) Locale.LoadLanguage();
+            return LocaleLoader.GetLocalizedText("other", Id, defaultLabel);
         }
 
         public void SetCategory(Setting.SettingCategory category)
@@ -476,7 +512,7 @@ namespace CUCoreLib.Registries
             Category = category;
         }
 
-        public string DisplayName { get; }
+        public string Id { get; }
         public Setting.SettingCategory Category { get; private set; }
         public int CategoryIndex => (int)Category;
     }

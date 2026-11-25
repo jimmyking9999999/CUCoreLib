@@ -213,17 +213,20 @@ namespace CUCoreLib.Helpers
 
         private static ModOptionDefinition CreateOptionFromEntry(string modGuid, ConfigEntryBase entry)
         {
+            var option = CreateTypedOption(modGuid + "." + entry.Definition.Key, entry);
+            return option?.SetCustomCategory(ModOptionCategory.Named(modGuid))
+                .WithLegacyText(entry.Definition.Key, entry.Description?.Description ?? string.Empty);
+        }
+
+        private static ModOptionDefinition CreateTypedOption(string id, ConfigEntryBase entry)
+        {
             var settingType = entry.SettingType;
-            var id = modGuid + "." + entry.Definition.Key;
-            var label = entry.Definition.Key;
-            var description = entry.Description?.Description ?? string.Empty;
-            var category = modGuid;
 
             if (settingType == typeof(bool))
             {
                 var defaultValue = (bool)entry.DefaultValue;
-                return ModOptionDefinition.Bool(id, label, description, category, defaultValue,
-                    value => entry.BoxedValue = value);
+                return ModOptionDefinition.Bool(id, defaultValue)
+                    .OnApply(value => entry.BoxedValue = value);
             }
 
             if (settingType == typeof(int))
@@ -233,8 +236,8 @@ namespace CUCoreLib.Helpers
                 var min = -bound;
                 var max = bound;
                 ExtractIntRange(entry, ref min, ref max);
-                return ModOptionDefinition.Int(id, label, description, category, defaultValue, min, max,
-                    value => entry.BoxedValue = value);
+                return ModOptionDefinition.Int(id, defaultValue, min, max)
+                    .OnApply(value => entry.BoxedValue = value);
             }
 
             if (settingType == typeof(float))
@@ -244,22 +247,22 @@ namespace CUCoreLib.Helpers
                 var min = -bound;
                 var max = bound;
                 ExtractFloatRange(entry, ref min, ref max);
-                return ModOptionDefinition.Float(id, label, description, category, defaultValue, min, max,
-                    value => entry.BoxedValue = value);
+                return ModOptionDefinition.Float(id, defaultValue, min, max)
+                    .OnApply(value => entry.BoxedValue = value);
             }
 
             if (settingType == typeof(string))
             {
                 var defaultValue = entry.DefaultValue?.ToString() ?? string.Empty;
-                return ModOptionDefinition.Text(id, label, description, category, defaultValue,
-                    value => entry.BoxedValue = value);
+                return ModOptionDefinition.Text(id, defaultValue)
+                    .OnApply(value => entry.BoxedValue = value);
             }
 
             if (settingType == typeof(KeyCode))
             {
                 var defaultValue = entry.DefaultValue is KeyCode kc ? kc : KeyCode.None;
-                return ModOptionDefinition.Keybind(id, label, description, category, defaultValue,
-                    value => entry.BoxedValue = value);
+                return ModOptionDefinition.Keybind(id, defaultValue)
+                    .OnApply(value => entry.BoxedValue = value);
             }
 
             if (settingType.IsEnum)
@@ -288,8 +291,8 @@ namespace CUCoreLib.Helpers
                     }
                 }
 
-                return ModOptionDefinition.Dropdown(id, label, description, category, defaultIndex, choices,
-                    value =>
+                return ModOptionDefinition.Dropdown(id, defaultIndex, choices)
+                    .OnApply(value =>
                     {
                         if (value >= 0 && value < enumValues.Length)
                             entry.BoxedValue = enumValues.GetValue(value);

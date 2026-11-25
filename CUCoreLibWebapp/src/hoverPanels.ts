@@ -8,32 +8,43 @@ export const hoverPanels: Record<string, HoverPanel> = {
   },
   ModOptionDefinition: {
     title: "ModOptionDefinition",
-    body: "Immutable description of one mod settings row. Build one with the static Bool, Float, Int, Dropdown, or Keybind helpers, then pass it to ModOptionsRegistry.Register."
+    body: "Defines a mod setting. Choose a factory method to configure the option, then pass it to ModOptionsRegistry.Register."
   },
   "ModOptionDefinition.Float": {
     title: "ModOptionDefinition.Float",
-    signature: "ModOptionDefinition ModOptionDefinition.Float(string id, string label, string description, Setting.SettingCategory category, float defaultValue, float min, float max, Action<float> apply = null, Func<float, string> formatValue = null)",
-    body: "Creates a slider-backed setting row. CUCoreLib also provides a string-category overload when you want a custom tab button. Defaults are clamped between min and max, apply receives the live value, and formatValue controls the display text when provided."
+    signature:
+      "ModOptionDefinition<float> ModOptionDefinition.Float(string id, float defaultValue, float min, float max, Func<float, string> formatValue = null)",
+    body: "Creates a slider between min and max. Use formatValue to decide how the value is displayed."
   },
   "ModOptionDefinition.Int": {
     title: "ModOptionDefinition.Int",
-    signature: "ModOptionDefinition ModOptionDefinition.Int(string id, string label, string description, Setting.SettingCategory category, int defaultValue, int min, int max, Action<int> apply = null)",
-    body: "Creates an integer setting row. CUCoreLib clamps the default to the declared range and invokes apply when the user applies settings."
+    signature:
+      "ModOptionDefinition<int> ModOptionDefinition.Int(string id, int defaultValue, int min, int max)",
+    body: "Creates an integer setting row. CUCoreLib clamps the default to the declared range and invokes callback when the user applies settings."
   },
   "ModOptionDefinition.Bool": {
     title: "ModOptionDefinition.Bool",
-    signature: "ModOptionDefinition ModOptionDefinition.Bool(string id, string label, string description, Setting.SettingCategory category, bool defaultValue, Action<bool> apply = null)",
-    body: "Creates a toggle setting row. Use the string-category overload if your mod should get a custom tab button. The apply callback receives the live checked value when the options screen applies settings."
+    signature:
+      "ModOptionDefinition<bool> ModOptionDefinition.Bool(string id, bool defaultValue)",
+    body: "Creates a toggle. Use .OnApply(...) to get the current value when the game applies the setting."
   },
   "ModOptionDefinition.Dropdown": {
     title: "ModOptionDefinition.Dropdown",
-    signature: "ModOptionDefinition ModOptionDefinition.Dropdown(string id, string label, string description, Setting.SettingCategory category, int defaultValue, ModDropdownChoice[] choices, Action<int> apply = null)",
+    signature:
+      "ModOptionDefinition<int> ModOptionDefinition.Dropdown(string id, int defaultValue, ModDropdownChoice[] choices)",
     body: "Creates a dropdown row. defaultValue is the selected choice index, not the choice key string, and choices must contain at least one unique key/label pair."
   },
   "ModOptionDefinition.Keybind": {
     title: "ModOptionDefinition.Keybind",
-    signature: "ModOptionDefinition ModOptionDefinition.Keybind(string id, string label, string description, Setting.SettingCategory category, KeyCode defaultValue, Action<KeyCode> apply = null)",
-    body: "Creates a keybind row that stores a Unity KeyCode and invokes apply with the selected key when settings apply."
+    signature:
+      "ModOptionDefinition<KeyCode> ModOptionDefinition.Keybind(string id, KeyCode defaultValue)",
+    body: "Creates a keybind row that stores a Unity KeyCode and invokes callback with the selected key when settings apply.",
+  },
+  "ModOptionDefinition.Text": {
+    title: "ModOptionDefinition.Text",
+    signature:
+      "ModOptionDefinition<string> ModOptionDefinition.Text(string id, string defaultValue, string placeholder = null)",
+    body: "Creates a text input. Use placeholder to show a hint when the field is empty.",
   },
   ModDropdownChoice: {
     title: "ModDropdownChoice",

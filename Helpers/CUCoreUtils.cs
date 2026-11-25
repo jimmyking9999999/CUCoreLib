@@ -1195,13 +1195,9 @@ namespace CUCoreLib.Helpers
                 return true;
 
             var label = string.IsNullOrWhiteSpace(entry.Description) ? entry.FriendlyName : entry.Description;
-            var option = ModOptionDefinition.Keybind(
-                entry.ActionId,
-                label,
-                label,
-                Setting.SettingCategory.Input,
-                entry.DefaultKey,
-                value => entry.CurrentKey = value);
+            var option = ModOptionDefinition.Keybind(entry.ActionId, entry.DefaultKey)
+                .OnApply(value => entry.CurrentKey = value)
+                .WithLegacyText(label, label);
 
             if (!ModOptionsRegistry.Register(option))
                 return false;
